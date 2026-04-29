@@ -51,7 +51,8 @@ def login_view(request):
         form = UserLoginForm()
     
     return render(request, 'accounts/login.html', {'form': form})
-@require_POST
+
+# @require_POST
 def register_view(request):
     form = UserRegistrationForm(request.POST)
     if form.is_valid():
