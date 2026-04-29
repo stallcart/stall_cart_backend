@@ -90,7 +90,7 @@
                 <!-- <a href="{% url 'delivery:portal' %}" class="nav-link">Delivery Jobs</a> -->
                 
                 <!-- ✅ ROLE-BASED ITEMS/SHOP TAB -->
-                {% if user.is_authenticated and (user.is_seller or user.is_superuser) %}
+                {% if user.is_authenticated and user.is_seller or user.is_superuser %}
                     <!-- Seller/Superuser: Go to Admin Dashboard -->
                     <a href="{% url 'items:admin_dashboard' %}" 
                        class="nav-link {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}">
