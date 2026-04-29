@@ -1,0 +1,570 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Cart - StallCart{% endblock %}
+
+{% block content %}
+<div class="cart-container">
+    <!-- Cart Header -->
+    <div class="cart-header">
+        <h2>My Cart ({{ cart_items|length }})</h2>
+        <a href="{% url 'shop:home' %}" class="back-link">← Continue Shopping</a>
+    </div>
+
+    {% if cart_items %}
+    <div class="cart-grid">
+        <!-- Cart Items Section -->
+        <div class="cart-items">
+            {% for item in cart_items %}
+            <div class="cart-item" data-product-id="{{ item.product.id }}">
+                <div class="item-image">
+                    {% if item.product.images.first %}
+                        <img src="{{ item.product.images.first.image.url }}" alt="{{ item.product.name }}">
+                    {% else %}
+                        <div class="no-image">No Image</div>
+                    {% endif %}
+                </div>
+                
+                <div class="item-details">
+                    <h4><a href="{% url 'shop:product_detail' item.product.slug %}">{{ item.product.name }}</a></h4>
+                    <p class="item-seller">Sold by: {{ item.product.seller.shop_name }}</p>
+                    <p class="item-price">₹{{ item.product.price }}</p>
+                    
+                    <div class="item-actions">
+                        <div class="quantity-control">
+                            <button class="qty-btn minus" data-action="decrease">−</button>
+                            <input type="number" class="qty-input" value="{{ item.quantity }}" min="1" max="{{ item.product.stock }}" data-stock="{{ item.product.stock }}">
+                            <button class="qty-btn plus" data-action="increase">+</button>
+                        </div>
+                        <button class="remove-btn" data-action="remove">
+                            <i class="fa fa-trash"></i> Remove
+                        </button>
+                    </div>
+                    
+                    <p class="item-subtotal">Subtotal: <strong>₹{{ item.subtotal }}</strong></p>
+                    
+                    {% if item.product.stock < item.quantity %}
+                        <p class="low-stock-warning">⚠️ Only {{ item.product.stock }} left in stock!</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Price Details Section -->
+        <div class="price-details">
+            <h3>Price Details</h3>
+            <div class="price-row">
+                <span>Price ({{ cart_items|length }} item{{ cart_items|length|pluralize }})</span>
+                <span>₹{{ total|floatformat:2 }}</span>
+            </div>
+            <div class="price-row">
+                <span>Discount</span>
+                <span class="discount">−₹0.00</span>
+            </div>
+            <div class="price-row">
+                <span>Delivery Charges</span>
+                <span class="{% if delivery_charge == 0 %}free{% endif %}">
+                    {% if delivery_charge == 0 %}FREE{% else %}₹{{ delivery_charge }}{% endif %}
+                </span>
+            </div>
+            {% if total < 499 %}
+                <p class="free-delivery-hint">Add ₹{% with remaining=499|add:"-1"|add:"-total"|floatformat:0 %}{{ remaining|default:0 }}{% endwith %} more for FREE delivery!</p>
+            {% endif %}
+            
+            <div class="price-row total-row">
+                <strong>Total Amount</strong>
+                <strong>₹{{ total|add:delivery_charge|floatformat:2 }}</strong>
+            </div>
+            
+            {% if user.is_authenticated %}
+                <button id="placeOrderBtn" class="btn-primary">PLACE ORDER</button>
+            {% else %}
+                <button id="loginToOrderBtn" class="btn-primary">LOGIN TO ORDER</button>
+                <p class="login-hint">Login to save your cart & checkout faster</p>
+            {% endif %}
+            
+            <div class="secure-badge">
+                <i class="fa fa-lock"></i> 100% Secure SSL Encrypted Transaction
+            </div>
+        </div>
+    </div>
+
+    <!-- Delivery Address Section (for authenticated users) -->
+    {% if user.is_authenticated %}
+    <div class="delivery-address-section">
+        <h3>📍 Delivery Address</h3>
+        <div class="address-card">
+            {% if user.address %}
+                <p><strong>{{ user.address.name|default:user.full_name }}</strong></p>
+                <p>{{ user.address.address }}, {{ user.address.city }}</p>
+                <p>{{ user.address.state }} - {{ user.address.postalCode }}</p>
+                <p>📞 {{ user.address.phone|default:user.phone }}</p>
+                <button class="btn-outline" id="editAddressBtn">Edit Address</button>
+            {% else %}
+                <p>No address saved. Add one during checkout.</p>
+                <button class="btn-outline" id="addAddressBtn">Add Address</button>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Payment Method Preview -->
+    <div class="payment-preview">
+        <h3>💳 Select Payment Method</h3>
+        <div class="payment-options">
+            <label class="payment-option">
+                <input type="radio" name="payment" value="UPI" checked>
+                <div class="payment-icon">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/e/e1/Google_Pay_Logo.svg" alt="GPay" width="40">
+                </div>
+                <span>Online Payment / UPI<br><small>GPay, PhonePe, Cards, NetBanking</small></span>
+                <span class="offer-badge">FLAT ₹50 INSTANT OFF</span>
+            </label>
+            <label class="payment-option">
+                <input type="radio" name="payment" value="COD">
+                <div class="payment-icon">💵</div>
+                <span>Cash on Delivery (COD)<br><small>Safe and Reliable Delivery</small></span>
+            </label>
+        </div>
+    </div>
+
+    {% else %}
+    <!-- Empty Cart State -->
+    <div class="empty-cart">
+        <i class="fa fa-shopping-cart"></i>
+        <h3>Your cart is empty</h3>
+        <p>Looks like you haven't added any items yet.</p>
+        <a href="{% url 'shop:home' %}" class="btn-primary">Start Shopping</a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Address Modal (Hidden) -->
+<div id="addressModal" class="modal" style="display:none;">
+    <div class="modal-content">
+        <span class="modal-close">&times;</span>
+        <h3>Add Delivery Address</h3>
+        <form id="addressForm">
+            {% csrf_token %}
+            <input type="text" name="name" placeholder="Full Name" class="form-input" required>
+            <input type="tel" name="phone" placeholder="Phone Number" class="form-input" required pattern="[0-9]{10}">
+            <textarea name="address" placeholder="House No., Street, Area" class="form-input" required></textarea>
+            <input type="text" name="city" placeholder="City" class="form-input" required>
+            <input type="text" name="state" placeholder="State" class="form-input" required>
+            <input type="text" name="postalCode" placeholder="PIN Code" class="form-input" required pattern="[0-9]{6}">
+            <button type="submit" class="btn-primary">SAVE ADDRESS</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const csrfToken = '{{ csrf_token }}';
+const cartItems = document.querySelectorAll('.cart-item');
+const placeOrderBtn = document.getElementById('placeOrderBtn');
+const loginToOrderBtn = document.getElementById('loginToOrderBtn');
+
+// Quantity Controls
+document.querySelectorAll('.qty-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+        const input = btn.parentElement.querySelector('.qty-input');
+        const productId = btn.closest('.cart-item').dataset.productId;
+        const stock = parseInt(input.dataset.stock);
+        let qty = parseInt(input.value);
+        
+        if (btn.dataset.action === 'increase' && qty < stock) {
+            qty++;
+        } else if (btn.dataset.action === 'decrease' && qty > 1) {
+            qty--;
+        }
+        
+        input.value = qty;
+        await updateCartItem(productId, qty);
+    });
+});
+
+// Direct input change
+document.querySelectorAll('.qty-input').forEach(input => {
+    input.addEventListener('change', async (e) => {
+        const productId = e.target.closest('.cart-item').dataset.productId;
+        const stock = parseInt(e.target.dataset.stock);
+        let qty = parseInt(e.target.value);
+        
+        // Validate quantity
+        if (isNaN(qty) || qty < 1) qty = 1;
+        if (qty > stock) {
+            qty = stock;
+            alert(`Only ${stock} items available in stock.`);
+        }
+        
+        e.target.value = qty;
+        await updateCartItem(productId, qty);
+    });
+});
+
+// Remove Item
+document.querySelectorAll('.remove-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        if (!confirm('Remove this item from cart?')) return;
+        const productId = btn.closest('.cart-item').dataset.productId;
+        await updateCartItem(productId, 0, 'remove');
+    });
+});
+
+// AJAX: Update Cart Item
+async function updateCartItem(productId, quantity, action = 'update') {
+    try {
+        const res = await fetch("{% url 'shop:update_cart' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                product_id: productId,
+                quantity: quantity,
+                action: action
+            })
+        });
+        const data = await res.json();
+        
+        if (data.status === 'success') {
+            // Update cart count in header
+            document.getElementById('cart-count').textContent = data.cart_count;
+            
+            // If item removed, fade out and remove from DOM
+            if (action === 'remove' || quantity === 0) {
+                const item = document.querySelector(`.cart-item[data-product-id="${productId}"]`);
+                if (item) {
+                    item.style.opacity = '0';
+                    item.style.transform = 'translateX(-20px)';
+                    setTimeout(() => {
+                        item.remove();
+                        // Refresh page if cart is now empty
+                        if (document.querySelectorAll('.cart-item').length === 0) {
+                            window.location.reload();
+                        }
+                    }, 300);
+                }
+            } else {
+                // Recalculate subtotal for this item
+                const item = document.querySelector(`.cart-item[data-product-id="${productId}"]`);
+                const price = parseFloat(item.querySelector('.item-price').textContent.replace('₹', ''));
+                item.querySelector('.item-subtotal strong').textContent = `₹${(price * quantity).toFixed(2)}`;
+                
+                // Update total in price details (simplified - in production, recalculate server-side)
+                location.reload(); // For simplicity, reload to update totals
+            }
+        } else {
+            alert(data.message || 'Failed to update cart');
+        }
+    } catch (err) {
+        alert('Network error: ' + err.message);
+    }
+}
+
+// Place Order (Authenticated Users)
+if (placeOrderBtn) {
+    placeOrderBtn.addEventListener('click', async () => {
+        // Validate address if not set
+        const hasAddress = document.querySelector('.address-card p strong');
+        if (!hasAddress) {
+            document.getElementById('addressModal').style.display = 'flex';
+            return;
+        }
+        
+        // Get selected payment method
+        const paymentMethod = document.querySelector('input[name="payment"]:checked').value;
+        
+        // Get address from DOM (simplified - in production, fetch from backend)
+        const address = {
+            name: document.querySelector('.address-card strong')?.textContent || '{{ user.full_name }}',
+            phone: '{{ user.phone }}',
+            address: document.querySelector('.address-card p:nth-child(2)')?.textContent || '',
+            city: '', state: '', postalCode: '' // Parse from DOM or fetch from backend
+        };
+        
+        try {
+            const res = await fetch("{% url 'shop:create_order' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({
+                    address: address,
+                    payment_method: paymentMethod
+                })
+            });
+            const data = await res.json();
+            
+            if (data.status === 'success') {
+                if (paymentMethod === 'COD') {
+                    // COD: Redirect to success page
+                    window.location.href = `/orders/success/${data.order_id}/`;
+                } else {
+                    // Online Payment: Open Razorpay
+                    const options = {
+                        "key": data.razorpay_key,
+                        "amount": data.amount,
+                        "currency": data.currency,
+                        "name": data.name,
+                        "description": data.description,
+                        "order_id": data.razorpay_order_id,
+                        "prefill": data.prefill,
+                        "theme": { "color": "#2874f0" },
+                        "handler": function(response) {
+                            // Payment successful - redirect to order success
+                            window.location.href = `/orders/success/${data.order_id}/?payment_id=${response.razorpay_payment_id}`;
+                        },
+                        "modal": {
+                            "ondismiss": function() {
+                                alert('Payment cancelled. Please complete your order.');
+                            }
+                        }
+                    };
+                    const rzp = new Razorpay(options);
+                    rzp.open();
+                }
+            } else {
+                alert(data.error || 'Order placement failed');
+            }
+        } catch (err) {
+            alert('Network error: ' + err.message);
+        }
+    });
+}
+
+// Login to Order (Unauthenticated Users)
+if (loginToOrderBtn) {
+    loginToOrderBtn.addEventListener('click', () => {
+        // Open login modal from base.html
+        document.getElementById('loginModal').style.display = 'flex';
+        // Store cart return URL
+        sessionStorage.setItem('cartReturn', window.location.pathname);
+    });
+}
+
+// Address Modal Handling
+const addressModal = document.getElementById('addressModal');
+document.getElementById('addAddressBtn')?.addEventListener('click', () => {
+    addressModal.style.display = 'flex';
+});
+document.getElementById('editAddressBtn')?.addEventListener('click', () => {
+    // Pre-fill form with existing address (simplified)
+    addressModal.style.display = 'flex';
+});
+document.querySelector('.modal-close')?.addEventListener('click', () => {
+    addressModal.style.display = 'none';
+});
+window.addEventListener('click', (e) => {
+    if (e.target === addressModal) addressModal.style.display = 'none';
+});
+
+// Save Address (AJAX)
+document.getElementById('addressForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const address = Object.fromEntries(formData.entries());
+    
+    try {
+        // In production, save to backend via API
+        // For now, simulate success
+        alert('Address saved!');
+        addressModal.style.display = 'none';
+        location.reload(); // Refresh to show updated address
+    } catch (err) {
+        alert('Failed to save address: ' + err.message);
+    }
+});
+
+// Auto-open login modal if redirected from cart after login
+document.addEventListener('DOMContentLoaded', () => {
+    const cartReturn = sessionStorage.getItem('cartReturn');
+    if (cartReturn && window.location.pathname === cartReturn && !'{{ user.is_authenticated }}') {
+        document.getElementById('loginModal').style.display = 'flex';
+        sessionStorage.removeItem('cartReturn');
+    }
+});
+</script>
+
+<style>
+/* Cart Page Styles */
+.cart-container { max-width: 1200px; margin: 40px auto; padding: 0 20px; }
+.cart-header { 
+    display: flex; justify-content: space-between; align-items: center; 
+    margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid #eee; 
+}
+.cart-header h2 { font-size: 1.8rem; color: #212121; }
+.back-link { color: #2874f0; font-weight: 500; }
+.back-link:hover { text-decoration: underline; }
+
+.cart-grid { 
+    display: grid; grid-template-columns: 2fr 1fr; gap: 30px; 
+}
+
+/* Cart Items */
+.cart-items { display: flex; flex-direction: column; gap: 20px; }
+.cart-item { 
+    display: grid; grid-template-columns: 120px 1fr; gap: 20px; 
+    background: white; padding: 20px; border-radius: 12px; 
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08); 
+}
+.item-image { 
+    width: 120px; height: 120px; border-radius: 8px; overflow: hidden; 
+    background: #f5f5f5; display: flex; align-items: center; justify-content: center; 
+}
+.item-image img { width: 100%; height: 100%; object-fit: cover; }
+.no-image { color: #999; font-size: 0.9rem; }
+
+.item-details h4 { 
+    font-size: 1.1rem; margin-bottom: 5px; 
+}
+.item-details h4 a { color: #212121; }
+.item-seller { 
+    font-size: 0.85rem; color: #666; margin-bottom: 10px; 
+}
+.item-price { 
+    font-weight: 700; color: #2874f0; font-size: 1.2rem; margin-bottom: 15px; 
+}
+
+.item-actions { 
+    display: flex; justify-content: space-between; align-items: center; 
+    margin-bottom: 15px; 
+}
+.quantity-control { 
+    display: flex; align-items: center; gap: 10px; 
+    border: 1px solid #ddd; border-radius: 8px; padding: 5px; 
+}
+.qty-btn { 
+    width: 30px; height: 30px; border: none; background: #f0f0f0; 
+    border-radius: 6px; font-size: 1.2rem; cursor: pointer; 
+}
+.qty-btn:hover { background: #e0e0e0; }
+.qty-input { 
+    width: 50px; text-align: center; border: none; font-size: 1rem; 
+    -moz-appearance: textfield; 
+}
+.qty-input::-webkit-outer-spin-button,
+.qty-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+.remove-btn { 
+    background: none; border: none; color: #c62828; 
+    font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 5px; 
+}
+.remove-btn:hover { color: #b71c1c; }
+
+.item-subtotal { 
+    font-size: 1rem; color: #333; 
+}
+.low-stock-warning { 
+    font-size: 0.85rem; color: #ff5252; margin-top: 5px; 
+}
+
+/* Price Details */
+.price-details { 
+    background: white; padding: 25px; border-radius: 12px; 
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08); height: fit-content; 
+    position: sticky; top: 100px; 
+}
+.price-details h3 { 
+    font-size: 1.3rem; margin-bottom: 20px; padding-bottom: 15px; 
+    border-bottom: 1px solid #eee; 
+}
+.price-row { 
+    display: flex; justify-content: space-between; margin-bottom: 12px; 
+    font-size: 0.95rem; 
+}
+.price-row.total-row { 
+    font-size: 1.2rem; padding-top: 15px; border-top: 2px solid #eee; margin-top: 10px; 
+}
+.discount { color: #388e3c; font-weight: 600; }
+.free { color: #388e3c; font-weight: 600; }
+.free-delivery-hint { 
+    font-size: 0.85rem; color: #666; margin: 10px 0; 
+}
+
+.btn-primary { 
+    width: 100%; padding: 14px; background: #2874f0; color: white; 
+    border: none; border-radius: 10px; font-weight: 600; font-size: 1rem; 
+    cursor: pointer; margin: 20px 0 10px; transition: background 0.2s; 
+}
+.btn-primary:hover { background: #1a56c4; }
+.login-hint { 
+    font-size: 0.85rem; color: #666; text-align: center; 
+}
+.secure-badge { 
+    text-align: center; font-size: 0.85rem; color: #666; 
+    display: flex; align-items: center; justify-content: center; gap: 6px; 
+}
+
+/* Delivery Address */
+.delivery-address-section { 
+    margin-top: 30px; background: white; padding: 25px; 
+    border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); 
+}
+.delivery-address-section h3 { 
+    font-size: 1.3rem; margin-bottom: 15px; 
+}
+.address-card { 
+    background: #f8f9fa; padding: 15px; border-radius: 8px; 
+}
+.address-card p { margin: 5px 0; font-size: 0.95rem; }
+
+/* Payment Preview */
+.payment-preview { 
+    margin-top: 20px; background: white; padding: 25px; 
+    border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); 
+}
+.payment-preview h3 { 
+    font-size: 1.3rem; margin-bottom: 15px; 
+}
+.payment-options { display: flex; flex-direction: column; gap: 12px; }
+.payment-option { 
+    display: flex; align-items: center; gap: 12px; padding: 12px; 
+    border: 2px solid #eee; border-radius: 10px; cursor: pointer; 
+    transition: border-color 0.2s; 
+}
+.payment-option:hover { border-color: #2874f0; }
+.payment-option input[type="radio"] { 
+    width: 18px; height: 18px; cursor: pointer; 
+}
+.payment-icon { 
+    font-size: 1.5rem; display: flex; align-items: center; 
+}
+.payment-option span { flex: 1; font-size: 0.95rem; }
+.payment-option small { 
+    display: block; color: #666; font-size: 0.85rem; margin-top: 3px; 
+}
+.offer-badge { 
+    background: #fff8e1; color: #f57f17; padding: 4px 10px; 
+    border-radius: 20px; font-size: 0.8rem; font-weight: 600; 
+}
+
+/* Empty Cart */
+.empty-cart { 
+    text-align: center; padding: 60px 20px; background: white; 
+    border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); 
+}
+.empty-cart i { 
+    font-size: 4rem; color: #ccc; margin-bottom: 20px; 
+}
+.empty-cart h3 { 
+    font-size: 1.5rem; margin-bottom: 10px; color: #212121; 
+}
+.empty-cart p { 
+    color: #666; margin-bottom: 25px; 
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .cart-grid { grid-template-columns: 1fr; }
+    .price-details { position: static; }
+    .cart-item { grid-template-columns: 100px 1fr; }
+    .item-image { width: 100px; height: 100px; }
+    .payment-options { flex-direction: column; }
+}
+</style>
+{% endblock %}

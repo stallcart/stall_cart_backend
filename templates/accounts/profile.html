@@ -1,0 +1,472 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Profile - {{ site_settings.site_name }}{% endblock %}
+
+{% block content %}
+<div class="profile-container">
+    <!-- Page Header -->
+    <div class="profile-header">
+        <h2>👤 My Profile</h2>
+        <p class="text-muted">Manage your account, address, and preferences</p>
+    </div>
+
+    <!-- Profile Stats -->
+    <div class="profile-stats">
+        <div class="stat-item">
+            <span class="stat-value">{{ user.orders.count|default:0 }}</span>
+            <span class="stat-label">Orders</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-value">{{ user.wishlist_count|default:0 }}</span>
+            <span class="stat-label">Wishlist</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-value">{{ user.role|title }}</span>
+            <span class="stat-label">Account Type</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-value">{{ user.is_verified|yesno:"Verified,Pending" }}</span>
+            <span class="stat-label">Status</span>
+        </div>
+    </div>
+
+    <!-- Profile Form -->
+    <div class="profile-card">
+        <div class="card-header">
+            <h3>📝 Personal Information</h3>
+            <button type="button" class="btn-outline btn-sm" id="editProfileBtn">Edit</button>
+        </div>
+        
+        <form id="profileForm" method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="update_profile">
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="fullName">Full Name</label>
+                    <input type="text" id="fullName" name="full_name" class="form-input" 
+                           value="{{ user.full_name|default:'' }}" 
+                           {% if not user.is_superuser %}readonly{% endif %}>
+                </div>
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" name="email" class="form-input" 
+                           value="{{ user.email|default:'' }}" required>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="phone">Mobile Number</label>
+                    <input type="tel" id="phone" name="phone" class="form-input" 
+                           value="{{ user.phone }}" readonly>
+                    <small class="text-muted">Phone number cannot be changed</small>
+                </div>
+                <div class="form-group">
+                    <label for="role">Account Role</label>
+                    <input type="text" id="role" class="form-input" 
+                           value="{{ user.get_role_display }}" readonly>
+                </div>
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn-primary" id="saveProfileBtn" style="display:none;">Save Changes</button>
+                <button type="button" class="btn-outline" id="cancelEditBtn" style="display:none;">Cancel</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Shipping Address -->
+    <div class="profile-card">
+        <div class="card-header">
+            <h3>📍 Shipping Address</h3>
+            <button type="button" class="btn-outline btn-sm" id="editAddressBtn">
+                {% if user.address %}Edit{% else %}Add Address{% endif %}
+            </button>
+        </div>
+        
+        <div id="addressView">
+            {% if user.address %}
+            <div class="address-card">
+                <p><strong>{{ user.address.name|default:user.full_name }}</strong></p>
+                <p>{{ user.address.address }}</p>
+                <p>{{ user.address.city }}, {{ user.address.state }} - {{ user.address.postalCode }}</p>
+                <p>📞 {{ user.address.phone|default:user.phone }}</p>
+                <p class="text-muted">Country: {{ user.address.country|default:'India' }}</p>
+            </div>
+            {% else %}
+            <p class="empty-state">No address saved. Add one to speed up checkout.</p>
+            {% endif %}
+        </div>
+        
+        <form id="addressForm" method="post" style="display:none;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="update_address">
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="addrName">Full Name *</label>
+                    <input type="text" id="addrName" name="name" class="form-input" 
+                           value="{{ user.address.name|default:user.full_name }}" required>
+                </div>
+                <div class="form-group">
+                    <label for="addrPhone">Phone Number *</label>
+                    <input type="tel" id="addrPhone" name="phone" class="form-input" 
+                           value="{{ user.address.phone|default:user.phone }}" required pattern="[0-9]{10}">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="addrLine1">Address Line *</label>
+                <textarea id="addrLine1" name="address" class="form-input" rows="2" required>{{ user.address.address }}</textarea>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="addrCity">City *</label>
+                    <input type="text" id="addrCity" name="city" class="form-input" 
+                           value="{{ user.address.city }}" required>
+                </div>
+                <div class="form-group">
+                    <label for="addrState">State *</label>
+                    <input type="text" id="addrState" name="state" class="form-input" 
+                           value="{{ user.address.state }}" required>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="addrPostal">PIN Code *</label>
+                    <input type="text" id="addrPostal" name="postalCode" class="form-input" 
+                           value="{{ user.address.postalCode }}" required pattern="[0-9]{6}">
+                </div>
+                <div class="form-group">
+                    <label for="addrCountry">Country</label>
+                    <select id="addrCountry" name="country" class="form-select">
+                        <option value="India" {% if user.address.country == 'India' %}selected{% endif %}>India</option>
+                        <option value="Nepal" {% if user.address.country == 'Nepal' %}selected{% endif %}>Nepal</option>
+                        <option value="Bangladesh" {% if user.address.country == 'Bangladesh' %}selected{% endif %}>Bangladesh</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn-primary">Save Address</button>
+                <button type="button" class="btn-outline" id="cancelAddressBtn">Cancel</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Account Security -->
+    <div class="profile-card">
+        <div class="card-header">
+            <h3>🔐 Account Security</h3>
+        </div>
+        <div class="security-list">
+            <div class="security-item">
+                <div>
+                    <strong>Password</strong>
+                    <p class="text-muted">Last changed: {{ user.updated_at|date:"M d, Y" }}</p>
+                </div>
+                <a href="{% url 'accounts:change_password' %}" class="btn-outline btn-sm">Change Password</a>
+            </div>
+            <div class="security-item">
+                <div>
+                    <strong>Two-Factor Authentication</strong>
+                    <p class="text-muted">Add an extra layer of security</p>
+                </div>
+                <button class="btn-outline btn-sm" disabled>Coming Soon</button>
+            </div>
+            <div class="security-item">
+                <div>
+                    <strong>Login Sessions</strong>
+                    <p class="text-muted">Manage active devices</p>
+                </div>
+                <button class="btn-outline btn-sm" disabled>Coming Soon</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Order History Preview -->
+    <div class="profile-card">
+        <div class="card-header">
+            <h3>📦 Recent Orders</h3>
+            <a href="#" class="btn-outline btn-sm">View All</a>
+        </div>
+        <div class="orders-preview">
+            {% if user.orders.exists %}
+                {% for order in user.orders.all|slice:":3" %}
+                <div class="order-preview-item">
+                    <div>
+                        <strong>Order #{{ order.id|slice:":8"|upper }}</strong>
+                        <p class="text-muted">{{ order.created_at|date:"M d, Y" }}</p>
+                    </div>
+                    <div class="order-status">
+                        <span class="badge {% if order.status == 'Delivered' %}success{% elif order.status == 'Pending' %}warning{% else %}info{% endif %}">
+                            {{ order.status }}
+                        </span>
+                        <strong>₹{{ order.total_amount|floatformat:2 }}</strong>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="empty-state">No orders yet. <a href="{% url 'shop:home' %}">Start shopping</a></p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const csrfToken = '{{ csrf_token }}';
+
+// Profile Edit Toggle
+const editProfileBtn = document.getElementById('editProfileBtn');
+const cancelEditBtn = document.getElementById('cancelEditBtn');
+const saveProfileBtn = document.getElementById('saveProfileBtn');
+const profileInputs = document.querySelectorAll('#profileForm .form-input:not([readonly])');
+
+editProfileBtn?.addEventListener('click', () => {
+    profileInputs.forEach(input => input.readOnly = false);
+    editProfileBtn.style.display = 'none';
+    saveProfileBtn.style.display = 'inline-block';
+    cancelEditBtn.style.display = 'inline-block';
+});
+
+cancelEditBtn?.addEventListener('click', () => {
+    profileInputs.forEach(input => input.readOnly = true);
+    editProfileBtn.style.display = 'inline-block';
+    saveProfileBtn.style.display = 'none';
+    cancelEditBtn.style.display = 'none';
+    // Reset form to original values
+    document.getElementById('profileForm').reset();
+});
+
+// Profile Form Submit (AJAX)
+document.getElementById('profileForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('saveProfileBtn');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+    
+    const formData = {
+        full_name: document.getElementById('fullName').value,
+        email: document.getElementById('email').value
+    };
+    
+    try {
+        const res = await fetch("{% url 'accounts:profile' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify(formData)
+        });
+        const data = await res.json();
+        
+        if (data.status === 'success') {
+            showToast('Profile updated successfully!');
+            // Re-enable edit mode
+            profileInputs.forEach(input => input.readOnly = true);
+            editProfileBtn.style.display = 'inline-block';
+            saveProfileBtn.style.display = 'none';
+            cancelEditBtn.style.display = 'none';
+        } else {
+            alert(data.error || 'Failed to update profile');
+        }
+    } catch (err) {
+        alert('Network error: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save Changes';
+    }
+});
+
+// Address Edit Toggle
+const editAddressBtn = document.getElementById('editAddressBtn');
+const cancelAddressBtn = document.getElementById('cancelAddressBtn');
+const addressView = document.getElementById('addressView');
+const addressForm = document.getElementById('addressForm');
+
+editAddressBtn?.addEventListener('click', () => {
+    addressView.style.display = 'none';
+    addressForm.style.display = 'block';
+    editAddressBtn.style.display = 'none';
+});
+
+cancelAddressBtn?.addEventListener('click', () => {
+    addressView.style.display = 'block';
+    addressForm.style.display = 'none';
+    editAddressBtn.style.display = 'inline-block';
+});
+
+// Address Form Submit (AJAX)
+document.getElementById('addressForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const address = {
+        name: formData.get('name'),
+        phone: formData.get('phone'),
+        address: formData.get('address'),
+        city: formData.get('city'),
+        state: formData.get('state'),
+        postalCode: formData.get('postalCode'),
+        country: formData.get('country')
+    };
+    
+    try {
+        const res = await fetch("{% url 'accounts:profile' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ action: 'update_address', address })
+        });
+        const data = await res.json();
+        
+        if (data.status === 'success') {
+            showToast('Address saved!');
+            // Reload page to show updated address
+            window.location.reload();
+        } else {
+            alert(data.error || 'Failed to save address');
+        }
+    } catch (err) {
+        alert('Network error: ' + err.message);
+    }
+});
+
+// Simple toast notification
+function showToast(message) {
+    const toast = document.createElement('div');
+    toast.textContent = message;
+    toast.style.cssText = `
+        position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+        padding: 12px 22px; border-radius: 8px; font-weight: 600;
+        background: var(--primary-color, #2874f0); color: #fff;
+        box-shadow: 0 4px 14px rgba(0,0,0,.18); animation: slideUp .25s ease;
+    `;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+        toast.style.animation = 'slideDown .25s ease';
+        setTimeout(() => toast.remove(), 250);
+    }, 2500);
+}
+
+// Add CSS animations if not in base.css
+if (!document.querySelector('#profile-animations')) {
+    const style = document.createElement('style');
+    style.id = 'profile-animations';
+    style.textContent = `
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes slideDown { from { transform: translateY(0); opacity: 1; } to { transform: translateY(20px); opacity: 0; } }
+    `;
+    document.head.appendChild(style);
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.profile-container { max-width: 900px; margin: 0 auto; padding: 20px; }
+.profile-header { margin-bottom: 25px; }
+.profile-header h2 { margin: 0 0 5px; }
+.text-muted { color: #666; }
+
+/* Stats Grid */
+.profile-stats { 
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); 
+    gap: 15px; margin-bottom: 25px; 
+}
+.stat-item { 
+    background: #fff; padding: 15px; border-radius: 10px; text-align: center; 
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06); 
+}
+.stat-value { 
+    display: block; font-size: 1.4rem; font-weight: 700; color: var(--primary-color, #2874f0); 
+}
+.stat-label { font-size: 0.8rem; color: #666; }
+
+/* Profile Cards */
+.profile-card { 
+    background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 20px; 
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06); 
+}
+.card-header { 
+    display: flex; justify-content: space-between; align-items: center; 
+    margin-bottom: 15px; padding-bottom: 12px; border-bottom: 1px solid #eee; 
+}
+.card-header h3 { margin: 0; font-size: 1.2rem; }
+
+/* Forms */
+.form-row { 
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+    gap: 15px; margin-bottom: 15px; 
+}
+.form-group { margin-bottom: 15px; }
+.form-group label { 
+    display: block; margin-bottom: 6px; font-weight: 500; color: #444; font-size: 0.9rem; 
+}
+.form-input, .form-select, textarea { 
+    width: 100%; padding: 10px 12px; border: 1px solid #ddd; 
+    border-radius: 8px; font-size: 1rem; transition: border 0.2s; 
+}
+.form-input:focus, .form-select:focus, textarea:focus { 
+    border-color: var(--primary-color, #2874f0); outline: none; 
+    box-shadow: 0 0 0 3px rgba(40,116,240,0.1); 
+}
+.form-input:read-only { background: #f8f9fa; cursor: not-allowed; }
+.form-group small { display: block; color: #888; font-size: 0.8rem; margin-top: 4px; }
+
+.form-actions { 
+    display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px; 
+}
+.btn-sm { padding: 6px 12px; font-size: 0.85rem; }
+
+/* Address Card */
+.address-card { 
+    background: #f8f9fa; padding: 15px; border-radius: 8px; 
+    border-left: 3px solid var(--primary-color, #2874f0); 
+}
+.address-card p { margin: 4px 0; font-size: 0.95rem; }
+.empty-state { color: #888; text-align: center; padding: 20px; }
+
+/* Security List */
+.security-list { display: flex; flex-direction: column; gap: 12px; }
+.security-item { 
+    display: flex; justify-content: space-between; align-items: center; 
+    padding: 12px; border: 1px solid #eee; border-radius: 8px; 
+}
+.security-item strong { display: block; margin-bottom: 4px; }
+.security-item p { margin: 0; font-size: 0.85rem; }
+
+/* Orders Preview */
+.orders-preview { display: flex; flex-direction: column; gap: 12px; }
+.order-preview-item { 
+    display: flex; justify-content: space-between; align-items: center; 
+    padding: 12px; border: 1px solid #eee; border-radius: 8px; 
+}
+.order-status { 
+    display: flex; flex-direction: column; align-items: flex-end; gap: 4px; 
+}
+.badge { 
+    padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; 
+}
+.badge.success { background: #e8f5e9; color: #2e7d32; }
+.badge.warning { background: #fff8e1; color: #f57f17; }
+.badge.info { background: #e3f2fd; color: #1976d2; }
+
+@media (max-width: 768px) {
+    .profile-stats { grid-template-columns: repeat(2, 1fr); }
+    .form-row { grid-template-columns: 1fr; }
+    .security-item, .order-preview-item { flex-direction: column; align-items: flex-start; gap: 8px; }
+    .order-status { align-items: flex-start; }
+}
+</style>
+{% endblock %}

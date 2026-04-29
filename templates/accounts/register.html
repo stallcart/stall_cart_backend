@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block title %}Create StallCart Account{% endblock %}
+{% block content %}
+<div class="auth-container">
+    <h2>Create Your Account</h2>
+    <form method="post" id="authForm">
+        {% csrf_token %}
+        {% for field in form %}
+            <div class="form-group">{{ field }}</div>
+            {% if field.errors %}<div class="alert error">{{ field.errors.0 }}</div>{% endif %}
+        {% endfor %}
+        <button type="submit" class="btn-primary">CREATE ACCOUNT</button>
+        <p>Existing user? <a href="{% url 'accounts:login' %}">Login here</a></p>
+    </form>
+</div>
+{% endblock %}

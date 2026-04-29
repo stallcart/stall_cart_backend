@@ -1,0 +1,185 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}StallCart | India's Premium Fashion Destination - Shop Men & Women Deals{% endblock %}
+
+{% block content %}
+<!-- Hero Banner -->
+<section class="hero">
+    <div class="hero-content">
+        <h1>SUMMER COLLECTION 2026</h1>
+        <h2>ELITE FASHION.</h2>
+        <p>From the grace of Sarees to the edge of Modern Shirts. Discover curated pieces that define your style.</p>
+        <a href="#products" class="btn-primary">Shop Latest Collection</a>
+    </div>
+</section>
+
+<!-- Product Grid -->
+<section id="products" class="product-section">
+    <div class="section-header">
+        <h3>TRENDING 2026</h3>
+        <div class="filters">
+            <select id="categoryFilter">
+                <option value="">All Categories</option>
+                {% for cat in categories %}
+                    <option value="{{ cat.slug }}">{{ cat.name }}</option>
+                {% endfor %}
+            </select>
+            <select id="sortFilter">
+                <option value="relevance">Relevance</option>
+                <option value="popularity">Popularity</option>
+                <option value="price_asc">Price -- Low to High</option>
+                <option value="price_desc">Price -- High to Low</option>
+                <option value="newest">Newest First</option>
+            </select>
+        </div>
+    </div>
+    
+    <div class="product-grid">
+        {% for product in products %}
+        <div class="product-card" data-category="{{ product.category.slug }}" data-price="{{ product.price }}">
+            <a href="{% url 'shop:product_detail' product.slug %}">
+                {% if product.images.first %}
+                    <img src="{{ product.images.first.image.url }}" alt="{{ product.name }}" loading="lazy">
+                {% else %}
+                    <div class="no-image">No Image</div>
+                {% endif %}
+            </a>
+            <div class="product-info">
+                <h4><a href="{% url 'shop:product_detail' product.slug %}">{{ product.name }}</a></h4>
+                <div class="price">₹{{ product.price }}</div>
+                {% if product.stock <= 5 and product.stock > 0 %}
+                    <span class="low-stock">Only {{ product.stock }} left!</span>
+                {% endif %}
+                <button class="btn-add-cart" data-product-id="{{ product.id }}" data-stock="{{ product.stock }}">
+                    {% if product.stock > 0 %}Add to Cart{% else %}Out of Stock{% endif %}
+                </button>
+            </div>
+        </div>
+        {% empty %}
+        <p class="no-products">No products found. Check back soon!</p>
+        {% endfor %}
+    </div>
+</section>
+
+<!-- Deals Section -->
+<section class="deals-section">
+    <div class="deals-header">
+        <h3>Deals of the Day</h3>
+        <div class="countdown" id="countdown">23h : 59m : 55s</div>
+        <a href="#" class="view-all">View All</a>
+    </div>
+    <!-- Add featured products here -->
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Filter & Sort Logic
+document.getElementById('categoryFilter').onchange = filterProducts;
+document.getElementById('sortFilter').onchange = filterProducts;
+
+function filterProducts() {
+    const category = document.getElementById('categoryFilter').value;
+    const sort = document.getElementById('sortFilter').value;
+    const cards = document.querySelectorAll('.product-card');
+    
+    // Filter by category
+    cards.forEach(card => {
+        if (category && card.dataset.category !== category) {
+            card.style.display = 'none';
+        } else {
+            card.style.display = 'block';
+        }
+    });
+    
+    // Sort (simplified - in production, do this server-side)
+    if (sort === 'price_asc') {
+        const sorted = Array.from(cards).sort((a, b) => 
+            parseFloat(a.dataset.price) - parseFloat(b.dataset.price)
+        );
+        sorted.forEach(card => card.parentNode.appendChild(card));
+    } else if (sort === 'price_desc') {
+        const sorted = Array.from(cards).sort((a, b) => 
+            parseFloat(b.dataset.price) - parseFloat(a.dataset.price)
+        );
+        sorted.forEach(card => card.parentNode.appendChild(card));
+    }
+}
+
+// Add to Cart (AJAX)
+document.querySelectorAll('.btn-add-cart').forEach(btn => {
+    btn.onclick = async (e) => {
+        e.preventDefault();
+        const productId = btn.dataset.productId;
+        const stock = parseInt(btn.dataset.stock);
+        
+        if (stock <= 0) {
+            alert('Sorry, this item is out of stock!');
+            return;
+        }
+        
+        try {
+            const res = await fetch("{% url 'shop:add_to_cart' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({ product_id: productId, quantity: 1 })
+            });
+            const data = await res.json();
+            
+            if (data.status === 'success') {
+                document.getElementById('cart-count').textContent = data.cart_count;
+                // Show toast notification
+                showToast(data.message);
+            } else {
+                alert(data.message || 'Failed to add to cart');
+            }
+        } catch (err) {
+            alert('Network error: ' + err.message);
+        }
+    };
+});
+
+// Simple toast notification
+function showToast(message) {
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = message;
+    toast.style.cssText = `
+        position: fixed; bottom: 20px; right: 20px; 
+        background: #388e3c; color: white; padding: 12px 24px; 
+        border-radius: 8px; z-index: 1000; animation: slideIn 0.3s ease;
+    `;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+        toast.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+    }, 2000);
+}
+
+// Countdown Timer
+function updateCountdown() {
+    const now = new Date();
+    const end = new Date();
+    end.setHours(23, 59, 59);
+    
+    const diff = end - now;
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+    
+    document.getElementById('countdown').textContent = 
+        `${hours}h : ${minutes}m : ${seconds}s`;
+}
+setInterval(updateCountdown, 1000);
+updateCountdown();
+</script>
+
+<style>
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
+</style>
+{% endblock %}

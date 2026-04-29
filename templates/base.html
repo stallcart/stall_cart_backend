@@ -1,0 +1,354 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- ✅ DYNAMIC TITLE & META -->
+    <title>{% block title %}{{ site_settings.site_name }} | {{ site_settings.site_tagline }}{% endblock %}</title>
+    <meta name="description" content="{% block meta_description %}{{ site_settings.meta_description }}{% endblock %}">
+    
+    <!-- ✅ DYNAMIC FAVICON & APP ICONS -->
+    {% if site_settings.favicon %}
+        <link rel="icon" type="image/png" href="{{ site_settings.favicon.url }}">
+        <link rel="apple-touch-icon" href="{{ site_settings.apple_touch_icon.url|default:site_settings.favicon.url }}">
+    {% else %}
+        <link rel="icon" href="{% static 'images/favicon.png' %}">
+    {% endif %}
+    
+    <!-- ✅ DYNAMIC OPEN GRAPH / SOCIAL SHARING -->
+    <meta property="og:site_name" content="{{ site_settings.site_name }}">
+    <meta property="og:title" content="{% block og_title %}{{ site_settings.site_tagline }}{% endblock %}">
+    <meta property="og:description" content="{{ site_settings.meta_description }}">
+    {% if site_settings.logo_primary %}
+        <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{{ site_settings.logo_primary.url }}">
+        <meta property="og:image:width" content="1200">
+        <meta property="og:image:height" content="630">
+    {% endif %}
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ request.build_absolute_uri }}">
+    
+    <!-- Fonts & Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- CSS -->
+    <link href="{% static 'css/style.css' %}" rel="stylesheet">
+    {% block extra_css %}{% endblock %}
+    
+    <!-- ✅ DYNAMIC CSS VARIABLES (Brand Colors) -->
+    <style>
+        :root {
+            --primary-color: {{ site_settings.primary_color|default:'#2874f0' }};
+            --secondary-color: {{ site_settings.secondary_color|default:'#1a56c4' }};
+        }
+        .btn-primary, .btn-join { background: var(--primary-color); }
+        .btn-primary:hover, .btn-join:hover { background: var(--secondary-color); }
+        a, .nav-link:hover, .read-more { color: var(--primary-color); }
+        .cart-icon, .logo-text { color: var(--primary-color); }
+    </style>
+    
+    <!-- Razorpay SDK -->
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    
+    <!-- ✅ Auto-update favicon if changed in admin -->
+    {% if site_settings.favicon %}
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        let link = document.querySelector("link[rel~='icon']");
+        if (!link) {
+            link = document.createElement('link');
+            link.rel = 'icon';
+            document.head.appendChild(link);
+        }
+        link.href = '{{ site_settings.favicon.url }}?v={{ site_settings.updated_at.timestamp }}';
+    });
+    </script>
+    {% endif %}
+</head>
+<body>
+    <!-- Header -->
+    <header class="navbar">
+        <div class="nav-container">
+            <!-- ✅ DYNAMIC LOGO WITH FALLBACKS -->
+            <a href="{% url 'shop:home' %}" class="logo">
+                {% if site_settings.logo_mobile %}
+                    <img src="{{ site_settings.logo_mobile.url }}" alt="{{ site_settings.site_name }}" class="logo-img logo-mobile" width="40" height="40" onerror="this.nextElementSibling.style.display='block'; this.style.display='none'">
+                {% endif %}
+                {% if site_settings.logo_dark %}
+                    <img src="{{ site_settings.logo_dark.url }}" alt="{{ site_settings.site_name }}" class="logo-img logo-dark" width="180" height="50" onerror="this.nextElementSibling.style.display='block'; this.style.display='none'">
+                {% endif %}
+                <img src="{{ site_settings.logo_url }}" alt="{{ site_settings.site_name }}" class="logo-img logo-primary" width="180" height="50" onerror="this.nextElementSibling.style.display='block'; this.style.display='none'">
+                <span class="logo-text" style="display:none;">{{ site_settings.site_name }}</span>
+            </a>
+            
+            <!-- ✅ ROLE-BASED NAV ACTIONS -->
+            <div class="nav-actions">
+                <!-- Blog & Delivery (public) -->
+                <a href="{% url 'blog:blog_list' %}" class="nav-link">Blog</a>
+                <!-- <a href="{% url 'delivery:portal' %}" class="nav-link">Delivery Jobs</a> -->
+                
+                <!-- ✅ ROLE-BASED ITEMS/SHOP TAB -->
+                {% if user.is_authenticated and (user.is_seller or user.is_superuser) %}
+                    <!-- Seller/Superuser: Go to Admin Dashboard -->
+                    <a href="{% url 'items:admin_dashboard' %}" 
+                       class="nav-link {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}">
+                        <i class="fa fa-boxes"></i> Items
+                        {% if user.is_seller and user.seller_profile.low_stock_count %}
+                            <span class="badge warning">{{ user.seller_profile.low_stock_count }}</span>
+                        {% endif %}
+                    </a>
+                {% else %}
+                    <!-- Customer: Go to Public Shop -->
+                    <a href="{% url 'items:product_list' %}" class="nav-link">
+                        <i class="fa fa-store"></i> Shop
+                    </a>
+                {% endif %}
+                
+                <!-- Auth & Cart -->
+                {% if user.is_authenticated %}
+                    <a href="{% url 'accounts:profile' %}" class="nav-link">
+                        <i class="fa fa-user"></i> {{ user.full_name|default:user.phone|truncatechars:12 }}
+                    </a>
+                    <form action="{% url 'accounts:logout' %}" method="post" style="display:inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="nav-link" style="background:none;border:none;cursor:pointer;">Logout</button>
+                    </form>
+                {% else %}
+                    <button class="nav-link" id="loginBtn" type="button">
+                        <i class="fa fa-user"></i> Login
+                    </button>
+                {% endif %}
+                
+                <a href="{% url 'shop:cart' %}" class="cart-icon">
+                    <i class="fa fa-shopping-cart"></i>
+                    <span id="cart-count">{{ cart_count|default:0 }}</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Login Modal (Hidden by Default) -->
+    <div id="loginModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <span class="modal-close" id="closeLoginModal">&times;</span>
+            <h3>Login to {{ site_settings.site_name }}</h3>
+            <form id="loginForm" method="post" action="{% url 'accounts:login' %}">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.path }}">
+                <div class="form-group">
+                    <input type="tel" name="username" id="loginPhone" placeholder="Mobile Number" class="form-input" required pattern="[0-9]{10}" maxlength="10" value="{{ form.username.value|default:'' }}">
+                    {% if form.username.errors %}<div class="error-text">{{ form.username.errors.0 }}</div>{% endif %}
+                </div>
+                <div class="form-group">
+                    <input type="password" name="password" id="loginPassword" placeholder="Password" class="form-input" required minlength="6">
+                    {% if form.password.errors %}<div class="error-text">{{ form.password.errors.0 }}</div>{% endif %}
+                </div>
+                {% if form.non_field_errors %}<div class="alert error">{{ form.non_field_errors.0 }}</div>{% endif %}
+                <button type="submit" class="btn-primary">LOGIN</button>
+            </form>
+            <div class="auth-links">
+                <a href="{% url 'accounts:forgot_password' %}">Forgot Password?</a>
+                <span>New here? <a href="#" id="switchToRegister">Create account</a></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Register Modal -->
+    <div id="registerModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <span class="modal-close" id="closeRegisterModal">&times;</span>
+            <h3>Create Account</h3>
+            <form id="registerForm" method="post" action="{% url 'accounts:register' %}">
+                {% csrf_token %}
+                <div class="form-group">
+                    <input type="text" name="full_name" id="regName" placeholder="Full Name" class="form-input" value="{{ form.full_name.value|default:'' }}">
+                </div>
+                <div class="form-group">
+                    <input type="tel" name="phone" id="regPhone" placeholder="Mobile Number" class="form-input" required pattern="[0-9]{10}" maxlength="10" value="{{ form.phone.value|default:'' }}">
+                    {% if form.phone.errors %}<div class="error-text">{{ form.phone.errors.0 }}</div>{% endif %}
+                </div>
+                <div class="form-group">
+                    <input type="email" name="email" id="regEmail" placeholder="Email (Required for Password Reset)" class="form-input" required value="{{ form.email.value|default:'' }}">
+                    {% if form.email.errors %}<div class="error-text">{{ form.email.errors.0 }}</div>{% endif %}
+                </div>
+                <div class="form-group">
+                    <input type="password" name="password1" id="regPassword" placeholder="Password" class="form-input" required minlength="6">
+                    {% if form.password1.errors %}<div class="error-text">{{ form.password1.errors.0 }}</div>{% endif %}
+                </div>
+                <div class="form-group">
+                    <input type="password" name="password2" id="regPasswordConfirm" placeholder="Confirm Password" class="form-input" required minlength="6">
+                    {% if form.password2.errors %}<div class="error-text">{{ form.password2.errors.0 }}</div>{% endif %}
+                </div>
+                {% if form.non_field_errors %}<div class="alert error">{{ form.non_field_errors.0 }}</div>{% endif %}
+                <button type="submit" class="btn-primary">CREATE ACCOUNT</button>
+            </form>
+            <p class="auth-footer">Existing user? <a href="#" id="switchToLogin">Log in</a></p>
+        </div>
+    </div>
+
+    <!-- Maintenance Mode Banner (if enabled) -->
+    {% if IS_MAINTENANCE and not user.is_superuser %}
+    <div class="maintenance-banner" style="background:#fff8e1; color:#f57f17; text-align:center; padding:10px; font-weight:600;">
+        🔧 {{ site_settings.site_name }} is under maintenance. Please check back soon.
+    </div>
+    {% endif %}
+
+    <!-- Main Content -->
+    <main class="container">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-grid">
+            <div>
+                <h4>ABOUT US</h4>
+                <p>{{ site_settings.site_tagline }}<br>Owner: Manish Kumar Jaiswal</p>
+                <a href="{% url 'delivery:portal' %}" class="btn-outline">Work as A Delivery Boy</a>
+            </div>
+            <div>
+                <h4>POLICIES</h4>
+                <ul>
+                    <li><a href="#">Cancellation Policy (24-Hour)</a></li>
+                    <li><a href="#">Return Policy</a></li>
+                    <li><a href="#">Terms & Conditions</a></li>
+                    <li><a href="#">Privacy Policy</a></li>
+                </ul>
+            </div>
+            <div>
+                <h4>✅ CONTACT US</h4>
+                <ul>
+                    <li><a href="tel:{{ site_settings.contact_phone }}"><i class="fa fa-phone"></i> {{ site_settings.contact_phone }}</a></li>
+                    <li><a href="{{ site_settings.whatsapp_link }}" target="_blank" rel="noopener"><i class="fa fa-whatsapp"></i> WhatsApp</a></li>
+                    <li><a href="mailto:{{ site_settings.contact_email }}"><i class="fa fa-envelope"></i> {{ site_settings.contact_email }}</a></li>
+                </ul>
+                {% if site_settings.social_instagram or site_settings.social_facebook or site_settings.social_twitter %}
+                <div class="social-icons" style="margin-top:15px; display:flex; gap:12px;">
+                    {% if site_settings.social_instagram %}<a href="{{ site_settings.social_instagram }}" target="_blank" rel="noopener" style="color:#E1306C; font-size:1.3rem;"><i class="fa fa-instagram"></i></a>{% endif %}
+                    {% if site_settings.social_facebook %}<a href="{{ site_settings.social_facebook }}" target="_blank" rel="noopener" style="color:#1877F2; font-size:1.3rem;"><i class="fa fa-facebook"></i></a>{% endif %}
+                    {% if site_settings.social_twitter %}<a href="{{ site_settings.social_twitter }}" target="_blank" rel="noopener" style="color:#1DA1F2; font-size:1.3rem;"><i class="fa fa-twitter"></i></a>{% endif %}
+                </div>
+                {% endif %}
+            </div>
+            <div>
+                <h4>QUICK LINKS</h4>
+                <ul>
+                    <li><a href="{% url 'shop:home' %}">Shop</a></li>
+                    <li><a href="{% url 'blog:blog_list' %}">Blog</a></li>
+                </ul>
+                <div class="trust-badges">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/e/e1/Google_Pay_Logo.svg" alt="GPay" width="40">
+                    <span>Secure Payments by Razorpay</span>
+                    <span>100% Original Products</span>
+                    <span>Free & Fast Delivery India</span>
+                </div>
+            </div>
+        </div>
+        <div class="footer-bottom">© {% now "Y" %} {{ site_settings.site_name }}.in | {{ site_settings.site_tagline }}. Manufactured with Love in India.</div>
+    </footer>
+
+    <!-- Global JS -->
+    <script>
+        const csrfToken = '{{ csrf_token }}';
+        
+        // Modal Elements
+        const loginModal = document.getElementById('loginModal');
+        const registerModal = document.getElementById('registerModal');
+        const loginBtn = document.getElementById('loginBtn');
+        const closeLoginModal = document.getElementById('closeLoginModal');
+        const closeRegisterModal = document.getElementById('closeRegisterModal');
+        
+        // Open Login Modal
+        if (loginBtn) {
+            loginBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                loginModal.style.display = 'flex';
+                document.querySelectorAll('.error-text').forEach(el => el.remove());
+            });
+        }
+        
+        // Close Modals
+        [closeLoginModal, closeRegisterModal].forEach(btn => {
+            if (btn) {
+                btn.addEventListener('click', () => {
+                    loginModal.style.display = 'none';
+                    registerModal.style.display = 'none';
+                });
+            }
+        });
+        
+        // Switch between Login/Register
+        document.getElementById('switchToRegister')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            loginModal.style.display = 'none';
+            registerModal.style.display = 'flex';
+        });
+        
+        document.getElementById('switchToLogin')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            registerModal.style.display = 'none';
+            loginModal.style.display = 'flex';
+        });
+        
+        // Close modal on outside click
+        window.addEventListener('click', (e) => {
+            if (e.target === loginModal) loginModal.style.display = 'none';
+            if (e.target === registerModal) registerModal.style.display = 'none';
+        });
+        
+        // Handle form submission with AJAX fallback
+        document.querySelectorAll('#loginForm, #registerForm').forEach(form => {
+            form.addEventListener('submit', async (e) => {
+                const isAjax = form.dataset.ajax === 'true';
+                if (isAjax) {
+                    e.preventDefault();
+                    const formData = new FormData(form);
+                    try {
+                        const res = await fetch(form.action, {
+                            method: 'POST',
+                            headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
+                            body: formData
+                        });
+                        const data = await res.json();
+                        if (data.status === 'success') {
+                            window.location.href = data.redirect;
+                        } else {
+                            document.querySelectorAll('.error-text').forEach(el => el.remove());
+                            if (data.errors) {
+                                Object.entries(data.errors).forEach(([field, messages]) => {
+                                    const input = form.querySelector(`[name="${field}"]`);
+                                    if (input) {
+                                        const errorDiv = document.createElement('div');
+                                        errorDiv.className = 'error-text';
+                                        errorDiv.textContent = messages[0];
+                                        input.parentNode.appendChild(errorDiv);
+                                    }
+                                });
+                            }
+                        }
+                    } catch (err) { form.submit(); }
+                }
+            });
+        });
+        
+        // Auto-show modal if there are form errors
+        document.addEventListener('DOMContentLoaded', () => {
+            const hasErrors = document.querySelector('.error-text') || document.querySelector('.alert.error');
+            if (hasErrors) {
+                const isRegister = document.getElementById('registerForm')?.contains(hasErrors);
+                if (isRegister) { registerModal.style.display = 'flex'; }
+                else { loginModal.style.display = 'flex'; }
+            }
+        });
+    </script>
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html>

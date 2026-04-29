@@ -1,0 +1,177 @@
+{% block scripts %}
+<script>
+const csrfToken = '{{ csrf_token }}';
+const joinForm = document.getElementById('joinForm');
+const btnTrack = document.getElementById('btnTrack');
+const tasksList = document.getElementById('tasksList');
+
+// Tab Switching
+document.getElementById('tabJoin').onclick = () => toggleTabs(true);
+document.getElementById('tabStatus').onclick = () => toggleTabs(false);
+
+function toggleTabs(showJoin) {
+    document.getElementById('tabJoin').classList.toggle('active', showJoin);
+    document.getElementById('tabStatus').classList.toggle('active', !showJoin);
+    document.getElementById('joinSection').style.display = showJoin ? 'block' : 'none';
+    document.getElementById('statusSection').style.display = showJoin ? 'none' : 'block';
+}
+
+// Join Form Submission
+joinForm.onsubmit = async (e) => {
+    e.preventDefault();
+    const formData = new FormData(joinForm);
+    const data = Object.fromEntries(formData.entries());
+    
+    try {
+        const res = await fetch("{% url 'delivery:api_register' %}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        
+        if (result.status === 'success') {
+            document.getElementById('trackPhone').value = result.phone;
+            toggleTabs(false);
+            loadTasks(result.phone);
+            joinForm.reset();
+        } else {
+            alert('Error: ' + result.message);
+        }
+    } catch (err) { alert('Network error: ' + err.message); }
+};
+
+// Track Tasks
+btnTrack.onclick = async () => {
+    const phone = document.getElementById('trackPhone').value.trim();
+    if (!phone) { alert("Enter your registered phone."); return; }
+    
+    tasksList.innerHTML = '<div class="loading">Searching for assignments...</div>';
+    
+    try {
+        const res = await fetch(`{% url 'delivery:api_tasks' %}?phone=${phone}`);
+        const { tasks, message } = await res.json();
+        
+        if (!tasks.length) {
+            tasksList.innerHTML = `<div class="empty">${message || 'No task assigned yet. Contact Stallcart Support.'}</div>`;
+            return;
+        }
+        
+        tasksList.innerHTML = tasks.map(t => `
+            <div class="order-card-d">
+                <div class="order-d-header">
+                    <div>
+                        <span style="font-size:11px; color:#888;">ORDER ID: #${t.order_id}</span>
+                        <h4 style="margin:4px 0;">${t.product_title}</h4>
+                    </div>
+                    <span class="status-badge ${t.status === 'Out for Delivery' ? 's-out' : t.status === 'Delivered' ? 's-delivered' : ''}">
+                        ${t.status}
+                    </span>
+                </div>
+                
+                <div class="user-info-box">
+                    <div style="font-weight:700; color:#2874f0;">
+                        <i class="fa fa-user"></i> ${t.user_name}
+                    </div>
+                    <a href="tel:${t.user_phone}" style="display:inline-flex; align-items:center; gap:6px; color:#388e3c; text-decoration:none; margin:8px 0; background:#e8f5e9; padding:6px 12px; border-radius:4px;">
+                        <i class="fa fa-phone"></i> ${t.user_phone}
+                    </a>
+                    <div style="font-size:13px; color:#444; line-height:1.5;">
+                        <strong style="display:block; font-size:11px; color:#888;">Shipping Location:</strong>
+                        ${t.address.address || 'N/A'}<br>
+                        ${t.address.city || ''}, ${t.address.state || ''} - <strong>${t.address.postalCode || ''}</strong>
+                    </div>
+                </div>
+                ${renderActions(t)}
+            </div>
+        `).join('');
+    } catch (err) {
+        tasksList.innerHTML = `<div class="error">Error loading tasks: ${err.message}</div>`;
+    }
+};
+
+function renderActions(t) {
+    if (t.status === 'Delivered') {
+        return '<div class="success-badge">✅ DELIVERY COMPLETED</div>';
+    }
+    
+    let html = `
+        <div style="margin-top:15px;">
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; background:#fff8e1; padding:10px; border-radius:6px;">
+                <input type="checkbox" ${t.status === 'Out for Delivery' ? 'checked disabled' : ''} 
+                       onchange="markOutForDelivery('${t.id}')"> 
+                <span style="font-weight:600; color:#f57f17;">START DELIVERY</span>
+            </label>
+        </div>
+    `;
+    
+    if (t.status === 'Out for Delivery') {
+        html += `
+            <div style="margin-top:15px; display:flex; gap:8px;">
+                <input type="number" id="otp_${t.id}" placeholder="Enter 6-digit OTP" maxlength="6" 
+                       style="flex:1; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                <button class="btn-join" style="padding:8px 16px;" 
+                        onclick="confirmDelivery('${t.id}', '${t.delivery_otp}')">VERIFY</button>
+            </div>
+        `;
+    }
+    return html;
+}
+
+// ✅ FIXED: Build UUID URL in JavaScript (not Django template tag)
+window.markOutForDelivery = async (taskId) => {
+    if (!confirm('Set status to OUT FOR DELIVERY?')) return;
+    
+    try {
+        // Build URL manually: /delivery/api/update/<uuid>/
+        const url = `/delivery/api/update/${taskId}/`;
+        
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify({ action: 'out_for_delivery' })
+        });
+        const result = await res.json();
+        if (result.error) alert(result.error);
+        else {
+            alert('Status updated! Deliver safely.');
+            document.getElementById('btnTrack').click();
+        }
+    } catch (err) { alert('Error: ' + err.message); }
+};
+
+window.confirmDelivery = async (taskId, correctOtp) => {
+    const inputOtp = document.getElementById(`otp_${taskId}`).value;
+    if (inputOtp !== correctOtp) {
+        alert('Invalid OTP. Ask customer for the correct 6-digit code.');
+        return;
+    }
+    if (!confirm('Confirm order delivered successfully?')) return;
+    
+    try {
+        // Build URL manually: /delivery/api/update/<uuid>/
+        const url = `/delivery/api/update/${taskId}/`;
+        
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify({ action: 'deliver', otp: inputOtp })
+        });
+        const result = await res.json();
+        if (result.error) alert(result.error);
+        else {
+            alert('🎉 Order Delivered Successfully!');
+            document.getElementById('btnTrack').click();
+        }
+    } catch (err) { alert('Error: ' + err.message); }
+};
+
+// Auto-load tasks on page load
+document.addEventListener('DOMContentLoaded', () => {
+    const phone = document.getElementById('trackPhone').value;
+    if (phone && document.getElementById('tabStatus').classList.contains('active')) {
+        loadTasks(phone);
+    }
+});
+</script>
+{% endblock %}
