@@ -28,18 +28,49 @@ class UserRegistrationForm(UserCreationForm):
 
     def clean_phone(self):
         phone = self.cleaned_data.get('phone')
+
+        if not phone.isdigit():
+            raise ValidationError("Mobile number must contain only digits.")
+
+        if len(phone) != 10:
+            raise ValidationError("Mobile number must be exactly 10 digits.")
+
         if User.objects.filter(phone=phone).exists():
             raise ValidationError("This mobile number is already registered.")
+
         return phone
 
 class UserLoginForm(AuthenticationForm):
-    username = forms.CharField(widget=forms.TextInput(attrs={
-        'placeholder': 'Mobile Number', 'class': 'form-input'
-    }))
-    password = forms.CharField(widget=forms.PasswordInput(attrs={
-        'placeholder': 'Password', 'class': 'form-input'
-    }))
+    username = forms.CharField(
+        label="Mobile Number",
+        widget=forms.TextInput(attrs={
+            'placeholder': 'Enter 10-digit mobile number',
+            'class': 'form-input',
+            'pattern': '[0-9]{10}',
+            'maxlength': '10',
+            'inputmode': 'numeric',
+            'id': 'id_username'
+        })
+    )
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['username'].label = "Mobile Number"
+    password = forms.CharField(
+        widget=forms.PasswordInput(attrs={
+            'placeholder': 'Password',
+            'class': 'form-input',
+            'id': 'id_password'
+        })
+    )
+
+    def clean_username(self):
+        phone = self.cleaned_data.get('username')
+
+        if not phone:
+            raise ValidationError("Mobile number is required")
+
+        if not phone.isdigit():
+            raise ValidationError("Mobile number must contain only digits.")
+
+        if len(phone) != 10:
+            raise ValidationError("Mobile number must be exactly 10 digits.")
+
+        return phone

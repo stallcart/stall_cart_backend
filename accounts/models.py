@@ -54,3 +54,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     class Meta:
         verbose_name = 'User'
         verbose_name_plural = 'Users'
+
+    @property
+    def is_seller(self):
+        """Check if user has a verified seller profile"""
+        return hasattr(self, 'seller_profile') and self.seller_profile.is_verified    
