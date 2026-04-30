@@ -15,7 +15,9 @@ DEBUG = env('DEBUG')
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
 
 INSTALLED_APPS = [
-    'django.contrib.admin', 'django.contrib.auth', 'django.contrib.contenttypes',
+    'colorfield',  # Required dependency
+    'admin_interface',    'django.contrib.admin',
+    'django.contrib.auth', 'django.contrib.contenttypes',
     'django.contrib.sessions', 'django.contrib.messages', 'whitenoise.runserver_nostatic',
     'django.contrib.staticfiles',
     'accounts', 'shop', 'orders', 'delivery', 'blog','common' ,'items'
@@ -80,3 +82,4 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
