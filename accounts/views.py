@@ -155,7 +155,7 @@ class CustomPasswordResetCompleteView(PasswordResetCompleteView):
 # accounts/views.py
 @login_required
 def profile_view(request):
-    """User profile management - handles both page render and AJAX updates"""
+    """User profile management - role-based sections"""
     
     # Handle AJAX POST requests
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -164,18 +164,34 @@ def profile_view(request):
             action = data.get('action')
             
             if action == 'update_profile':
-                # Update personal info
+                # Update personal info (all roles)
                 request.user.full_name = data.get('full_name', request.user.full_name)
                 request.user.email = data.get('email', request.user.email)
                 request.user.save()
                 return JsonResponse({'status': 'success', 'message': 'Profile updated'})
             
             elif action == 'update_address':
-                # Update shipping address
+                # Only customers can update shipping address
+                if request.user.role != 'customer':
+                    return JsonResponse({'status': 'error', 'message': 'Only customers can update shipping address'}, status=403)
+                
                 address = data.get('address', {})
-                request.user.address = address  # Assuming address is a JSONField
+                request.user.address = address
                 request.user.save()
                 return JsonResponse({'status': 'success', 'message': 'Address saved'})
+            
+            elif action == 'update_shop':
+                # Only sellers can update shop details
+                if request.user.role != 'seller' or not hasattr(request.user, 'seller_profile'):
+                    return JsonResponse({'status': 'error', 'message': 'Only sellers can update shop details'}, status=403)
+                
+                shop_data = data.get('shop', {})
+                seller = request.user.seller_profile
+                seller.shop_name = shop_data.get('shop_name', seller.shop_name)
+                seller.shop_description = shop_data.get('shop_description', seller.shop_description)
+                seller.gst_number = shop_data.get('gst_number', seller.gst_number)
+                seller.save()
+                return JsonResponse({'status': 'success', 'message': 'Shop details updated'})
             
             return JsonResponse({'status': 'error', 'message': 'Invalid action'}, status=400)
             
@@ -184,10 +200,43 @@ def profile_view(request):
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
     
-    # GET request: render profile page
+    # GET request: render profile page with role-based context
+    is_customer = request.user.role == 'customer'
+    is_seller = request.user.role == 'seller' and hasattr(request.user, 'seller_profile')
+    is_admin = request.user.is_superuser
+    
+    # Customer-specific data
+    user_orders = []
+    wishlist_count = 0
+    if is_customer:
+        from orders.models import Order
+        user_orders = Order.objects.filter(user=request.user).order_by('-created_at')[:5]
+        # wishlist_count = request.user.wishlist_items.count()  # If you have wishlist model
+    
+    # Seller-specific data
+    seller_stats = None
+    if is_seller:
+        from items.models import Product
+        seller = request.user.seller_profile
+        seller_stats = {
+            'total_products': seller.products.count(),
+            'published': seller.products.filter(status='published').count(),
+            'total_sales': seller.products.aggregate(total=models.Sum('sold_count'))['total'] or 0,
+            'rating': seller.rating,
+            'is_verified': seller.is_verified,
+        }
+    
     context = {
         'user': request.user,
-        # Add any extra context needed
+        'is_customer': is_customer,
+        'is_seller': is_seller,
+        'is_admin': is_admin,
+        # Customer data
+        'user_orders': user_orders,
+        'wishlist_count': wishlist_count,
+        # Seller data
+        'seller_stats': seller_stats,
+        'seller_profile': request.user.seller_profile if is_seller else None,
     }
     return render(request, 'accounts/profile.html', context)
 
