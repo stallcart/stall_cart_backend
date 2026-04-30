@@ -4,7 +4,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
-from django.db.models import Q, Sum
+from django.db.models import Q, Sum , F
 from .models import Product, Category, SellerProfile, ProductImage
 from .forms import ProductForm
 
