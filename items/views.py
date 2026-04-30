@@ -364,13 +364,15 @@ def product_list(request):
         Product.objects
         .filter(status='published', stock__gt=0)
         .select_related('seller', 'category')
-        .prefetch_related('all_images')
+        .prefetch_related('product_image_product')  # ✅ Matches model related_name
     )
 
+    # Filters
     category_slug = request.GET.get('category')
     min_price     = request.GET.get('min_price')
     max_price     = request.GET.get('max_price')
     search        = request.GET.get('search')
+    sort          = request.GET.get('sort', '-created_at')
 
     if category_slug:
         products = products.filter(category__slug=category_slug)
@@ -385,34 +387,60 @@ def product_list(request):
             Q(brand__icontains=search)
         )
 
-    products = products.order_by(request.GET.get('sort', '-created_at'))
+    # Sorting
+    sort_options = {
+        'newest': '-created_at',
+        'price_asc': 'price',
+        'price_desc': '-price',
+        'popular': '-views_count',
+        'name_asc': 'name',
+    }
+    order_by = sort_options.get(sort, '-created_at')
+    products = products.order_by(order_by)
 
-    return render(request, 'shop/product_list.html', {
-        'products':   products,
+    context = {
+        'products': products,
         'categories': Category.objects.filter(is_active=True),
-        'filters':    request.GET.dict(),
-    })
+        'filters': request.GET.dict(),
+        'sort': sort,
+    }
+    return render(request, 'shop/product_list.html', context)
 
 
 def product_detail(request, slug):
     """Public product detail page."""
     product = get_object_or_404(
-        Product.objects.select_related('seller', 'category').prefetch_related('all_images'),
+        Product.objects.select_related('seller', 'category')
+                       .prefetch_related('product_image_product'),
         slug=slug,
         status='published',
     )
 
-    product.views_count += 1
+    # Increment view count
+    product.views_count = models.F('views_count') + 1
     product.save(update_fields=['views_count'])
+    product.refresh_from_db() # Refresh to get updated count
 
+    # Gallery images
+    images = list(product.product_image_product.all().order_by('display_order', '-is_primary'))
+    if product.primary_image:
+        # Ensure primary is first
+        primary_img = type('Img', (), {'image': product.primary_image, 'is_primary': True})()
+        if primary_img not in images:
+            images.insert(0, primary_img)
+
+    # Related products (same category, published, in stock)
     related = (
         Product.objects
         .filter(category=product.category, status='published', stock__gt=0)
-        .exclude(pk=product.pk)[:4]
+        .exclude(pk=product.pk)
+        .select_related('seller')
+        .prefetch_related('product_image_product')[:4]
     )
 
-    return render(request, 'shop/product_detail.html', {
-        'product':          product,
+    context = {
+        'product': product,
+        'images': images,
         'related_products': related,
-        'images':           product.all_images.all(),
-    })
+    }
+    return render(request, 'shop/product_detail.html', context)

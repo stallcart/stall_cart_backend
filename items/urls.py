@@ -21,6 +21,6 @@ urlpatterns = [
     path('api/product/<int:product_id>/',       views.product_api_detail,    name='product_api_detail'),
 
     # ── Public pages ──────────────────────────────────────────────────────
-    path('products/',                           views.product_list,          name='product_list'),
-    path('product/<slug:slug>/',                views.product_detail,        name='product_detail'),
+    path('products/', views.product_list, name='product_list'),
+    path('product/<slug:slug>/', views.product_detail, name='product_detail'),
 ]
