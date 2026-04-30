@@ -8,19 +8,15 @@
     <!-- Page Header -->
     <div class="profile-header">
         <h2>👤 My Profile</h2>
-        <p class="text-muted">Manage your account, address, and preferences</p>
+        <p class="text-muted">
+            {% if is_customer %}Manage your account, address, and orders{% endif %}
+            {% if is_seller %}Manage your shop and seller settings{% endif %}
+            {% if is_admin %}Admin control panel{% endif %}
+        </p>
     </div>
 
-    <!-- Profile Stats -->
+    <!-- Profile Stats (Role-Based) -->
     <div class="profile-stats">
-        <div class="stat-item">
-            <span class="stat-value">{{ user.orders.count|default:0 }}</span>
-            <span class="stat-label">Orders</span>
-        </div>
-        <div class="stat-item">
-            <span class="stat-value">{{ user.wishlist_count|default:0 }}</span>
-            <span class="stat-label">Wishlist</span>
-        </div>
         <div class="stat-item">
             <span class="stat-value">{{ user.role|title }}</span>
             <span class="stat-label">Account Type</span>
@@ -29,9 +25,31 @@
             <span class="stat-value">{{ user.is_verified|yesno:"Verified,Pending" }}</span>
             <span class="stat-label">Status</span>
         </div>
+        
+        {% if is_customer %}
+        <div class="stat-item">
+            <span class="stat-value">{{ user_orders.count|default:0 }}</span>
+            <span class="stat-label">Orders</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-value">{{ wishlist_count|default:0 }}</span>
+            <span class="stat-label">Wishlist</span>
+        </div>
+        {% endif %}
+        
+        {% if is_seller and seller_stats %}
+        <div class="stat-item">
+            <span class="stat-value">{{ seller_stats.total_products }}</span>
+            <span class="stat-label">Products</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-value">{{ seller_stats.total_sales }}</span>
+            <span class="stat-label">Items Sold</span>
+        </div>
+        {% endif %}
     </div>
 
-    <!-- Profile Form -->
+    <!-- ✅ PERSONAL INFORMATION (All Roles) -->
     <div class="profile-card">
         <div class="card-header">
             <h3>📝 Personal Information</h3>
@@ -47,7 +65,7 @@
                     <label for="fullName">Full Name</label>
                     <input type="text" id="fullName" name="full_name" class="form-input" 
                            value="{{ user.full_name|default:'' }}" 
-                           {% if not user.is_superuser %}readonly{% endif %}>
+                           {% if not is_admin %}readonly{% endif %}>
                 </div>
                 <div class="form-group">
                     <label for="email">Email Address</label>
@@ -77,7 +95,8 @@
         </form>
     </div>
 
-    <!-- Shipping Address -->
+    <!-- ✅ CUSTOMER: Shipping Address (Only for customers) -->
+    {% if is_customer %}
     <div class="profile-card">
         <div class="card-header">
             <h3>📍 Shipping Address</h3>
@@ -103,7 +122,7 @@
         <form id="addressForm" method="post" style="display:none;">
             {% csrf_token %}
             <input type="hidden" name="action" value="update_address">
-            
+            <!-- Address fields (same as before) -->
             <div class="form-row">
                 <div class="form-group">
                     <label for="addrName">Full Name *</label>
@@ -116,12 +135,10 @@
                            value="{{ user.address.phone|default:user.phone }}" required pattern="[0-9]{10}">
                 </div>
             </div>
-            
             <div class="form-group">
                 <label for="addrLine1">Address Line *</label>
                 <textarea id="addrLine1" name="address" class="form-input" rows="2" required>{{ user.address.address }}</textarea>
             </div>
-            
             <div class="form-row">
                 <div class="form-group">
                     <label for="addrCity">City *</label>
@@ -134,7 +151,6 @@
                            value="{{ user.address.state }}" required>
                 </div>
             </div>
-            
             <div class="form-row">
                 <div class="form-group">
                     <label for="addrPostal">PIN Code *</label>
@@ -150,15 +166,65 @@
                     </select>
                 </div>
             </div>
-            
             <div class="form-actions">
                 <button type="submit" class="btn-primary">Save Address</button>
                 <button type="button" class="btn-outline" id="cancelAddressBtn">Cancel</button>
             </div>
         </form>
     </div>
+    {% endif %}
 
-    <!-- Account Security -->
+    <!-- ✅ SELLER: Shop Details (Only for sellers) -->
+    {% if is_seller and seller_profile %}
+    <div class="profile-card">
+        <div class="card-header">
+            <h3>🏪 Shop Details</h3>
+            <button type="button" class="btn-outline btn-sm" id="editShopBtn">Edit Shop</button>
+        </div>
+        
+        <div id="shopView">
+            <div class="shop-card">
+                <p><strong>Shop Name:</strong> {{ seller_profile.shop_name }}</p>
+                <p><strong>Description:</strong> {{ seller_profile.shop_description|default:"No description yet" }}</p>
+                <p><strong>GST Number:</strong> {{ seller_profile.gst_number|default:"Not provided" }}</p>
+                <p><strong>Verification:</strong> 
+                    {% if seller_profile.is_verified %}
+                        <span class="badge success">✓ Verified</span>
+                    {% else %}
+                        <span class="badge warning">⏳ Pending Verification</span>
+                    {% endif %}
+                </p>
+                <p><strong>Rating:</strong> {{ seller_profile.rating }}/5.0</p>
+            </div>
+        </div>
+        
+        <form id="shopForm" method="post" style="display:none;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="update_shop">
+            
+            <div class="form-group">
+                <label for="shopName">Shop Name *</label>
+                <input type="text" id="shopName" name="shop_name" class="form-input" 
+                       value="{{ seller_profile.shop_name }}" required>
+            </div>
+            <div class="form-group">
+                <label for="shopDesc">Shop Description</label>
+                <textarea id="shopDesc" name="shop_description" class="form-input" rows="3">{{ seller_profile.shop_description }}</textarea>
+            </div>
+            <div class="form-group">
+                <label for="gstNumber">GST Number</label>
+                <input type="text" id="gstNumber" name="gst_number" class="form-input" 
+                       value="{{ seller_profile.gst_number }}" maxlength="15" placeholder="Optional">
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn-primary">Save Shop Details</button>
+                <button type="button" class="btn-outline" id="cancelShopBtn">Cancel</button>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+
+    <!-- ✅ ACCOUNT SECURITY (All Roles) -->
     <div class="profile-card">
         <div class="card-header">
             <h3>🔐 Account Security</h3>
@@ -178,25 +244,19 @@
                 </div>
                 <button class="btn-outline btn-sm" disabled>Coming Soon</button>
             </div>
-            <div class="security-item">
-                <div>
-                    <strong>Login Sessions</strong>
-                    <p class="text-muted">Manage active devices</p>
-                </div>
-                <button class="btn-outline btn-sm" disabled>Coming Soon</button>
-            </div>
         </div>
     </div>
 
-    <!-- Order History Preview -->
+    <!-- ✅ CUSTOMER: Order History (Only for customers) -->
+    {% if is_customer %}
     <div class="profile-card">
         <div class="card-header">
             <h3>📦 Recent Orders</h3>
-            <a href="#" class="btn-outline btn-sm">View All</a>
+            <a href="{% url 'orders:order_list' %}" class="btn-outline btn-sm">View All</a>
         </div>
         <div class="orders-preview">
-            {% if user.orders.exists %}
-                {% for order in user.orders.all|slice:":3" %}
+            {% if user_orders %}
+                {% for order in user_orders %}
                 <div class="order-preview-item">
                     <div>
                         <strong>Order #{{ order.id|slice:":8"|upper }}</strong>
@@ -215,14 +275,64 @@
             {% endif %}
         </div>
     </div>
+    {% endif %}
+
+    <!-- ✅ SELLER: Seller Stats & Quick Links (Only for sellers) -->
+    {% if is_seller and seller_stats %}
+    <div class="profile-card">
+        <div class="card-header">
+            <h3>📊 Seller Dashboard</h3>
+            <a href="{% url 'items:admin_dashboard' %}" class="btn-outline btn-sm">Manage Products</a>
+        </div>
+        <div class="seller-stats-grid">
+            <div class="stat-box">
+                <span class="stat-num">{{ seller_stats.published }}</span>
+                <span class="stat-label">Published Products</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-num">{{ seller_stats.total_products|add:0|subtract:seller_stats.published }}</span>
+                <span class="stat-label">Draft Products</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-num">{{ seller_stats.total_sales }}</span>
+                <span class="stat-label">Total Items Sold</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-num">{{ seller_stats.rating }}/5.0</span>
+                <span class="stat-label">Shop Rating</span>
+            </div>
+        </div>
+        <div class="seller-quick-links">
+            <a href="{% url 'items:product_create' %}" class="btn-primary">+ Add New Product</a>
+            <a href="{% url 'items:admin_dashboard' %}?status=draft" class="btn-outline">View Drafts</a>
+            <a href="{% url 'orders:seller_orders' %}" class="btn-outline">View Orders</a>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ✅ ADMIN: Admin Tools (Only for superusers) -->
+    {% if is_admin %}
+    <div class="profile-card">
+        <div class="card-header">
+            <h3>⚙️ Admin Tools</h3>
+        </div>
+        <div class="admin-links">
+            <a href="/admin/" class="btn-outline">🔧 Django Admin</a>
+            <a href="{% url 'items:admin_dashboard' %}" class="btn-outline">📦 Product Management</a>
+            <a href="/admin/common/sitesettings/1/change/" class="btn-outline">🎨 Site Settings</a>
+            <a href="/admin/auth/user/" class="btn-outline">👥 User Management</a>
+        </div>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
 const csrfToken = '{{ csrf_token }}';
+const userRole = '{{ user.role }}';
 
-// Profile Edit Toggle
+// Profile Edit Toggle (Personal Info)
 const editProfileBtn = document.getElementById('editProfileBtn');
 const cancelEditBtn = document.getElementById('cancelEditBtn');
 const saveProfileBtn = document.getElementById('saveProfileBtn');
@@ -240,7 +350,6 @@ cancelEditBtn?.addEventListener('click', () => {
     editProfileBtn.style.display = 'inline-block';
     saveProfileBtn.style.display = 'none';
     cancelEditBtn.style.display = 'none';
-    // Reset form to original values
     document.getElementById('profileForm').reset();
 });
 
@@ -259,18 +368,13 @@ document.getElementById('profileForm')?.addEventListener('submit', async (e) => 
     try {
         const res = await fetch("{% url 'accounts:profile' %}", {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken,
-                'X-Requested-With': 'XMLHttpRequest'
-            },
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
             body: JSON.stringify(formData)
         });
         const data = await res.json();
         
         if (data.status === 'success') {
-            showToast('Profile updated successfully!');
-            // Re-enable edit mode
+            showToast('Profile updated successfully!', 'success');
             profileInputs.forEach(input => input.readOnly = true);
             editProfileBtn.style.display = 'inline-block';
             saveProfileBtn.style.display = 'none';
@@ -286,7 +390,8 @@ document.getElementById('profileForm')?.addEventListener('submit', async (e) => 
     }
 });
 
-// Address Edit Toggle
+// Address Edit Toggle (Customers Only)
+{% if is_customer %}
 const editAddressBtn = document.getElementById('editAddressBtn');
 const cancelAddressBtn = document.getElementById('cancelAddressBtn');
 const addressView = document.getElementById('addressView');
@@ -304,7 +409,6 @@ cancelAddressBtn?.addEventListener('click', () => {
     editAddressBtn.style.display = 'inline-block';
 });
 
-// Address Form Submit (AJAX)
 document.getElementById('addressForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
@@ -321,18 +425,13 @@ document.getElementById('addressForm')?.addEventListener('submit', async (e) => 
     try {
         const res = await fetch("{% url 'accounts:profile' %}", {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken,
-                'X-Requested-With': 'XMLHttpRequest'
-            },
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
             body: JSON.stringify({ action: 'update_address', address })
         });
         const data = await res.json();
         
         if (data.status === 'success') {
-            showToast('Address saved!');
-            // Reload page to show updated address
+            showToast('Address saved!', 'success');
             window.location.reload();
         } else {
             alert(data.error || 'Failed to save address');
@@ -341,16 +440,72 @@ document.getElementById('addressForm')?.addEventListener('submit', async (e) => 
         alert('Network error: ' + err.message);
     }
 });
+{% endif %}
 
-// Simple toast notification
-function showToast(message) {
+// Shop Edit Toggle (Sellers Only)
+{% if is_seller %}
+const editShopBtn = document.getElementById('editShopBtn');
+const cancelShopBtn = document.getElementById('cancelShopBtn');
+const shopView = document.getElementById('shopView');
+const shopForm = document.getElementById('shopForm');
+
+editShopBtn?.addEventListener('click', () => {
+    shopView.style.display = 'none';
+    shopForm.style.display = 'block';
+    editShopBtn.style.display = 'none';
+});
+
+cancelShopBtn?.addEventListener('click', () => {
+    shopView.style.display = 'block';
+    shopForm.style.display = 'none';
+    editShopBtn.style.display = 'inline-block';
+});
+
+document.getElementById('shopForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+    
+    const shopData = {
+        shop_name: document.getElementById('shopName').value,
+        shop_description: document.getElementById('shopDesc').value,
+        gst_number: document.getElementById('gstNumber').value
+    };
+    
+    try {
+        const res = await fetch("{% url 'accounts:profile' %}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
+            body: JSON.stringify({ action: 'update_shop', shop: shopData })
+        });
+        const data = await res.json();
+        
+        if (data.status === 'success') {
+            showToast('Shop details updated!', 'success');
+            window.location.reload();
+        } else {
+            alert(data.error || 'Failed to update shop');
+        }
+    } catch (err) {
+        alert('Network error: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save Shop Details';
+    }
+});
+{% endif %}
+
+// Toast notification
+function showToast(message, type = 'info') {
     const toast = document.createElement('div');
     toast.textContent = message;
     toast.style.cssText = `
         position: fixed; bottom: 24px; right: 24px; z-index: 9999;
         padding: 12px 22px; border-radius: 8px; font-weight: 600;
-        background: var(--primary-color, #2874f0); color: #fff;
-        box-shadow: 0 4px 14px rgba(0,0,0,.18); animation: slideUp .25s ease;
+        background: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : '#2196F3'};
+        color: #fff; box-shadow: 0 4px 14px rgba(0,0,0,.18);
+        animation: slideUp .25s ease;
     `;
     document.body.appendChild(toast);
     setTimeout(() => {
@@ -359,7 +514,7 @@ function showToast(message) {
     }, 2500);
 }
 
-// Add CSS animations if not in base.css
+// CSS animations
 if (!document.querySelector('#profile-animations')) {
     const style = document.createElement('style');
     style.id = 'profile-animations';
@@ -374,12 +529,40 @@ if (!document.querySelector('#profile-animations')) {
 
 {% block extra_css %}
 <style>
+/* Role-specific styles */
+.seller-stats-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 15px; margin-bottom: 20px;
+}
+.stat-box {
+    background: #f8f9fa; padding: 15px; border-radius: 10px; text-align: center;
+}
+.stat-box .stat-num {
+    display: block; font-size: 1.5rem; font-weight: 700; color: var(--primary-color, #2874f0);
+}
+.stat-box .stat-label { font-size: 0.8rem; color: #666; }
+
+.seller-quick-links, .admin-links {
+    display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px;
+}
+.seller-quick-links .btn-primary, .admin-links .btn-outline {
+    flex: 1; min-width: 150px; text-align: center;
+}
+
+.shop-card {
+    background: #f8f9ff; padding: 15px; border-radius: 8px;
+    border-left: 4px solid var(--primary-color, #2874f0);
+}
+.shop-card p { margin: 8px 0; font-size: 0.95rem; }
+.shop-card .badge { padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
+.shop-card .badge.success { background: #e8f5e9; color: #2e7d32; }
+.shop-card .badge.warning { background: #fff8e1; color: #f57f17; }
+
+/* Existing styles from before... */
 .profile-container { max-width: 900px; margin: 0 auto; padding: 20px; }
 .profile-header { margin-bottom: 25px; }
 .profile-header h2 { margin: 0 0 5px; }
 .text-muted { color: #666; }
-
-/* Stats Grid */
 .profile-stats { 
     display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); 
     gap: 15px; margin-bottom: 25px; 
@@ -392,8 +575,6 @@ if (!document.querySelector('#profile-animations')) {
     display: block; font-size: 1.4rem; font-weight: 700; color: var(--primary-color, #2874f0); 
 }
 .stat-label { font-size: 0.8rem; color: #666; }
-
-/* Profile Cards */
 .profile-card { 
     background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 20px; 
     box-shadow: 0 2px 8px rgba(0,0,0,0.06); 
@@ -403,8 +584,6 @@ if (!document.querySelector('#profile-animations')) {
     margin-bottom: 15px; padding-bottom: 12px; border-bottom: 1px solid #eee; 
 }
 .card-header h3 { margin: 0; font-size: 1.2rem; }
-
-/* Forms */
 .form-row { 
     display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
     gap: 15px; margin-bottom: 15px; 
@@ -423,21 +602,16 @@ if (!document.querySelector('#profile-animations')) {
 }
 .form-input:read-only { background: #f8f9fa; cursor: not-allowed; }
 .form-group small { display: block; color: #888; font-size: 0.8rem; margin-top: 4px; }
-
 .form-actions { 
     display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px; 
 }
 .btn-sm { padding: 6px 12px; font-size: 0.85rem; }
-
-/* Address Card */
 .address-card { 
     background: #f8f9fa; padding: 15px; border-radius: 8px; 
     border-left: 3px solid var(--primary-color, #2874f0); 
 }
 .address-card p { margin: 4px 0; font-size: 0.95rem; }
 .empty-state { color: #888; text-align: center; padding: 20px; }
-
-/* Security List */
 .security-list { display: flex; flex-direction: column; gap: 12px; }
 .security-item { 
     display: flex; justify-content: space-between; align-items: center; 
@@ -445,8 +619,6 @@ if (!document.querySelector('#profile-animations')) {
 }
 .security-item strong { display: block; margin-bottom: 4px; }
 .security-item p { margin: 0; font-size: 0.85rem; }
-
-/* Orders Preview */
 .orders-preview { display: flex; flex-direction: column; gap: 12px; }
 .order-preview-item { 
     display: flex; justify-content: space-between; align-items: center; 
@@ -467,6 +639,8 @@ if (!document.querySelector('#profile-animations')) {
     .form-row { grid-template-columns: 1fr; }
     .security-item, .order-preview-item { flex-direction: column; align-items: flex-start; gap: 8px; }
     .order-status { align-items: flex-start; }
+    .seller-stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .seller-quick-links, .admin-links { flex-direction: column; }
 }
 </style>
 {% endblock %}
