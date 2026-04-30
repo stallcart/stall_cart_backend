@@ -430,6 +430,7 @@ def product_detail(request, slug):
             images.insert(0, primary_img)
 
     # Related products
+    
     related = (
         Product.objects
         .filter(category=product.category, status='published', stock__gt=0)
