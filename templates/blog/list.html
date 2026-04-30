@@ -1,21 +1,119 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}StallCart Blog | Latest Fashion Trends 2026 India - Men Women Clothing Tips{% endblock %}
+{% block title %}{{ site_settings.site_name|default:"StallCart" }} Blog{% endblock %}
 
 {% block content %}
+<!-- Blog Hero -->
 <section class="blog-hero">
-    <h1>StallCart Fashion Blog</h1>
+    <h1>{{ site_settings.site_name|default:"StallCart" }} Blog</h1>
     <p>Latest 2026 trends, styling tips, shopping guides from India's premium fashion destination</p>
     
     <div class="blog-filters">
-        <span class="filter-active">All ({{ posts.paginator.count }}+)</span>
-        <span>Men (12)</span>
-        <span>Women (10)</span>
-        <span>Guides (5)</span>
+        <!-- "All" Filter -->
+        <a href="{% url 'blog:blog_list' %}" 
+           class="{% if not active_category %}filter-active{% endif %}">
+            All ({{ posts.paginator.count }})
+        </a>
+        
+        <!-- Dynamic Category Filters -->
+        {% for cat in categories %}
+            <a href="?category={{ cat.slug }}" 
+               class="{% if active_category == cat.slug %}filter-active{% endif %}">
+                {{ cat.name }} ({{ cat.post_count }})
+            </a>
+        {% endfor %}
     </div>
 </section>
+<!-- ✅ HOT DEALS BANNER (Interactive) -->
+{% if hot_products %}
+<section class="hot-deals-banner">
+    <div class="banner-header">
+        <span class="fire-icon">🔥</span>
+        <h3>Hot Deals of the Day</h3>
+        <a href="{% url 'items:product_list' %}?sort=-views_count" class="view-all">View All →</a>
+    </div>
+    <div class="products-carousel">
+        {% for product in hot_products %}
+        <div class="product-card-interactive" data-product-id="{{ product.id }}">
+            <a href="{% url 'items:product_detail' product.slug %}" class="product-link">
+                {% if product.primary_image %}
+                    <img src="{{ product.primary_image.url }}" alt="{{ product.name }}" loading="lazy">
+                {% else %}
+                    <div class="no-image">No Image</div>
+                {% endif %}
+                {% if product.discount_percent > 0 %}
+                    <span class="discount-badge">-{{ product.discount_percent }}%</span>
+                {% endif %}
+            </a>
+            <div class="product-info">
+                <h4><a href="{% url 'items:product_detail' product.slug %}">{{ product.name }}</a></h4>
+                <p class="seller">by {{ product.seller.shop_name }}</p>
+                <div class="price-row">
+                    {% if product.discount_percent > 0 %}
+                        <span class="original-price">₹{{ product.price }}</span>
+                        <span class="deal-price">₹{{ product.discount_price|floatformat:2 }}</span>
+                    {% else %}
+                        <span class="price">₹{{ product.price }}</span>
+                    {% endif %}
+                </div>
+                <button class="btn-add-cart-quick" data-product-id="{{ product.id }}" data-stock="{{ product.stock }}">
+                    {% if product.stock > 0 %}
+                        <i class="fa fa-cart-plus"></i> Quick Add
+                    {% else %}
+                        <span class="out-of-stock">Out of Stock</span>
+                    {% endif %}
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
 
+<!-- ✅ TRENDING PRODUCTS (Interactive) -->
+{% if trending_products %}
+<section class="trending-section">
+    <div class="section-header">
+        <h3>📈 Trending Now</h3>
+        <span class="subtitle">Most viewed this week</span>
+    </div>
+    <div class="products-grid-interactive">
+        {% for product in trending_products %}
+        <div class="product-card-interactive" data-product-id="{{ product.id }}">
+            <a href="{% url 'items:product_detail' product.slug %}" class="product-link">
+                <div class="image-wrapper">
+                    {% if product.primary_image %}
+                        <img src="{{ product.primary_image.url }}" alt="{{ product.name }}" loading="lazy">
+                    {% else %}
+                        <div class="no-image">No Image</div>
+                    {% endif %}
+                    {% if product.is_featured %}
+                        <span class="featured-badge">★ Featured</span>
+                    {% endif %}
+                </div>
+            </a>
+            <div class="product-info">
+                <h4><a href="{% url 'items:product_detail' product.slug %}">{{ product.name }}</a></h4>
+                <p class="views"><i class="fa fa-eye"></i> {{ product.views_count }} views</p>
+                <div class="price-row">
+                    <span class="price">₹{{ product.price }}</span>
+                </div>
+                <button class="btn-add-cart-quick" data-product-id="{{ product.id }}" data-stock="{{ product.stock }}">
+                    {% if product.stock > 0 %}
+                        <i class="fa fa-cart-plus"></i> Add to Cart
+                    {% else %}
+                        <span class="out-of-stock">Out of Stock</span>
+                    {% endif %}
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+<!-- Blog Posts Grid -->
 <section class="blog-grid">
     {% for post in posts %}
     <article class="blog-card">
@@ -59,15 +157,271 @@
 </div>
 {% endif %}
 
-<!-- Shop CTA -->
+<!-- Shop CTA with Products -->
 <section class="shop-cta">
     <h3>Shop These Trends Now</h3>
     <div class="featured-products">
-        <div class="product-mini">
-            <span>Premium Shirt</span>
-            <strong>₹599</strong>
-            <a href="{% url 'shop:home' %}" class="btn-outline">Shop Now</a>
+        {% for product in featured_products %}
+        <div class="product-mini" data-product-id="{{ product.id }}">
+            {% if product.primary_image %}
+                <img src="{{ product.primary_image.url }}" alt="{{ product.name }}" width="60">
+            {% endif %}
+            <div>
+                <span>{{ product.name|truncatechars:25 }}</span>
+                <strong>₹{{ product.price }}</strong>
+                <button class="btn-add-cart-mini" data-product-id="{{ product.id }}" data-stock="{{ product.stock }}">
+                    {% if product.stock > 0 %}Add{% else %}Out{% endif %}
+                </button>
+            </div>
         </div>
+        {% endfor %}
     </div>
+    <a href="{% url 'shop:home' %}" class="btn-outline">View All Products</a>
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const csrfToken = '{{ csrf_token }}';
+
+// Quick Add to Cart (AJAX)
+document.querySelectorAll('.btn-add-cart-quick, .btn-add-cart-mini').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const productId = btn.dataset.productId;
+        const stock = parseInt(btn.dataset.stock);
+        
+        if (stock <= 0) {
+            showToast('Sorry, this item is out of stock!', 'error');
+            return;
+        }
+        
+        // Show loading state
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Adding...';
+        
+        try {
+            const res = await fetch("{% url 'shop:add_to_cart' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({ product_id: productId, quantity: 1 })
+            });
+            const data = await res.json();
+            
+            if (data.status === 'success') {
+                // Update cart count in header
+                const cartCount = document.getElementById('cart-count');
+                if (cartCount) cartCount.textContent = data.cart_count;
+                
+                showToast(data.message || 'Added to cart!', 'success');
+                
+                // Animate button feedback
+                btn.innerHTML = '<i class="fa fa-check"></i> Added!';
+                btn.style.background = '#2e7d32';
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                    btn.style.background = '';
+                }, 1500);
+            } else {
+                showToast(data.message || 'Failed to add to cart', 'error');
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        } catch (err) {
+            showToast('Network error. Please try again.', 'error');
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    });
+});
+
+// Simple toast notification
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.innerHTML = `
+        <i class="fa ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
+        ${message}
+    `;
+    toast.style.cssText = `
+        position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+        padding: 14px 22px; border-radius: 10px; font-weight: 600;
+        background: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : '#2196F3'};
+        color: #fff; box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+        animation: slideUp 0.3s ease; display: flex; align-items: center; gap: 10px;
+    `;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+        toast.style.animation = 'slideDown 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+    }, 2500);
+}
+
+// Add CSS animations if not in base.css
+if (!document.querySelector('#blog-animations')) {
+    const style = document.createElement('style');
+    style.id = 'blog-animations';
+    style.textContent = `
+        @keyframes slideUp { from { transform: translateY(100px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes slideDown { from { transform: translateY(0); opacity: 1; } to { transform: translateY(100px); opacity: 0; } }
+        .product-card-interactive { transition: transform 0.2s, box-shadow 0.2s; }
+        .product-card-interactive:hover { transform: translateY(-4px); box-shadow: 0 8px 25px rgba(0,0,0,0.12); }
+        .btn-add-cart-quick:active { transform: scale(0.98); }
+    `;
+    document.head.appendChild(style);
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Hot Deals Banner */
+.hot-deals-banner {
+    background: linear-gradient(135deg, #fff8e1, #ffe0b2);
+    border-radius: 16px; padding: 25px; margin: 30px 0;
+    border: 2px solid #ffc107;
+}
+.banner-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 20px; flex-wrap: wrap; gap: 10px;
+}
+.banner-header h3 {
+    margin: 0; color: #f57f17; font-size: 1.3rem; display: flex; align-items: center; gap: 8px;
+}
+.fire-icon { font-size: 1.5rem; animation: pulse 1.5s infinite; }
+@keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+.view-all { color: #f57f17; font-weight: 600; }
+
+/* Products Carousel */
+.products-carousel {
+    display: flex; gap: 15px; overflow-x: auto; padding: 10px 0;
+    scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
+}
+.products-carousel::-webkit-scrollbar { height: 6px; }
+.products-carousel::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 3px; }
+.products-carousel::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 3px; }
+
+/* Interactive Product Card */
+.product-card-interactive {
+    background: white; border-radius: 12px; overflow: hidden;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08); min-width: 200px; max-width: 220px;
+    scroll-snap-align: start; transition: transform 0.2s;
+}
+.product-card-interactive:hover { transform: translateY(-4px); }
+.product-link { display: block; position: relative; }
+.product-card-interactive img {
+    width: 100%; height: 180px; object-fit: cover; display: block;
+}
+.no-image {
+    height: 180px; background: #f0f0f0; display: flex;
+    align-items: center; justify-content: center; color: #999; font-size: 0.9rem;
+}
+.discount-badge {
+    position: absolute; top: 10px; right: 10px;
+    background: #f44336; color: white; padding: 4px 8px;
+    border-radius: 20px; font-size: 0.75rem; font-weight: 700;
+}
+.featured-badge {
+    position: absolute; top: 10px; left: 10px;
+    background: #2874f0; color: white; padding: 4px 8px;
+    border-radius: 20px; font-size: 0.75rem; font-weight: 700;
+}
+.product-info { padding: 12px; }
+.product-info h4 {
+    font-size: 0.95rem; margin: 0 0 4px; line-height: 1.3;
+}
+.product-info h4 a { color: #212121; text-decoration: none; }
+.product-info h4 a:hover { color: var(--primary-color, #2874f0); }
+.seller {
+    font-size: 0.8rem; color: #666; margin: 0 0 8px;
+}
+.price-row {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+}
+.original-price {
+    text-decoration: line-through; color: #999; font-size: 0.9rem;
+}
+.deal-price {
+    color: #f44336; font-weight: 700; font-size: 1.1rem;
+}
+.price {
+    color: #2874f0; font-weight: 700; font-size: 1.1rem;
+}
+.views {
+    font-size: 0.8rem; color: #888; margin-bottom: 8px;
+}
+.btn-add-cart-quick {
+    width: 100%; padding: 8px 12px; background: #f0f0f0;
+    border: none; border-radius: 6px; font-weight: 500; font-size: 0.9rem;
+    cursor: pointer; transition: background 0.2s; display: flex;
+    align-items: center; justify-content: center; gap: 6px;
+}
+.btn-add-cart-quick:hover { background: #e0e0e0; }
+.btn-add-cart-quick:disabled { background: #ccc; cursor: not-allowed; }
+.out-of-stock { color: #c62828; font-weight: 600; }
+
+/* Trending Section */
+.trending-section { margin: 40px 0; }
+.section-header {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    margin-bottom: 20px; flex-wrap: wrap; gap: 10px;
+}
+.section-header h3 { margin: 0; font-size: 1.3rem; }
+.subtitle { color: #666; font-size: 0.9rem; }
+
+.products-grid-interactive {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+}
+
+/* Featured Products Mini */
+.shop-cta {
+    background: white; border-radius: 16px; padding: 25px;
+    text-align: center; margin: 40px 0; box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+.shop-cta h3 { margin: 0 0 20px; font-size: 1.3rem; }
+.featured-products {
+    display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; margin-bottom: 20px;
+}
+.product-mini {
+    display: flex; align-items: center; gap: 10px; background: #f8f9fa;
+    padding: 10px 15px; border-radius: 10px; min-width: 180px;
+}
+.product-mini img {
+    width: 50px; height: 50px; border-radius: 8px; object-fit: cover;
+}
+.product-mini div { flex: 1; }
+.product-mini span {
+    display: block; font-size: 0.9rem; color: #333; margin-bottom: 4px;
+}
+.product-mini strong {
+    display: block; color: #2874f0; font-weight: 700; margin-bottom: 8px;
+}
+.btn-add-cart-mini {
+    width: 100%; padding: 6px 10px; background: #2874f0; color: white;
+    border: none; border-radius: 6px; font-size: 0.85rem; font-weight: 600;
+    cursor: pointer; transition: background 0.2s;
+}
+.btn-add-cart-mini:hover { background: #1a56c4; }
+.btn-add-cart-mini:disabled { background: #ccc; cursor: not-allowed; }
+
+/* Responsive */
+@media (max-width: 768px) {
+    .banner-header { flex-direction: column; align-items: flex-start; }
+    .products-carousel { gap: 12px; }
+    .product-card-interactive { min-width: 160px; }
+    .products-grid-interactive { grid-template-columns: repeat(2, 1fr); }
+    .featured-products { flex-direction: column; align-items: center; }
+    .product-mini { width: 100%; max-width: 250px; }
+}
+
+/* Toast Animations */
+@keyframes slideUp { from { transform: translateY(100px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes slideDown { from { transform: translateY(0); opacity: 1; } to { transform: translateY(100px); opacity: 0; } }
+</style>
 {% endblock %}

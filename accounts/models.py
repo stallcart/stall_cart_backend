@@ -21,7 +21,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     ROLE_CHOICES = [
         ('customer', 'Customer'),
         ('seller', 'Seller'),
-        ('delivery_boy', 'Delivery Partner'),
+        ('delivery_partner', 'Delivery Partner'),
         ('admin', 'Admin'),
     ]
 
@@ -55,7 +55,15 @@ class User(AbstractBaseUser, PermissionsMixin):
         verbose_name = 'User'
         verbose_name_plural = 'Users'
 
+ 
     @property
     def is_seller(self):
-        """Check if user has a verified seller profile"""
-        return hasattr(self, 'seller_profile') and self.seller_profile.is_verified    
+        return hasattr(self, 'seller_profile')
+
+    @property
+    def is_verified_seller(self):
+        return self.is_seller and self.seller_profile.is_verified
+
+    @property
+    def is_admin(self):
+        return self.is_superuser or self.role == 'admin'

@@ -39,13 +39,19 @@ class SellerProfileAdmin(admin.ModelAdmin):
         return obj.products.count()
     product_count.short_description = 'Products'
     
+   
     def total_sales(self, obj):
         from orders.models import OrderItem
+
         total = OrderItem.objects.filter(
             product__seller=obj,
             order__status='Delivered'
         ).aggregate(total=Sum('price'))['total'] or 0
-        return format_html('<strong>₹{:,}</strong>', float(total))
+
+        # ✅ Proper formatting
+        formatted = f"{total:,.2f}"
+
+        return format_html('<strong>₹{}</strong>', formatted)
     total_sales.short_description = 'Total Sales'
 
 # Category Admin

@@ -3,7 +3,7 @@ from django.db import models
 from django.conf import settings
 from django.utils.text import slugify
 from common.models import BaseModel  # Your existing BaseModel
-
+from decimal import Decimal
 class SellerProfile(BaseModel):
     """Extended profile for sellers"""
     user = models.OneToOneField(
@@ -20,9 +20,9 @@ class SellerProfile(BaseModel):
     is_verified = models.BooleanField(default=False)
     rating = models.DecimalField(max_digits=3, decimal_places=2, default=0.00)
     
-    def __str__(self):
-        return f"{self.shop_name} ({self.user.phone})"
-    
+    # def __str__(self):
+    #     return f"{self.shop_name} ({self.user.phone})"
+        
     class Meta:
         verbose_name = 'Seller Profile'
         verbose_name_plural = 'Seller Profiles'
@@ -30,7 +30,7 @@ class SellerProfile(BaseModel):
 class Category(BaseModel):
     name = models.CharField(max_length=100, unique=True)
     slug = models.SlugField(unique=True, blank=True)
-    description = models.TextField(blank=True)
+    description = models.TextField(blank=True,null=True)
     parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL, related_name='children')
     
     def save(self, *args, **kwargs):
@@ -110,36 +110,36 @@ class Product(BaseModel):
     review_count = models.PositiveIntegerField(default=0)
     
     def save(self, *args, **kwargs):
+        is_new = self.pk is None
+
         if not self.slug:
             base_slug = slugify(self.name)
             slug = base_slug
             counter = 1
-            # Ensure unique slug
             while Product.objects.filter(slug=slug).exclude(pk=self.pk).exists():
                 slug = f"{base_slug}-{counter}"
                 counter += 1
             self.slug = slug
-        
-        # Auto-generate SKU if not provided
+
         if not self.sku and self.seller:
             self.sku = f"{self.seller.shop_name[:3].upper()}-{self.name[:5].upper().replace(' ', '')}-{self.pk or 'NEW'}"
-        
-        # Auto-set primary_image from ProductImage if not set
+
+        super().save(*args, **kwargs)  # ✅ FIRST SAVE
+
+        # ✅ Now M2M is safe
         if not self.primary_image and self.images.exists():
             primary = self.images.filter(is_primary=True).first()
             if primary:
                 self.primary_image = primary.image
-        
-        super().save(*args, **kwargs)
-    
+                super().save(update_fields=['primary_image'])
     def __str__(self):
         return f"{self.name} (₹{self.price}) - {self.seller.shop_name}"
     
     @property
     def discount_price(self):
-        """Price after discount"""
         if self.discount_percent > 0:
-            return self.price * (1 - self.discount_percent / 100)
+            discount = Decimal(self.discount_percent) / Decimal(100)
+            return self.price * (Decimal(1) - discount)
         return self.price
     
     @property
@@ -168,7 +168,7 @@ class Product(BaseModel):
 
 class ProductImage(BaseModel):
     """Multiple images per product"""
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='all_images')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='product_image_product')
     image = models.ImageField(upload_to='products/%Y/%m/')
     alt_text = models.CharField(max_length=200, blank=True)
     is_primary = models.BooleanField(default=False)

@@ -1,16 +1,213 @@
 {% extends 'base.html' %}
 {% block title %}Create StallCart Account{% endblock %}
+
 {% block content %}
 <div class="auth-container">
-    <h2>Create Your Account</h2>
+    <h2>Join StallCart</h2>
+    <p class="text-center text-muted">Choose your account type to get started</p>
+    
     <form method="post" id="authForm">
         {% csrf_token %}
-        {% for field in form %}
-            <div class="form-group">{{ field }}</div>
-            {% if field.errors %}<div class="alert error">{{ field.errors.0 }}</div>{% endif %}
-        {% endfor %}
-        <button type="submit" class="btn-primary">CREATE ACCOUNT</button>
-        <p>Existing user? <a href="{% url 'accounts:login' %}">Login here</a></p>
+        
+        <!-- Role Selection -->
+        <div class="form-group role-selection">
+            <label>{{ form.user_role.label }}</label>
+            <div class="role-options">
+                {% for radio in form.user_role %}
+                <label class="role-option">
+                    {{ radio.tag }}
+                    <span class="role-label">{{ radio.choice_label }}</span>
+                </label>
+                {% endfor %}
+            </div>
+            {% if form.user_role.errors %}
+                <div class="error-text">{{ form.user_role.errors.0 }}</div>
+            {% endif %}
+        </div>
+        
+        <!-- Common Fields (always visible) -->
+        <div class="form-group">
+            <label for="{{ form.full_name.id_for_label }}"><i class="fa fa-user"></i> {{ form.full_name.label }}</label>
+            {{ form.full_name }}
+            {% if form.full_name.errors %}<div class="error-text">{{ form.full_name.errors.0 }}</div>{% endif %}
+        </div>
+        
+        <div class="form-group">
+            <label for="{{ form.phone.id_for_label }}"><i class="fa fa-phone"></i> {{ form.phone.label }}</label>
+            {{ form.phone }}
+            {% if form.phone.errors %}<div class="error-text">{{ form.phone.errors.0 }}</div>{% endif %}
+            <small class="form-hint">10-digit mobile number for login & OTP</small>
+        </div>
+        
+        <div class="form-group">
+            <label for="{{ form.email.id_for_label }}"><i class="fa fa-envelope"></i> {{ form.email.label }}</label>
+            {{ form.email }}
+            {% if form.email.errors %}<div class="error-text">{{ form.email.errors.0 }}</div>{% endif %}
+        </div>
+        
+        <!-- Seller Fields (conditionally shown) -->
+        <div id="sellerFields" class="seller-fields" style="display:none;">
+            <hr class="my-4">
+            <h4 class="mb-3">🏪 Shop Details <small class="text-muted">(Required for sellers)</small></h4>
+            
+            <div class="form-group">
+                <label for="{{ form.shop_name.id_for_label }}"><i class="fa fa-store"></i> {{ form.shop_name.label }}</label>
+                {{ form.shop_name }}
+                {% if form.shop_name.errors %}<div class="error-text">{{ form.shop_name.errors.0 }}</div>{% endif %}
+            </div>
+            
+            <div class="form-group">
+                <label for="{{ form.shop_description.id_for_label }}"><i class="fa fa-info-circle"></i> {{ form.shop_description.label }}</label>
+                {{ form.shop_description }}
+                {% if form.shop_description.errors %}<div class="error-text">{{ form.shop_description.errors.0 }}</div>{% endif %}
+            </div>
+            
+            <div class="form-group">
+                <label for="{{ form.gst_number.id_for_label }}"><i class="fa fa-file-invoice"></i> {{ form.gst_number.label }}</label>
+                {{ form.gst_number }}
+                {% if form.gst_number.errors %}<div class="error-text">{{ form.gst_number.errors.0 }}</div>{% endif %}
+                <small class="form-hint">Optional: Add GST for business verification</small>
+            </div>
+        </div>
+        
+        <!-- Password Fields -->
+        <hr class="my-4">
+        <h4 class="mb-3">🔐 Set Password</h4>
+        
+        <div class="form-group">
+            <label for="{{ form.password1.id_for_label }}"><i class="fa fa-lock"></i> {{ form.password1.label }}</label>
+            {{ form.password1 }}
+            {% if form.password1.errors %}<div class="error-text">{{ form.password1.errors.0 }}</div>{% endif %}
+        </div>
+        
+        <div class="form-group">
+            <label for="{{ form.password2.id_for_label }}"><i class="fa fa-lock"></i> {{ form.password2.label }}</label>
+            {{ form.password2 }}
+            {% if form.password2.errors %}<div class="error-text">{{ form.password2.errors.0 }}</div>{% endif %}
+        </div>
+        
+        {% if form.non_field_errors %}
+            <div class="alert error">{{ form.non_field_errors.0 }}</div>
+        {% endif %}
+        
+        <button type="submit" class="btn-primary">
+            <i class="fa fa-user-plus"></i> CREATE ACCOUNT
+        </button>
     </form>
+    
+    <p class="auth-footer">
+        Existing user? <a href="{% url 'accounts:login' %}">Log in here</a>
+    </p>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const roleRadios = document.querySelectorAll('input[name="user_role"]');
+    const sellerFields = document.getElementById('sellerFields');
+    
+    // Toggle seller fields based on role selection
+    function toggleSellerFields() {
+        const isSeller = document.querySelector('input[name="user_role"]:checked')?.value === 'seller';
+        sellerFields.style.display = isSeller ? 'block' : 'none';
+        
+        // Toggle required attribute for seller fields
+        const sellerInputs = sellerFields.querySelectorAll('input, textarea');
+        sellerInputs.forEach(input => {
+            if (input.name.includes('shop_name')) {
+                input.required = isSeller;
+            } else {
+                input.required = false;
+            }
+        });
+    }
+    
+    // Add event listeners to role radios
+    roleRadios.forEach(radio => {
+        radio.addEventListener('change', toggleSellerFields);
+    });
+    
+    // Initialize on load
+    toggleSellerFields();
+    
+    // Mobile number formatting
+    const phoneInput = document.querySelector('input[name="phone"]');
+    if (phoneInput) {
+        phoneInput.addEventListener('input', (e) => {
+            e.target.value = e.target.value.replace(/[^0-9]/g, '').slice(0, 10);
+        });
+    }
+});
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.auth-container { max-width: 500px; margin: 40px auto; padding: 30px; }
+.auth-container h2 { text-align: center; margin-bottom: 10px; }
+.text-center { text-align: center; }
+.text-muted { color: #666; }
+.my-4 { margin: 1.5rem 0; }
+.mb-3 { margin-bottom: 1rem; }
+
+/* Role Selection */
+.role-selection { margin-bottom: 25px; }
+.role-options { display: flex; flex-direction: column; gap: 12px; }
+.role-option {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 15px; border: 2px solid #ddd; border-radius: 10px;
+    cursor: pointer; transition: all 0.2s;
+}
+.role-option:hover { border-color: var(--primary-color, #2874f0); background: #f8f9ff; }
+.role-option input[type="radio"] { width: 18px; height: 18px; cursor: pointer; }
+.role-option input[type="radio"]:checked + .role-label { font-weight: 600; color: var(--primary-color, #2874f0); }
+.role-label { flex: 1; font-size: 0.95rem; }
+
+/* Form Styling */
+.form-group { margin-bottom: 18px; }
+.form-group label {
+    display: block; margin-bottom: 6px; font-weight: 500; color: #444;
+}
+.form-input {
+    width: 100%; padding: 12px 15px; border: 1px solid #ddd;
+    border-radius: 8px; font-size: 1rem; transition: border 0.2s;
+}
+.form-input:focus {
+    border-color: var(--primary-color, #2874f0);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(40,116,240,0.1);
+}
+.form-hint { display: block; color: #888; font-size: 0.8rem; margin-top: 4px; }
+.error-text { color: #c62828; font-size: 0.85rem; margin-top: 4px; }
+.alert.error {
+    background: #ffebee; color: #c62828; padding: 12px 15px;
+    border-radius: 8px; margin-bottom: 20px;
+}
+
+/* Seller Fields Section */
+.seller-fields {
+    background: #f8f9ff; padding: 20px; border-radius: 10px;
+    border-left: 4px solid var(--primary-color, #2874f0);
+    margin: 20px 0;
+}
+
+/* Button */
+.btn-primary {
+    width: 100%; padding: 14px; background: var(--primary-color, #2874f0);
+    color: white; border: none; border-radius: 8px; font-weight: 600;
+    font-size: 1rem; cursor: pointer; transition: background 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn-primary:hover { background: var(--secondary-color, #1a56c4); }
+
+.auth-footer { text-align: center; margin-top: 25px; font-size: 0.9rem; }
+.auth-footer a { color: var(--primary-color, #2874f0); }
+
+@media (max-width: 480px) {
+    .auth-container { margin: 20px; padding: 25px 20px; }
+    .role-options { gap: 8px; }
+    .role-option { padding: 10px 12px; font-size: 0.9rem; }
+}
+</style>
 {% endblock %}

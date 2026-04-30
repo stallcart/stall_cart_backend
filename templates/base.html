@@ -87,7 +87,6 @@
             <div class="nav-actions">
                 <!-- Blog & Delivery (public) -->
                 <a href="{% url 'blog:blog_list' %}" class="nav-link">Blog</a>
-                <!-- <a href="{% url 'delivery:portal' %}" class="nav-link">Delivery Jobs</a> -->
                 
                 <!-- ✅ ROLE-BASED ITEMS/SHOP TAB -->
                 {% if user.is_authenticated and user.is_seller or user.is_superuser %}
@@ -130,67 +129,211 @@
     </header>
 
     <!-- Login Modal (Hidden by Default) -->
-    <div id="loginModal" class="modal" style="display:none;">
-        <div class="modal-content">
-            <span class="modal-close" id="closeLoginModal">&times;</span>
-            <h3>Login to {{ site_settings.site_name }}</h3>
-            <form id="loginForm" method="post" action="{% url 'accounts:login' %}">
+    <div id="loginModal" class="modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
+        <div class="modal-content modal-scrollable">
+            <button class="modal-close" id="closeLoginModal" aria-label="Close modal">&times;</button>
+            
+            <div class="modal-header">
+                <i class="fa fa-user-circle modal-icon"></i>
+                <h3 id="loginModalTitle">Login to {{ site_settings.site_name }}</h3>
+                <p class="modal-subtitle">Welcome back! Enter your credentials to continue</p>
+            </div>
+            
+            <!-- ✅ BACKEND-DRIVEN FORM: No JS validation, Django handles it -->
+            <form method="post" action="{% url 'accounts:login' %}" class="modal-form">
                 {% csrf_token %}
                 <input type="hidden" name="next" value="{{ request.path }}">
+                
                 <div class="form-group">
-                    <input type="tel" name="username" id="loginPhone" placeholder="Mobile Number" class="form-input" required pattern="[0-9]{10}" maxlength="10" value="{{ form.username.value|default:'' }}">
-                    {% if form.username.errors %}<div class="error-text">{{ form.username.errors.0 }}</div>{% endif %}
+                    <label for="id_username" class="form-label"><i class="fa fa-phone"></i> Mobile Number</label>
+                    <input type="tel" name="username" id="id_username" placeholder="Enter 10-digit number" 
+                           class="form-input" required pattern="[0-9]{10}" maxlength="10"
+                           value="{{ form.username.value|default:'' }}">
+                    {% if form.username.errors %}
+                        <div class="error-text">{{ form.username.errors.0 }}</div>
+                    {% endif %}
                 </div>
+                
                 <div class="form-group">
-                    <input type="password" name="password" id="loginPassword" placeholder="Password" class="form-input" required minlength="6">
-                    {% if form.password.errors %}<div class="error-text">{{ form.password.errors.0 }}</div>{% endif %}
+                    <label for="id_password" class="form-label"><i class="fa fa-lock"></i> Password</label>
+                    <div class="password-wrapper">
+                        <input type="password" name="password" id="id_password" placeholder="Password" 
+                               class="form-input" required minlength="6">
+                        <!-- Minimal JS: Just password toggle -->
+                        <button type="button" class="password-toggle" onclick="togglePassword('id_password', 'eyeIcon')" aria-label="Toggle password visibility">
+                            <i class="fa fa-eye" id="eyeIcon"></i>
+                        </button>
+                    </div>
+                    {% if form.password.errors %}
+                        <div class="error-text">{{ form.password.errors.0 }}</div>
+                    {% endif %}
                 </div>
-                {% if form.non_field_errors %}<div class="alert error">{{ form.non_field_errors.0 }}</div>{% endif %}
-                <button type="submit" class="btn-primary">LOGIN</button>
+                
+                {% if form.non_field_errors %}
+                    <div class="alert error">{{ form.non_field_errors.0 }}</div>
+                {% endif %}
+                
+                <div class="modal-actions">
+                    <button type="submit" class="btn-primary btn-lg">
+                        <i class="fa fa-sign-in-alt"></i> LOGIN
+                    </button>
+                </div>
             </form>
-            <div class="auth-links">
+            
+            <div class="modal-footer">
                 <a href="{% url 'accounts:forgot_password' %}">Forgot Password?</a>
                 <span>New here? <a href="#" id="switchToRegister">Create account</a></span>
             </div>
         </div>
     </div>
 
-    <!-- Register Modal -->
-    <div id="registerModal" class="modal" style="display:none;">
-        <div class="modal-content">
-            <span class="modal-close" id="closeRegisterModal">&times;</span>
-            <h3>Create Account</h3>
-            <form id="registerForm" method="post" action="{% url 'accounts:register' %}">
+    <!-- Register Modal - ✅ SCROLLABLE & MOBILE-RESPONSIVE -->
+    <div id="registerModal" class="modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="registerModalTitle">
+        <div class="modal-content modal-scrollable">
+            <button class="modal-close" id="closeRegisterModal" aria-label="Close modal">&times;</button>
+            
+            <div class="modal-header">
+                <i class="fa fa-user-plus modal-icon"></i>
+                <h3 id="registerModalTitle">Create Account</h3>
+                <p class="modal-subtitle">Join StallCart as a customer or seller</p>
+            </div>
+            
+            <!-- ✅ BACKEND-DRIVEN FORM with Role Selection -->
+            <form method="post" action="{% url 'accounts:register' %}" class="modal-form">
                 {% csrf_token %}
+                
+                <!-- Role Selection (Backend Controlled) -->
                 <div class="form-group">
-                    <input type="text" name="full_name" id="regName" placeholder="Full Name" class="form-input" value="{{ form.full_name.value|default:'' }}">
+                    <label class="form-label"><i class="fa fa-user-tag"></i> I want to join as:</label>
+                    <div class="role-options">
+                        <label class="role-option">
+                            <input type="radio" name="user_role" value="customer" id="role_customer" checked>
+                            <span class="role-label">🛍️ Customer - I want to shop</span>
+                        </label>
+                        <label class="role-option">
+                            <input type="radio" name="user_role" value="seller" id="role_seller">
+                            <span class="role-label">🏪 Seller - I want to sell products</span>
+                        </label>
+                    </div>
+                    {% if form.user_role.errors %}
+                        <div class="error-text">{{ form.user_role.errors.0 }}</div>
+                    {% endif %}
                 </div>
+                
+                <!-- Common Fields (always visible) -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="id_full_name" class="form-label"><i class="fa fa-user"></i> Full Name</label>
+                        <input type="text" name="full_name" id="id_full_name" placeholder="Enter your full name" 
+                               class="form-input" value="{{ form.full_name.value|default:'' }}">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="id_phone" class="form-label"><i class="fa fa-phone"></i> Mobile Number *</label>
+                        <input type="tel" name="phone" id="id_phone" placeholder="10-digit number" 
+                               class="form-input" required pattern="[0-9]{10}" maxlength="10"
+                               value="{{ form.phone.value|default:'' }}">
+                        {% if form.phone.errors %}
+                            <div class="error-text">{{ form.phone.errors.0 }}</div>
+                        {% endif %}
+                        <small class="form-hint">Used for login & OTP</small>
+                    </div>
+                </div>
+                
                 <div class="form-group">
-                    <input type="tel" name="phone" id="regPhone" placeholder="Mobile Number" class="form-input" required pattern="[0-9]{10}" maxlength="10" value="{{ form.phone.value|default:'' }}">
-                    {% if form.phone.errors %}<div class="error-text">{{ form.phone.errors.0 }}</div>{% endif %}
+                    <label for="id_email" class="form-label"><i class="fa fa-envelope"></i> Email *</label>
+                    <input type="email" name="email" id="id_email" placeholder="your@email.com" 
+                           class="form-input" required value="{{ form.email.value|default:'' }}">
+                    {% if form.email.errors %}
+                        <div class="error-text">{{ form.email.errors.0 }}</div>
+                    {% endif %}
                 </div>
-                <div class="form-group">
-                    <input type="email" name="email" id="regEmail" placeholder="Email (Required for Password Reset)" class="form-input" required value="{{ form.email.value|default:'' }}">
-                    {% if form.email.errors %}<div class="error-text">{{ form.email.errors.0 }}</div>{% endif %}
+                
+                <!-- Seller Fields (conditionally shown) -->
+                <div id="sellerFields" class="seller-fields" style="display:none;">
+                    <div class="section-divider">
+                        <span>🏪 Shop Details</span>
+                        <small class="text-muted">Required for sellers</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="id_shop_name" class="form-label"><i class="fa fa-store"></i> Shop Name *</label>
+                        <input type="text" name="shop_name" id="id_shop_name" placeholder="Your shop name" 
+                               class="form-input" value="{{ form.shop_name.value|default:'' }}">
+                        {% if form.shop_name.errors %}
+                            <div class="error-text">{{ form.shop_name.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="id_shop_description" class="form-label"><i class="fa fa-info-circle"></i> Shop Description</label>
+                        <textarea name="shop_description" id="id_shop_description" rows="2" 
+                                  class="form-input" placeholder="Brief description of your shop">{{ form.shop_description.value|default:'' }}</textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="id_gst_number" class="form-label"><i class="fa fa-file-invoice"></i> GST Number</label>
+                        <input type="text" name="gst_number" id="id_gst_number" placeholder="Optional" 
+                               class="form-input" maxlength="15" value="{{ form.gst_number.value|default:'' }}">
+                        <small class="form-hint">Add GST for business verification</small>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <input type="password" name="password1" id="regPassword" placeholder="Password" class="form-input" required minlength="6">
-                    {% if form.password1.errors %}<div class="error-text">{{ form.password1.errors.0 }}</div>{% endif %}
+                
+                <!-- Password Fields -->
+                <div class="section-divider">
+                    <span>🔐 Set Password</span>
                 </div>
-                <div class="form-group">
-                    <input type="password" name="password2" id="regPasswordConfirm" placeholder="Confirm Password" class="form-input" required minlength="6">
-                    {% if form.password2.errors %}<div class="error-text">{{ form.password2.errors.0 }}</div>{% endif %}
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="id_password1" class="form-label"><i class="fa fa-lock"></i> Password *</label>
+                        <div class="password-wrapper">
+                            <input type="password" name="password1" id="id_password1" placeholder="Min 6 characters" 
+                                   class="form-input" required minlength="6">
+                            <button type="button" class="password-toggle" onclick="togglePassword('id_password1', 'eye1')" aria-label="Toggle password visibility">
+                                <i class="fa fa-eye" id="eye1"></i>
+                            </button>
+                        </div>
+                        {% if form.password1.errors %}
+                            <div class="error-text">{{ form.password1.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="id_password2" class="form-label"><i class="fa fa-lock"></i> Confirm *</label>
+                        <div class="password-wrapper">
+                            <input type="password" name="password2" id="id_password2" placeholder="Re-enter password" 
+                                   class="form-input" required minlength="6">
+                            <button type="button" class="password-toggle" onclick="togglePassword('id_password2', 'eye2')" aria-label="Toggle password visibility">
+                                <i class="fa fa-eye" id="eye2"></i>
+                            </button>
+                        </div>
+                        {% if form.password2.errors %}
+                            <div class="error-text">{{ form.password2.errors.0 }}</div>
+                        {% endif %}
+                    </div>
                 </div>
-                {% if form.non_field_errors %}<div class="alert error">{{ form.non_field_errors.0 }}</div>{% endif %}
-                <button type="submit" class="btn-primary">CREATE ACCOUNT</button>
+                
+                {% if form.non_field_errors %}
+                    <div class="alert error">{{ form.non_field_errors.0 }}</div>
+                {% endif %}
+                
+                <div class="modal-actions">
+                    <button type="submit" class="btn-primary btn-lg">
+                        <i class="fa fa-user-plus"></i> CREATE ACCOUNT
+                    </button>
+                </div>
             </form>
-            <p class="auth-footer">Existing user? <a href="#" id="switchToLogin">Log in</a></p>
+            
+            <p class="modal-footer">
+                Existing user? <a href="#" id="switchToLogin">Log in here</a>
+            </p>
         </div>
     </div>
 
     <!-- Maintenance Mode Banner (if enabled) -->
     {% if IS_MAINTENANCE and not user.is_superuser %}
-    <div class="maintenance-banner" style="background:#fff8e1; color:#f57f17; text-align:center; padding:10px; font-weight:600;">
+    <div class="maintenance-banner">
         🔧 {{ site_settings.site_name }} is under maintenance. Please check back soon.
     </div>
     {% endif %}
@@ -230,10 +373,10 @@
                     <li><a href="mailto:{{ site_settings.contact_email }}"><i class="fa fa-envelope"></i> {{ site_settings.contact_email }}</a></li>
                 </ul>
                 {% if site_settings.social_instagram or site_settings.social_facebook or site_settings.social_twitter %}
-                <div class="social-icons" style="margin-top:15px; display:flex; gap:12px;">
-                    {% if site_settings.social_instagram %}<a href="{{ site_settings.social_instagram }}" target="_blank" rel="noopener" style="color:#E1306C; font-size:1.3rem;"><i class="fa fa-instagram"></i></a>{% endif %}
-                    {% if site_settings.social_facebook %}<a href="{{ site_settings.social_facebook }}" target="_blank" rel="noopener" style="color:#1877F2; font-size:1.3rem;"><i class="fa fa-facebook"></i></a>{% endif %}
-                    {% if site_settings.social_twitter %}<a href="{{ site_settings.social_twitter }}" target="_blank" rel="noopener" style="color:#1DA1F2; font-size:1.3rem;"><i class="fa fa-twitter"></i></a>{% endif %}
+                <div class="social-icons">
+                    {% if site_settings.social_instagram %}<a href="{{ site_settings.social_instagram }}" target="_blank" rel="noopener"><i class="fa fa-instagram"></i></a>{% endif %}
+                    {% if site_settings.social_facebook %}<a href="{{ site_settings.social_facebook }}" target="_blank" rel="noopener"><i class="fa fa-facebook"></i></a>{% endif %}
+                    {% if site_settings.social_twitter %}<a href="{{ site_settings.social_twitter }}" target="_blank" rel="noopener"><i class="fa fa-twitter"></i></a>{% endif %}
                 </div>
                 {% endif %}
             </div>
@@ -254,97 +397,117 @@
         <div class="footer-bottom">© {% now "Y" %} {{ site_settings.site_name }}.in | {{ site_settings.site_tagline }}. Manufactured with Love in India.</div>
     </footer>
 
-    <!-- Global JS -->
+    <!-- ✅ MINIMAL JS: Only for UX (modal toggle, password toggle, role toggle) -->
     <script>
-        const csrfToken = '{{ csrf_token }}';
-        
-        // Modal Elements
+        // Modal toggle with animation
         const loginModal = document.getElementById('loginModal');
         const registerModal = document.getElementById('registerModal');
         const loginBtn = document.getElementById('loginBtn');
-        const closeLoginModal = document.getElementById('closeLoginModal');
-        const closeRegisterModal = document.getElementById('closeRegisterModal');
         
-        // Open Login Modal
+        function openModal(modal) {
+            modal.style.display = 'flex';
+            // Trigger reflow for animation
+            void modal.offsetWidth;
+            modal.classList.add('show');
+            // Prevent body scroll when modal is open
+            document.body.style.overflow = 'hidden';
+        }
+        
+        function closeModal(modal) {
+            modal.classList.remove('show');
+            setTimeout(() => {
+                modal.style.display = 'none';
+                document.body.style.overflow = '';
+            }, 300);
+        }
+        
         if (loginBtn) {
             loginBtn.addEventListener('click', (e) => {
                 e.preventDefault();
-                loginModal.style.display = 'flex';
-                document.querySelectorAll('.error-text').forEach(el => el.remove());
+                openModal(loginModal);
             });
         }
         
-        // Close Modals
-        [closeLoginModal, closeRegisterModal].forEach(btn => {
-            if (btn) {
-                btn.addEventListener('click', () => {
-                    loginModal.style.display = 'none';
-                    registerModal.style.display = 'none';
-                });
-            }
+        document.getElementById('closeLoginModal')?.addEventListener('click', () => {
+            closeModal(loginModal);
+        });
+        document.getElementById('closeRegisterModal')?.addEventListener('click', () => {
+            closeModal(registerModal);
         });
         
-        // Switch between Login/Register
         document.getElementById('switchToRegister')?.addEventListener('click', (e) => {
             e.preventDefault();
-            loginModal.style.display = 'none';
-            registerModal.style.display = 'flex';
+            closeModal(loginModal);
+            setTimeout(() => openModal(registerModal), 300);
         });
-        
         document.getElementById('switchToLogin')?.addEventListener('click', (e) => {
             e.preventDefault();
-            registerModal.style.display = 'none';
-            loginModal.style.display = 'flex';
+            closeModal(registerModal);
+            setTimeout(() => openModal(loginModal), 300);
         });
         
-        // Close modal on outside click
+        // Close on outside click
         window.addEventListener('click', (e) => {
-            if (e.target === loginModal) loginModal.style.display = 'none';
-            if (e.target === registerModal) registerModal.style.display = 'none';
+            if (e.target === loginModal) closeModal(loginModal);
+            if (e.target === registerModal) closeModal(registerModal);
         });
         
-        // Handle form submission with AJAX fallback
-        document.querySelectorAll('#loginForm, #registerForm').forEach(form => {
-            form.addEventListener('submit', async (e) => {
-                const isAjax = form.dataset.ajax === 'true';
-                if (isAjax) {
-                    e.preventDefault();
-                    const formData = new FormData(form);
-                    try {
-                        const res = await fetch(form.action, {
-                            method: 'POST',
-                            headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
-                            body: formData
-                        });
-                        const data = await res.json();
-                        if (data.status === 'success') {
-                            window.location.href = data.redirect;
-                        } else {
-                            document.querySelectorAll('.error-text').forEach(el => el.remove());
-                            if (data.errors) {
-                                Object.entries(data.errors).forEach(([field, messages]) => {
-                                    const input = form.querySelector(`[name="${field}"]`);
-                                    if (input) {
-                                        const errorDiv = document.createElement('div');
-                                        errorDiv.className = 'error-text';
-                                        errorDiv.textContent = messages[0];
-                                        input.parentNode.appendChild(errorDiv);
-                                    }
-                                });
-                            }
-                        }
-                    } catch (err) { form.submit(); }
+        // Restore body scroll on modal close
+        [loginModal, registerModal].forEach(modal => {
+            modal.addEventListener('transitionend', (e) => {
+                if (!modal.classList.contains('show') && e.propertyName === 'opacity') {
+                    document.body.style.overflow = '';
                 }
             });
         });
         
-        // Auto-show modal if there are form errors
+        // Password toggle
+        function togglePassword(inputId, iconId) {
+            const input = document.getElementById(inputId);
+            const icon = document.getElementById(iconId);
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'fa fa-eye-slash';
+            } else {
+                input.type = 'password';
+                icon.className = 'fa fa-eye';
+            }
+        }
+        
+        // Role toggle: Show/hide seller fields
+        const roleRadios = document.querySelectorAll('input[name="user_role"]');
+        const sellerFields = document.getElementById('sellerFields');
+        
+        roleRadios.forEach(radio => {
+            radio.addEventListener('change', () => {
+                if (radio.value === 'seller') {
+                    sellerFields.style.display = 'block';
+                    // Scroll to seller fields smoothly
+                    sellerFields.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                } else {
+                    sellerFields.style.display = 'none';
+                }
+            });
+        });
+        
+        // Auto-show modal if Django returned form errors
         document.addEventListener('DOMContentLoaded', () => {
             const hasErrors = document.querySelector('.error-text') || document.querySelector('.alert.error');
             if (hasErrors) {
-                const isRegister = document.getElementById('registerForm')?.contains(hasErrors);
-                if (isRegister) { registerModal.style.display = 'flex'; }
-                else { loginModal.style.display = 'flex'; }
+                const isRegister = document.getElementById('registerModal')?.contains(hasErrors);
+                if (isRegister) {
+                    openModal(registerModal);
+                } else {
+                    openModal(loginModal);
+                }
+            }
+            
+            // Mobile number formatting (minimal)
+            const phoneInput = document.getElementById('id_phone');
+            if (phoneInput) {
+                phoneInput.addEventListener('input', (e) => {
+                    e.target.value = e.target.value.replace(/[^0-9]/g, '').slice(0, 10);
+                });
             }
         });
     </script>

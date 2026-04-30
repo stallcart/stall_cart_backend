@@ -14,15 +14,10 @@ from .forms import ProductForm
 # ---------------------------------------------------------------------------
 
 def is_seller_or_superuser(user):
-    """Allows both verified sellers AND superusers through."""
-    return user.is_superuser or (
-        hasattr(user, 'seller_profile') and user.seller_profile.is_verified
-    )
-
+    return user.is_admin or user.is_verified_seller
 
 def is_verified_seller(user):
-    """Only verified sellers (not superusers via this path)."""
-    return hasattr(user, 'seller_profile') and user.seller_profile.is_verified
+    return user.is_verified_seller
 
 
 def _get_product_for_user(user, product_id):
@@ -53,7 +48,7 @@ def admin_dashboard(request):
         products = (
             Product.objects
             .select_related('seller', 'category')
-            .prefetch_related('all_images')
+            .prefetch_related('product_image_product')
         )
         title = "👑 Superuser Item Management"
 
@@ -247,7 +242,7 @@ def product_edit(request, product_id):
 
             for i, img in enumerate(
                 request.FILES.getlist('images'),
-                start=product.all_images.count()
+                start=product.product_image_product.count()
             ):
                 ProductImage.objects.create(
                     product=updated,

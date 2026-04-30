@@ -88,7 +88,7 @@ yarn-error.log*
 *~
 .project
 .settings/
-settings.py
+.settings.py
 
 *.sublime-project
 *.sublime-workspace
