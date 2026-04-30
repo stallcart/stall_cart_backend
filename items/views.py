@@ -416,10 +416,10 @@ def product_detail(request, slug):
         status='published',
     )
 
-    # Increment view count
-    product.views_count = models.F('views_count') + 1
+    # Increment view count using F expression
+    product.views_count = F('views_count') + 1
     product.save(update_fields=['views_count'])
-    product.refresh_from_db() # Refresh to get updated count
+    product.refresh_from_db()  # Refresh to get the updated number
 
     # Gallery images
     images = list(product.product_image_product.all().order_by('display_order', '-is_primary'))
@@ -429,7 +429,7 @@ def product_detail(request, slug):
         if primary_img not in images:
             images.insert(0, primary_img)
 
-    # Related products (same category, published, in stock)
+    # Related products
     related = (
         Product.objects
         .filter(category=product.category, status='published', stock__gt=0)
