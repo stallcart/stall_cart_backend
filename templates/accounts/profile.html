@@ -252,7 +252,7 @@
     <div class="profile-card">
         <div class="card-header">
             <h3>📦 Recent Orders</h3>
-            <a href="{% url 'orders:order_list' %}" class="btn-outline btn-sm">View All</a>
+            <a href="{% url '#' %}" class="btn-outline btn-sm">View All</a>
         </div>
         <div class="orders-preview">
             {% if user_orders %}
@@ -305,7 +305,7 @@
         <div class="seller-quick-links">
             <a href="{% url 'items:product_create' %}" class="btn-primary">+ Add New Product</a>
             <a href="{% url 'items:admin_dashboard' %}?status=draft" class="btn-outline">View Drafts</a>
-            <a href="{% url 'orders:seller_orders' %}" class="btn-outline">View Orders</a>
+            <a href="{% url '#%}" class="btn-outline">View Orders</a>
         </div>
     </div>
     {% endif %}
