@@ -9,17 +9,26 @@ from orders.models import Order, OrderItem
 
 def home(request):
     """Main shop page - matches index.html"""
-    products = Product.objects.filter(is_active=True, stock__gt=0).select_related('category', 'seller')
+    # Only show published, in-stock products
+    products = Product.objects.filter(
+        status='published',  # ✅ Use status field
+        stock__gt=0,
+        is_active=True
+    ).select_related('category', 'seller').prefetch_related('product_image_product')
+    
     categories = Category.objects.filter(is_active=True)
     
-    # Cart count from session
-    cart = request.session.get('cart', {})
-    cart_count = sum(cart.values())
+    # Cart count from session (only for customers)
+    cart_count = 0
+    if request.user.is_authenticated and request.user.role == 'customer':
+        cart = request.session.get('cart', {})
+        cart_count = sum(cart.values())
     
     context = {
         'products': products,
         'categories': categories,
         'cart_count': cart_count,
+        'user_role': request.user.role if request.user.is_authenticated else None,
     }
     return render(request, 'shop/home.html', context)
 

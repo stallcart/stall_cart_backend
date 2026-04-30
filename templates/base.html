@@ -92,7 +92,7 @@
                 {% if user.is_authenticated and user.is_seller or user.is_superuser %}
                     <!-- Seller/Superuser: Go to Admin Dashboard -->
                     <a href="{% url 'items:admin_dashboard' %}" 
-                       class="nav-link {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}">
+                    class="nav-link {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}">
                         <i class="fa fa-boxes"></i> Items
                         {% if user.is_seller and user.seller_profile.low_stock_count %}
                             <span class="badge warning">{{ user.seller_profile.low_stock_count }}</span>
@@ -120,10 +120,13 @@
                     </button>
                 {% endif %}
                 
-                <a href="{% url 'shop:cart' %}" class="cart-icon">
-                    <i class="fa fa-shopping-cart"></i>
-                    <span id="cart-count">{{ cart_count|default:0 }}</span>
-                </a>
+                <!-- ✅ ONLY SHOW CART FOR CUSTOMERS -->
+                {% if user.is_authenticated and user.role == 'customer' or not user.is_authenticated %}
+                    <a href="{% url 'shop:cart' %}" class="cart-icon">
+                        <i class="fa fa-shopping-cart"></i>
+                        <span id="cart-count">{{ cart_count|default:0 }}</span>
+                    </a>
+                {% endif %}
             </div>
         </div>
     </header>
@@ -353,8 +356,8 @@
         <div class="footer-grid">
             <div>
                 <h4>ABOUT US</h4>
-                <p>{{ site_settings.site_tagline }}<br>Owner: Manish Kumar Jaiswal</p>
-                <a href="{% url 'delivery:portal' %}" class="btn-outline">Work as A Delivery Boy</a>
+                <p>{{ site_settings.site_tagline }}<br>Founder: Manish Kumar Jaiswal</p>
+                <!-- <a href="{% url 'delivery:portal' %}" class="btn-outline">Work as A Delivery Boy</a> -->
             </div>
             <div>
                 <h4>POLICIES</h4>
