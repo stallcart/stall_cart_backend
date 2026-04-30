@@ -5,9 +5,11 @@ from django.contrib.auth.views import PasswordResetView, PasswordResetDoneView, 
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.contrib import messages
+from django.db import models  # ✅ ADD THIS LINE
+
 from .forms import UserRegistrationForm, UserLoginForm
 import json
-from items.models import SellerProfile
+from items.models import SellerProfile , Product
 def login_view(request):
     if request.user.is_authenticated:
         return redirect('shop:home')
@@ -216,7 +218,6 @@ def profile_view(request):
     # Seller-specific data
     seller_stats = None
     if is_seller:
-        from items.models import Product
         seller = request.user.seller_profile
         seller_stats = {
             'total_products': seller.products.count(),
