@@ -131,7 +131,10 @@ def change_password_view(request):
             update_session_auth_hash(request, user)
             messages.success(request, "Password changed successfully!")
             return redirect('accounts:profile')
-        messages.error(request, "Please correct the errors below.")
+        else:
+            # Debug: Print form errors to console/PythonAnywhere logs
+            print("❌ PasswordChangeForm errors:", form.errors)
+            messages.error(request, "Please correct the errors below.")
     else:
         form = PasswordChangeForm(request.user)
     return render(request, 'accounts/change_password.html', {'form': form})
