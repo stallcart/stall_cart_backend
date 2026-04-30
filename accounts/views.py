@@ -222,11 +222,12 @@ def profile_view(request):
         seller_stats = {
             'total_products': seller.products.count(),
             'published': seller.products.filter(status='published').count(),
+            'draft': seller.products.filter(status='draft').count(),  # ✅ ADD THIS LINE
             'total_sales': seller.products.aggregate(total=models.Sum('sold_count'))['total'] or 0,
             'rating': seller.rating,
             'is_verified': seller.is_verified,
         }
-    
+            
     context = {
         'user': request.user,
         'is_customer': is_customer,
