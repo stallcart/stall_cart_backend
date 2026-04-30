@@ -39,8 +39,8 @@
         {% for product in products %}
         <div class="product-card" data-category="{{ product.category.slug }}" data-price="{{ product.price }}">
             <a href="{% url 'shop:product_detail' product.slug %}">
-                {% if product.images.first %}
-                    <img src="{{ product.images.first.image.url }}" alt="{{ product.name }}" loading="lazy">
+                {% if product.primary_image %}
+                        <img src="{{ product.primary_image.url }}" alt="{{ product.name }}" loading="lazy">
                 {% else %}
                     <div class="no-image">No Image</div>
                 {% endif %}
