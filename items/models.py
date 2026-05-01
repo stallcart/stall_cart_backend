@@ -20,8 +20,8 @@ class SellerProfile(BaseModel):
     is_verified = models.BooleanField(default=False)
     rating = models.DecimalField(max_digits=3, decimal_places=2, default=0.00)
     
-    # def __str__(self):
-    #     return f"{self.shop_name} ({self.user.phone})"
+    def __str__(self):
+        return f"{self.shop_name} ({self.user.phone})"
         
     class Meta:
         verbose_name = 'Seller Profile'

@@ -358,21 +358,22 @@ def product_api_detail(request, product_id):
 # Public pages
 # ---------------------------------------------------------------------------
 
+
 def product_list(request):
     """Public product catalog – all published, in-stock products."""
     products = (
         Product.objects
         .filter(status='published', stock__gt=0)
         .select_related('seller', 'category')
-        .prefetch_related('product_image_product')  # ✅ Matches model related_name
+        .prefetch_related('product_image_product')
     )
 
     # Filters
     category_slug = request.GET.get('category')
-    min_price     = request.GET.get('min_price')
-    max_price     = request.GET.get('max_price')
-    search        = request.GET.get('search')
-    sort          = request.GET.get('sort', '-created_at')
+    min_price = request.GET.get('min_price')
+    max_price = request.GET.get('max_price')
+    search = request.GET.get('search')
+    sort = request.GET.get('sort', '-created_at')
 
     if category_slug:
         products = products.filter(category__slug=category_slug)
@@ -408,7 +409,7 @@ def product_list(request):
 
 
 def product_detail(request, slug):
-    """Public product detail page."""
+    """Public product detail page — Amazon/Flipkart style."""
     product = get_object_or_404(
         Product.objects.select_related('seller', 'category')
                        .prefetch_related('product_image_product'),
@@ -416,21 +417,27 @@ def product_detail(request, slug):
         status='published',
     )
 
-    # Increment view count using F expression
-    product.views_count = F('views_count') + 1
-    product.save(update_fields=['views_count'])
-    product.refresh_from_db()  # Refresh to get the updated number
+    # Increment view count (atomic update)
+    Product.objects.filter(pk=product.pk).update(
+        views_count=F('views_count') + 1
+    )
 
-    # Gallery images
+    # Get all images for gallery
     images = list(product.product_image_product.all().order_by('display_order', '-is_primary'))
-    if product.primary_image:
-        # Ensure primary is first
-        primary_img = type('Img', (), {'image': product.primary_image, 'is_primary': True})()
-        if primary_img not in images:
-            images.insert(0, primary_img)
-
-    # Related products
     
+    # Add primary_image to gallery if not already included
+    if product.primary_image:
+        primary_exists = any(img.image.name == product.primary_image.name for img in images)
+        if not primary_exists:
+            # Create a simple object to hold primary image
+            class PrimaryImage:
+                def __init__(self, image):
+                    self.image = image
+                    self.is_primary = True
+                    self.alt_text = product.name
+            images.insert(0, PrimaryImage(product.primary_image))
+
+    # Related products (same category, published, in stock)
     related = (
         Product.objects
         .filter(category=product.category, status='published', stock__gt=0)
@@ -443,5 +450,6 @@ def product_detail(request, slug):
         'product': product,
         'images': images,
         'related_products': related,
+        'is_in_stock': product.stock > 0,
     }
     return render(request, 'shop/product_detail.html', context)

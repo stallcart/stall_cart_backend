@@ -6,7 +6,7 @@ app_name = 'shop'
 
 urlpatterns = [
     path('', views.home, name='home'),
-    path('product/<slug:slug>/', views.product_detail, name='product_detail'),
+    # path('product/<slug:slug>/', views.product_detail, name='product_detail'),
     path('cart/', views.cart_view, name='cart'),              # ✅ Cart page
     path('cart/add/', views.add_to_cart, name='add_to_cart'), # ✅ AJAX add
     path('cart/update/', views.update_cart, name='update_cart'), # ✅ AJAX update/remove
