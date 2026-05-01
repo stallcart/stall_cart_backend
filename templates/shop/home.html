@@ -14,7 +14,22 @@
         <a href="#products" class="btn-primary">Shop Latest Collection</a>
     </div>
 </section>
-
+<!-- ✅ CATEGORY COLLECTIONS (Below Hero) -->
+<section class="collections-section">
+    <div class="container">
+        <h3>Shop by Collection</h3>
+        <div class="collections-grid">
+            {% for cat in categories|slice:":6" %}
+            <a href="{% url 'items:product_list' %}?category={{ cat.slug }}" class="collection-card">
+                <div class="collection-icon">
+                    {% if "women" in cat.name|lower %}👗{% elif "men" in cat.name|lower %}👔{% elif "furniture" in cat.name|lower %}🪑{% elif "electronics" in cat.name|lower %}📱{% else %}🛍️{% endif %}
+                </div>
+                <span>{{ cat.name }}</span>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</section>
 <!-- Product Grid -->
 <section id="products" class="product-section">
     <div class="section-header">

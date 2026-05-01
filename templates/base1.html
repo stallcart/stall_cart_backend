@@ -67,7 +67,8 @@
     </script>
     {% endif %}
 </head>
-<body class="{% if user.is_authenticated %}logged-in {% if user.role == 'customer' %}customer{% elif user.role == 'seller' %}seller{% elif user.is_superuser %}admin{% endif %}{% else %}guest{% endif %}">    <!-- Header -->
+<body>
+    <!-- Header -->
     <header class="navbar">
         <div class="nav-container">
             <!-- ✅ DYNAMIC LOGO WITH FALLBACKS -->
@@ -83,12 +84,9 @@
             </a>
             
             <!-- ✅ ROLE-BASED NAV ACTIONS -->
-            <!-- ✅ ROLE-BASED NAV ACTIONS -->
             <div class="nav-actions">
-                <!-- ✅ Home Link (Always Visible) -->
-                <a href="{% url 'shop:home' %}" class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}">
-                    <i class="fa fa-home"></i> Home
-                </a>
+                <!-- Blog & Delivery (public) -->
+                <a href="{% url 'blog:blog_list' %}" class="nav-link">Blog</a>
                 
                 <!-- ✅ ROLE-BASED ITEMS/SHOP TAB -->
                 {% if user.is_authenticated and user.is_seller or user.is_superuser %}
@@ -110,13 +108,11 @@
                 <!-- Auth & Cart -->
                 {% if user.is_authenticated %}
                     <a href="{% url 'accounts:profile' %}" class="nav-link">
-                        <i class="fa fa-user"></i> {{ user.full_name|default:user.phone}}
+                        <i class="fa fa-user"></i> {{ user.full_name|default:user.phone|truncatechars:12 }}
                     </a>
                     <form action="{% url 'accounts:logout' %}" method="post" style="display:inline;">
                         {% csrf_token %}
-                        <button type="submit" class="nav-link" style="background:none;border:none;cursor:pointer;">
-                            <i class="fa fa-sign-out-alt"></i> Logout
-                        </button>
+                        <button type="submit" class="nav-link" style="background:none;border:none;cursor:pointer;">Logout</button>
                     </form>
                 {% else %}
                     <button class="nav-link" id="loginBtn" type="button">
@@ -124,8 +120,8 @@
                     </button>
                 {% endif %}
                 
-                <!-- ✅ ONLY SHOW CART FOR CUSTOMERS & GUESTS -->
-                {% if not user.is_authenticated or user.role == 'customer' %}
+                <!-- ✅ ONLY SHOW CART FOR CUSTOMERS -->
+                {% if user.is_authenticated and user.role == 'customer' or not user.is_authenticated %}
                     <a href="{% url 'shop:cart' %}" class="cart-icon">
                         <i class="fa fa-shopping-cart"></i>
                         <span id="cart-count">{{ cart_count|default:0 }}</span>

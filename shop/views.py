@@ -40,7 +40,8 @@ def product_detail(request, slug):
         is_active=True, 
         stock__gt=0
     ).exclude(id=product.id)[:4]
-    
+    print(related)
+    print('product', product)
     cart = request.session.get('cart', {})
     context = {
         'product': product,
@@ -53,6 +54,9 @@ def product_detail(request, slug):
 def add_to_cart(request):
     """AJAX: Add product to session cart"""
     try:
+        if request.user.is_authenticated and request.user.role != 'customer':
+            return JsonResponse({'status': 'error', 'message': 'Only customers can add items to cart'}, status=403)
+    
         data = json.loads(request.body)
         product_id = str(data.get('product_id'))
         quantity = int(data.get('quantity', 1))
@@ -72,6 +76,14 @@ def add_to_cart(request):
 
 def cart_view(request):
     """Cart page with items from session"""
+
+    if request.user.is_authenticated and request.user.role != 'customer':
+        messages.info(request, "🛍️ You're logged in as a seller/admin. Switch to a customer account to shop, or visit your dashboard to manage products.")
+        if request.user.is_seller:
+            return redirect('items:admin_dashboard')
+        elif request.user.is_superuser:
+            return redirect('/admin/')
+        return redirect('shop:home')
     cart = request.session.get('cart', {})
     
     if not cart:
@@ -120,6 +132,9 @@ def cart_view(request):
 def update_cart(request):
     """AJAX: Update cart quantity or remove item"""
     try:
+        if request.user.is_authenticated and request.user.role != 'customer':
+            return JsonResponse({'status': 'error', 'message': 'Only customers can update cart'}, status=403)
+    
         data = json.loads(request.body)
         product_id = str(data.get('product_id'))
         action = data.get('action')  # 'update' or 'remove'
@@ -160,6 +175,9 @@ def update_cart(request):
 @login_required
 def checkout(request):
     """Checkout page - address + payment selection"""
+    if request.user.role != 'customer':
+        messages.error(request, "Only customers can proceed to checkout.")
+        return redirect('shop:home')
     cart = request.session.get('cart', {})
     if not cart:
         return redirect('shop:cart')
