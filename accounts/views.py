@@ -6,6 +6,8 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.contrib import messages
 from django.db import models  # ✅ ADD THIS LINE
+from django.db.models import Sum, Avg, Count
+from decimal import Decimal
 
 from .forms import UserRegistrationForm, UserLoginForm
 import json
@@ -221,7 +223,17 @@ def profile_view(request):
         from items.models import Product
         from orders.models import OrderItem
         seller = request.user.seller_profile
-        
+        rating_data = getattr(seller, "reviews", None)
+        if rating_data:
+            agg = rating_data.aggregate(
+                avg_rating=Avg('rating'),
+                total_reviews=Count('id')
+            )
+            rating = agg['avg_rating'] or Decimal("0.00")
+            rating_count = agg['total_reviews'] or 0
+        else:
+            rating = seller.rating  # fallback field
+            rating_count = 0
         # Seller stats
         seller_stats = {
             'total_products': seller.products.count(),
@@ -232,8 +244,8 @@ def profile_view(request):
                 product__seller=seller,
                 order__status='delivered'
             ).aggregate(total=models.Sum('total'))['total'] or 0,
-            'rating': seller.rating,
-            'rating_count': seller.rating_count,
+            'rating': rating,
+            'rating_count': rating_count,
         }
         
         # ✅ Seller's recent orders (items from their products)
