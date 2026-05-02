@@ -95,7 +95,7 @@
                     <!-- Seller/Superuser: Go to Admin Dashboard -->
                     <a href="{% url 'items:admin_dashboard' %}" 
                     class="nav-link {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}">
-                        <i class="fa fa-boxes"></i> Items
+                        <i class="fa fa-boxes"></i> 
                         {% if user.is_seller and user.seller_profile.low_stock_count %}
                             <span class="badge warning">{{ user.seller_profile.low_stock_count }}</span>
                         {% endif %}
