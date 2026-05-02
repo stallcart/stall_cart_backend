@@ -15,84 +15,48 @@ class ProductForm(forms.ModelForm):
     class Meta:
         model  = Product
         fields = [
+            # ── shown to everyone ──────────────────────────────────────────
             'name', 'slug', 'short_description', 'description',
             'price', 'mrp', 'cost_price', 'discount_percent',
             'stock', 'low_stock_threshold', 'status',
-            'primary_image', # This handles the single primary image
+            'primary_image',
             'brand', 'sku', 'weight', 'dimensions',
-            'category', 'is_featured', 'is_hot_deal',
-            'meta_title', 'meta_description'
+            'meta_title', 'meta_description',
+            'is_featured', 'is_hot_deal',
+            'category',
+        
         ]
         widgets = {
-            'name':              forms.TextInput(attrs={
-                'class': 'form-input',
-                'placeholder': 'e.g., Premium Cotton T-Shirt',
-            }),
-            'slug':              forms.TextInput(attrs={'class': 'form-input'}),
-            'short_description': forms.TextInput(attrs={
-                'class': 'form-input',
-                'placeholder': 'Brief tagline for listings',
-            }),
-            'description':       forms.Textarea(attrs={
-                'class': 'form-input', 'rows': 6,
-                'placeholder': 'Full product description…',
-            }),
-            'price':             forms.NumberInput(attrs={
-                'class': 'form-input', 'step': '0.01', 'min': '0',
-            }),
-            'mrp':               forms.NumberInput(attrs={
-                'class': 'form-input', 'step': '0.01', 'min': '0',
-            }),
-            'cost_price':        forms.NumberInput(attrs={
-                'class': 'form-input', 'step': '0.01', 'min': '0',
-            }),
-            'discount_percent':  forms.NumberInput(attrs={
-                'class': 'form-input', 'min': '0', 'max': '100',
-            }),
-            'stock':             forms.NumberInput(attrs={
-                'class': 'form-input', 'min': '0',
-            }),
-            'low_stock_threshold': forms.NumberInput(attrs={
-                'class': 'form-input', 'min': '1',
-            }),
-            'status':            forms.Select(attrs={'class': 'form-select'}),
-            'primary_image':     forms.ClearableFileInput(attrs={'class': 'form-input'}),
-            'brand':             forms.TextInput(attrs={'class': 'form-input'}),
-            'sku':               forms.TextInput(attrs={
-                'class': 'form-input', 'placeholder': 'Auto-generated if blank',
-            }),
-            'weight':            forms.NumberInput(attrs={
-                'class': 'form-input', 'step': '0.01',
-            }),
-            'dimensions':        forms.TextInput(attrs={
-                'class': 'form-input', 'placeholder': 'e.g., 30 x 20 x 5 cm',
-            }),
-            'meta_title':        forms.TextInput(attrs={
-                'class': 'form-input', 'maxlength': '60',
-            }),
-            'meta_description':  forms.Textarea(attrs={
-                'class': 'form-input', 'rows': 2, 'maxlength': '160',
-            }),
-            'category':          forms.Select(attrs={'class': 'form-select'}),
-            'seller':            forms.Select(attrs={'class': 'form-select'}),
+            'name': forms.TextInput(attrs={'class': 'form-input'}),
+            'slug': forms.TextInput(attrs={'class': 'form-input'}),
+            'short_description': forms.TextInput(attrs={'class': 'form-input'}),
+            'description': forms.Textarea(attrs={'class': 'form-input', 'rows': 6}),
+            'price': forms.NumberInput(attrs={'class': 'form-input'}),
+            'mrp': forms.NumberInput(attrs={'class': 'form-input'}),
+            'cost_price': forms.NumberInput(attrs={'class': 'form-input'}),
+            'discount_percent': forms.NumberInput(attrs={'class': 'form-input'}),
+            'stock': forms.NumberInput(attrs={'class': 'form-input'}),
+            'low_stock_threshold': forms.NumberInput(attrs={'class': 'form-input'}),
+            'status': forms.Select(attrs={'class': 'form-select'}),
+            'primary_image': forms.ClearableFileInput(attrs={'class': 'form-input'}),
+            'brand': forms.TextInput(attrs={'class': 'form-input'}),
+            'sku': forms.TextInput(attrs={'class': 'form-input'}),
+            'weight': forms.NumberInput(attrs={'class': 'form-input'}),
+            'dimensions': forms.TextInput(attrs={'class': 'form-input'}),
+            'meta_title': forms.TextInput(attrs={'class': 'form-input'}),
+            'meta_description': forms.Textarea(attrs={'class': 'form-input'}),
+            'category': forms.Select(attrs={'class': 'form-select'}),
         }
-
     def __init__(self, *args, is_superuser=False, **kwargs):
         super().__init__(*args, **kwargs)
 
         if not is_superuser:
-            # Sellers never see or submit the seller field
             self.fields.pop('seller', None)
         else:
-            # Superuser: only show verified sellers in the dropdown
-            self.fields['seller'].queryset = (
-                SellerProfile.objects.filter(is_verified=True)
-                .select_related('user')
-            )
+            self.fields['seller'].queryset = SellerProfile.objects.filter(is_verified=True)
             self.fields['seller'].required = True
-            self.fields['seller'].label = 'Assign to Seller'
+            self.fields['seller'].label = "Assign to Seller"
 
-        # Make slug optional (auto-generated in model.save())
         self.fields['slug'].required = False
 
     # ── validation ────────────────────────────────────────────────────────────
