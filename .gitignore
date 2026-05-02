@@ -88,9 +88,9 @@ yarn-error.log*
 *.temp
 *~
 .project
-.settings/
-.settings.py
-stall_cart/settings.py
+# .settings/
+# .settings.py
+# stall_cart/settings.py
 *.sublime-project
 *.sublime-workspace
 
