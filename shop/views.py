@@ -6,6 +6,8 @@ from django.contrib import messages
 import json
 from items.models import Product, Category
 from orders.models import Order, OrderItem
+from common.models import SiteSettings
+from django.conf import settings
 
 def home(request):
     """Main shop page - matches index.html"""
@@ -193,89 +195,74 @@ def checkout(request):
     }
     return render(request, 'shop/checkout.html', context)
 
-@require_POST
 @login_required
+@require_POST
 def create_order(request):
-    """Create order + Razorpay payment initiation"""
-    try:
-        data = json.loads(request.body)
-        cart = request.session.get('cart', {})
-        if not cart:
-            return JsonResponse({'error': 'Cart is empty'}, status=400)
-        
-        # Calculate total
-        from items.models import Product
-        products = Product.objects.filter(id__in=cart.keys(), is_active=True)
-        total = sum(p.price * cart[str(p.id)] for p in products if p.stock >= cart[str(p.id)])
-        
-        # Create order
-        order = Order.objects.create(
-            user=request.user,
-            total_amount=total,
-            address=data.get('address', {}),
-            payment_method=data.get('payment_method', 'COD'),
-            payment_status='Pending' if data.get('payment_method') == 'COD' else 'Processing',
-            created_by=request.user
-        )
-        
-        # Create order items
-        for p in products:
-            qty = cart[str(p.id)]
-            if p.stock >= qty:
-                OrderItem.objects.create(
-                    order=order,
-                    product=p,
-                    quantity=qty,
-                    price=p.price,
-                    created_by=request.user
-                )
-                # Reduce stock
-                p.stock -= qty
-                p.save()
-        
-        # Clear cart
-        request.session['cart'] = {}
-        request.session.modified = True
-        
-        # For COD: return order ID
-        if data.get('payment_method') == 'COD':
-            return JsonResponse({
-                'status': 'success',
-                'order_id': str(order.id),
-                'message': 'Order placed! Cash on Delivery.'
-            })
-        
-        # For online payment: Return Razorpay order details
-        import razorpay
-        client = razorpay.Client(auth=(
-            request.build_absolute_uri('/settings/').split('/')[2],  # Replace with actual key
-            'YOUR_RAZORPAY_SECRET'
-        ))
-        razorpay_order = client.order.create({
-            'amount': int(total * 100),  # paise
-            'currency': 'INR',
-            'receipt': f'order_{order.id}',
-            'payment_capture': 1
-        })
-        
-        return JsonResponse({
-            'status': 'success',
-            'order_id': str(order.id),
-            'razorpay_order_id': razorpay_order['id'],
-            'razorpay_key': 'rzp_test_YOUR_KEY',  # From settings
-            'amount': int(total * 100),
-            'currency': 'INR',
-            'name': 'StallCart',
-            'description': f'Order #{str(order.id)[:8]}',
-            'prefill': {
-                'name': request.user.full_name,
-                'email': request.user.email or '',
-                'contact': request.user.phone
-            }
-        })
-        
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
+    """Create order + Razorpay payment"""
+    cart = request.session.get('cart', {})
+    if not cart:
+        return JsonResponse({'error': 'Cart is empty'}, status=400)
+    
+    # Calculate totals
+    products = Product.objects.filter(id__in=cart.keys(), status='published')
+    total = sum(p.price * cart[str(p.id)] for p in products if p.stock >= cart[str(p.id)])
+    
+    # Create Order
+    order = Order.objects.create(
+        user=request.user,
+        total_amount=total,
+        shipping_address=request.user.address if hasattr(request.user, 'address') else {},
+        payment_method='razorpay',
+        payment_status='pending',
+    )
+    
+    # Create OrderItems
+    for p in products:
+        qty = cart[str(p.id)]
+        if p.stock >= qty:
+            OrderItem.objects.create(
+                order=order,
+                product=p,
+                seller=p.seller,
+                quantity=qty,
+                price=p.price,
+                total=p.price * qty
+            )
+    
+    # Create Razorpay Order
+    razorpay_order = razorpay_client.order.create({
+        'amount': int(total * 100),  # paise
+        'currency': 'INR',
+        'receipt': order.order_id,
+        'payment_capture': 1,
+        'notes': {
+            'order_id': order.order_id,
+            'user_id': request.user.id,
+        }
+    })
+    
+    # Save Razorpay IDs
+    order.razorpay_order_id = razorpay_order['id']
+    order.save()
+    
+    # Clear cart
+    request.session['cart'] = {}
+    
+    return JsonResponse({
+        'status': 'success',
+        'order_id': order.order_id,
+        'razorpay_order_id': razorpay_order['id'],
+        'razorpay_key': settings.RAZORPAY_KEY_ID,
+        'amount': int(total * 100),
+        'currency': 'INR',
+        'name': SiteSettings.SITE_NAME,
+        'description': f'Order {order.order_id}',
+        'prefill': {
+            'name': request.user.full_name,
+            'email': request.user.email or '',
+            'contact': request.user.phone
+        }
+    })
 
 @login_required
 def order_success(request, order_id):

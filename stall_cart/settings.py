@@ -83,3 +83,9 @@ STATICFILES_DIRS = [BASE_DIR / 'static']
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# stall_cart/settings.py
+RAZORPAY_KEY_ID = env('RAZORPAY_KEY_ID', default='rzp_test_XXX')
+RAZORPAY_KEY_SECRET = env('RAZORPAY_KEY_SECRET', default='XXX')
+RAZORPAY_WEBHOOK_SECRET = env('RAZORPAY_WEBHOOK_SECRET', default='XXX')
+
+# https://yourdomain.com/orders/razorpay-webhook/

@@ -53,6 +53,7 @@ class SiteSettings(models.Model):
     """
     site_name = models.CharField(max_length=100, default='StallCart')
     site_tagline = models.CharField(max_length=255, blank=True, default='India\'s Premium Fashion Destination')
+    about_us = models.TextField(blank=True, null=True)
 
     # Logo Variants
     logo_primary = models.ImageField(

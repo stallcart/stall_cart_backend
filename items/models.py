@@ -31,6 +31,7 @@ class Category(BaseModel):
     name = models.CharField(max_length=100, unique=True)
     slug = models.SlugField(unique=True, blank=True)
     description = models.TextField(blank=True,null=True)
+    commision_percentage = models.FloatField(default=0)
     parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL, related_name='children')
     
     def save(self, *args, **kwargs):
