@@ -407,7 +407,9 @@ def product_detail(request, slug):
     Product.objects.filter(pk=product.pk).update(
         views_count=F('views_count') + 1
     )
+    product.refresh_from_db()
 
+  
     # Get all images for gallery
     images = list(product.product_image_product.all().order_by('display_order', '-is_primary'))
     
@@ -434,6 +436,7 @@ def product_detail(request, slug):
     if request.user.is_authenticated and request.user.role == 'customer':
         cart = request.session.get('cart', {})
         cart_count = sum(cart.values())
+        
     context = {
         'product': product,
         'images': images,

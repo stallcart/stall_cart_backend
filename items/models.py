@@ -141,7 +141,11 @@ class Product(BaseModel):
             discount = Decimal(self.discount_percent) / Decimal(100)
             return self.price * (Decimal(1) - discount)
         return self.price
-    
+    @property
+    def savings(self):
+        if self.mrp and self.price and self.mrp > self.price:
+            return self.mrp - self.price
+        return 0
     @property
     def is_in_stock(self):
         return self.stock > 0 and self.status == 'published'

@@ -219,54 +219,78 @@ document.querySelectorAll('.remove-btn').forEach(btn => {
 });
 
 // AJAX: Update Cart Item
+// async function updateCartItem(productId, quantity, action = 'update') {
+//     try {
+//         const res = await fetch("{% url 'shop:update_cart' %}", {
+//             method: 'POST',
+//             headers: {
+//                 'Content-Type': 'application/json',
+//                 'X-CSRFToken': csrfToken
+//             },
+//             body: JSON.stringify({
+//                 product_id: productId,
+//                 quantity: quantity,
+//                 action: action
+//             })
+//         });
+//         const data = await res.json();
+        
+//         if (data.status === 'success') {
+//             // Update cart count in header
+//             document.getElementById('cart-count').textContent = data.cart_count;
+            
+//             // If item removed, fade out and remove from DOM
+//             if (action === 'remove' || quantity === 0) {
+//                 const item = document.querySelector(`.cart-item[data-product-id="${productId}"]`);
+//                 if (item) {
+//                     item.style.opacity = '0';
+//                     item.style.transform = 'translateX(-20px)';
+//                     setTimeout(() => {
+//                         item.remove();
+//                         // Refresh page if cart is now empty
+//                         if (document.querySelectorAll('.cart-item').length === 0) {
+//                             window.location.reload();
+//                         }
+//                     }, 300);
+//                 }
+//             } else {
+//                 // Recalculate subtotal for this item
+//                 const item = document.querySelector(`.cart-item[data-product-id="${productId}"]`);
+//                 const price = parseFloat(item.querySelector('.item-price').textContent.replace('₹', ''));
+//                 item.querySelector('.item-subtotal strong').textContent = `₹${(price * quantity).toFixed(2)}`;
+                
+//                 // Update total in price details (simplified - in production, recalculate server-side)
+//                 location.reload(); // For simplicity, reload to update totals
+//             }
+//         } else {
+//             alert(data.message || 'Failed to update cart');
+//         }
+//     } catch (err) {
+//         alert('Network error: ' + err.message);
+//     }
+// }
+
 async function updateCartItem(productId, quantity, action = 'update') {
     try {
         const res = await fetch("{% url 'shop:update_cart' %}", {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
-            },
-            body: JSON.stringify({
-                product_id: productId,
-                quantity: quantity,
-                action: action
-            })
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify({ product_id: productId, quantity, action })
         });
         const data = await res.json();
         
         if (data.status === 'success') {
-            // Update cart count in header
-            document.getElementById('cart-count').textContent = data.cart_count;
-            
-            // If item removed, fade out and remove from DOM
-            if (action === 'remove' || quantity === 0) {
-                const item = document.querySelector(`.cart-item[data-product-id="${productId}"]`);
-                if (item) {
-                    item.style.opacity = '0';
-                    item.style.transform = 'translateX(-20px)';
-                    setTimeout(() => {
-                        item.remove();
-                        // Refresh page if cart is now empty
-                        if (document.querySelectorAll('.cart-item').length === 0) {
-                            window.location.reload();
-                        }
-                    }, 300);
-                }
-            } else {
-                // Recalculate subtotal for this item
-                const item = document.querySelector(`.cart-item[data-product-id="${productId}"]`);
-                const price = parseFloat(item.querySelector('.item-price').textContent.replace('₹', ''));
-                item.querySelector('.item-subtotal strong').textContent = `₹${(price * quantity).toFixed(2)}`;
-                
-                // Update total in price details (simplified - in production, recalculate server-side)
-                location.reload(); // For simplicity, reload to update totals
+            // ✅ Safe update: check if element exists
+            const cartCountEl = document.getElementById('cart-count');
+            if (cartCountEl) {
+                cartCountEl.textContent = data.cart_count;
             }
-        } else {
-            alert(data.message || 'Failed to update cart');
+            
+            // ... rest of your code ...
         }
     } catch (err) {
-        alert('Network error: ' + err.message);
+        console.error('Cart update error:', err);
+        alert('Failed to update cart');
     }
 }
 
