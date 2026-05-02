@@ -394,6 +394,8 @@ def product_list(request):
 
 def product_detail(request, slug):
     """Public product detail page — Amazon/Flipkart style."""
+    cart_count = 0
+
     product = get_object_or_404(
         Product.objects.select_related('seller', 'category')
                        .prefetch_related('product_image_product'),
@@ -429,11 +431,14 @@ def product_detail(request, slug):
         .select_related('seller')
         .prefetch_related('product_image_product')[:4]
     )
-
+    if request.user.is_authenticated and request.user.role == 'customer':
+        cart = request.session.get('cart', {})
+        cart_count = sum(cart.values())
     context = {
         'product': product,
         'images': images,
         'related_products': related,
         'is_in_stock': product.stock > 0,
+        'cart_count': cart_count, 
     }
     return render(request, 'shop/product_detail.html', context)

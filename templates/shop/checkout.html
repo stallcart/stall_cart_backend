@@ -1,0 +1,254 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Checkout - StallCart{% endblock %}
+
+{% block content %}
+<div class="checkout-container">
+    <h2 class="page-title">Checkout</h2>
+    
+    <form id="checkoutForm">
+        {% csrf_token %}
+        
+        <div class="checkout-grid">
+            <!-- LEFT COLUMN: Delivery & Items -->
+            <div class="checkout-left">
+                
+                <!-- 1. Delivery Address -->
+                <div class="checkout-card">
+                    <h3>📍 Delivery Address</h3>
+                    {% if user.address %}
+                        <label class="address-option selected">
+                            <input type="radio" name="address_id" value="saved" checked>
+                            <div class="address-details">
+                                <strong>{{ user.full_name }}</strong>
+                                <p>{{ user.address.address }}</p>
+                                <p>{{ user.address.city }}, {{ user.address.state }} - {{ user.address.postalCode }}</p>
+                                <p>📞 {{ user.address.phone }}</p>
+                            </div>
+                        </label>
+                    {% else %}
+                        <div class="form-group">
+                            <label>Full Name</label>
+                            <input type="text" name="name" class="form-input" required value="{{ user.full_name }}">
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Mobile Number</label>
+                                <input type="tel" name="phone" class="form-input" required pattern="[0-9]{10}" value="{{ user.phone }}">
+                            </div>
+                            <div class="form-group">
+                                <label>PIN Code</label>
+                                <input type="text" name="postalCode" class="form-input" required pattern="[0-9]{6}">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Address</label>
+                            <textarea name="address" class="form-input" rows="3" required></textarea>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>City</label>
+                                <input type="text" name="city" class="form-input" required>
+                            </div>
+                            <div class="form-group">
+                                <label>State</label>
+                                <input type="text" name="state" class="form-input" required>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- 2. Order Items -->
+                <div class="checkout-card">
+                    <h3>📦 Order Items ({{ cart_items|length }})</h3>
+                    <div class="order-items-list">
+                        {% for item in cart_items %}
+                        <div class="order-item-row">
+                            <img src="{{ item.product.primary_image.url|default:'/static/images/placeholder.png' }}" alt="{{ item.product.name }}">
+                            <div class="item-info">
+                                <h4>{{ item.product.name }}</h4>
+                                <p>Seller: {{ item.product.seller.shop_name }}</p>
+                                <p class="item-price-qty">Qty: {{ item.quantity }} × ₹{{ item.product.price|floatformat:2 }}</p>
+                            </div>
+                            <div class="item-total">
+                                ₹{{ item.subtotal|floatformat:2 }}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN: Price & Payment -->
+            <div class="checkout-right">
+                
+                <!-- 3. Price Details -->
+                <div class="checkout-card sticky-card">
+                    <h3>💰 Price Details</h3>
+                    <div class="price-row">
+                        <span>Price ({{ cart_items|length }} items)</span>
+                        <span>₹{{ total|floatformat:2 }}</span>
+                    </div>
+                    <div class="price-row">
+                        <span>Discount</span>
+                        <span class="text-green">-₹0.00</span>
+                    </div>
+                    <div class="price-row">
+                        <span>Delivery Charges</span>
+                        <span>{% if delivery_charge == 0 %}<span class="text-green">FREE</span>{% else %}₹{{ delivery_charge }}{% endif %}</span>
+                    </div>
+                    <hr>
+                    <div class="price-row total-row">
+                        <strong>Total Amount</strong>
+                        <strong>₹{{ total|add:delivery_charge|floatformat:2 }}</strong>
+                    </div>
+
+                    <!-- 4. Payment Method -->
+                    <div class="payment-section">
+                        <h4>💳 Payment Method</h4>
+                        <label class="payment-option">
+                            <input type="radio" name="payment_method" value="razorpay" checked>
+                            <div class="payment-icon">📱</div>
+                            <span>Online Payment<br><small>UPI, Cards, NetBanking</small></span>
+                        </label>
+                        <label class="payment-option">
+                            <input type="radio" name="payment_method" value="cod">
+                            <div class="payment-icon">💵</div>
+                            <span>Cash on Delivery<br><small>Pay when you receive</small></span>
+                        </label>
+                    </div>
+
+                    <button type="button" class="btn-primary btn-lg" id="placeOrderBtn">
+                        PLACE ORDER
+                    </button>
+                    <p class="text-muted" style="text-align:center; margin-top:10px; font-size:0.8rem;">
+                        By placing this order, you agree to our Terms & Conditions.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('placeOrderBtn').addEventListener('click', async function() {
+    const btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Processing...';
+
+    // Collect Form Data
+    const formData = new FormData();
+    {% if not user.address %}
+        // If no saved address, grab inputs
+        formData.append('name', document.querySelector('[name="name"]').value);
+        formData.append('phone', document.querySelector('[name="phone"]').value);
+        formData.append('address', document.querySelector('[name="address"]').value);
+        formData.append('city', document.querySelector('[name="city"]').value);
+        formData.append('state', document.querySelector('[name="state"]').value);
+        formData.append('postalCode', document.querySelector('[name="postalCode"]').value);
+    {% else %}
+        // Use saved address structure (simplified for demo)
+        formData.append('name', '{{ user.full_name }}');
+        formData.append('phone', '{{ user.address.phone|default:user.phone }}');
+        formData.append('address', '{{ user.address.address }}');
+        formData.append('city', '{{ user.address.city }}');
+        formData.append('state', '{{ user.address.state }}');
+        formData.append('postalCode', '{{ user.address.postalCode }}');
+    {% endif %}
+    
+    const paymentMethod = document.querySelector('input[name="payment_method"]:checked').value;
+    formData.append('payment_method', paymentMethod);
+
+    try {
+        const res = await fetch("{% url 'shop:create_order' %}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+            body: JSON.stringify(Object.fromEntries(formData.entries()))
+        });
+        const data = await res.json();
+
+        if (data.status === 'success') {
+            if (paymentMethod === 'razorpay' && data.razorpay_order_id) {
+                // Open Razorpay
+                var options = {
+                    "key": data.razorpay_key,
+                    "amount": data.amount,
+                    "currency": data.currency,
+                    "name": data.name,
+                    "description": data.description,
+                    "order_id": data.razorpay_order_id,
+                    "handler": function (response) {
+                        window.location.href = `{% url 'orders:order_success' order_id='0' %}`.replace('0', data.order_id);
+                    },
+                    "prefill": data.prefill,
+                    "theme": { "color": "#2874f0" }
+                };
+                var rzp1 = new Razorpay(options);
+                rzp1.on('payment.failed', function (response){
+                    alert('Payment Failed: ' + response.error.description);
+                    btn.disabled = false;
+                    btn.innerHTML = 'PLACE ORDER';
+                });
+                rzp1.open();
+            } else {
+                // COD Success
+                window.location.href = `{% url 'orders:order_success' order_id='0' %}`.replace('0', data.order_id);
+            }
+        } else {
+            alert(data.message || 'Order failed. Please try again.');
+            btn.disabled = false;
+            btn.innerHTML = 'PLACE ORDER';
+        }
+    } catch (err) {
+        alert('Network Error. Please check your connection.');
+        btn.disabled = false;
+        btn.innerHTML = 'PLACE ORDER';
+    }
+});
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.checkout-container { max-width: 1100px; margin: 0 auto; }
+.page-title { margin-bottom: 25px; font-size: 1.8rem; }
+.checkout-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 25px; }
+.checkout-card { background: #fff; padding: 25px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.06); margin-bottom: 20px; }
+.checkout-card h3 { margin: 0 0 15px; font-size: 1.2rem; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+
+/* Address */
+.address-option { display: flex; gap: 12px; padding: 15px; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; margin-bottom: 10px; }
+.address-option:has(input:checked) { border-color: #2874f0; background: #f8f9ff; }
+.address-details p { margin: 4px 0; color: #555; font-size: 0.95rem; }
+
+/* Items */
+.order-item-row { display: flex; gap: 15px; padding: 15px 0; border-bottom: 1px solid #f0f0f0; }
+.order-item-row:last-child { border-bottom: none; }
+.order-item-row img { width: 70px; height: 70px; object-fit: cover; border-radius: 6px; }
+.item-info h4 { margin: 0 0 4px; font-size: 1rem; }
+.item-info p { margin: 2px 0; color: #666; font-size: 0.9rem; }
+.item-total { margin-left: auto; font-weight: 700; color: #2874f0; }
+
+/* Price */
+.price-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.95rem; }
+.total-row { font-size: 1.2rem; margin-top: 15px; border-top: 2px solid #eee; padding-top: 15px; }
+.text-green { color: #2e7d32; font-weight: 600; }
+
+/* Payment */
+.payment-section { margin-top: 20px; }
+.payment-option { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; margin-bottom: 10px; }
+.payment-option:has(input:checked) { border-color: #2874f0; background: #f8f9ff; }
+.payment-icon { font-size: 1.5rem; }
+
+/* Sticky Sidebar */
+.sticky-card { position: sticky; top: 100px; }
+
+@media (max-width: 768px) {
+    .checkout-grid { grid-template-columns: 1fr; }
+    .sticky-card { position: static; }
+}
+</style>
+{% endblock %}

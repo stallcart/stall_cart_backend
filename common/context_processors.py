@@ -17,3 +17,11 @@ def site_settings(request):
         'IS_MAINTENANCE': settings.is_maintenance_mode,
         'OG_LOGO_URL': og_logo,  # ✅ Absolute URL for social sharing
     }
+
+def cart_count(request):
+    """Add cart count to every template context"""
+    count = 0
+    if request.user.is_authenticated and request.user.role == 'customer':
+        cart = request.session.get('cart', {})
+        count = sum(cart.values())
+    return {'cart_count': count}

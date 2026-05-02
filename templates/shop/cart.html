@@ -18,8 +18,13 @@
             {% for item in cart_items %}
             <div class="cart-item" data-product-id="{{ item.product.id }}">
                 <div class="item-image">
-                    {% if item.product.images.first %}
+                    <!-- {% if item.product.images.first %}
                         <img src="{{ item.product.images.first.image.url }}" alt="{{ item.product.name }}">
+                    {% else %}
+                        <div class="no-image">No Image</div>
+                    {% endif %} -->
+                     {% if item.product.primary_image %}
+                        <img src="{{ item.product.primary_image.url }}" alt="{{ item.product.name }}" loading="lazy">
                     {% else %}
                         <div class="no-image">No Image</div>
                     {% endif %}
