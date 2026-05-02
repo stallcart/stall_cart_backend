@@ -15,17 +15,13 @@ class ProductForm(forms.ModelForm):
     class Meta:
         model  = Product
         fields = [
-            # ── shown to everyone ──────────────────────────────────────────
             'name', 'slug', 'short_description', 'description',
             'price', 'mrp', 'cost_price', 'discount_percent',
             'stock', 'low_stock_threshold', 'status',
-            'primary_image',
+            'primary_image', # This handles the single primary image
             'brand', 'sku', 'weight', 'dimensions',
-            'meta_title', 'meta_description',
-            'is_featured', 'is_hot_deal',
-            'category',
-            # ── superuser only (injected in __init__) ─────────────────────
-            'seller',
+            'category', 'is_featured', 'is_hot_deal',
+            'meta_title', 'meta_description'
         ]
         widgets = {
             'name':              forms.TextInput(attrs={

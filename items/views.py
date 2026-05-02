@@ -170,35 +170,32 @@ def seller_dashboard(request):
 # Product Create
 # ---------------------------------------------------------------------------
 
+
 @login_required
 @user_passes_test(is_seller_or_superuser, login_url='shop:home')
 def product_create(request):
-    """
-    Create a product.
-    - Seller     → product.seller auto-set to their profile
-    - Superuser  → must choose a seller via the form (seller field shown)
-    """
     if request.method == 'POST':
-        form = ProductForm(request.POST, request.FILES,
-                           is_superuser=request.user.is_superuser)
+        form = ProductForm(request.POST, request.FILES, is_superuser=request.user.is_superuser)
         if form.is_valid():
             product = form.save(commit=False)
 
             if not request.user.is_superuser:
-                # Regular seller: force assign their own profile
                 product.seller = request.user.seller_profile
 
             product.created_by = request.user
             product.save()
 
-            # Handle multiple extra images
-            for i, img in enumerate(request.FILES.getlist('images')):
-                ProductImage.objects.create(
-                    product=product,
-                    image=img,
-                    is_primary=(i == 0 and not product.primary_image),
-                    display_order=i,
-                )
+            # Handle multiple additional images
+            files = request.FILES.getlist('images')
+            if files:
+                for i, img in enumerate(files):
+                    ProductImage.objects.create(
+                        product=product,
+                        image=img,
+                        # If no primary image set, make the first uploaded image primary
+                        is_primary=(i == 0 and not product.primary_image),
+                        display_order=i,
+                    )
 
             messages.success(request, f'Product "{product.name}" created successfully!')
             return redirect('items:admin_dashboard')
@@ -206,9 +203,7 @@ def product_create(request):
         form = ProductForm(is_superuser=request.user.is_superuser)
 
     return render(request, 'items/product_form.html', {
-        'form':   form,
-        'title':  'Add New Product',
-        'action': 'Create',
+        'form': form, 'title': 'Add New Product', 'action': 'Create',
     })
 
 
@@ -219,51 +214,40 @@ def product_create(request):
 @login_required
 @user_passes_test(is_seller_or_superuser, login_url='shop:home')
 def product_edit(request, product_id):
-    """
-    Edit a product.
-    - Seller     → can only edit their own products
-    - Superuser  → can edit any product, and re-assign the seller
-    """
     product = _get_product_for_user(request.user, product_id)
 
     if request.method == 'POST':
-        form = ProductForm(request.POST, request.FILES,
-                           instance=product,
-                           is_superuser=request.user.is_superuser)
+        form = ProductForm(request.POST, request.FILES, instance=product, is_superuser=request.user.is_superuser)
         if form.is_valid():
             updated = form.save(commit=False)
 
             if not request.user.is_superuser:
-                # Prevent sellers from changing ownership
                 updated.seller = request.user.seller_profile
 
             updated.updated_by = request.user
             updated.save()
 
-            for i, img in enumerate(
-                request.FILES.getlist('images'),
-                start=product.product_image_product.count()
-            ):
-                ProductImage.objects.create(
-                    product=updated,
-                    image=img,
-                    is_primary=False,
-                    display_order=i,
-                )
+            # Handle Additional Images:
+            # If user uploads new images, delete old additional images first to prevent duplicates
+            files = request.FILES.getlist('images')
+            if files:
+                product.product_image_product.all().delete()
+                for i, img in enumerate(files):
+                    ProductImage.objects.create(
+                        product=updated,
+                        image=img,
+                        is_primary=False, # Additional images are not primary by default in edit mode
+                        display_order=i,
+                    )
 
             messages.success(request, f'Product "{updated.name}" updated!')
             return redirect('items:admin_dashboard')
     else:
-        form = ProductForm(instance=product,
-                           is_superuser=request.user.is_superuser)
+        form = ProductForm(instance=product, is_superuser=request.user.is_superuser)
 
     return render(request, 'items/product_form.html', {
-        'form':    form,
-        'product': product,
-        'title':   f'Edit: {product.name}',
-        'action':  'Update',
+        'form': form, 'product': product, 'title': f'Edit: {product.name}', 'action': 'Update',
     })
-
 
 # ---------------------------------------------------------------------------
 # Product Toggle Status (AJAX)

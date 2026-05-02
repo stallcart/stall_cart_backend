@@ -131,6 +131,7 @@
             </div>
             <div class="form-group">
                 <label>Additional Images</label>
+                <!-- ✅ Ensure 'multiple' and correct 'id' are present -->
                 <input type="file" name="images" multiple accept="image/*"
                        class="form-input" id="imageUpload">
                 <small>Upload multiple at once; first becomes primary if none selected above</small>
@@ -243,17 +244,18 @@ recalc();
 /* ── Image preview ──────────────────────────────────────────────────────── */
 document.getElementById('imageUpload')?.addEventListener('change', function () {
     const grid = document.getElementById('imagePreview');
-    grid.innerHTML = '';
+    if (grid) grid.innerHTML = ''; // Clear previous previews
+    
     Array.from(this.files).forEach(file => {
         if (!file.type.startsWith('image/')) return;
-        const r = new FileReader();
-        r.onload = e => {
+        const reader = new FileReader();
+        reader.onload = e => {
             const img = document.createElement('img');
-            img.src       = e.target.result;
+            img.src = e.target.result;
             img.className = 'preview-thumb';
             grid.appendChild(img);
         };
-        r.readAsDataURL(file);
+        reader.readAsDataURL(file);
     });
 });
 
@@ -262,7 +264,7 @@ document.getElementById('imageUpload')?.addEventListener('change', function () {
 document.getElementById('archiveBtn')?.addEventListener('click', async () => {
     if (!confirm('Archive this product? It will be hidden from the shop.')) return;
     try {
-        const res  = await fetch("{% url 'items:product_delete' product.pk %}", {
+        const res = await fetch("{% url 'items:product_delete' product.pk %}", {
             method: 'POST',
             headers: { 'X-CSRFToken': '{{ csrf_token }}' },
         });

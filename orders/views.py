@@ -179,7 +179,7 @@ def seller_orders(request):
         order_items = order_items.filter(order__status=status_filter)
     
     context = {'order_items': order_items, 'seller': seller, 'filters': request.GET.dict()}
-    return render(request, 'orders/seller_orders.html', context)
+    return render(request, 'orders/seller_order.html', context)
 
 @login_required
 def seller_order_detail(request, order_id):
