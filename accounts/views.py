@@ -157,7 +157,8 @@ class CustomPasswordResetConfirmView(PasswordResetConfirmView):
 class CustomPasswordResetCompleteView(PasswordResetCompleteView):
     template_name = 'accounts/password_reset_complete.html'
 
-# accounts/views.py
+# accounts/views.py - Update profile_view function
+
 @login_required
 def profile_view(request):
     """User profile management - role-based sections"""
@@ -169,27 +170,22 @@ def profile_view(request):
             action = data.get('action')
             
             if action == 'update_profile':
-                # Update personal info (all roles)
                 request.user.full_name = data.get('full_name', request.user.full_name)
                 request.user.email = data.get('email', request.user.email)
                 request.user.save()
                 return JsonResponse({'status': 'success', 'message': 'Profile updated'})
             
             elif action == 'update_address':
-                # Only customers can update shipping address
                 if request.user.role != 'customer':
                     return JsonResponse({'status': 'error', 'message': 'Only customers can update shipping address'}, status=403)
-                
                 address = data.get('address', {})
                 request.user.address = address
                 request.user.save()
                 return JsonResponse({'status': 'success', 'message': 'Address saved'})
             
             elif action == 'update_shop':
-                # Only sellers can update shop details
                 if request.user.role != 'seller' or not hasattr(request.user, 'seller_profile'):
                     return JsonResponse({'status': 'error', 'message': 'Only sellers can update shop details'}, status=403)
-                
                 shop_data = data.get('shop', {})
                 seller = request.user.seller_profile
                 seller.shop_name = shop_data.get('shop_name', seller.shop_name)
@@ -220,17 +216,35 @@ def profile_view(request):
     
     # Seller-specific data
     seller_stats = None
+    seller_orders = []
     if is_seller:
+        from items.models import Product
+        from orders.models import OrderItem
         seller = request.user.seller_profile
+        
+        # Seller stats
         seller_stats = {
             'total_products': seller.products.count(),
             'published': seller.products.filter(status='published').count(),
-            'draft': seller.products.filter(status='draft').count(),  # ✅ ADD THIS LINE
+            'draft': seller.products.filter(status='draft').count(),
             'total_sales': seller.products.aggregate(total=models.Sum('sold_count'))['total'] or 0,
+            'total_revenue': OrderItem.objects.filter(
+                product__seller=seller,
+                order__status='delivered'
+            ).aggregate(total=models.Sum('total'))['total'] or 0,
             'rating': seller.rating,
-            'is_verified': seller.is_verified,
+            'rating_count': seller.rating_count,
         }
-            
+        
+        # ✅ Seller's recent orders (items from their products)
+        seller_orders = OrderItem.objects.filter(
+            product__seller=seller
+        ).select_related(
+            'order', 'product', 'order__user'
+        ).prefetch_related(
+            'order__items__product'
+        ).order_by('-order__created_at')[:5]
+    
     context = {
         'user': request.user,
         'is_customer': is_customer,
@@ -242,6 +256,7 @@ def profile_view(request):
         # Seller data
         'seller_stats': seller_stats,
         'seller_profile': request.user.seller_profile if is_seller else None,
+        'seller_orders': seller_orders,  # ✅ NEW: Pass seller orders to template
     }
     return render(request, 'accounts/profile.html', context)
 

@@ -15,10 +15,11 @@ serviceAccountKey.json
 
 # Python / Django
 __pycache__/
+*.pyc
+
 venv/
 .env
 db.sqlite3
-__pycache__/
 *.py[cod]
 *$py.class
 *.so
@@ -89,7 +90,7 @@ yarn-error.log*
 .project
 .settings/
 .settings.py
-
+stall_cart/settings.py
 *.sublime-project
 *.sublime-workspace
 

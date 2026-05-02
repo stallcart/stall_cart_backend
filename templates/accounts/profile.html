@@ -10,7 +10,7 @@
         <h2>👤 My Profile</h2>
         <p class="text-muted">
             {% if is_customer %}Manage your account, address, and orders{% endif %}
-            {% if is_seller %}Manage your shop and seller settings{% endif %}
+            {% if is_seller %}Manage your shop, orders, and seller settings{% endif %}
             {% if is_admin %}Admin control panel{% endif %}
         </p>
     </div>
@@ -43,8 +43,8 @@
             <span class="stat-label">Products</span>
         </div>
         <div class="stat-item">
-            <span class="stat-value">{{ seller_stats.total_sales }}</span>
-            <span class="stat-label">Items Sold</span>
+            <span class="stat-value">{{ seller_stats.total_orders }}</span>
+            <span class="stat-label">Orders Received</span>
         </div>
         {% endif %}
     </div>
@@ -122,7 +122,6 @@
         <form id="addressForm" method="post" style="display:none;">
             {% csrf_token %}
             <input type="hidden" name="action" value="update_address">
-            <!-- Address fields (same as before) -->
             <div class="form-row">
                 <div class="form-group">
                     <label for="addrName">Full Name *</label>
@@ -174,8 +173,10 @@
     </div>
     {% endif %}
 
-    <!-- ✅ SELLER: Shop Details (Only for sellers) -->
+    <!-- ✅ SELLER: Shop Details & Orders (Only for sellers) -->
     {% if is_seller and seller_profile %}
+    
+    <!-- Shop Details Card -->
     <div class="profile-card">
         <div class="card-header">
             <h3>🏪 Shop Details</h3>
@@ -189,19 +190,18 @@
                 <p><strong>GST Number:</strong> {{ seller_profile.gst_number|default:"Not provided" }}</p>
                 <p><strong>Verification:</strong> 
                     {% if seller_profile.is_verified %}
-                        <span class="badge success">✓ Verified</span>
+                        <span class="badge badge-success">✓ Verified</span>
                     {% else %}
-                        <span class="badge warning">⏳ Pending Verification</span>
+                        <span class="badge badge-warning">⏳ Pending Verification</span>
                     {% endif %}
                 </p>
-                <p><strong>Rating:</strong> {{ seller_profile.rating }}/5.0</p>
+                <p><strong>Rating:</strong> {{ seller_profile.rating }}/5.0 ({{ seller_profile.rating_count }} reviews)</p>
             </div>
         </div>
         
         <form id="shopForm" method="post" style="display:none;">
             {% csrf_token %}
             <input type="hidden" name="action" value="update_shop">
-            
             <div class="form-group">
                 <label for="shopName">Shop Name *</label>
                 <input type="text" id="shopName" name="shop_name" class="form-input" 
@@ -221,6 +221,71 @@
                 <button type="button" class="btn-outline" id="cancelShopBtn">Cancel</button>
             </div>
         </form>
+    </div>
+
+    <!-- ✅ SELLER: Orders Received (NEW SECTION) -->
+    <div class="profile-card">
+        <div class="card-header">
+            <h3>📦 Orders Received</h3>
+            <a href="{% url 'orders:seller_orders' %}" class="btn-outline btn-sm">View All Orders</a>
+        </div>
+        
+        {% if seller_orders %}
+        <div class="orders-preview">
+            {% for order in seller_orders %}
+            <div class="order-preview-item">
+                <div>
+                    <strong>Order #{{ order.order.order_id|default:order.order.id|slice:":8"|upper }}</strong>
+                    <p class="text-muted">{{ order.order.created_at|date:"M d, Y, h:i A" }}</p>
+                    <p class="text-muted">{{ order.quantity }} × {{ order.product.name|truncatechars:30 }}</p>
+                    <p class="text-muted">Customer: {{ order.order.user.full_name|default:order.order.guest_email }}</p>
+                </div>
+                <div class="order-status">
+                    <span class="badge badge-{{ order.order.status }}">
+                        {{ order.order.get_status_display }}
+                    </span>
+                    <strong>₹{{ order.total|floatformat:2 }}</strong>
+                    <a href="{% url 'orders:seller_order_detail' order.order.order_id %}" class="btn-outline btn-sm view-order-btn">
+                        View Details →
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="empty-state">No orders yet. <a href="{% url 'items:product_create' %}">Add products</a> to start selling!</p>
+        {% endif %}
+    </div>
+
+    <!-- Seller Stats Grid -->
+    <div class="profile-card">
+        <div class="card-header">
+            <h3>📊 Seller Dashboard</h3>
+            <a href="{% url 'items:admin_dashboard' %}" class="btn-outline btn-sm">Manage Products</a>
+        </div>
+        <div class="seller-stats-grid">
+            <div class="stat-box">
+                <span class="stat-num">{{ seller_stats.published }}</span>
+                <span class="stat-label">Published Products</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-num">{{ seller_stats.draft }}</span>
+                <span class="stat-label">Draft Products</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-num">{{ seller_stats.total_sales }}</span>
+                <span class="stat-label">Items Sold</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-num">₹{{ seller_stats.total_revenue|floatformat:0 }}</span>
+                <span class="stat-label">Total Revenue</span>
+            </div>
+        </div>
+        <div class="seller-quick-links">
+            <a href="{% url 'items:product_create' %}" class="btn-primary">+ Add New Product</a>
+            <a href="{% url 'items:admin_dashboard' %}?status=draft" class="btn-outline">View Drafts</a>
+            <a href="{% url 'orders:seller_orders' %}" class="btn-outline">View All Orders</a>
+        </div>
     </div>
     {% endif %}
 
@@ -252,60 +317,31 @@
     <div class="profile-card">
         <div class="card-header">
             <h3>📦 Recent Orders</h3>
-            <a href="{% url '#' %}" class="btn-outline btn-sm">View All</a>
+            <a href="{% url 'orders:my_orders' %}" class="btn-outline btn-sm">View All Orders</a>
         </div>
         <div class="orders-preview">
             {% if user_orders %}
                 {% for order in user_orders %}
                 <div class="order-preview-item">
                     <div>
-                        <strong>Order #{{ order.id|slice:":8"|upper }}</strong>
+                        <strong>Order #{{ order.order_id|default:order.id|slice:":8"|upper }}</strong>
                         <p class="text-muted">{{ order.created_at|date:"M d, Y" }}</p>
+                        <p class="text-muted">{{ order.items.count }} item{{ order.items.count|pluralize }}</p>
                     </div>
                     <div class="order-status">
-                        <span class="badge {% if order.status == 'Delivered' %}success{% elif order.status == 'Pending' %}warning{% else %}info{% endif %}">
-                            {{ order.status }}
+                        <span class="badge badge-{{ order.status }}">
+                            {{ order.get_status_display }}
                         </span>
                         <strong>₹{{ order.total_amount|floatformat:2 }}</strong>
+                        <a href="{% url 'orders:order_detail' order.order_id %}" class="btn-outline btn-sm view-order-btn">
+                            View Order →
+                        </a>
                     </div>
                 </div>
                 {% endfor %}
             {% else %}
                 <p class="empty-state">No orders yet. <a href="{% url 'shop:home' %}">Start shopping</a></p>
             {% endif %}
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- ✅ SELLER: Seller Stats & Quick Links (Only for sellers) -->
-    {% if is_seller and seller_stats %}
-    <div class="profile-card">
-        <div class="card-header">
-            <h3>📊 Seller Dashboard</h3>
-            <a href="{% url 'items:admin_dashboard' %}" class="btn-outline btn-sm">Manage Products</a>
-        </div>
-        <div class="seller-stats-grid">
-            <div class="stat-box">
-                <span class="stat-num">{{ seller_stats.published }}</span>
-                <span class="stat-label">Published Products</span>
-            </div>
-            <div class="stat-box">
-                <span class="stat-num">{{ seller_stats.draft }}</span>
-                <span class="stat-label">Draft Products</span>
-            </div>
-            <div class="stat-box">
-                <span class="stat-num">{{ seller_stats.total_sales }}</span>
-                <span class="stat-label">Total Items Sold</span>
-            </div>
-            <div class="stat-box">
-                <span class="stat-num">{{ seller_stats.rating }}/5.0</span>
-                <span class="stat-label">Shop Rating</span>
-            </div>
-        </div>
-        <div class="seller-quick-links">
-            <a href="{% url 'items:product_create' %}" class="btn-primary">+ Add New Product</a>
-            <a href="{% url 'items:admin_dashboard' %}?status=draft" class="btn-outline">View Drafts</a>
-            <a href="{% url '#'}" class="btn-outline">View Orders</a>
         </div>
     </div>
     {% endif %}
@@ -321,6 +357,7 @@
             <a href="{% url 'items:admin_dashboard' %}" class="btn-outline">📦 Product Management</a>
             <a href="/admin/common/sitesettings/1/change/" class="btn-outline">🎨 Site Settings</a>
             <a href="/admin/auth/user/" class="btn-outline">👥 User Management</a>
+            <a href="{% url 'orders:seller_orders' %}" class="btn-outline">📋 All Orders</a>
         </div>
     </div>
     {% endif %}
@@ -529,7 +566,108 @@ if (!document.querySelector('#profile-animations')) {
 
 {% block extra_css %}
 <style>
-/* Role-specific styles */
+/* ===== PROFILE PAGE STYLES ===== */
+.profile-container { max-width: 900px; margin: 0 auto; padding: 20px; }
+.profile-header { margin-bottom: 25px; }
+.profile-header h2 { margin: 0 0 5px; }
+.text-muted { color: #666; }
+
+/* Stats Grid */
+.profile-stats { 
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); 
+    gap: 15px; margin-bottom: 25px; 
+}
+.stat-item { 
+    background: #fff; padding: 15px; border-radius: 10px; text-align: center; 
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06); 
+}
+.stat-value { 
+    display: block; font-size: 1.4rem; font-weight: 700; color: var(--primary-color, #2874f0); 
+}
+.stat-label { font-size: 0.8rem; color: #666; }
+
+/* Profile Cards */
+.profile-card { 
+    background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 20px; 
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06); 
+}
+.card-header { 
+    display: flex; justify-content: space-between; align-items: center; 
+    margin-bottom: 15px; padding-bottom: 12px; border-bottom: 1px solid #eee; 
+}
+.card-header h3 { margin: 0; font-size: 1.2rem; }
+
+/* Forms */
+.form-row { 
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+    gap: 15px; margin-bottom: 15px; 
+}
+.form-group { margin-bottom: 15px; }
+.form-group label { 
+    display: block; margin-bottom: 6px; font-weight: 500; color: #444; font-size: 0.9rem; 
+}
+.form-input, .form-select, textarea { 
+    width: 100%; padding: 10px 12px; border: 1px solid #ddd; 
+    border-radius: 8px; font-size: 1rem; transition: border 0.2s; 
+}
+.form-input:focus, .form-select:focus, textarea:focus { 
+    border-color: var(--primary-color, #2874f0); outline: none; 
+    box-shadow: 0 0 0 3px rgba(40,116,240,0.1); 
+}
+.form-input:read-only { background: #f8f9fa; cursor: not-allowed; }
+.form-group small { display: block; color: #888; font-size: 0.8rem; margin-top: 4px; }
+.form-actions { 
+    display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px; 
+}
+.btn-sm { padding: 6px 12px; font-size: 0.85rem; }
+
+/* Address Card */
+.address-card { 
+    background: #f8f9fa; padding: 15px; border-radius: 8px; 
+    border-left: 3px solid var(--primary-color, #2874f0); 
+}
+.address-card p { margin: 4px 0; font-size: 0.95rem; }
+.empty-state { color: #888; text-align: center; padding: 20px; }
+
+/* Security List */
+.security-list { display: flex; flex-direction: column; gap: 12px; }
+.security-item { 
+    display: flex; justify-content: space-between; align-items: center; 
+    padding: 12px; border: 1px solid #eee; border-radius: 8px; 
+}
+.security-item strong { display: block; margin-bottom: 4px; }
+.security-item p { margin: 0; font-size: 0.85rem; }
+
+/* Orders Preview */
+.orders-preview { display: flex; flex-direction: column; gap: 12px; }
+.order-preview-item { 
+    display: flex; justify-content: space-between; align-items: center; 
+    padding: 12px; border: 1px solid #eee; border-radius: 8px; 
+}
+.order-status { 
+    display: flex; flex-direction: column; align-items: flex-end; gap: 6px; 
+}
+.badge { 
+    padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; 
+}
+.badge-success { background: #e8f5e9; color: #2e7d32; }
+.badge-warning { background: #fff8e1; color: #f57f17; }
+.badge-info { background: #e3f2fd; color: #1976d2; }
+.badge-pending { background: #fff8e1; color: #f57f17; }
+.badge-confirmed, .badge-processing { background: #e3f2fd; color: #1976d2; }
+.badge-shipped, .badge-out_for_delivery { background: #e8f5e9; color: #2e7d32; }
+.badge-delivered { background: #c8e6c9; color: #1b5e20; }
+.badge-cancelled { background: #ffebee; color: #c62828; }
+.badge-returned { background: #f3e5f5; color: #7b1fa2; }
+
+.view-order-btn {
+    margin-top: 8px;
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    text-align: center;
+}
+
+/* Seller Stats Grid */
 .seller-stats-grid {
     display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     gap: 15px; margin-bottom: 20px;
@@ -555,85 +693,8 @@ if (!document.querySelector('#profile-animations')) {
 }
 .shop-card p { margin: 8px 0; font-size: 0.95rem; }
 .shop-card .badge { padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
-.shop-card .badge.success { background: #e8f5e9; color: #2e7d32; }
-.shop-card .badge.warning { background: #fff8e1; color: #f57f17; }
 
-/* Existing styles from before... */
-.profile-container { max-width: 900px; margin: 0 auto; padding: 20px; }
-.profile-header { margin-bottom: 25px; }
-.profile-header h2 { margin: 0 0 5px; }
-.text-muted { color: #666; }
-.profile-stats { 
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); 
-    gap: 15px; margin-bottom: 25px; 
-}
-.stat-item { 
-    background: #fff; padding: 15px; border-radius: 10px; text-align: center; 
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06); 
-}
-.stat-value { 
-    display: block; font-size: 1.4rem; font-weight: 700; color: var(--primary-color, #2874f0); 
-}
-.stat-label { font-size: 0.8rem; color: #666; }
-.profile-card { 
-    background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 20px; 
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06); 
-}
-.card-header { 
-    display: flex; justify-content: space-between; align-items: center; 
-    margin-bottom: 15px; padding-bottom: 12px; border-bottom: 1px solid #eee; 
-}
-.card-header h3 { margin: 0; font-size: 1.2rem; }
-.form-row { 
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
-    gap: 15px; margin-bottom: 15px; 
-}
-.form-group { margin-bottom: 15px; }
-.form-group label { 
-    display: block; margin-bottom: 6px; font-weight: 500; color: #444; font-size: 0.9rem; 
-}
-.form-input, .form-select, textarea { 
-    width: 100%; padding: 10px 12px; border: 1px solid #ddd; 
-    border-radius: 8px; font-size: 1rem; transition: border 0.2s; 
-}
-.form-input:focus, .form-select:focus, textarea:focus { 
-    border-color: var(--primary-color, #2874f0); outline: none; 
-    box-shadow: 0 0 0 3px rgba(40,116,240,0.1); 
-}
-.form-input:read-only { background: #f8f9fa; cursor: not-allowed; }
-.form-group small { display: block; color: #888; font-size: 0.8rem; margin-top: 4px; }
-.form-actions { 
-    display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px; 
-}
-.btn-sm { padding: 6px 12px; font-size: 0.85rem; }
-.address-card { 
-    background: #f8f9fa; padding: 15px; border-radius: 8px; 
-    border-left: 3px solid var(--primary-color, #2874f0); 
-}
-.address-card p { margin: 4px 0; font-size: 0.95rem; }
-.empty-state { color: #888; text-align: center; padding: 20px; }
-.security-list { display: flex; flex-direction: column; gap: 12px; }
-.security-item { 
-    display: flex; justify-content: space-between; align-items: center; 
-    padding: 12px; border: 1px solid #eee; border-radius: 8px; 
-}
-.security-item strong { display: block; margin-bottom: 4px; }
-.security-item p { margin: 0; font-size: 0.85rem; }
-.orders-preview { display: flex; flex-direction: column; gap: 12px; }
-.order-preview-item { 
-    display: flex; justify-content: space-between; align-items: center; 
-    padding: 12px; border: 1px solid #eee; border-radius: 8px; 
-}
-.order-status { 
-    display: flex; flex-direction: column; align-items: flex-end; gap: 4px; 
-}
-.badge { 
-    padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; 
-}
-.badge.success { background: #e8f5e9; color: #2e7d32; }
-.badge.warning { background: #fff8e1; color: #f57f17; }
-.badge.info { background: #e3f2fd; color: #1976d2; }
-
+/* Responsive */
 @media (max-width: 768px) {
     .profile-stats { grid-template-columns: repeat(2, 1fr); }
     .form-row { grid-template-columns: 1fr; }
@@ -641,6 +702,7 @@ if (!document.querySelector('#profile-animations')) {
     .order-status { align-items: flex-start; }
     .seller-stats-grid { grid-template-columns: repeat(2, 1fr); }
     .seller-quick-links, .admin-links { flex-direction: column; }
+    .view-order-btn { width: 100%; }
 }
 </style>
 {% endblock %}
