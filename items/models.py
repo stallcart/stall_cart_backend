@@ -18,8 +18,7 @@ class SellerProfile(BaseModel):
     phone = models.CharField(max_length=15, blank=True)
     address = models.JSONField(default=dict, blank=True)  # {address, city, state, postalCode}
     is_verified = models.BooleanField(default=False)
-    rating = models.DecimalField(max_digits=3, decimal_places=2, default=0.00)
-    
+    rating = models.DecimalField(max_digits=2, decimal_places=1, default=0.0)    
     def __str__(self):
         return f"{self.shop_name} ({self.user.phone})"
         
