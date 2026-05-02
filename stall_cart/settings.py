@@ -46,6 +46,8 @@ TEMPLATES = [{
         'django.contrib.auth.context_processors.auth',
         'django.contrib.messages.context_processors.messages',
         'common.context_processors.site_settings',  # Add this line
+        'common.context_processors.cart_count',
+
 
     ]},
 }]

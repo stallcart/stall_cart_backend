@@ -66,8 +66,10 @@
             {% else %}
                 <span class="final-price">₹{{ product.price }}</span>
             {% endif %}
-            {% if product.mrp and product.mrp > product.price %}
-                <span class="savings">You save: ₹{{ product.mrp|add:"-1"|add:"-product.price"|floatformat:2 }}</span>
+            {% if product.savings > 0 %}
+                <span class="savings">
+                    You save: ₹{{ product.savings }}
+                </span>
             {% endif %}
         </div>
 

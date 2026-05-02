@@ -1,0 +1,316 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Orders | {{ site_settings.site_name }}{% endblock %}
+
+{% block content %}
+<div class="orders-container">
+    <!-- Page Header -->
+    <div class="page-header">
+        <h2>📦 My Orders</h2>
+        <p class="text-muted">Track, return, or reorder your purchases</p>
+    </div>
+
+    <!-- Order Stats -->
+    <div class="order-stats">
+        <div class="stat-card">
+            <span class="stat-num">{{ total_orders }}</span>
+            <span class="stat-label">Total Orders</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-num">{{ delivered_orders }}</span>
+            <span class="stat-label">Delivered</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-num">{{ in_progress_orders }}</span>
+            <span class="stat-label">In Progress</span>
+        </div>
+    </div>
+
+    <!-- Orders List -->
+    {% if orders %}
+    <div class="orders-list">
+        {% for order in orders %}
+        <div class="order-card">
+            <!-- Order Header -->
+            <div class="order-header">
+                <div>
+                    <h3>Order #{{ order.unique_order_id|default:order.id|slice:":8"|upper }}</h3>
+                    <p class="text-muted">Placed on {{ order.created_at|date:"M d, Y, h:i A" }}</p>
+                    <p class="text-muted">{{ order.items.count }} item{{ order.items.count|pluralize }}</p>
+                </div>
+                <div class="order-status-badge badge-{{ order.status }}">
+                    {{ order.get_status_display }}
+                </div>
+            </div>
+
+            <!-- Order Items Preview -->
+            <div class="order-items-preview">
+                {% for item in order.items.all|slice:":3" %}
+                <div class="order-item-mini">
+                    <img src="{{ item.product.primary_image.url|default:'/static/images/placeholder.png' }}" alt="{{ item.product.name }}">
+                    <div>
+                        <h4>{{ item.product.name|truncatechars:30 }}</h4>
+                        <p>Qty: {{ item.quantity }} • ₹{{ item.price|floatformat:2 }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+                {% if order.items.count > 3 %}
+                <div class="order-item-more">+ {{ order.items.count|add:"-3" }} more</div>
+                {% endif %}
+            </div>
+
+            <!-- Order Summary -->
+            <div class="order-summary">
+                <div class="summary-row">
+                    <span>Items Total</span>
+                    <span>₹{{ order.total_amount|floatformat:2 }}</span>
+                </div>
+                {% if order.delivery_charge > 0 %}
+                <div class="summary-row">
+                    <span>Delivery</span>
+                    <span>₹{{ order.delivery_charge|floatformat:2 }}</span>
+                </div>
+                {% endif %}
+                <div class="summary-row total">
+                    <strong>Grand Total</strong>
+                    <strong>₹{{ order.total_amount|add:order.delivery_charge|floatformat:2 }}</strong>
+                </div>
+            </div>
+
+            <!-- Order Actions -->
+            <div class="order-actions">
+                <a href="{% url 'orders:order_detail' order.unique_order_id %}" class="btn-outline">
+                    Track Order →
+                </a>
+                
+                {% if order.status == 'delivered' and order.is_returnable %}
+                <button class="btn-outline" onclick="openReturnModal('{{ order.unique_order_id }}')">
+                    🔄 Return Items
+                </button>
+                {% endif %}
+                
+                {% if order.status in 'pending,confirmed' %}
+                <button class="btn-danger btn-sm" onclick="openCancelModal('{{ order.unique_order_id }}')">
+                    ❌ Cancel Order
+                </button>
+                {% endif %}
+                
+                <button class="btn-primary btn-sm" onclick="reorderOrder('{{ order.unique_order_id }}')">
+                    🛒 Reorder
+                </button>
+            </div>
+
+            <!-- Quick Tracking Timeline -->
+            <div class="quick-timeline">
+                {% with timeline=order.status_logs.all %}
+                {% if timeline %}
+                <div class="timeline-steps">
+                    {% for log in timeline|slice:":4" %}
+                    <div class="timeline-step {% if forloop.last and order.status != 'delivered' %}active{% elif order.status == log.new_status %}active completed{% elif forloop.prev and order.status != log.status %}completed{% endif %}">
+                        <div class="step-dot"></div>
+                        <small>{{ log.new_status|title }}</small>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% endwith %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <!-- Empty State -->
+    <div class="empty-state">
+        <i class="fa fa-box-open"></i>
+        <h3>No orders yet</h3>
+        <p>Start shopping to see your orders here!</p>
+        <a href="{% url 'shop:home' %}" class="btn-primary">Start Shopping</a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ✅ Cancel Modal -->
+<div id="cancelModal" class="modal" style="display:none;">
+    <div class="modal-content">
+        <span class="modal-close" onclick="closeModal('cancelModal')">&times;</span>
+        <h3>Cancel Order</h3>
+        <form id="cancelForm">
+            {% csrf_token %}
+            <input type="hidden" id="cancelOrderId">
+            <div class="form-group">
+                <label>Reason for cancellation</label>
+                <select name="reason" class="form-input" required>
+                    <option value="changed_mind">Changed my mind</option>
+                    <option value="found_cheaper">Found cheaper elsewhere</option>
+                    <option value="delivery_delay">Delivery delay</option>
+                    <option value="wrong_address">Wrong address</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Additional remarks (optional)</label>
+                <textarea name="remarks" class="form-input" rows="3"></textarea>
+            </div>
+            <button type="submit" class="btn-primary">Confirm Cancellation</button>
+        </form>
+    </div>
+</div>
+
+<!-- ✅ Return Modal (Simplified) -->
+<div id="returnModal" class="modal" style="display:none;">
+    <div class="modal-content">
+        <span class="modal-close" onclick="closeModal('returnModal')">&times;</span>
+        <h3>Return Items</h3>
+        <p class="text-muted">Select items to return from order <strong id="returnOrderId"></strong></p>
+        <div id="returnItemsList" style="margin: 15px 0;"></div>
+        <button class="btn-primary" onclick="submitReturn()">Submit Return Request</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const csrfToken = '{{ csrf_token }}';
+
+// Modal Helpers
+window.openCancelModal = (orderId) => {
+    document.getElementById('cancelOrderId').value = orderId;
+    document.getElementById('cancelModal').style.display = 'flex';
+};
+window.openReturnModal = (orderId) => {
+    document.getElementById('returnOrderId').textContent = orderId;
+    document.getElementById('returnModal').style.display = 'flex';
+    // Load items for this order (simplified - in production, fetch via API)
+    document.getElementById('returnItemsList').innerHTML = '<p class="text-muted">Loading items...</p>';
+};
+window.closeModal = (id) => { document.getElementById(id).style.display = 'none'; };
+window.onclick = (e) => {
+    if (e.target.classList.contains('modal')) e.target.style.display = 'none';
+};
+
+// Cancel Order AJAX
+document.getElementById('cancelForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const orderId = document.getElementById('cancelOrderId').value;
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData.entries());
+    
+    try {
+        const res = await fetch(`/orders/order/${orderId}/cancel/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        if (result.status === 'success') {
+            location.reload();
+        } else {
+            alert(result.error || 'Cancellation failed');
+        }
+    } catch (err) {
+        alert('Network error. Please try again.');
+    }
+});
+
+// Reorder Function
+window.reorderOrder = async (orderId) => {
+    try {
+        const res = await fetch(`/orders/order/${orderId}/reorder/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken }
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            window.location.href = '/cart/';
+        } else {
+            alert(data.message || 'Failed to reorder');
+        }
+    } catch (err) {
+        // Fallback: redirect to order detail for manual reorder
+        window.location.href = `/orders/order/${orderId}/`;
+    }
+};
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.orders-container { max-width: 900px; margin: 0 auto; padding: 20px; }
+.page-header { margin-bottom: 25px; }
+.page-header h2 { margin: 0 0 5px; }
+.text-muted { color: #666; font-size: 0.9rem; }
+
+/* Stats */
+.order-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; margin-bottom: 25px; }
+.stat-card { background: #fff; padding: 15px; border-radius: 10px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.stat-card .stat-num { display: block; font-size: 1.5rem; font-weight: 700; color: var(--primary-color, #2874f0); }
+.stat-card .stat-label { font-size: 0.8rem; color: #666; }
+
+/* Order Card */
+.order-card { background: #fff; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.06); overflow: hidden; }
+.order-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: #f8f9fa; border-bottom: 1px solid #eee; flex-wrap: wrap; gap: 10px; }
+.order-header h3 { margin: 0; font-size: 1.1rem; }
+.order-status-badge { padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
+.badge-pending { background: #fff8e1; color: #f57f17; }
+.badge-confirmed, .badge-processing { background: #e3f2fd; color: #1976d2; }
+.badge-shipped, .badge-out_for_delivery { background: #e8f5e9; color: #2e7d32; }
+.badge-delivered { background: #c8e6c9; color: #1b5e20; }
+.badge-cancelled { background: #ffebee; color: #c62828; }
+
+/* Items Preview */
+.order-items-preview { padding: 15px 20px; display: flex; flex-wrap: wrap; gap: 10px; }
+.order-item-mini { display: flex; align-items: center; gap: 10px; background: #f8f9fa; padding: 8px 12px; border-radius: 8px; }
+.order-item-mini img { width: 50px; height: 50px; border-radius: 6px; object-fit: cover; }
+.order-item-mini h4 { margin: 0 0 4px; font-size: 0.9rem; }
+.order-item-mini p { margin: 0; color: #666; font-size: 0.85rem; }
+.order-item-more { display: flex; align-items: center; justify-content: center; background: #e3f2fd; color: #1976d2; padding: 8px 12px; border-radius: 8px; font-size: 0.85rem; font-weight: 500; }
+
+/* Summary */
+.order-summary { padding: 15px 20px; background: #fafafa; border-top: 1px solid #eee; border-bottom: 1px solid #eee; }
+.summary-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.95rem; }
+.summary-row.total { font-size: 1.1rem; font-weight: 700; margin-top: 10px; padding-top: 10px; border-top: 2px solid #eee; }
+
+/* Actions */
+.order-actions { display: flex; gap: 10px; padding: 15px 20px; flex-wrap: wrap; }
+.btn-sm { padding: 8px 16px; font-size: 0.9rem; }
+.btn-danger { background: #ffebee; border: 1px solid #ffcdd2; color: #c62828; }
+.btn-danger:hover { background: #ffcdd2; }
+
+/* Quick Timeline */
+.quick-timeline { padding: 15px 20px; background: #f8f9ff; border-top: 1px solid #eee; }
+.timeline-steps { display: flex; justify-content: space-between; position: relative; }
+.timeline-steps::before { content: ''; position: absolute; top: 10px; left: 10%; right: 10%; height: 2px; background: #e0e0e0; z-index: 1; }
+.timeline-step { position: relative; z-index: 2; text-align: center; flex: 1; }
+.timeline-step .step-dot { width: 12px; height: 12px; border-radius: 50%; background: #ccc; margin: 0 auto 5px; }
+.timeline-step.completed .step-dot { background: #2874f0; }
+.timeline-step.active .step-dot { background: #2874f0; box-shadow: 0 0 0 4px rgba(40,116,240,0.2); }
+.timeline-step small { font-size: 0.75rem; color: #666; display: block; }
+
+/* Empty State */
+.empty-state { text-align: center; padding: 60px 20px; color: #888; }
+.empty-state i { font-size: 3rem; margin-bottom: 15px; color: #ccc; }
+
+/* Modal */
+.modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+.modal-content { background: #fff; padding: 25px; border-radius: 12px; width: 90%; max-width: 450px; position: relative; }
+.modal-close { position: absolute; top: 15px; right: 20px; font-size: 1.5rem; cursor: pointer; color: #999; }
+.form-group { margin-bottom: 15px; }
+.form-group label { display: block; margin-bottom: 6px; font-weight: 500; color: #444; }
+.form-input { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; }
+.form-input:focus { border-color: #2874f0; outline: none; box-shadow: 0 0 0 3px rgba(40,116,240,0.1); }
+.btn-primary { background: #2874f0; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; width: 100%; }
+.btn-primary:hover { background: #1a56c4; }
+.btn-outline { border: 2px solid #2874f0; color: #2874f0; background: #fff; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; text-decoration: none; }
+.btn-outline:hover { background: #2874f0; color: #fff; }
+
+@media (max-width: 768px) {
+    .order-header { flex-direction: column; align-items: flex-start; }
+    .order-actions { flex-direction: column; }
+    .btn-outline, .btn-primary, .btn-danger { width: 100%; text-align: center; }
+    .timeline-steps { flex-wrap: wrap; gap: 10px; }
+    .timeline-steps::before { display: none; }
+    .timeline-step { flex: none; width: auto; }
+}
+</style>
+{% endblock %}

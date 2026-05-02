@@ -29,14 +29,29 @@ razorpay_client = razorpay.Client(auth=(
 
 # ==================== CUSTOMER VIEWS ====================
 
+# orders/views.py
 @login_required
 def my_orders(request):
     """Customer: View all orders with tracking"""
+    # ✅ Ensure we filter by logged-in user only
     orders = Order.objects.filter(
         user=request.user
-    ).select_related('delivery_assignment__delivery_partner').prefetch_related('items__product').order_by('-created_at')
     
-    context = {'orders': orders}
+    ).prefetch_related(
+        'items__product', 
+        'items__product__seller',
+        'status_logs'
+    ).order_by('-created_at')
+    
+    # ✅ Pass clear context to template
+    context = {
+        'orders': orders,
+        'total_orders': orders.count(),
+        'delivered_orders': orders.filter(status='delivered').count(),
+        'in_progress_orders': orders.filter(
+            status__in=['pending','confirmed','processing','shipped','out_for_delivery']
+        ).count(),
+    }
     return render(request, 'orders/my_orders.html', context)
 
 @login_required
