@@ -26,7 +26,7 @@
                 </div>
                 
                 <div class="item-details">
-                    <h4><a href="{% url 'shop:product_detail' item.product.slug %}">{{ item.product.name }}</a></h4>
+                    <h4><a href="{% url 'items:product_detail' item.product.slug %}">{{ item.product.name }}</a></h4>
                     <p class="item-seller">Sold by: {{ item.product.seller.shop_name }}</p>
                     <p class="item-price">₹{{ item.product.price }}</p>
                     
@@ -303,7 +303,7 @@ if (placeOrderBtn) {
             if (data.status === 'success') {
                 if (paymentMethod === 'COD') {
                     // COD: Redirect to success page
-                    window.location.href = `/orders/success/${data.order_id}/`;
+                    window.location.href = `/orders/success/${data.unique_order_id}/`;
                 } else {
                     // Online Payment: Open Razorpay
                     const options = {
@@ -317,7 +317,7 @@ if (placeOrderBtn) {
                         "theme": { "color": "#2874f0" },
                         "handler": function(response) {
                             // Payment successful - redirect to order success
-                            window.location.href = `/orders/success/${data.order_id}/?payment_id=${response.razorpay_payment_id}`;
+                            window.location.href = `/orders/success/${data.unique_order_id}/?payment_id=${response.razorpay_payment_id}`;
                         },
                         "modal": {
                             "ondismiss": function() {
