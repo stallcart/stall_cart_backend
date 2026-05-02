@@ -15,7 +15,7 @@ from decimal import Decimal
 
 from .models import Order, OrderItem, ReturnRequest, OrderStatusLog, OrderReturnImage
 from items.models import Product, SellerProfile
-from delivery.models import DeliveryPartner, DeliveryAssignment
+from delivery.models import DeliveryPartner
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
