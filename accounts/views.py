@@ -12,17 +12,45 @@ from decimal import Decimal
 from .forms import UserRegistrationForm, UserLoginForm
 import json
 from items.models import SellerProfile , Product
+
+# def login_view(request):
+#     if request.user.is_authenticated:
+#         return redirect('shop:home')
+    
+#     if request.method == 'POST':
+#         form = UserLoginForm(request, data=request.POST)  # ✅ FIXED
+        
+#         if form.is_valid():
+#             user = form.get_user()
+#             login(request, user)
+            
+#             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+#                 return JsonResponse({
+#                     'status': 'success',
+#                     'redirect': request.POST.get('next', '/')
+#                 })
+            
+#             return redirect(request.POST.get('next', 'shop:home'))
+        
+#         messages.error(request, "Invalid mobile number or password.")
+#     else:
+#         form = UserLoginForm()
+    
+#     return render(request, 'accounts/login.html', {'form': form})
+# accounts/views.py
+# accounts/views.py
 def login_view(request):
     if request.user.is_authenticated:
         return redirect('shop:home')
     
     if request.method == 'POST':
-        form = UserLoginForm(request, data=request.POST)  # ✅ FIXED
+        form = UserLoginForm(request, data=request.POST)
         
         if form.is_valid():
             user = form.get_user()
             login(request, user)
             
+            # ✅ AJAX response
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return JsonResponse({
                     'status': 'success',
@@ -31,7 +59,16 @@ def login_view(request):
             
             return redirect(request.POST.get('next', 'shop:home'))
         
+        # ✅ AJAX error response
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Invalid mobile number or password.',
+                'errors': form.errors
+            }, status=400)
+        
         messages.error(request, "Invalid mobile number or password.")
+    
     else:
         form = UserLoginForm()
     
