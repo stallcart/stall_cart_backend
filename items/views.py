@@ -7,7 +7,7 @@ from django.views.decorators.http import require_POST
 from django.db.models import Q, Sum , F
 from .models import Product, Category, SellerProfile, ProductImage
 from .forms import ProductForm
-
+from common.decorators import *
 
 # ---------------------------------------------------------------------------
 # Permission helpers
@@ -36,7 +36,7 @@ def _get_product_for_user(user, product_id):
 # Unified Admin / Seller Dashboard
 # ---------------------------------------------------------------------------
 
-@login_required
+@seller_or_admin_only
 def admin_dashboard(request):
     """
     Unified dashboard:
@@ -125,8 +125,7 @@ def admin_dashboard(request):
 # Seller Dashboard (separate, seller-only view)
 # ---------------------------------------------------------------------------
 
-@login_required
-@user_passes_test(is_verified_seller, login_url='shop:home')
+@seller_only
 def seller_dashboard(request):
     """Seller's personal dashboard – orders + product overview."""
     seller   = request.user.seller_profile
@@ -171,11 +170,10 @@ def seller_dashboard(request):
 # ---------------------------------------------------------------------------
 
 
-@login_required
-@user_passes_test(is_seller_or_superuser, login_url='shop:home')
+@seller_or_admin_only
 def product_create(request):
     if request.method == 'POST':
-        form = ProductForm(request.POST, request.FILES, is_superuser=request.user.is_superuser)
+        form = ProductForm(request.POST, request.FILES, is_superuser=request.user.is_superuser,request_user=request.user )
         if form.is_valid():
             product = form.save(commit=False)
 
@@ -200,7 +198,7 @@ def product_create(request):
             messages.success(request, f'Product "{product.name}" created successfully!')
             return redirect('items:admin_dashboard')
     else:
-        form = ProductForm(is_superuser=request.user.is_superuser)
+        form = ProductForm(is_superuser=request.user.is_superuser,request_user=request.user )
 
     return render(request, 'items/product_form.html', {
         'form': form, 'title': 'Add New Product', 'action': 'Create',
@@ -211,13 +209,13 @@ def product_create(request):
 # Product Edit
 # ---------------------------------------------------------------------------
 
-@login_required
-@user_passes_test(is_seller_or_superuser, login_url='shop:home')
+@seller_or_admin_only
 def product_edit(request, product_id):
     product = _get_product_for_user(request.user, product_id)
-
+    print(product)
     if request.method == 'POST':
-        form = ProductForm(request.POST, request.FILES, instance=product, is_superuser=request.user.is_superuser)
+        form = ProductForm(request.POST, request.FILES, instance=product,
+            is_superuser=request.user.is_superuser,request_user=request.user)
         if form.is_valid():
             updated = form.save(commit=False)
 
@@ -243,7 +241,7 @@ def product_edit(request, product_id):
             messages.success(request, f'Product "{updated.name}" updated!')
             return redirect('items:admin_dashboard')
     else:
-        form = ProductForm(instance=product, is_superuser=request.user.is_superuser)
+        form = ProductForm(instance=product, is_superuser=request.user.is_superuser,request_user=request.user)
 
     return render(request, 'items/product_form.html', {
         'form': form, 'product': product, 'title': f'Edit: {product.name}', 'action': 'Update',

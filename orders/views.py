@@ -12,7 +12,7 @@ import razorpay
 import json
 import logging
 from decimal import Decimal
-
+from common.decorators import *
 from .models import Order, OrderItem, ReturnRequest, OrderStatusLog, OrderReturnImage
 from items.models import Product, SellerProfile
 from delivery.models import DeliveryPartner
@@ -30,7 +30,7 @@ razorpay_client = razorpay.Client(auth=(
 # ==================== CUSTOMER VIEWS ====================
 
 # orders/views.py
-@login_required
+@customer_only
 def my_orders(request):
     """Customer: View all orders with tracking"""
     # ✅ Ensure we filter by logged-in user only
@@ -54,7 +54,7 @@ def my_orders(request):
     }
     return render(request, 'orders/my_orders.html', context)
 
-@login_required
+@customer_only
 def order_detail(request, order_id):
     """Customer: View single order with tracking timeline"""
     order = get_object_or_404(Order, unique_order_id=order_id, user=request.user)
@@ -175,7 +175,7 @@ def download_invoice(request, order_id):
 
 # ==================== SELLER VIEWS ====================
 
-@login_required
+@seller_only
 def seller_orders(request):
     """Seller: View all orders containing their products"""
     if not (request.user.role == 'seller' and hasattr(request.user, 'seller_profile')):
@@ -283,8 +283,9 @@ def seller_add_tracking(request, order_id):
 
 # ==================== ADMIN VIEWS ====================
 
-@login_required
-@user_passes_test(lambda u: u.is_superuser)
+# @login_required
+# @user_passes_test(lambda u: u.is_superuser)
+@admin_only
 def admin_orders(request):
     """Admin: View all orders system-wide"""
     orders = Order.objects.select_related('user', 'delivery_assignment__delivery_partner').prefetch_related('items__product').order_by('-created_at')
@@ -294,8 +295,7 @@ def admin_orders(request):
     context = {'orders': orders, 'filters': request.GET.dict()}
     return render(request, 'orders/admin_orders.html', context)
 
-@login_required
-@user_passes_test(lambda u: u.is_superuser)
+@admin_only
 def admin_order_detail(request, order_id):
     """Admin: Full order detail view"""
     order = get_object_or_404(Order, unique_order_id=order_id)
@@ -303,8 +303,7 @@ def admin_order_detail(request, order_id):
     return render(request, 'orders/admin_order_detail.html', context)
 
 @require_POST
-@login_required
-@user_passes_test(lambda u: u.is_superuser)
+@admin_only
 def admin_update_status(request, order_id):
     """Admin: Update any order status"""
     order = get_object_or_404(Order, unique_order_id=order_id)

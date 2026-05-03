@@ -525,7 +525,9 @@
                     </button>
                     <div class="dropdown-menu">
                         <a href="{% url 'accounts:profile' %}"><i class="fa fa-user-circle"></i> My Profile</a>
-                        <a href="{% url 'orders:my_orders' %}"><i class="fa fa-box"></i> My Orders</a>
+                        {% if user.role == 'customer' %}
+                            <a href="{% url 'orders:my_orders' %}"><i class="fa fa-box"></i> My Orders</a>
+                        {% endif %}    
                         <form action="{% url 'accounts:logout' %}" method="post">
                             {% csrf_token %}
                             <button type="submit"><i class="fa fa-sign-out-alt"></i> Logout</button>

@@ -1,405 +1,912 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}{{ title }} – Item Management{% endblock %}
+{% block title %}{{ title|default:"Manage Product" }} | {{ site_settings.site_name }}{% endblock %}
 
 {% block content %}
 <div class="product-form-container">
-
-    <!-- Header -->
+    <!-- Page Header -->
     <div class="form-header">
-        <h2>{{ title }}</h2>
-        <a href="{% url 'items:admin_dashboard' %}" class="btn-outline">← Back to Dashboard</a>
+        <h2>📦 {{ title|default:"Add New Product" }}</h2>
+        <p class="text-muted">
+            {% if action == 'Create' %}Add a new product to your catalog{% endif %}
+            {% if action == 'Update' %}Edit product details and inventory{% endif %}
+        </p>
+        <a href="{% url 'items:admin_dashboard' %}" class="back-link">
+            <i class="fa fa-arrow-left"></i> Back to Dashboard
+        </a>
     </div>
 
-    <form method="post" enctype="multipart/form-data" id="productForm" novalidate>
+    <!-- Form Card -->
+    <form method="post" enctype="multipart/form-data" class="product-form" id="productForm">
         {% csrf_token %}
-
-        <!-- Non-field errors -->
-        {% if form.non_field_errors %}
-        <div class="alert-error">
-            {% for e in form.non_field_errors %}{{ e }}{% endfor %}
-        </div>
+        
+        <!-- Hidden fields -->
+        {% if product %}
+            <input type="hidden" name="product_id" value="{{ product.id }}">
         {% endif %}
 
-        <!-- ── 👑 Superuser only: assign seller ─────────────────────────── -->
-        <!-- {% if form.seller %}
-        <fieldset class="form-section superuser-only">
-            <legend>👑 Admin Control</legend>
-            <div class="form-group">
-                <label for="{{ form.seller.id_for_label }}">Assign to Seller *</label>
-                {{ form.seller }}
-                {% if form.seller.errors %}
-                    <div class="field-error">{{ form.seller.errors.0 }}</div>
-                {% endif %}
-                <small>Only verified sellers are listed.</small>
+        <!-- ✅ Section: Basic Information -->
+        <div class="form-section">
+            <div class="section-header">
+                <h3>📝 Basic Information</h3>
+                <span class="section-badge">Required</span>
             </div>
-        </fieldset>
-        {% endif %} -->
-        {% if is_superuser %}
-        <div class="form-group">
-            <label for="{{ form.seller.id_for_label }}">
-                {{ form.seller.label }}
-            </label>
-            {{ form.seller }}
-            {% if form.seller.errors %}
-                <div class="field-error">{{ form.seller.errors.0 }}</div>
-            {% endif %}
-            <small class="form-text text-muted">
-                Only verified sellers are listed. This assignment cannot be changed later.
-            </small>
-        </div>
-        {% endif %}
-        <!-- ── Basic Info ───────────────────────────────────────────────── -->
-        <fieldset class="form-section">
-            <legend>📦 Basic Information</legend>
+            
             <div class="form-row two-col">
                 <div class="form-group">
                     <label for="{{ form.name.id_for_label }}">Product Name *</label>
                     {{ form.name }}
                     {% if form.name.errors %}<div class="field-error">{{ form.name.errors.0 }}</div>{% endif %}
+                    <small class="form-help">Enter a clear, descriptive product name</small>
                 </div>
+                
                 <div class="form-group">
-                    <label for="{{ form.short_description.id_for_label }}">Short Description</label>
-                    {{ form.short_description }}
-                    <small>Shown in listings (max 255 chars)</small>
+                    <label for="{{ form.slug.id_for_label }}">URL Slug</label>
+                    <div class="slug-input-group">
+                        <span class="slug-prefix">/items/product/</span>
+                        {{ form.slug }}
+                        <button type="button" class="btn-sm btn-outline" id="generateSlugBtn">
+                            <i class="fa fa-magic"></i> Generate
+                        </button>
+                    </div>
+                    {% if form.slug.errors %}<div class="field-error">{{ form.slug.errors.0 }}</div>{% endif %}
+                    <small class="form-help">Auto-generated from name. Use lowercase, hyphens only.</small>
                 </div>
             </div>
+            
+            <div class="form-group">
+                <label for="{{ form.short_description.id_for_label }}">Short Description *</label>
+                {{ form.short_description }}
+                {% if form.short_description.errors %}<div class="field-error">{{ form.short_description.errors.0 }}</div>{% endif %}
+                <small class="form-help">Brief tagline shown in product listings (max 255 chars)</small>
+            </div>
+            
             <div class="form-group">
                 <label for="{{ form.description.id_for_label }}">Full Description *</label>
                 {{ form.description }}
                 {% if form.description.errors %}<div class="field-error">{{ form.description.errors.0 }}</div>{% endif %}
+                <small class="form-help">Detailed product information, features, and benefits</small>
             </div>
-        </fieldset>
+        </div>
 
-        <!-- ── Pricing ──────────────────────────────────────────────────── -->
-        <fieldset class="form-section">
-            <legend>💰 Pricing</legend>
-            <div class="form-row four-col">
+        <!-- ✅ Section: Pricing & Discount -->
+        <div class="form-section">
+            <div class="section-header">
+                <h3>💰 Pricing & Discount</h3>
+                <span class="section-badge">Required</span>
+            </div>
+            
+            <div class="form-row three-col">
                 <div class="form-group">
                     <label for="{{ form.price.id_for_label }}">Selling Price (₹) *</label>
                     {{ form.price }}
                     {% if form.price.errors %}<div class="field-error">{{ form.price.errors.0 }}</div>{% endif %}
                 </div>
+                
                 <div class="form-group">
                     <label for="{{ form.mrp.id_for_label }}">MRP (₹)</label>
                     {{ form.mrp }}
-                    <small>Crossed-out price shown to buyers</small>
+                    {% if form.mrp.errors %}<div class="field-error">{{ form.mrp.errors.0 }}</div>{% endif %}
+                    <small class="form-help">Original price for discount display</small>
                 </div>
-                <div class="form-group">
-                    <label for="{{ form.cost_price.id_for_label }}">Cost Price (₹)</label>
-                    {{ form.cost_price }}
-                    <small>Hidden from customers</small>
-                </div>
+                
                 <div class="form-group">
                     <label for="{{ form.discount_percent.id_for_label }}">Discount (%)</label>
                     {{ form.discount_percent }}
                     {% if form.discount_percent.errors %}<div class="field-error">{{ form.discount_percent.errors.0 }}</div>{% endif %}
+                    <small class="form-help">0-100. Auto-calculates discounted price.</small>
                 </div>
             </div>
-            <div class="price-preview" id="pricePreview">
-                <strong>Final Price: </strong>
-                <span id="finalPrice">₹0.00</span>
-                <span id="discountBadge" class="discount-tag" style="display:none;">
-                    –<span id="discountPct">0</span>% OFF
-                </span>
+            
+            <div class="form-row two-col">
+                <div class="form-group">
+                    <label for="{{ form.cost_price.id_for_label }}">Cost Price (₹)</label>
+                    {{ form.cost_price }}
+                    {% if form.cost_price.errors %}<div class="field-error">{{ form.cost_price.errors.0 }}</div>{% endif %}
+                    <small class="form-help">Your purchase cost (for profit calculation)</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>&nbsp;</label>
+                    <div class="price-preview" id="pricePreview">
+                        <strong>Preview:</strong> 
+                        <span id="previewPrice">₹0.00</span>
+                        <span id="previewDiscount" style="display:none; color:#2e7d32; margin-left:8px;"></span>
+                    </div>
+                </div>
             </div>
-        </fieldset>
+        </div>
 
-        <!-- ── Inventory ────────────────────────────────────────────────── -->
-        <fieldset class="form-section">
-            <legend>📦 Inventory</legend>
+        <!-- ✅ Section: Inventory & Status -->
+        <div class="form-section">
+            <div class="section-header">
+                <h3>📦 Inventory & Status</h3>
+                <span class="section-badge">Required</span>
+            </div>
+            
             <div class="form-row three-col">
                 <div class="form-group">
                     <label for="{{ form.stock.id_for_label }}">Stock Quantity *</label>
                     {{ form.stock }}
                     {% if form.stock.errors %}<div class="field-error">{{ form.stock.errors.0 }}</div>{% endif %}
                 </div>
+                
                 <div class="form-group">
-                    <label for="{{ form.low_stock_threshold.id_for_label }}">Low Stock Alert At</label>
+                    <label for="{{ form.low_stock_threshold.id_for_label }}">Low Stock Alert</label>
                     {{ form.low_stock_threshold }}
-                    <small>Highlight when stock ≤ this</small>
+                    {% if form.low_stock_threshold.errors %}<div class="field-error">{{ form.low_stock_threshold.errors.0 }}</div>{% endif %}
+                    <small class="form-help">Alert when stock ≤ this value</small>
                 </div>
+                
                 <div class="form-group">
                     <label for="{{ form.status.id_for_label }}">Status *</label>
                     {{ form.status }}
-                    <small>Set "Published" to show in shop</small>
+                    {% if form.status.errors %}<div class="field-error">{{ form.status.errors.0 }}</div>{% endif %}
                 </div>
             </div>
-        </fieldset>
-
-        <!-- ── Media ────────────────────────────────────────────────────── -->
-        <fieldset class="form-section">
-            <legend>🖼️ Product Images</legend>
-            {% if product and product.primary_image %}
-            <div class="existing-image">
-                <img src="{{ product.primary_image.url }}" alt="Current primary image">
-                <small>Current primary image</small>
-            </div>
-            {% endif %}
-            <div class="form-group">
-                <label for="{{ form.primary_image.id_for_label }}">Primary Image</label>
-                {{ form.primary_image }}
-                <small>Shown in search / listing cards</small>
-            </div>
-            <div class="form-group">
-                <label>Additional Images</label>
-                <!-- ✅ Ensure 'multiple' and correct 'id' are present -->
-                <input type="file" name="images" multiple accept="image/*"
-                       class="form-input" id="imageUpload">
-                <small>Upload multiple at once; first becomes primary if none selected above</small>
-                <div id="imagePreview" class="image-preview-grid"></div>
-            </div>
-        </fieldset>
-
-        <!-- ── Product Details ──────────────────────────────────────────── -->
-        <fieldset class="form-section">
-            <legend>🔍 Product Details</legend>
-            <div class="form-row four-col">
-                <div class="form-group">
-                    <label for="{{ form.brand.id_for_label }}">Brand</label>
-                    {{ form.brand }}
-                </div>
-                <div class="form-group">
-                    <label for="{{ form.sku.id_for_label }}">SKU</label>
-                    {{ form.sku }}
-                    <small>Auto-generated if blank</small>
-                </div>
-                <div class="form-group">
-                    <label for="{{ form.weight.id_for_label }}">Weight (g)</label>
-                    {{ form.weight }}
-                </div>
-                <div class="form-group">
-                    <label for="{{ form.dimensions.id_for_label }}">Dimensions</label>
-                    {{ form.dimensions }}
-                    <small>L × W × H in cm</small>
-                </div>
-            </div>
-        </fieldset>
-
-        <!-- ── Categorization ───────────────────────────────────────────── -->
-        <fieldset class="form-section">
-            <legend>🗂️ Categorization</legend>
+            
             <div class="form-row two-col">
                 <div class="form-group">
                     <label for="{{ form.category.id_for_label }}">Category *</label>
                     {{ form.category }}
                     {% if form.category.errors %}<div class="field-error">{{ form.category.errors.0 }}</div>{% endif %}
-
                 </div>
+                
                 <div class="form-group">
                     <label for="{{ form.gender.id_for_label }}">Target Audience</label>
                     {{ form.gender }}
-                    <small>Who is this product for?</small>
-                </div>
-                <div class="form-group checkboxes">
-                    <label>Visibility Flags</label>
-                    <label class="check-label">
-                        {{ form.is_featured }} Mark as Featured
-                    </label>
-                    <label class="check-label">
-                        {{ form.is_hot_deal }} Mark as Hot Deal
-                    </label>
+                    {% if form.gender.errors %}<div class="field-error">{{ form.gender.errors.0 }}</div>{% endif %}
+                    <small class="form-help">Who is this product for?</small>
                 </div>
             </div>
-        </fieldset>
-
-        <!-- ── SEO (collapsed) ──────────────────────────────────────────── -->
-        <details class="form-section collapsible">
-            <summary>🔗 SEO &amp; Meta (optional)</summary>
-            <div class="form-row two-col" style="margin-top:15px;">
-                <div class="form-group">
-                    <label for="{{ form.meta_title.id_for_label }}">Meta Title</label>
-                    {{ form.meta_title }}
-                    <small>Max 60 chars</small>
-                </div>
-                <div class="form-group">
-                    <label for="{{ form.meta_description.id_for_label }}">Meta Description</label>
-                    {{ form.meta_description }}
-                    <small>Max 160 chars</small>
-                </div>
-            </div>
-        </details>
-
-        <!-- ── Actions ──────────────────────────────────────────────────── -->
-        <div class="form-actions">
-            <button type="submit" class="btn-primary">{{ action }} Product</button>
-            <a href="{% url 'items:admin_dashboard' %}" class="btn-outline">Cancel</a>
-            {% if product and product.pk and product.status != 'discontinued' %}
-            <button type="button" class="btn-danger" id="archiveBtn">🗑️ Archive Product</button>
-            {% endif %}
         </div>
 
+        <!-- ✅ Section: Product Details -->
+        <div class="form-section">
+            <div class="section-header">
+                <h3>🏷️ Product Details</h3>
+                <span class="section-badge">Optional</span>
+            </div>
+            
+            <div class="form-row three-col">
+                <div class="form-group">
+                    <label for="{{ form.brand.id_for_label }}">Brand</label>
+                    {{ form.brand }}
+                    {% if form.brand.errors %}<div class="field-error">{{ form.brand.errors.0 }}</div>{% endif %}
+                </div>
+                
+                <div class="form-group">
+                    <label for="{{ form.sku.id_for_label }}">SKU</label>
+                    {{ form.sku }}
+                    {% if form.sku.errors %}<div class="field-error">{{ form.sku.errors.0 }}</div>{% endif %}
+                    <small class="form-help">Stock Keeping Unit (auto-generated if empty)</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="{{ form.weight.id_for_label }}">Weight (grams)</label>
+                    {{ form.weight }}
+                    {% if form.weight.errors %}<div class="field-error">{{ form.weight.errors.0 }}</div>{% endif %}
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="{{ form.dimensions.id_for_label }}">Dimensions (L × W × H in cm)</label>
+                {{ form.dimensions }}
+                {% if form.dimensions.errors %}<div class="field-error">{{ form.dimensions.errors.0 }}</div>{% endif %}
+            </div>
+        </div>
+
+        <!-- ✅ Section: Images -->
+        <div class="form-section">
+            <div class="section-header">
+                <h3>🖼️ Product Images</h3>
+                <span class="section-badge">Required</span>
+            </div>
+            
+            <div class="form-row two-col">
+                <div class="form-group">
+                    <label for="{{ form.primary_image.id_for_label }}">Primary Image *</label>
+                    {{ form.primary_image }}
+                    {% if form.primary_image.errors %}<div class="field-error">{{ form.primary_image.errors.0 }}</div>{% endif %}
+                    <small class="form-help">Main image shown in listings (recommended: 800×800px)</small>
+                    
+                    <!-- Image Preview -->
+                    <div class="image-preview" id="primaryImagePreview">
+                        {% if product and product.primary_image %}
+                            <img src="{{ product.primary_image.url }}" alt="Current primary image">
+                        {% else %}
+                            <div class="preview-placeholder">
+                                <i class="fa fa-image"></i>
+                                <span>Preview will appear here</span>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="additionalImages">Additional Images</label>
+                    <input type="file" name="images" id="additionalImages" class="form-input" multiple accept="image/*">
+                    <small class="form-help">Upload multiple images (gallery view). Max 5 images.</small>
+                    
+                    <!-- Additional Images Preview -->
+                    <div class="image-preview-grid" id="additionalImagesPreview">
+                        {% if product and product.product_image_product.all %}
+                            {% for img in product.product_image_product.all %}
+                                <div class="preview-thumb">
+                                    <img src="{{ img.image.url }}" alt="Additional image">
+                                    <button type="button" class="remove-thumb" title="Remove">×</button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ✅ Section: SEO & Marketing -->
+        <div class="form-section">
+            <div class="section-header">
+                <h3>🔍 SEO & Marketing</h3>
+                <span class="section-badge">Optional</span>
+            </div>
+            
+            <div class="form-group">
+                <label for="{{ form.meta_title.id_for_label }}">SEO Title</label>
+                {{ form.meta_title }}
+                {% if form.meta_title.errors %}<div class="field-error">{{ form.meta_title.errors.0 }}</div>{% endif %}
+                <small class="form-help">Title for search engines (max 200 chars)</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="{{ form.meta_description.id_for_label }}">SEO Description</label>
+                {{ form.meta_description }}
+                {% if form.meta_description.errors %}<div class="field-error">{{ form.meta_description.errors.0 }}</div>{% endif %}
+                <small class="form-help">Meta description for search results (max 160 chars)</small>
+            </div>
+            
+            <div class="form-row two-col">
+                <div class="form-group checkbox-group">
+                    <label class="check-label">
+                        {{ form.is_featured }}
+                        <span>⭐ Mark as Featured Product</span>
+                    </label>
+                    <small class="form-help">Showcase on homepage and category pages</small>
+                </div>
+                
+                <div class="form-group checkbox-group">
+                    <label class="check-label">
+                        {{ form.is_hot_deal }}
+                        <span>🔥 Mark as Hot Deal</span>
+                    </label>
+                    <small class="form-help">Add "Hot Deal" badge to attract buyers</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- ✅ Section: Admin Only - Assign Seller (Superusers Only) -->
+        {% if is_superuser %}
+        <div class="form-section admin-only">
+            <div class="section-header">
+                <h3>👑 Admin Control</h3>
+                <span class="section-badge admin-badge">Superuser Only</span>
+            </div>
+            
+            <div class="form-group">
+                <label for="{{ form.seller.id_for_label }}">
+                    {{ form.seller.label }}
+                </label>
+                {{ form.seller }}
+                {% if form.seller.errors %}
+                    <div class="field-error">{{ form.seller.errors.0 }}</div>
+                {% endif %}
+                <small class="form-text text-muted">
+                    Only verified sellers are listed. This assignment cannot be changed later.
+                </small>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Form Actions -->
+        <div class="form-actions">
+            <button type="submit" class="btn-primary btn-lg" id="saveBtn">
+                <i class="fa fa-save"></i> {{ action|default:"Save" }} Product
+            </button>
+            <a href="{% url 'items:admin_dashboard' %}" class="btn-outline btn-lg">
+                <i class="fa fa-times"></i> Cancel
+            </a>
+            {% if product and product.status != 'discontinued' %}
+            <button type="button" class="btn-danger btn-lg" id="deleteBtn" data-product-id="{{ product.id }}">
+                <i class="fa fa-trash"></i> Archive
+            </button>
+            {% endif %}
+        </div>
     </form>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="modal" style="display:none;">
+    <div class="modal-content">
+        <h3>⚠️ Archive Product</h3>
+        <p>Are you sure you want to archive "<strong id="deleteProductName"></strong>"?</p>
+        <p class="text-muted">This will hide the product from customers but keep it in your dashboard.</p>
+        <div class="modal-actions">
+            <button class="btn-outline" id="cancelDeleteBtn">Cancel</button>
+            <form id="deleteForm" method="post" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn-danger">Yes, Archive Product</button>
+            </form>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
-
 {% block scripts %}
 <script>
-/* ── Live price preview ─────────────────────────────────────────────────── */
-const priceEl    = document.getElementById('{{ form.price.auto_id }}');
-const discountEl = document.getElementById('{{ form.discount_percent.auto_id }}');
-const finalEl    = document.getElementById('finalPrice');
-const badgeEl    = document.getElementById('discountBadge');
-const pctEl      = document.getElementById('discountPct');
-
-function recalc() {
-    const p = parseFloat(priceEl?.value) || 0;
-    const d = parseInt(discountEl?.value) || 0;
-    if (d > 0) {
-        finalEl.textContent    = `₹${(p * (1 - d / 100)).toFixed(2)}`;
-        badgeEl.style.display  = 'inline';
-        pctEl.textContent      = d;
-    } else {
-        finalEl.textContent   = `₹${p.toFixed(2)}`;
-        badgeEl.style.display = 'none';
-    }
-}
-priceEl?.addEventListener('input', recalc);
-discountEl?.addEventListener('input', recalc);
-recalc();
-
-/* ── Image preview ──────────────────────────────────────────────────────── */
-document.getElementById('imageUpload')?.addEventListener('change', function () {
-    const grid = document.getElementById('imagePreview');
-    if (grid) grid.innerHTML = ''; // Clear previous previews
+document.addEventListener('DOMContentLoaded', function() {
+    // ── 1. Auto-Slug Generation ──────────────────────────────────────
+    const nameInput = document.getElementById('{{ form.name.id_for_label }}');
+    const slugInput = document.getElementById('{{ form.slug.id_for_label }}');
+    const generateBtn = document.getElementById('generateSlugBtn');
     
-    Array.from(this.files).forEach(file => {
-        if (!file.type.startsWith('image/')) return;
-        const reader = new FileReader();
-        reader.onload = e => {
-            const img = document.createElement('img');
-            img.src = e.target.result;
-            img.className = 'preview-thumb';
-            grid.appendChild(img);
-        };
-        reader.readAsDataURL(file);
-    });
-});
-
-/* ── Archive (soft delete) ──────────────────────────────────────────────── */
-{% if product and product.pk %}
-document.getElementById('archiveBtn')?.addEventListener('click', async () => {
-    if (!confirm('Archive this product? It will be hidden from the shop.')) return;
-    try {
-        const res = await fetch("{% url 'items:product_delete' product.pk %}", {
-            method: 'POST',
-            headers: { 'X-CSRFToken': '{{ csrf_token }}' },
-        });
-        const data = await res.json();
-        if (data.status === 'success') {
-            window.location.href = "{% url 'items:admin_dashboard' %}";
-        } else {
-            alert(data.message || 'Failed to archive.');
+    function slugify(text) {
+        return text.toString().toLowerCase()
+            .trim()
+            .replace(/[^\w\s-]/g, '')          // Remove non-word chars
+            .replace(/[\s_-]+/g, '-')          // Replace spaces/underscores with hyphen
+            .replace(/^-+|-+$/g, '');          // Trim hyphens from ends
+    }
+    
+    // Auto-generate slug as user types (only if slug is empty or matches old slug)
+    let originalSlug = slugInput?.value || '';
+    nameInput?.addEventListener('input', function() {
+        if (!slugInput) return;
+        // Only auto-update if slug hasn't been manually edited
+        if (slugInput.value === originalSlug || !originalSlug) {
+            slugInput.value = slugify(this.value);
         }
-    } catch (err) {
-        alert('Network error: ' + err.message);
+    });
+    
+    // Manual generate button
+    generateBtn?.addEventListener('click', function() {
+        if (nameInput && slugInput) {
+            slugInput.value = slugify(nameInput.value);
+            originalSlug = slugInput.value;
+            showToast('Slug generated!', 'success');
+        }
+    });
+    
+    // ── 2. Price Preview Calculator ─────────────────────────────────
+    const priceInput = document.getElementById('{{ form.price.id_for_label }}');
+    const mrpInput = document.getElementById('{{ form.mrp.id_for_label }}');
+    const discountInput = document.getElementById('{{ form.discount_percent.id_for_label }}');
+    const previewPrice = document.getElementById('previewPrice');
+    const previewDiscount = document.getElementById('previewDiscount');
+    
+    function updatePricePreview() {
+        if (!priceInput || !previewPrice) return;
+        
+        const price = parseFloat(priceInput.value) || 0;
+        const mrp = parseFloat(mrpInput?.value) || 0;
+        const discount = parseInt(discountInput?.value) || 0;
+        
+        let finalPrice = price;
+        let discountText = '';
+        
+        if (discount > 0 && price > 0) {
+            finalPrice = price * (1 - discount / 100);
+            discountText = `(-₹${(price - finalPrice).toFixed(2)})`;
+        }
+        
+        previewPrice.textContent = `₹${finalPrice.toFixed(2)}`;
+        
+        if (discountText && mrp > price) {
+            previewDiscount.style.display = 'inline';
+            previewDiscount.textContent = `${discountText} • Save ₹${(mrp - price).toFixed(2)} vs MRP`;
+        } else if (discountText) {
+            previewDiscount.style.display = 'inline';
+            previewDiscount.textContent = discountText;
+        } else {
+            previewDiscount.style.display = 'none';
+        }
+    }
+    
+    [priceInput, mrpInput, discountInput].forEach(input => {
+        input?.addEventListener('input', updatePricePreview);
+    });
+    updatePricePreview(); // Initial call
+    
+    // ── 3. Image Preview ────────────────────────────────────────────
+    // Primary image preview
+    const primaryImageInput = document.getElementById('{{ form.primary_image.id_for_label }}');
+    const primaryPreview = document.getElementById('primaryImagePreview');
+    
+    primaryImageInput?.addEventListener('change', function(e) {
+        if (this.files && this.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                primaryPreview.innerHTML = `<img src="${event.target.result}" alt="Preview">`;
+            };
+            reader.readAsDataURL(this.files[0]);
+        }
+    });
+    
+    // Additional images preview
+    const additionalImagesInput = document.getElementById('additionalImages');
+    const additionalPreview = document.getElementById('additionalImagesPreview');
+    
+    additionalImagesInput?.addEventListener('change', function(e) {
+        if (this.files) {
+            // Clear existing previews (except existing ones from DB)
+            const existingThumbs = additionalPreview.querySelectorAll('.preview-thumb:not(.existing)');
+            existingThumbs.forEach(thumb => thumb.remove());
+            
+            // Limit to 5 total images
+            const maxImages = 5;
+            const files = Array.from(this.files).slice(0, maxImages);
+            
+            files.forEach((file, index) => {
+                if (index >= maxImages) return;
+                
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const thumb = document.createElement('div');
+                    thumb.className = 'preview-thumb new';
+                    thumb.innerHTML = `
+                        <img src="${event.target.result}" alt="Preview">
+                        <button type="button" class="remove-thumb" title="Remove">×</button>
+                    `;
+                    additionalPreview.appendChild(thumb);
+                    
+                    // Remove thumb on click
+                    thumb.querySelector('.remove-thumb')?.addEventListener('click', function() {
+                        thumb.remove();
+                    });
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+    });
+    
+    // Remove existing image thumb
+    document.querySelectorAll('.preview-thumb .remove-thumb').forEach(btn => {
+        btn.addEventListener('click', function() {
+            this.closest('.preview-thumb').remove();
+        });
+    });
+    
+    // ── 4. Delete/Archive Confirmation ─────────────────────────────
+    const deleteBtn = document.getElementById('deleteBtn');
+    const deleteModal = document.getElementById('deleteModal');
+    const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
+    const deleteForm = document.getElementById('deleteForm');
+    const deleteProductName = document.getElementById('deleteProductName');
+    
+    deleteBtn?.addEventListener('click', function() {
+        const productName = '{{ product.name|escapejs }}';
+        deleteProductName.textContent = productName;
+        deleteModal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    });
+    
+    cancelDeleteBtn?.addEventListener('click', function() {
+        deleteModal.style.display = 'none';
+        document.body.style.overflow = '';
+    });
+    
+    deleteModal?.addEventListener('click', function(e) {
+        if (e.target === deleteModal) {
+            deleteModal.style.display = 'none';
+            document.body.style.overflow = '';
+        }
+    });
+    
+    deleteForm?.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const productId = deleteBtn?.dataset.productId;
+        if (!productId) return;
+        
+        try {
+            const res = await fetch(`/items/product/${productId}/delete/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            const data = await res.json();
+            
+            if (data.status === 'success') {
+                showToast(data.message, 'success');
+                setTimeout(() => {
+                    window.location.href = "{% url 'items:admin_dashboard' %}";
+                }, 1000);
+            } else {
+                showToast(data.message || 'Failed to archive product', 'error');
+            }
+        } catch (err) {
+            showToast('Network error: ' + err.message, 'error');
+        }
+    });
+    
+    // ── 5. Form Submit Validation ───────────────────────────────────
+    const productForm = document.getElementById('productForm');
+    const saveBtn = document.getElementById('saveBtn');
+    
+    productForm?.addEventListener('submit', function(e) {
+        // Basic client-side validation
+        const requiredFields = productForm.querySelectorAll('[required]');
+        let hasError = false;
+        
+        requiredFields.forEach(field => {
+            if (!field.value.trim()) {
+                field.classList.add('error');
+                hasError = true;
+            } else {
+                field.classList.remove('error');
+            }
+        });
+        
+        if (hasError) {
+            e.preventDefault();
+            showToast('Please fill all required fields', 'error');
+            return false;
+        }
+        
+        // Show loading state
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving...';
+    });
+    
+    // ── 6. Toast Notification Helper ────────────────────────────────
+    window.showToast = function(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.innerHTML = `<i class="fa ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i> ${message}`;
+        toast.style.cssText = `
+            position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+            padding: 12px 22px; border-radius: 8px; font-weight: 600;
+            background: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : '#2196F3'};
+            color: #fff; box-shadow: 0 4px 14px rgba(0,0,0,.18);
+            display: flex; align-items: center; gap: 8px;
+            animation: slideUp 0.3s ease;
+        `;
+        document.body.appendChild(toast);
+        setTimeout(() => {
+            toast.style.animation = 'slideDown 0.3s ease';
+            setTimeout(() => toast.remove(), 300);
+        }, 2500);
+    };
+    
+    // CSS animations
+    if (!document.querySelector('#form-animations')) {
+        const style = document.createElement('style');
+        style.id = 'form-animations';
+        style.textContent = `
+            @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+            @keyframes slideDown { from { transform: translateY(0); opacity: 1; } to { transform: translateY(20px); opacity: 0; } }
+            .form-input.error, .form-select.error { border-color: #c62828 !important; }
+        `;
+        document.head.appendChild(style);
     }
 });
-{% endif %}
 </script>
+{% endblock %}
 
+{% block extra_css %}
 <style>
-.product-form-container { max-width:900px; margin:0 auto; padding:20px; }
+/* ===== PRODUCT FORM STYLES ===== */
+.product-form-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px;
+}
 
 .form-header {
-    display:flex; justify-content:space-between; align-items:center;
-    margin-bottom:28px; padding-bottom:18px; border-bottom:1px solid #eee;
+    margin-bottom: 25px;
+}
+.form-header h2 {
+    margin: 0 0 5px;
+    font-size: 1.8rem;
+}
+.text-muted { color: #666; }
+.back-link {
+    color: #2874f0;
+    text-decoration: none;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+}
+.back-link:hover { text-decoration: underline; }
+
+/* Form Card */
+.product-form {
+    background: #fff;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
 }
 
 /* Sections */
 .form-section {
-    background:#fff; border:1px solid #eee; border-radius:12px;
-    padding:22px; margin-bottom:20px;
+    margin-bottom: 30px;
+    padding-bottom: 25px;
+    border-bottom: 1px solid #eee;
 }
-.form-section legend { font-weight:600; color:#212121; padding:0 10px; font-size:1rem; }
-
-.form-section.superuser-only {
-    border-color:#f9a825; background:#fffde7;
+.form-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
 }
-.form-section.superuser-only legend { color:#f57f17; }
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #f0f4ff;
+}
+.section-header h3 {
+    margin: 0;
+    font-size: 1.3rem;
+    color: #212121;
+}
+.section-badge {
+    background: #e3f2fd;
+    color: #1976d2;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+.admin-badge {
+    background: #fff8e1;
+    color: #f57f17;
+}
 
-.collapsible { list-style:none; cursor:pointer; }
-.collapsible summary { font-weight:600; color:#555; padding:4px 0; }
+/* Form Layout */
+.form-row {
+    display: grid;
+    gap: 20px;
+    margin-bottom: 15px;
+}
+.form-row.two-col { grid-template-columns: repeat(2, 1fr); }
+.form-row.three-col { grid-template-columns: repeat(3, 1fr); }
 
-/* Grid layouts */
-.form-row        { display:grid; gap:18px; margin-bottom:14px; }
-.two-col         { grid-template-columns:repeat(auto-fit, minmax(240px,1fr)); }
-.three-col       { grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); }
-.four-col        { grid-template-columns:repeat(auto-fit, minmax(160px,1fr)); }
-
-.form-group      { margin-bottom:14px; }
-.form-group label{ display:block; margin-bottom:6px; font-weight:500; color:#444; }
-.form-group small{ display:block; color:#777; font-size:.82rem; margin-top:4px; }
-
+.form-group {
+    margin-bottom: 15px;
+}
+.form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    color: #444;
+    font-size: 0.95rem;
+}
 .form-input, .form-select, textarea {
-    width:100%; padding:10px 12px; border:1px solid #ddd;
-    border-radius:8px; font-size:1rem; transition:border .2s; box-sizing:border-box;
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border 0.2s, box-shadow 0.2s;
 }
 .form-input:focus, .form-select:focus, textarea:focus {
-    border-color:#2874f0; outline:none; box-shadow:0 0 0 3px rgba(40,116,240,.1);
+    border-color: #2874f0;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(40, 116, 240, 0.1);
+}
+.form-help {
+    display: block;
+    color: #888;
+    font-size: 0.8rem;
+    margin-top: 4px;
+}
+.field-error {
+    color: #c62828;
+    font-size: 0.85rem;
+    margin-top: 4px;
+    font-weight: 500;
 }
 
-.field-error { color:#c62828; font-size:.83rem; margin-top:4px; }
-.alert-error {
-    background:#ffebee; border:1px solid #ffcdd2; color:#c62828;
-    padding:12px 16px; border-radius:8px; margin-bottom:18px;
+/* Slug Input Group */
+.slug-input-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.slug-prefix {
+    color: #666;
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+.slug-input-group .form-input {
+    flex: 1;
 }
 
-/* Checkboxes */
-.checkboxes .check-label {
-    display:flex; align-items:center; gap:8px;
-    cursor:pointer; margin-bottom:10px; font-weight:400;
-}
-.checkboxes input[type=checkbox] { width:auto; cursor:pointer; }
-
-/* Price preview */
+/* Price Preview */
 .price-preview {
-    background:#e8f5e9; padding:12px 16px; border-radius:8px;
-    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    background: #f8f9ff;
+    padding: 10px 15px;
+    border-radius: 8px;
+    border-left: 3px solid #2874f0;
+    font-size: 0.95rem;
 }
-.discount-tag {
-    background:#ffebee; color:#c62828; padding:3px 10px;
-    border-radius:4px; font-size:.82rem; font-weight:600;
+.price-preview strong { color: #212121; }
+
+/* Checkbox Groups */
+.checkbox-group {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+.checkbox-group input[type="checkbox"] {
+    width: auto;
+    margin-top: 4px;
+}
+.checkbox-group label {
+    margin: 0;
+    font-weight: 500;
+    cursor: pointer;
 }
 
-/* Existing image */
-.existing-image { margin-bottom:14px; }
-.existing-image img {
-    width:90px; height:90px; object-fit:cover;
-    border-radius:8px; border:1px solid #eee; display:block;
+/* Image Upload & Preview */
+.image-preview {
+    margin-top: 12px;
+    text-align: center;
 }
-.existing-image small { color:#888; margin-top:4px; display:block; }
+.image-preview img {
+    max-width: 100%;
+    max-height: 200px;
+    border-radius: 8px;
+    border: 2px solid #eee;
+    object-fit: contain;
+}
+.preview-placeholder {
+    background: #f8f9fa;
+    border: 2px dashed #ddd;
+    border-radius: 8px;
+    padding: 30px 20px;
+    color: #999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+.preview-placeholder i { font-size: 2rem; }
 
-/* Image preview */
-.image-preview-grid { display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
-.preview-thumb      { width:80px; height:80px; object-fit:cover; border-radius:6px; border:1px solid #eee; }
+.image-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 10px;
+    margin-top: 12px;
+}
+.preview-thumb {
+    position: relative;
+    border: 2px solid #eee;
+    border-radius: 8px;
+    overflow: hidden;
+    aspect-ratio: 1/1;
+}
+.preview-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.preview-thumb .remove-thumb {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background: rgba(244, 67, 54, 0.9);
+    color: white;
+    border: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+.preview-thumb .remove-thumb:hover {
+    background: #c62828;
+}
 
-/* Actions */
+/* Admin-Only Section */
+.admin-only {
+    background: #fff8e1;
+    border: 2px solid #ffc107;
+    border-radius: 12px;
+    padding: 20px;
+    margin-top: 10px;
+}
+.admin-only .section-header {
+    border-bottom-color: #ffe082;
+}
+
+/* Form Actions */
 .form-actions {
-    display:flex; gap:12px; justify-content:flex-end; flex-wrap:wrap;
-    padding-top:20px; border-top:1px solid #eee; margin-top:10px;
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+    flex-wrap: wrap;
 }
-.btn-primary {
-    background:#2874f0; color:#fff; border:none;
-    padding:12px 24px; border-radius:8px; font-weight:600;
-    cursor:pointer; transition:background .2s; text-decoration:none;
-}
-.btn-primary:hover { background:#1a56c4; }
-.btn-outline {
-    background:#fff; border:1px solid #ddd; color:#2874f0;
-    padding:12px 24px; border-radius:8px; font-weight:600;
-    cursor:pointer; text-decoration:none; display:inline-block;
+.btn-lg {
+    padding: 14px 28px;
+    font-size: 1.05rem;
 }
 .btn-danger {
-    background:#ffebee; border:1px solid #ffcdd2; color:#c62828;
-    padding:12px 24px; border-radius:8px; font-weight:600; cursor:pointer;
+    background: #ffebee;
+    border: 1px solid #ffcdd2;
+    color: #c62828;
+}
+.btn-danger:hover {
+    background: #ffcdd2;
 }
 
-@media(max-width:640px) {
-    .form-actions { flex-direction:column; }
-    .form-actions > * { width:100%; text-align:center; }
+/* Delete Modal */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1300;
+}
+.modal-content {
+    background: white;
+    padding: 25px;
+    border-radius: 12px;
+    max-width: 450px;
+    width: 90%;
+    text-align: center;
+}
+.modal-content h3 {
+    margin: 0 0 15px;
+    color: #c62828;
+}
+.modal-content p {
+    margin: 10px 0;
+    color: #444;
+}
+.modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .form-row.two-col,
+    .form-row.three-col {
+        grid-template-columns: 1fr;
+    }
+    .slug-input-group {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .slug-prefix {
+        margin-bottom: 4px;
+    }
+    .form-actions {
+        flex-direction: column;
+    }
+    .btn-lg {
+        width: 100%;
+    }
+    .image-preview-grid {
+        grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+    }
 }
 </style>
 {% endblock %}

@@ -1,26 +1,50 @@
 # items/urls.py
 from django.urls import path
+from django.views.decorators.http import require_POST
 from . import views
+from common.decorators import seller_only, admin_only, seller_or_admin_only
 
 app_name = 'items'
 
 urlpatterns = [
-    # ── Unified Dashboard (seller sees own; superuser sees all) ────────────
-    path('dashboard/', views.admin_dashboard, name='admin_dashboard'),
+    # ── Unified Dashboard (Accessible to Sellers AND Admins) ────────────
+    path('dashboard/', 
+         seller_or_admin_only(views.admin_dashboard), 
+         name='admin_dashboard'),
 
-    # ── Seller-specific dashboard (orders + overview) ─────────────────────
-    path('seller/dashboard/', views.seller_dashboard, name='seller_dashboard'),
+    # ── Seller-specific dashboard ───────────────────────────────────────
+    path('seller/dashboard/', 
+         seller_only(views.seller_dashboard), 
+         name='seller_dashboard'),
 
-    # ── Product CRUD ───────────────────────────────────────────────────────
-    path('product/add/',                        views.product_create,        name='product_create'),
-    path('product/<int:product_id>/edit/',      views.product_edit,          name='product_edit'),
-    path('product/<int:product_id>/toggle/',    views.product_toggle_status, name='product_toggle_status'),
-    path('product/<int:product_id>/delete/',    views.product_delete,        name='product_delete'),
+    # ── Product CRUD (Accessible to Sellers AND Admins) ─────────────────
+    path('product/add/',                        
+         seller_or_admin_only(views.product_create),        
+         name='product_create'),
+         
+    path('product/<int:product_id>/edit/',      
+         seller_or_admin_only(views.product_edit),          
+         name='product_edit'),
+         
+    path('product/<int:product_id>/toggle/',    
+         require_POST(seller_or_admin_only(views.product_toggle_status)), 
+         name='product_toggle_status'),
+         
+    path('product/<int:product_id>/delete/',    
+         require_POST(seller_or_admin_only(views.product_delete)),        
+         name='product_delete'),
 
-    # ── JSON API (used by edit modal) ─────────────────────────────────────
-    path('api/product/<int:product_id>/',       views.product_api_detail,    name='product_api_detail'),
+    # ── JSON API (Accessible to Sellers AND Admins) ─────────────────────
+    path('api/product/<int:product_id>/',       
+         seller_or_admin_only(views.product_api_detail),    
+         name='product_api_detail'),
 
-    # ── Public pages ──────────────────────────────────────────────────────
-    path('products/', views.product_list, name='product_list'),
-    path('product/<slug:slug>/', views.product_detail, name='product_detail'),
+    # ── Public pages ───────────────────────────────────────────────────
+    path('products/', 
+         views.product_list, 
+         name='product_list'),
+         
+    path('product/<slug:slug>/', 
+         views.product_detail, 
+         name='product_detail'),
 ]
