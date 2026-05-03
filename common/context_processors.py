@@ -21,11 +21,19 @@ def site_settings(request):
 
 def cart_count(request):
     """Add cart count to every template context"""
-    count = 0
+    cart_count = 0
+    
     if request.user.is_authenticated and request.user.role == 'customer':
+        # Use database cart
+        cart = getattr(request.user, 'cart', None)
+        if cart:
+            cart_count = cart.total_items
+    else:
+        # Fallback to session cart for guests
         cart = request.session.get('cart', {})
-        count = sum(cart.values())
-    return {'cart_count': count}
+        cart_count = sum(cart.values())
+    
+    return {'cart_count': cart_count}
 
 def get_categories():
     categories = cache.get('main_categories')

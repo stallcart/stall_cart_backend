@@ -372,6 +372,8 @@
 ═══════════════════════════════════════════════════════════ */
 const CSRF = '{{ csrf_token }}';
 const UPDATE_CART_URL  = "{% url 'shop:update_cart' %}";
+const ADD_TO_CART_URL = "{% url 'shop:add_to_cart' %}";
+
 const CREATE_ORDER_URL = "{% url 'shop:create_order' %}";
 const SAVE_ADDRESS_URL = "{% url 'accounts:profile' %}";
 const IS_AUTH = {{ user.is_authenticated|lower }};

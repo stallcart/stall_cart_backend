@@ -128,7 +128,7 @@ class Order(BaseModel):
                 new_num = last_num + 1
             else:
                 new_num = 1
-            self.order_id = f'ORD-{date_str}-{new_num:06d}'
+            self.unique_order_id= f'ORD-{date_str}-{new_num:06d}'
         
         super().save(*args, **kwargs)
     

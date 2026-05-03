@@ -80,9 +80,13 @@
 
             <!-- Order Actions -->
             <div class="order-actions">
-                <a href="{% url 'orders:order_detail' order.unique_order_id %}" class="btn-outline">
-                    Track Order →
-                </a>
+                {% if order.unique_order_id %}
+                    <a href="{% url 'orders:order_detail' order.unique_order_id %}" class="btn-outline">
+                        Track Order →
+                    </a>
+                {% else %}
+                    <span class="text-danger">Order ID missing</span>
+                {% endif %}
                 
                 {% if order.status == 'delivered' and order.is_returnable %}
                 <button class="btn-outline" onclick="openReturnModal('{{ order.unique_order_id }}')">

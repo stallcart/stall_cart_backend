@@ -8,6 +8,8 @@ from items.models import Product, Category
 from orders.models import Order, OrderItem
 from common.models import SiteSettings
 from django.conf import settings
+from shop.models import *
+from .services import CartService
 
 def home(request):
     """Main shop page - matches index.html"""
@@ -21,10 +23,12 @@ def home(request):
     categories = Category.objects.filter(is_active=True)
     
     # Cart count from session (only for customers)
-    cart_count = 0
     if request.user.is_authenticated and request.user.role == 'customer':
-        cart = request.session.get('cart', {})
-        cart_count = sum(cart.values())
+        try:
+            cart = Cart.objects.get(user=request.user)
+            cart_count = cart.total_items   # uses @property from model
+        except Cart.DoesNotExist:
+            cart_count = 0
     
     context = {
         'products': products,
@@ -78,150 +82,102 @@ def add_to_cart(request):
         return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
 
 # shop/views.py
-
-# shop/views.py
-
 def cart_view(request):
-    """Cart page with items from session"""
+    """Cart page - works for both guests and authenticated users"""
+    cart_items = CartService.get_cart_items(request)
     
-    if request.user.is_authenticated and request.user.role != 'customer':
-        messages.info(request, "🛍️ You're logged in as a seller/admin. Switch to a customer account to shop, or visit your dashboard to manage products.")
-        if request.user.is_seller:
-            return redirect('items:admin_dashboard')
-        elif request.user.is_superuser:
-            return redirect('/admin/')
-        return redirect('shop:home')
-    
-    cart = request.session.get('cart', {})
-    
-    if not cart:
+    if not cart_items:
         return render(request, 'shop/cart.html', {
-            'cart_items': [], 
+            'cart_items': [],
             'total': 0,
             'delivery_charge': 0,
-            'total_savings': 0,  # ✅ Add this
-            'default_address': None,  # ✅ Add this
+            'total_savings': 0,
+            'default_address': None,
             'user_addresses': [],
-            
         })
     
-    # Fetch products in cart
-    from items.models import Product
-    product_ids = list(cart.keys())
-    products = Product.objects.filter(id__in=product_ids, status='published', stock__gt=0)
-    
-    cart_items = []
-    total = 0
-    total_savings = 0  # ✅ Track total savings
-    
-    for p in products:
-        qty = cart.get(str(p.id), 0)
-        if qty > 0 and p.stock >= qty:
-            # Calculate prices
-            original_price = p.price  # MRP or listed price
-            discounted_price = p.discount_price if p.discount_percent > 0 else p.price
-            
-            # Calculate savings per item
-            savings_per_item = original_price - discounted_price
-            item_total_savings = savings_per_item * qty
-            total_savings += item_total_savings
-            
-            # Calculate subtotal using discounted price
-            subtotal = discounted_price * qty
-            total += subtotal
-            
-            cart_items.append({
-                'product': p,
-                'quantity': qty,
-                'subtotal': subtotal,
-                'unit_price': discounted_price,
-                'original_price': original_price,
-                'savings_per_item': savings_per_item,
-                'item_total_savings': item_total_savings,
-                'in_stock': True
-            })
-    
-    # Calculate delivery charge
+    # Calculate totals
+    total = sum(item['subtotal'] for item in cart_items)
+    total_savings = sum(item['savings'] for item in cart_items)
     delivery_charge = 0 if total >= 499 else 40
-    remaining_amount_for_free_delivery = 499 - total
+    
+    # Get addresses for authenticated customers
     default_address = None
     user_addresses = []
-    
     if request.user.is_authenticated and request.user.role == 'customer':
         from accounts.models import Address
         user_addresses = Address.objects.filter(
             user=request.user, 
             is_active=True
         ).order_by('-is_default', '-created_at')
-        
-        # Get default address
         default_address = user_addresses.filter(is_default=True).first()
-        # Fallback to first address if no default set
         if not default_address and user_addresses:
             default_address = user_addresses[0]
-    # print(total)
-
+    
     context = {
         'cart_items': cart_items,
         'total': total,
         'delivery_charge': delivery_charge,
         'total_savings': total_savings,
-        'default_address': default_address,  # ✅ Pass to template
-        'user_addresses': user_addresses,    # ✅ Pass to template
-        'cart_count': sum(cart.values()),
-        'remaining_amount_for_free_delivery':remaining_amount_for_free_delivery,
-        'show_category_nav': False,
+        'default_address': default_address,
+        'user_addresses': user_addresses,
+        'cart_count': sum(item['quantity'] for item in cart_items),
     }
-    
-    if request.user.is_authenticated and hasattr(request.user, 'address') and request.user.address:
-        context['user_address'] = request.user.address
     
     return render(request, 'shop/cart.html', context)
 
+
 @require_POST
-def update_cart(request):
-    """AJAX: Update cart quantity or remove item"""
+def add_to_cart(request):
+    """AJAX: Add product to cart"""
+    import json
     try:
-        if request.user.is_authenticated and request.user.role != 'customer':
-            return JsonResponse({'status': 'error', 'message': 'Only customers can update cart'}, status=403)
-    
         data = json.loads(request.body)
-        product_id = str(data.get('product_id'))
-        action = data.get('action')  # 'update' or 'remove'
+        product_id = data.get('product_id')
+        quantity = int(data.get('quantity', 1))
         
-        cart = request.session.get('cart', {})
+        if not product_id or quantity < 1:
+            return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
         
-        if action == 'remove':
-            cart.pop(product_id, None)
-        elif action == 'update':
-            qty = int(data.get('quantity', 1))
-            if qty <= 0:
-                cart.pop(product_id, None)
-            else:
-                cart[product_id] = qty
-        
-        request.session['cart'] = cart
-        request.session.modified = True
-        
-        # Recalculate total
-        from items.models import Product
-        total = 0
-        for pid, qty in cart.items():
-            try:
-                p = Product.objects.get(id=pid, is_active=True)
-                if p.stock >= qty:
-                    total += p.price * qty
-            except:
-                pass
+        cart_count = CartService.add_to_cart(request, product_id, quantity)
         
         return JsonResponse({
             'status': 'success',
-            'cart_count': sum(cart.values()),
-            'total': total
+            'message': 'Added to cart!',
+            'cart_count': cart_count
         })
     except Exception as e:
-        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
+
+@require_POST
+def update_cart(request):
+    """AJAX: Update cart item quantity or remove"""
+    import json
+    try:
+        data = json.loads(request.body)
+        product_id = data.get('product_id')
+        quantity = int(data.get('quantity', 0))
+        action = data.get('action', 'update')
+        
+        if not product_id:
+            return JsonResponse({'status': 'error', 'message': 'Product ID required'}, status=400)
+        
+        if action == 'remove':
+            quantity = 0
+        
+        cart_count = CartService.update_cart_item(request, product_id, quantity)
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Cart updated',
+            'cart_count': cart_count
+        })
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+    
 @login_required
 def checkout(request):
     """Checkout page - address + payment selection"""
@@ -250,74 +206,98 @@ def checkout(request):
 @login_required
 @require_POST
 def create_order(request):
-    """Create order + Razorpay payment"""
-    cart = request.session.get('cart', {})
-    if not cart:
-        return JsonResponse({'error': 'Cart is empty'}, status=400)
-    
-    from items.models import Product
-    products = Product.objects.filter(id__in=cart.keys(), status='published', stock__gt=0)
-    
-    # Calculate totals using discounted prices
-    total = 0
-    for p in products:
-        qty = cart[str(p.id)]
-        if p.stock >= qty:
-            unit_price = p.discount_price if p.discount_percent > 0 else p.price
-            total += unit_price * qty
-    
-    # Create Order
-    order = Order.objects.create(
-        user=request.user,
-        total_amount=total,
-        shipping_address=request.user.address if hasattr(request.user, 'address') else {},
-        payment_method='razorpay',
-        payment_status='pending',
-    )
-    
-    # Create OrderItems with correct discounted price
-    for p in products:
-        qty = cart[str(p.id)]
-        if p.stock >= qty:
-            unit_price = p.discount_price if p.discount_percent > 0 else p.price
-            OrderItem.objects.create(
-                order=order,
-                product=p,
-                seller=p.seller,
-                quantity=qty,
-                price=unit_price,  # ✅ Store discounted price
-                total=unit_price * qty
+    """Create order from DB cart (FIXED VERSION)"""
+    import json
+    from django.db import transaction
+
+    try:
+        data = json.loads(request.body)
+        address = data.get('address', {})
+        payment_method = data.get('payment_method', 'cod').lower()
+
+        # ✅ GET CART FROM DB
+        cart = getattr(request.user, 'cart', None)
+        if not cart or not cart.items.exists():
+            return JsonResponse({'error': 'Cart is empty'}, status=400)
+
+        cart_items = cart.items.select_related('product', 'product__seller')
+
+        # ❌ STOCK VALIDATION FIRST
+        for item in cart_items:
+            if item.quantity > item.product.stock:
+                return JsonResponse({
+                    'error': f"Not enough stock for {item.product.name}"
+                }, status=400)
+
+        total = sum(item.subtotal for item in cart_items)
+
+        with transaction.atomic():
+
+            # ✅ CREATE ORDER
+            order = Order.objects.create(
+                user=request.user,
+                total_amount=total,
+                shipping_address=address,
+                payment_method=payment_method,
+                payment_status='pending',
             )
-    
-    # Razorpay order creation (unchanged)
-    razorpay_order = razorpay_client.order.create({
-        'amount': int(total * 100),
-        'currency': 'INR',
-        'receipt': order.unique_order_id,
-        'payment_capture': 1,
-        'notes': {'order_id': order.unique_order_id, 'user_id': request.user.id}
-    })
-    
-    order.razorpay_order_id = razorpay_order['id']
-    order.save()
-    
-    request.session['cart'] = {}
-    
-    return JsonResponse({
-        'status': 'success',
-        'order_id': order.unique_order_id,
-        'razorpay_order_id': razorpay_order['id'],
-        'razorpay_key': settings.RAZORPAY_KEY_ID,
-        'amount': int(total * 100),
-        'currency': 'INR',
-        'name': SiteSettings.SITE_NAME,
-        'description': f'Order {order.unique_order_id}',
-        'prefill': {
-            'name': request.user.full_name,
-            'email': request.user.email or '',
-            'contact': request.user.phone
-        }
-    })
+
+            # ✅ CREATE ORDER ITEMS
+            for item in cart_items:
+                OrderItem.objects.create(
+                    order=order,
+                    product=item.product,
+                    seller=item.product.seller,
+                    quantity=item.quantity,
+                    price=item.unit_price,
+                    total=item.subtotal
+                )
+
+                # reduce stock
+                item.product.stock -= item.quantity
+                item.product.save()
+
+            # ✅ CLEAR CART (REAL FIX)
+            cart.items.all().delete()
+
+        # =======================
+        # RAZORPAY
+        # =======================
+        if payment_method != 'cod':
+
+            import razorpay
+            from django.conf import settings
+
+            razorpay_client = razorpay.Client(
+                auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET)
+            )
+
+            razorpay_order = razorpay_client.order.create({
+                'amount': int(total * 100),
+                'currency': 'INR',
+                'receipt': order.unique_order_id,
+                'payment_capture': 1
+            })
+
+            order.razorpay_order_id = razorpay_order['id']
+            order.save()
+
+            return JsonResponse({
+                'status': 'success',
+                'order_id': order.unique_order_id,
+                'razorpay_order_id': razorpay_order['id'],
+                'key': settings.RAZORPAY_KEY_ID,
+                'amount': int(total * 100),
+                'currency': 'INR',
+            })
+
+        return JsonResponse({
+            'status': 'success',
+            'order_id': order.unique_order_id
+        })
+
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
 
 @login_required
 def order_success(request, order_id):
