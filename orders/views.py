@@ -192,8 +192,14 @@ def seller_orders(request):
     status_filter = request.GET.get('status')
     if status_filter:
         order_items = order_items.filter(order__status=status_filter)
-    
-    context = {'order_items': order_items, 'seller': seller, 'filters': request.GET.dict()}
+    pending_count = order_items.filter(order__status='pending').count()
+    delivered_count = order_items.filter(order__status='delivered').count()
+
+    context = {'order_items': order_items, 'seller': seller, 'filters': request.GET.dict(),
+            'pending_count': pending_count,
+            'delivered_count':delivered_count,
+
+            }
     return render(request, 'orders/seller_order.html', context)
 
 @login_required

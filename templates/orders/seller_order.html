@@ -17,11 +17,11 @@
                 <small>Total Items</small>
             </div>
             <div class="stat-card warning">
-                <span>{{ order_items.filter.order__status='pending'|default:"0" }}</span>
+                <span>{{ pending_count|default:"0" }}</span>
                 <small>Pending</small>
             </div>
             <div class="stat-card success">
-                <span>{{ order_items.filter.order__status='delivered'|default:"0" }}</span>
+                <span>{{ delivered_count|default:"0" }}</span>
                 <small>Delivered</small>
             </div>
         </div>

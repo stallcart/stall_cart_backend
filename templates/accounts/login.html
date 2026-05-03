@@ -28,19 +28,19 @@
         </div>
 
         <!-- 🔐 Password Field with Eye Toggle -->
+        <!-- 🔐 Password Field with Eye Toggle - FIXED -->
         <div class="form-group password-group">
             <label for="{{ form.password.id_for_label }}">
                 <i class="fa fa-lock"></i> Password
             </label>
-            <div style="position: relative;">
+            <div class="password-wrapper">
                 {{ form.password }}
-                <!-- Eye Icon Toggle -->
                 <button type="button" 
                         class="password-toggle" 
-                        onclick="togglePassword('loginPassword', 'eyeIcon')"
+                        onclick="togglePassword('{{ form.password.id_for_label }}', this)"
                         aria-label="Toggle password visibility"
-                        style="position:absolute; right:12px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:#666; padding:5px;">
-                    <i class="fa fa-eye" id="eyeIcon"></i>
+                        type="button">
+                    <i class="fa fa-eye"></i>
                 </button>
             </div>
             {% if form.password.errors %}
@@ -69,19 +69,7 @@
 
 {% block scripts %}
 <script>
-// 🔐 Password Toggle Function
-function togglePassword(inputId, iconId) {
-    const input = document.getElementById(inputId);
-    const icon = document.getElementById(iconId);
-    
-    if (input.type === 'password') {
-        input.type = 'text';
-        icon.className = 'fa fa-eye-slash';
-    } else {
-        input.type = 'password';
-        icon.className = 'fa fa-eye';
-    }
-}
+
 
 // 📱 Mobile Number Validation (Real-time)
 document.addEventListener('DOMContentLoaded', () => {
@@ -189,6 +177,37 @@ document.addEventListener('DOMContentLoaded', () => {
 @media (max-width: 480px) {
     .auth-container { margin: 20px; padding: 25px 20px; }
     .auth-links { flex-direction: column; gap: 12px; text-align: center; }
+}
+/* Add to {% block extra_css %} in login.html */
+.password-wrapper {
+    position: relative;
+    width: 100%;
+}
+.password-wrapper input {
+    padding-right: 45px !important; /* Space for eye icon */
+}
+.password-toggle {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #888;
+    padding: 6px;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+}
+.password-toggle:hover {
+    color: var(--primary-color, #2874f0);
+    background: rgba(40, 116, 240, 0.08);
 }
 </style>
 {% endblock %}
