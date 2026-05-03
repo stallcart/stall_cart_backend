@@ -21,7 +21,7 @@ def home(request):
     ).select_related('category', 'seller').prefetch_related('product_image_product')
     
     categories = Category.objects.filter(is_active=True)
-    
+    cart_count = 0
     # Cart count from session (only for customers)
     if request.user.is_authenticated and request.user.role == 'customer':
         try:
