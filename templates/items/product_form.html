@@ -23,7 +23,7 @@
         {% endif %}
 
         <!-- ── 👑 Superuser only: assign seller ─────────────────────────── -->
-        {% if form.seller %}
+        <!-- {% if form.seller %}
         <fieldset class="form-section superuser-only">
             <legend>👑 Admin Control</legend>
             <div class="form-group">
@@ -35,8 +35,21 @@
                 <small>Only verified sellers are listed.</small>
             </div>
         </fieldset>
+        {% endif %} -->
+        {% if is_superuser %}
+        <div class="form-group">
+            <label for="{{ form.seller.id_for_label }}">
+                {{ form.seller.label }}
+            </label>
+            {{ form.seller }}
+            {% if form.seller.errors %}
+                <div class="field-error">{{ form.seller.errors.0 }}</div>
+            {% endif %}
+            <small class="form-text text-muted">
+                Only verified sellers are listed. This assignment cannot be changed later.
+            </small>
+        </div>
         {% endif %}
-
         <!-- ── Basic Info ───────────────────────────────────────────────── -->
         <fieldset class="form-section">
             <legend>📦 Basic Information</legend>

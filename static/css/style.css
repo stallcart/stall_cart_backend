@@ -830,3 +830,41 @@ img { max-width: 100%; height: auto; display: block; }
     padding: 6px 12px;
     font-size: 0.8rem;
 }
+
+
+/* ✅ Beautiful Seller Dropdown for Admin */
+.seller-select {
+    border: 2px solid #2874f0 !important;
+    border-radius: 8px !important;
+    padding: 10px 12px !important;
+    font-weight: 600 !important;
+    background: #f8f9ff !important;
+    width: 100% !important;
+    max-width: 400px;
+    transition: all 0.2s ease;
+}
+.seller-select:focus {
+    box-shadow: 0 0 0 3px rgba(40, 116, 240, 0.1) !important;
+    outline: none !important;
+    border-color: #1a56c4 !important;
+}
+/* Label styling for admin-only field */
+label[for="id_seller"] {
+    font-weight: 700 !important;
+    color: #2874f0 !important;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+label[for="id_seller"]::before {
+    content: "👑";
+    font-size: 1.1rem;
+}
+/* Help text styling */
+.form-text.text-muted {
+    display: block;
+    margin-top: 6px;
+    color: #666;
+    font-size: 0.85rem;
+}
