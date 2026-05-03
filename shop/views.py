@@ -76,9 +76,13 @@ def add_to_cart(request):
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
 
+# shop/views.py
+
+# shop/views.py
+
 def cart_view(request):
     """Cart page with items from session"""
-
+    
     if request.user.is_authenticated and request.user.role != 'customer':
         messages.info(request, "🛍️ You're logged in as a seller/admin. Switch to a customer account to shop, or visit your dashboard to manage products.")
         if request.user.is_seller:
@@ -86,6 +90,7 @@ def cart_view(request):
         elif request.user.is_superuser:
             return redirect('/admin/')
         return redirect('shop:home')
+    
     cart = request.session.get('cart', {})
     
     if not cart:
@@ -93,38 +98,79 @@ def cart_view(request):
             'cart_items': [], 
             'total': 0,
             'delivery_charge': 0,
+            'total_savings': 0,  # ✅ Add this
+            'default_address': None,  # ✅ Add this
+            'user_addresses': [],
+            
         })
     
     # Fetch products in cart
     from items.models import Product
     product_ids = list(cart.keys())
-    products = Product.objects.filter(id__in=product_ids, is_active=True)
+    products = Product.objects.filter(id__in=product_ids, status='published', stock__gt=0)
     
     cart_items = []
     total = 0
+    total_savings = 0  # ✅ Track total savings
+    
     for p in products:
         qty = cart.get(str(p.id), 0)
         if qty > 0 and p.stock >= qty:
-            subtotal = p.price * qty
+            # Calculate prices
+            original_price = p.price  # MRP or listed price
+            discounted_price = p.discount_price if p.discount_percent > 0 else p.price
+            
+            # Calculate savings per item
+            savings_per_item = original_price - discounted_price
+            item_total_savings = savings_per_item * qty
+            total_savings += item_total_savings
+            
+            # Calculate subtotal using discounted price
+            subtotal = discounted_price * qty
             total += subtotal
+            
             cart_items.append({
                 'product': p,
                 'quantity': qty,
                 'subtotal': subtotal,
+                'unit_price': discounted_price,
+                'original_price': original_price,
+                'savings_per_item': savings_per_item,
+                'item_total_savings': item_total_savings,
                 'in_stock': True
             })
     
     # Calculate delivery charge
     delivery_charge = 0 if total >= 499 else 40
+    remaining_amount_for_free_delivery = 499 - total
+    default_address = None
+    user_addresses = []
     
+    if request.user.is_authenticated and request.user.role == 'customer':
+        from accounts.models import Address
+        user_addresses = Address.objects.filter(
+            user=request.user, 
+            is_active=True
+        ).order_by('-is_default', '-created_at')
+        
+        # Get default address
+        default_address = user_addresses.filter(is_default=True).first()
+        # Fallback to first address if no default set
+        if not default_address and user_addresses:
+            default_address = user_addresses[0]
+    # print(total)
+
     context = {
         'cart_items': cart_items,
         'total': total,
         'delivery_charge': delivery_charge,
-        'cart_count': sum(cart.values()),  # For header cart count
+        'total_savings': total_savings,
+        'default_address': default_address,  # ✅ Pass to template
+        'user_addresses': user_addresses,    # ✅ Pass to template
+        'cart_count': sum(cart.values()),
+        'remaining_amount_for_free_delivery':remaining_amount_for_free_delivery
     }
     
-    # Add user address if authenticated
     if request.user.is_authenticated and hasattr(request.user, 'address') and request.user.address:
         context['user_address'] = request.user.address
     
@@ -195,6 +241,10 @@ def checkout(request):
     }
     return render(request, 'shop/checkout.html', context)
 
+# shop/views.py
+
+# shop/views.py - create_order function
+
 @login_required
 @require_POST
 def create_order(request):
@@ -203,9 +253,16 @@ def create_order(request):
     if not cart:
         return JsonResponse({'error': 'Cart is empty'}, status=400)
     
-    # Calculate totals
-    products = Product.objects.filter(id__in=cart.keys(), status='published')
-    total = sum(p.price * cart[str(p.id)] for p in products if p.stock >= cart[str(p.id)])
+    from items.models import Product
+    products = Product.objects.filter(id__in=cart.keys(), status='published', stock__gt=0)
+    
+    # Calculate totals using discounted prices
+    total = 0
+    for p in products:
+        qty = cart[str(p.id)]
+        if p.stock >= qty:
+            unit_price = p.discount_price if p.discount_percent > 0 else p.price
+            total += unit_price * qty
     
     # Create Order
     order = Order.objects.create(
@@ -216,47 +273,43 @@ def create_order(request):
         payment_status='pending',
     )
     
-    # Create OrderItems
+    # Create OrderItems with correct discounted price
     for p in products:
         qty = cart[str(p.id)]
         if p.stock >= qty:
+            unit_price = p.discount_price if p.discount_percent > 0 else p.price
             OrderItem.objects.create(
                 order=order,
                 product=p,
                 seller=p.seller,
                 quantity=qty,
-                price=p.price,
-                total=p.price * qty
+                price=unit_price,  # ✅ Store discounted price
+                total=unit_price * qty
             )
     
-    # Create Razorpay Order
+    # Razorpay order creation (unchanged)
     razorpay_order = razorpay_client.order.create({
-        'amount': int(total * 100),  # paise
+        'amount': int(total * 100),
         'currency': 'INR',
-        'receipt': order.order_id,
+        'receipt': order.unique_order_id,
         'payment_capture': 1,
-        'notes': {
-            'order_id': order.order_id,
-            'user_id': request.user.id,
-        }
+        'notes': {'order_id': order.unique_order_id, 'user_id': request.user.id}
     })
     
-    # Save Razorpay IDs
     order.razorpay_order_id = razorpay_order['id']
     order.save()
     
-    # Clear cart
     request.session['cart'] = {}
     
     return JsonResponse({
         'status': 'success',
-        'order_id': order.order_id,
+        'order_id': order.unique_order_id,
         'razorpay_order_id': razorpay_order['id'],
         'razorpay_key': settings.RAZORPAY_KEY_ID,
         'amount': int(total * 100),
         'currency': 'INR',
         'name': SiteSettings.SITE_NAME,
-        'description': f'Order {order.order_id}',
+        'description': f'Order {order.unique_order_id}',
         'prefill': {
             'name': request.user.full_name,
             'email': request.user.email or '',

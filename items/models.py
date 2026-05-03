@@ -47,6 +47,18 @@ class Category(BaseModel):
 
 class Product(BaseModel):
     """Main product model - sellers add these"""
+    
+    # ✅ NEW: Gender/Target Audience Choices
+    GENDER_CHOICES = [
+        ('men', '👨 Men'),
+        ('women', '👩 Women'),
+        ('boys', '👦 Boys'),
+        ('girls', '👧 Girls'),
+        ('unisex', '👫 Unisex'),
+        ('kids', '🧒 Kids (2-12)'),
+        ('teen', '🧑 Teen (13-19)'),
+    ]
+    
     STATUS_CHOICES = [
         ('draft', 'Draft'),
         ('published', 'Published'),
@@ -58,7 +70,7 @@ class Product(BaseModel):
         SellerProfile, 
         on_delete=models.CASCADE, 
         related_name='products',
-        limit_choices_to={'is_verified': True}  # Only verified sellers can add products
+        limit_choices_to={'is_verified': True}
     )
     category = models.ForeignKey(
         Category, 
@@ -66,6 +78,15 @@ class Product(BaseModel):
         null=True, 
         blank=True,
         related_name='products'
+    )
+    
+    # ✅ NEW: Gender field
+    gender = models.CharField(
+        max_length=20, 
+        choices=GENDER_CHOICES, 
+        blank=True, 
+        null=True,
+        help_text="Target audience (optional)"
     )
     
     name = models.CharField(max_length=200)
@@ -124,16 +145,18 @@ class Product(BaseModel):
         if not self.sku and self.seller:
             self.sku = f"{self.seller.shop_name[:3].upper()}-{self.name[:5].upper().replace(' ', '')}-{self.pk or 'NEW'}"
 
-        super().save(*args, **kwargs)  # ✅ FIRST SAVE
+        super().save(*args, **kwargs)
 
-        # ✅ Now M2M is safe
+        # Auto-set primary image from ProductImage if not provided
         if not self.primary_image and self.images.exists():
             primary = self.images.filter(is_primary=True).first()
             if primary:
                 self.primary_image = primary.image
                 super().save(update_fields=['primary_image'])
+    
     def __str__(self):
-        return f"{self.name} (₹{self.price}) - {self.seller.shop_name}"
+        gender_label = f" [{self.get_gender_display()}]" if self.gender else ""
+        return f"{self.name}{gender_label} (₹{self.price}) - {self.seller.shop_name}"
     
     @property
     def discount_price(self):
@@ -141,11 +164,13 @@ class Product(BaseModel):
             discount = Decimal(self.discount_percent) / Decimal(100)
             return self.price * (Decimal(1) - discount)
         return self.price
+    
     @property
     def savings(self):
         if self.mrp and self.price and self.mrp > self.price:
             return self.mrp - self.price
         return 0
+    
     @property
     def is_in_stock(self):
         return self.stock > 0 and self.status == 'published'
@@ -156,17 +181,31 @@ class Product(BaseModel):
     
     @property
     def profit_margin(self):
-        """Calculate profit margin if cost_price is set"""
         if self.cost_price and self.cost_price > 0:
             return ((self.price - self.cost_price) / self.price) * 100
         return None
     
+    @property
+    def final_price(self):
+        """Return price after discount"""
+        return self.discount_price if self.discount_percent > 0 else self.price
+
+    @property
+    def savings_per_unit(self):
+        """Return savings per unit (MRP - final price)"""
+        return self.price - self.final_price if self.discount_percent > 0 else 0
+
+    def calculate_savings(self, quantity):
+        """Return total savings for given quantity"""
+        return self.savings_per_unit * quantity
+
     class Meta:
         verbose_name_plural = 'Products'
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['seller', 'status']),
             models.Index(fields=['category', 'status', 'price']),
+            models.Index(fields=['gender', 'status']),  # ✅ Index for gender filtering
             models.Index(fields=['-created_at']),
         ]
 

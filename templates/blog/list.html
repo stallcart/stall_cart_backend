@@ -42,6 +42,12 @@
                 {% else %}
                     <div class="no-image">No Image</div>
                 {% endif %}
+                <!-- ✅ Gender Badge -->
+                {% if product.gender %}
+                    <span class="gender-badge">
+                        {{ product.get_gender_display }}
+                    </span>
+                {% endif %}
                 {% if product.discount_percent > 0 %}
                     <span class="discount-badge">-{{ product.discount_percent }}%</span>
                 {% endif %}
@@ -87,6 +93,12 @@
                         <img src="{{ product.primary_image.url }}" alt="{{ product.name }}" loading="lazy">
                     {% else %}
                         <div class="no-image">No Image</div>
+                    {% endif %}
+                    <!-- ✅ Gender Badge -->
+                    {% if product.gender %}
+                        <span class="gender-badge">
+                            {{ product.get_gender_display }}
+                        </span>
                     {% endif %}
                     {% if product.is_featured %}
                         <span class="featured-badge">★ Featured</span>

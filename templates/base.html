@@ -5,117 +5,237 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
-    <!-- ✅ DYNAMIC TITLE & META -->
     <title>{% block title %}{{ site_settings.site_name }}{% endblock %}</title>
     <meta name="description" content="{% block meta_description %}{{ site_settings.meta_description }}{% endblock %}">
     
-    <!-- ✅ DYNAMIC FAVICON -->
     {% if site_settings.favicon %}
         <link rel="icon" type="image/png" href="{{ site_settings.favicon.url }}">
     {% else %}
         <link rel="icon" href="{% static 'images/favicon.png' %}">
     {% endif %}
     
-    <!-- Fonts & Icons -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <!-- CSS -->
     <link href="{% static 'css/style.css' %}" rel="stylesheet">
     
-    <!-- ✅ INTERACTIVE HEADER STYLES -->
     <style>
-        /* Navbar & Search */
-        .navbar { background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.08); position: sticky; top: 0; z-index: 1000; transition: box-shadow 0.3s ease; }
+        /* ═══════════════════════════════════════════════
+           NAVBAR
+        ═══════════════════════════════════════════════ */
+        .navbar {
+            background: #fff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            transition: box-shadow 0.3s ease;
+        }
         .navbar.scrolled { box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
-        .nav-container { max-width: 1280px; margin: 0 auto; padding: 10px 20px; display: flex; align-items: center; gap: 15px; }
-        
-        /* Search Bar */
+
+        .nav-container {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        /* Search */
         .nav-search { flex: 1; max-width: 500px; position: relative; }
         .nav-search form { display: flex; width: 100%; }
-        .nav-search input { width: 100%; padding: 11px 16px; border: 1px solid #e0e0e0; border-right: none; border-radius: 6px 0 0 6px; font-size: 0.9rem; transition: 0.2s; }
-        .nav-search input:focus { border-color: #2874f0; outline: none; box-shadow: 0 0 0 3px rgba(40,116,240,0.1); }
-        .nav-search button { background: #2874f0; color: white; border: none; padding: 0 16px; border-radius: 0 6px 6px 0; cursor: pointer; font-size: 1rem; }
-        
+        .nav-search input {
+            width: 100%;
+            padding: 11px 16px;
+            border: 1px solid #e0e0e0;
+            border-right: none;
+            border-radius: 6px 0 0 6px;
+            font-size: 0.9rem;
+            transition: 0.2s;
+        }
+        .nav-search input:focus {
+            border-color: #2874f0;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(40,116,240,0.1);
+        }
+        .nav-search button {
+            background: #2874f0;
+            color: white;
+            border: none;
+            padding: 0 16px;
+            border-radius: 0 6px 6px 0;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
         /* Nav Actions */
-        .nav-actions { display: flex; align-items: center; gap: 12px; margin-left: auto; }
-        .nav-link { 
-            color: #333; font-weight: 500; font-size: 0.95rem; 
-            background: none; border: none; cursor: pointer; 
-            padding: 8px 12px; border-radius: 6px; text-decoration: none; 
-            transition: 0.2s; display: flex; align-items: center; gap: 6px; 
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-left: auto;
         }
-        .nav-link:hover, .nav-link.active { background: #f0f4ff; color: #2874f0; }
-        
-        /* ✅ Login Button */
-        #loginBtn, #mobileLoginBtn {
-            cursor: pointer !important;
-            pointer-events: auto !important;
-            position: relative;
-            z-index: 10;
+        .nav-link {
+            color: #333;
+            font-weight: 500;
+            font-size: 0.95rem;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 6px;
+            text-decoration: none;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
-        
+        .nav-link:hover, .nav-link.active {
+            background: #f0f4ff;
+            color: #2874f0;
+        }
+
         /* Dropdown */
         .nav-dropdown { position: relative; }
-        .dropdown-toggle { display: flex; align-items: center; gap: 6px; font-weight: 600; color: #333; cursor: pointer; }
-        .dropdown-menu { 
-            position: absolute; top: 100%; right: 0; background: white; 
-            min-width: 200px; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.15); 
-            padding: 6px 0; opacity: 0; visibility: hidden; transform: translateY(10px); 
-            transition: 0.2s; z-index: 100; 
+        .dropdown-toggle {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 600;
+            color: #333;
+            cursor: pointer;
         }
-        .nav-dropdown:hover .dropdown-menu, .nav-dropdown.active .dropdown-menu { 
-            opacity: 1; visibility: visible; transform: translateY(0); 
+        .dropdown-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: white;
+            min-width: 200px;
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+            padding: 6px 0;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(10px);
+            transition: 0.2s;
+            z-index: 100;
         }
-        .dropdown-menu a, .dropdown-menu button { 
-            display: flex; align-items: center; gap: 10px; width: 100%; 
-            padding: 10px 16px; color: #333; font-size: 0.9rem; 
-            border: none; background: none; cursor: pointer; text-align: left; 
+        .nav-dropdown:hover .dropdown-menu,
+        .nav-dropdown.active .dropdown-menu {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
         }
-        .dropdown-menu a:hover, .dropdown-menu button:hover { background: #f8f9fa; color: #2874f0; }
-        
-        /* Cart Badge */
+        .dropdown-menu a,
+        .dropdown-menu button {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            padding: 10px 16px;
+            color: #333;
+            font-size: 0.9rem;
+            border: none;
+            background: none;
+            cursor: pointer;
+            text-align: left;
+            text-decoration: none;
+        }
+        .dropdown-menu a:hover,
+        .dropdown-menu button:hover {
+            background: #f8f9fa;
+            color: #2874f0;
+        }
+
+        /* ── Cart Badge ─────────────────────────────── */
         .cart-link { position: relative; font-weight: 600; }
-        .cart-badge { 
-            position: absolute; top: -5px; right: -5px; background: #ff5252; 
-            color: white; font-size: 0.7rem; width: 16px; height: 16px; 
-            border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; 
+        .cart-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #ff5252;
+            color: white;
+            font-size: 0.7rem;
+            min-width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            padding: 0 3px;
+            transition: transform 0.15s ease;
         }
-        
-        /* Mobile Menu */
-        .mobile-menu-btn { 
-            display: none; background: none; border: none; 
-            font-size: 1.4rem; cursor: pointer; color: #333; padding: 8px; 
+
+        /* Mobile Menu Btn */
+        .mobile-menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 1.4rem;
+            cursor: pointer;
+            color: #333;
+            padding: 8px;
         }
-        .mobile-nav { 
-            position: fixed; top: 0; right: -300px; width: 280px; height: 100vh; 
-            background: white; box-shadow: -4px 0 16px rgba(0,0,0,0.1); 
-            transition: right 0.3s ease; z-index: 1100; padding: 20px; overflow-y: auto; 
+        .mobile-nav {
+            position: fixed;
+            top: 0;
+            right: -300px;
+            width: 280px;
+            height: 100vh;
+            background: white;
+            box-shadow: -4px 0 16px rgba(0,0,0,0.1);
+            transition: right 0.3s ease;
+            z-index: 1100;
+            padding: 20px;
+            overflow-y: auto;
         }
         .mobile-nav.open { right: 0; }
-        .mobile-nav-close { 
-            position: absolute; top: 15px; right: 15px; background: none; 
-            border: none; font-size: 1.3rem; cursor: pointer; color: #666; 
+        .mobile-nav-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: 1.3rem;
+            cursor: pointer;
+            color: #666;
         }
-        .mobile-nav-content a, .mobile-nav-content button { 
-            display: flex; align-items: center; gap: 12px; width: 100%; 
-            padding: 14px 0; color: #333; text-decoration: none; 
-            border: none; background: none; font-size: 1rem; cursor: pointer; 
-            border-bottom: 1px solid #f0f0f0; 
+        .mobile-nav-content a,
+        .mobile-nav-content button {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            padding: 14px 0;
+            color: #333;
+            text-decoration: none;
+            border: none;
+            background: none;
+            font-size: 1rem;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .mobile-cart-badge {
+            background: #ff5252;
+            color: #fff;
+            font-size: 0.72rem;
+            min-width: 18px;
+            height: 18px;
+            border-radius: 9px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 4px;
+            font-weight: 700;
+            margin-left: 4px;
         }
 
-        /* ✅ LOGIN MODAL FIX
-           style.css defines:  .modal { opacity:0; visibility:hidden; }
-                                .modal.show { opacity:1; visibility:visible; }
-           We MUST use display:flex at all times so the flex centering works,
-           and rely solely on opacity/visibility + the .show class for open/close.
-           The old "display:none" inline style is REMOVED from the HTML element. */
+        /* ── Login Modal ────────────────────────────── */
         #loginModal {
-            display: flex !important;   /* always flex so centering works */
-            z-index: 1200;              /* above mobile nav (1100) */
+            display: flex !important;
+            z-index: 1200;
         }
-
-        /* Modal inner box styles (keep same look) */
         #loginModal .modal-content {
             background: #fff;
             padding: 30px;
@@ -126,28 +246,54 @@
             box-shadow: 0 20px 60px rgba(0,0,0,0.25);
         }
         #loginModal .modal-close {
-            position: absolute; top: 15px; right: 20px;
-            font-size: 1.5rem; cursor: pointer; color: #999;
-            background: none; border: none; line-height: 1;
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #999;
+            background: none;
+            border: none;
+            line-height: 1;
         }
         #loginModal .modal-close:hover { color: #333; }
         .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 6px; font-weight: 500; color: #444; }
-        .form-input { 
-            width: 100%; padding: 10px 12px; border: 1px solid #ddd; 
-            border-radius: 8px; font-size: 1rem; box-sizing: border-box;
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            color: #444;
         }
-        .form-input:focus { border-color: #2874f0; outline: none; box-shadow: 0 0 0 3px rgba(40,116,240,0.1); }
-        .btn-primary { 
-            background: #2874f0; color: #fff; border: none; 
-            padding: 10px 20px; border-radius: 8px; font-weight: 600; 
-            cursor: pointer; width: 100%; font-size: 1rem;
-            display: flex; align-items: center; justify-content: center; gap: 8px;
+        .form-input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+        .form-input:focus {
+            border-color: #2874f0;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(40,116,240,0.1);
+        }
+        .btn-primary {
+            background: #2874f0;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
         .btn-primary:hover { background: #1a56c4; }
         .btn-primary:disabled { opacity: 0.7; cursor: not-allowed; }
-
-        /* ✅ Forgot password link */
         .forgot-link {
             display: block;
             text-align: right;
@@ -157,387 +303,662 @@
             text-decoration: none;
         }
         .forgot-link:hover { text-decoration: underline; }
-        
+
+        /* ═══════════════════════════════════════════════
+           FLIPKART-STYLE CATEGORY NAV
+        ═══════════════════════════════════════════════ */
+        .cat-nav-wrapper {
+            background: #fff;
+            border-bottom: 1px solid #e8ecf0;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+            position: sticky;
+            top: 60px;
+            z-index: 900;
+            display: flex;
+            align-items: center;
+        }
+        .cat-nav {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 0 4px;
+            display: flex;
+            align-items: center;
+            gap: 0;
+            overflow-x: auto;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            flex: 1;
+        }
+        .cat-nav::-webkit-scrollbar { display: none; }
+
+        .cat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            padding: 10px 16px 8px;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: border-color 0.2s, background 0.15s;
+            text-decoration: none;
+            color: #444;
+            white-space: nowrap;
+            flex-shrink: 0;
+            position: relative;
+        }
+        .cat-item:hover {
+            background: #f5f8ff;
+            border-bottom-color: #2874f0;
+        }
+        .cat-item.active {
+            border-bottom-color: #2874f0;
+            color: #2874f0;
+        }
+        .cat-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: #f0f4ff;
+            border: 2px solid #e0e8ff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+            overflow: hidden;
+        }
+        .cat-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+        .cat-item:hover .cat-icon,
+        .cat-item.active .cat-icon {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 16px rgba(40,116,240,0.2);
+            border-color: #2874f0;
+        }
+        .cat-item.active .cat-icon { background: #e8f0fe; }
+
+        .cat-label {
+            font-size: 0.76rem;
+            font-weight: 600;
+            text-align: center;
+            max-width: 72px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            letter-spacing: 0.01em;
+        }
+        .cat-chevron {
+            font-size: 0.6rem;
+            opacity: 0.45;
+            margin-top: -3px;
+        }
+
+        /* Subcategory dropdown */
+        .cat-dropdown {
+            position: absolute;
+            top: calc(100% + 3px);
+            left: 50%;
+            transform: translateX(-50%) translateY(8px);
+            background: #fff;
+            min-width: 200px;
+            border-radius: 10px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.13);
+            padding: 8px 0;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.18s, transform 0.18s, visibility 0.18s;
+            z-index: 1000;
+            pointer-events: none;
+        }
+        .cat-item:hover .cat-dropdown,
+        .cat-item:focus-within .cat-dropdown {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) translateY(0);
+            pointer-events: auto;
+        }
+        .cat-dropdown a {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 18px;
+            color: #333;
+            font-size: 0.88rem;
+            font-weight: 500;
+            text-decoration: none;
+            transition: background 0.15s, color 0.15s;
+        }
+        .cat-dropdown a:hover {
+            background: #f0f4ff;
+            color: #2874f0;
+        }
+
+        /* Scroll arrows */
+        .cat-scroll-btn {
+            display: none;
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 0.8rem;
+            color: #555;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            flex-shrink: 0;
+            margin: 0 6px;
+            transition: box-shadow 0.2s;
+        }
+        .cat-scroll-btn:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        .cat-nav-wrapper.overflowing .cat-scroll-btn { display: flex; }
+
         /* Responsive */
         @media (max-width: 900px) {
             .nav-search { display: none; }
             .mobile-menu-btn { display: block; }
             .nav-actions { display: none; }
+            .cat-nav-wrapper { top: 56px; }
+            .cat-icon { width: 46px; height: 46px; font-size: 1.25rem; }
+            .cat-label { font-size: 0.7rem; }
+            .cat-item { padding: 8px 12px 6px; }
         }
         @media (min-width: 901px) {
             .mobile-nav { display: none; }
         }
+
+        /* ── Toast animations ───────────────────────── */
+        @keyframes _toastIn  { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes _toastOut { from { transform: translateY(0); opacity: 1; } to { transform: translateY(20px); opacity: 0; } }
     </style>
-    
+
     {% block extra_css %}{% endblock %}
-    
-    <!-- Razorpay SDK -->
+
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 </head>
 <body>
 
-    <!-- ✅ INTERACTIVE HEADER -->
-    <header class="navbar" id="mainNavbar">
-        <div class="nav-container">
-            
-            <!-- Logo -->
-            <a href="{% url 'shop:home' %}" class="logo">
-                {% if site_settings.logo_url %}
-                    <img src="{{ site_settings.logo_url }}" alt="{{ site_settings.site_name }}" height="40">
-                {% else %}
-                    <span style="font-size:1.5rem; font-weight:700; color:#2874f0;">{{ site_settings.site_name }}</span>
-                {% endif %}
-            </a>
+<!-- ═══════════════════════════════════════════════════════
+     NAVBAR
+═══════════════════════════════════════════════════════ -->
+<header class="navbar" id="mainNavbar">
+    <div class="nav-container">
 
-            <!-- Search Bar (Desktop) -->
-            <div class="nav-search">
-                <form method="get" action="{% url 'items:product_list' %}">
-                    <input type="text" name="search" placeholder="Search for products, brands and more" value="{{ filters.search|default:'' }}">
-                    <button type="submit"><i class="fa fa-search"></i></button>
-                </form>
-            </div>
-            
-            <!-- Desktop Nav Actions -->
-            <div class="nav-actions">
-                <!-- HOME BUTTON -->
-                <a href="{% url 'shop:home' %}" class="nav-link" title="Home" style="margin-right: 5px;">
-                    <i class="fa fa-home"></i> <span class="hide-mobile" style="font-weight:600;">Home</span>
-                </a>
-
-                <!-- User Dropdown -->
-                <div class="nav-dropdown" id="userDropdown">
-                    {% if user.is_authenticated %}
-                        <button class="nav-link dropdown-toggle">
-                            <i class="fa fa-user"></i> {{ user.full_name|default:user.phone|truncatechars:12 }} <i class="fa fa-chevron-down" style="font-size:0.8rem;"></i>
-                        </button>
-                        <div class="dropdown-menu">
-                            <a href="{% url 'accounts:profile' %}"><i class="fa fa-user-circle"></i> My Profile</a>
-                            <a href="{% url 'orders:my_orders' %}"><i class="fa fa-box"></i> My Orders</a>
-                            <form action="{% url 'accounts:logout' %}" method="post">
-                                {% csrf_token %}
-                                <button type="submit"><i class="fa fa-sign-out-alt"></i> Logout</button>
-                            </form>
-                        </div>
-                    {% else %}
-                        <button class="btn-primary" id="loginBtn" type="button" style="padding: 8px 16px; width:auto; font-size:0.9rem; cursor:pointer;">
-                            Login
-                        </button>
-                    {% endif %}
-                </div>
-
-                <!-- Role-Based Tabs -->
-                {% if user.is_authenticated and user.is_seller or user.is_superuser %}
-                    <a href="{% url 'items:admin_dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}">
-                        <i class="fa fa-store"></i> <span class="hide-mobile">Seller Panel</span>
-                    </a>
-                {% else %}
-                    <a href="{% url 'items:product_list' %}" class="nav-link {% if request.resolver_match.url_name == 'product_list' %}active{% endif %}">
-                        <i class="fa fa-box-open"></i> <span class="hide-mobile">Products</span>
-                    </a>
-                {% endif %}
-
-                <!-- Cart -->
-                {% if not user.is_authenticated or user.role == 'customer' %}
-                    <a href="{% url 'shop:cart' %}" class="nav-link cart-link">
-                        <i class="fa fa-shopping-cart"></i> <span class="hide-mobile">Cart</span>
-                        <span class="cart-badge">{{ cart_count|default:0 }}</span>
-                    </a>
-                {% endif %}
-            </div>
-
-            <!-- Mobile Menu Toggle -->
-            <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Toggle menu"><i class="fa fa-bars"></i></button>
-        </div>
-    </header>
-
-    <!-- Mobile Slide-out Menu -->
-    <div class="mobile-nav" id="mobileNav" aria-hidden="true">
-        <button class="mobile-nav-close" id="mobileNavClose" aria-label="Close menu"><i class="fa fa-times"></i></button>
-        <div class="mobile-nav-content">
-            <!-- Mobile Home Button -->
-            <a href="{% url 'shop:home' %}" style="font-weight:600; margin-bottom:10px; border-bottom:1px solid #eee; padding-bottom:10px;">
-                <i class="fa fa-home"></i> Home
-            </a>
-            
-            {% if user.is_authenticated %}
-                <div style="padding: 15px 0; font-weight: 600; font-size: 1.1rem; border-bottom: 1px solid #eee; margin-bottom: 10px;">
-                    <i class="fa fa-user-circle"></i> {{ user.full_name|default:user.phone }}
-                </div>
-                <a href="{% url 'accounts:profile' %}"><i class="fa fa-user-circle"></i> Profile</a>
-                <a href="{% url 'orders:my_orders' %}"><i class="fa fa-box"></i> My Orders</a>
-                <form action="{% url 'accounts:logout' %}" method="post">
-                    {% csrf_token %}
-                    <button type="submit"><i class="fa fa-sign-out-alt"></i> Logout</button>
-                </form>
+        <!-- Logo -->
+        <a href="{% url 'shop:home' %}" class="logo">
+            {% if site_settings.logo_url %}
+                <img src="{{ site_settings.logo_url }}" alt="{{ site_settings.site_name }}" height="40">
             {% else %}
-                <!-- Mobile Login Button -->
-                <button class="btn-primary" id="mobileLoginBtn" type="button" style="margin-bottom: 20px; cursor:pointer;">
-                    Login / Signup
-                </button>
+                <span style="font-size:1.5rem; font-weight:700; color:#2874f0;">{{ site_settings.site_name }}</span>
             {% endif %}
-            
-            <a href="{% url 'items:product_list' %}"><i class="fa fa-box-open"></i> All Products</a>
-            {% if user.is_authenticated and user.is_seller or user.is_superuser %}
-                <a href="{% url 'items:admin_dashboard' %}"><i class="fa fa-store"></i> Seller Panel</a>
-            {% endif %}
-            {% if not user.is_authenticated or user.role == 'customer' %}
-                <a href="{% url 'shop:cart' %}"><i class="fa fa-shopping-cart"></i> Cart ({{ cart_count|default:0 }})</a>
-            {% endif %}
-        </div>
-    </div>
+        </a>
 
-    <!-- ✅ AJAX LOGIN MODAL
-         IMPORTANT: NO inline style="display:none" here.
-         Visibility is controlled exclusively by adding/removing the .show CSS class.
-         This matches style.css: .modal { opacity:0; visibility:hidden }
-                                  .modal.show { opacity:1; visibility:visible } -->
-    <div id="loginModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
-        <div class="modal-content">
-            <button class="modal-close" id="closeLoginModal" aria-label="Close modal">&times;</button>
-
-            <h3 id="loginModalTitle" style="margin: 0 0 20px; font-size:1.3rem; color:#212121;">
-                Login to {{ site_settings.site_name }}
-            </h3>
-            
-            <form id="ajaxLoginForm">
-                {% csrf_token %}
-                <input type="hidden" name="next" value="{{ request.path }}">
-                
-                <div class="form-group">
-                    <label for="loginUsername">Mobile Number</label>
-                    <input type="tel" id="loginUsername" name="username" class="form-input"
-                           required pattern="[0-9]{10}" placeholder="10-digit mobile number"
-                           autocomplete="tel">
-                    <div class="error-msg" id="usernameError"
-                         style="color:#c62828; font-size:0.85rem; display:none; margin-top:4px;"></div>
-                </div>
-                
-                <div class="form-group">
-                    <label for="loginPassword">Password</label>
-                    <input type="password" id="loginPassword" name="password" class="form-input"
-                           required placeholder="Enter password" autocomplete="current-password">
-                    <div class="error-msg" id="passwordError"
-                         style="color:#c62828; font-size:0.85rem; display:none; margin-top:4px;"></div>
-                    <!-- ✅ Forgot Password link -->
-                    <a href="{% url 'accounts:forgot_password' %}" class="forgot-link">
-                        Forgot Password?
-                    </a>
-                </div>
-                
-                <div id="formError"
-                     style="background:#ffebee; color:#c62828; padding:10px; border-radius:6px;
-                            margin-bottom:15px; display:none; font-size:0.9rem;"></div>
-                
-                <button type="submit" class="btn-primary" id="loginSubmitBtn">LOGIN</button>
+        <!-- Search Bar (Desktop) -->
+        <div class="nav-search">
+            <form method="get" action="{% url 'items:product_list' %}">
+                <input type="text" name="search"
+                       placeholder="Search for products, brands and more"
+                       value="{{ filters.search|default:'' }}">
+                <button type="submit"><i class="fa fa-search"></i></button>
             </form>
-            
-            <p style="margin-top:15px; text-align:center; font-size:0.9rem; color:#666;">
-                New here? <a href="{% url 'accounts:register' %}" style="color:#2874f0; font-weight:600;">Create Account</a>
-            </p>
+        </div>
+
+        <!-- Desktop Nav Actions -->
+        <div class="nav-actions">
+            <a href="{% url 'shop:home' %}" class="nav-link" title="Home">
+                <i class="fa fa-home"></i>
+                <span class="hide-mobile" style="font-weight:600;">Home</span>
+            </a>
+
+            <!-- User Dropdown -->
+            <div class="nav-dropdown" id="userDropdown">
+                {% if user.is_authenticated %}
+                    <button class="nav-link dropdown-toggle">
+                        <i class="fa fa-user"></i>
+                        {{ user.full_name|default:user.phone|truncatechars:12 }}
+                        <i class="fa fa-chevron-down" style="font-size:0.8rem;"></i>
+                    </button>
+                    <div class="dropdown-menu">
+                        <a href="{% url 'accounts:profile' %}"><i class="fa fa-user-circle"></i> My Profile</a>
+                        <a href="{% url 'orders:my_orders' %}"><i class="fa fa-box"></i> My Orders</a>
+                        <form action="{% url 'accounts:logout' %}" method="post">
+                            {% csrf_token %}
+                            <button type="submit"><i class="fa fa-sign-out-alt"></i> Logout</button>
+                        </form>
+                    </div>
+                {% else %}
+                    <button class="btn-primary" id="loginBtn" type="button"
+                            style="padding:8px 16px; width:auto; font-size:0.9rem;">
+                        Login
+                    </button>
+                {% endif %}
+            </div>
+
+            <!-- Role-Based Tab -->
+            {% if user.is_authenticated and user.is_seller or user.is_superuser %}
+                <a href="{% url 'items:admin_dashboard' %}"
+                   class="nav-link {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}">
+                    <i class="fa fa-store"></i>
+                    <span class="hide-mobile">Seller Panel</span>
+                </a>
+            {% else %}
+                <a href="{% url 'items:product_list' %}"
+                   class="nav-link {% if request.resolver_match.url_name == 'product_list' %}active{% endif %}">
+                    <i class="fa fa-box-open"></i>
+                    <span class="hide-mobile">Products</span>
+                </a>
+            {% endif %}
+
+            <!-- Cart (customers only) -->
+            {% if user.is_authenticated and user.role == 'customer' %}
+                <a href="{% url 'shop:cart' %}" class="nav-link cart-link">
+                    <i class="fa fa-shopping-cart"></i>
+                    <span class="hide-mobile">Cart</span>
+                    <!-- ✅ FIX: id="cart-count" so JS can update it -->
+                    <span class="cart-badge" id="cart-count">{{ cart_count|default:0 }}</span>
+                </a>
+            {% endif %}
+        </div>
+
+        <!-- Mobile Menu Toggle -->
+        <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Toggle menu">
+            <i class="fa fa-bars"></i>
+        </button>
+    </div>
+</header>
+
+<!-- ═══════════════════════════════════════════════════════
+     FLIPKART-STYLE CATEGORY NAV
+═══════════════════════════════════════════════════════ -->
+<nav class="cat-nav-wrapper" id="catNavWrapper" aria-label="Shop by category">
+
+    <button class="cat-scroll-btn" id="catScrollLeft" aria-label="Scroll categories left">
+        <i class="fa fa-chevron-left"></i>
+    </button>
+
+    <div class="cat-nav" id="catNav" role="list">
+
+        <!-- Top Offers — always first -->
+        <a href="{% url 'shop:home' %}" class="cat-item {% if request.resolver_match.url_name == 'home' and not filters.category %}active{% endif %}" role="listitem">
+            <div class="cat-icon" style="background:linear-gradient(135deg,#fff8e1,#ffe082);border-color:#ffc107;">
+                🎁
+            </div>
+            <span class="cat-label">Top Offers</span>
+        </a>
+
+        <!-- Dynamic categories -->
+        {% for cat in categories %}
+        <a href="{% url 'items:product_list' %}?category={{ cat.slug }}"
+           class="cat-item {% if filters.category == cat.slug %}active{% endif %}"
+           role="listitem">
+            <div class="cat-icon"
+                 {% if "women" in cat.name|lower %}style="background:linear-gradient(135deg,#fce4ec,#f48fb1);border-color:#ec407a;"
+                 {% elif "men" in cat.name|lower %}style="background:linear-gradient(135deg,#e3f2fd,#90caf9);border-color:#42a5f5;"
+                 {% elif "jewel" in cat.name|lower %}style="background:linear-gradient(135deg,#fff8e1,#ffcc80);border-color:#ffa726;"
+                 {% elif "electron" in cat.name|lower %}style="background:linear-gradient(135deg,#f3e5f5,#ce93d8);border-color:#ab47bc;"
+                 {% elif "furniture" in cat.name|lower or "home" in cat.name|lower %}style="background:linear-gradient(135deg,#e8f5e9,#a5d6a7);border-color:#66bb6a;"
+                 {% elif "beauty" in cat.name|lower or "health" in cat.name|lower %}style="background:linear-gradient(135deg,#e0f7fa,#80deea);border-color:#26c6da;"
+                 {% elif "sport" in cat.name|lower %}style="background:linear-gradient(135deg,#f1f8e9,#aed581);border-color:#8bc34a;"
+                 {% elif "toy" in cat.name|lower or "kid" in cat.name|lower %}style="background:linear-gradient(135deg,#fbe9e7,#ff8a65);border-color:#ff5722;"
+                 {% elif "food" in cat.name|lower or "grocery" in cat.name|lower %}style="background:linear-gradient(135deg,#f9fbe7,#e6ee9c);border-color:#c0ca33;"
+                 {% else %}style="background:linear-gradient(135deg,#ede7f6,#b39ddb);border-color:#7e57c2;"{% endif %}>
+                {% if cat.icon_image %}
+                    <img src="{{ cat.icon_image.url }}" alt="{{ cat.name }}">
+                {% else %}
+                    {% if "women" in cat.name|lower %}👗
+                    {% elif "men" in cat.name|lower %}👔
+                    {% elif "jewel" in cat.name|lower %}💍
+                    {% elif "electron" in cat.name|lower %}📱
+                    {% elif "furniture" in cat.name|lower or "home" in cat.name|lower %}🏠
+                    {% elif "beauty" in cat.name|lower or "health" in cat.name|lower %}💄
+                    {% elif "sport" in cat.name|lower %}⚽
+                    {% elif "toy" in cat.name|lower or "kid" in cat.name|lower %}🧸
+                    {% elif "food" in cat.name|lower or "grocery" in cat.name|lower %}🛒
+                    {% elif "book" in cat.name|lower %}📚
+                    {% else %}🛍️{% endif %}
+                {% endif %}
+            </div>
+            <span class="cat-label">{{ cat.name }}</span>
+            {% if cat.children.exists %}
+                <span class="cat-chevron">▼</span>
+                <div class="cat-dropdown">
+                    {% for child in cat.children.all %}
+                    <a href="{% url 'items:product_list' %}?category={{ child.slug }}">
+                        <span style="opacity:0.5;">›</span> {{ child.name }}
+                    </a>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </a>
+        {% endfor %}
+
+    </div><!-- /cat-nav -->
+
+    <button class="cat-scroll-btn" id="catScrollRight" aria-label="Scroll categories right">
+        <i class="fa fa-chevron-right"></i>
+    </button>
+
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════
+     MOBILE SLIDE-OUT MENU
+═══════════════════════════════════════════════════════ -->
+<div class="mobile-nav" id="mobileNav" aria-hidden="true">
+    <button class="mobile-nav-close" id="mobileNavClose" aria-label="Close menu">
+        <i class="fa fa-times"></i>
+    </button>
+    <div class="mobile-nav-content">
+        <a href="{% url 'shop:home' %}" style="font-weight:600;">
+            <i class="fa fa-home"></i> Home
+        </a>
+
+        {% if user.is_authenticated %}
+            <div style="padding:15px 0;font-weight:600;font-size:1.1rem;border-bottom:1px solid #eee;margin-bottom:10px;">
+                <i class="fa fa-user-circle"></i> {{ user.full_name|default:user.phone }}
+            </div>
+            <a href="{% url 'accounts:profile' %}"><i class="fa fa-user-circle"></i> Profile</a>
+            <a href="{% url 'orders:my_orders' %}"><i class="fa fa-box"></i> My Orders</a>
+            <form action="{% url 'accounts:logout' %}" method="post">
+                {% csrf_token %}
+                <button type="submit"><i class="fa fa-sign-out-alt"></i> Logout</button>
+            </form>
+        {% else %}
+            <button class="btn-primary" id="mobileLoginBtn" type="button"
+                    style="margin-bottom:20px;">
+                Login / Signup
+            </button>
+        {% endif %}
+
+        <a href="{% url 'items:product_list' %}">
+            <i class="fa fa-box-open"></i> All Products
+        </a>
+        {% if user.is_authenticated and user.is_seller or user.is_superuser %}
+            <a href="{% url 'items:admin_dashboard' %}"><i class="fa fa-store"></i> Seller Panel</a>
+        {% endif %}
+        {% if not user.is_authenticated or user.role == 'customer' %}
+            <a href="{% url 'shop:cart' %}">
+                <i class="fa fa-shopping-cart"></i> Cart
+                <!-- ✅ Mobile cart count badge -->
+                <span class="mobile-cart-badge" id="cart-count-mobile">{{ cart_count|default:0 }}</span>
+            </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     AJAX LOGIN MODAL
+═══════════════════════════════════════════════════════ -->
+<div id="loginModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
+    <div class="modal-content">
+        <button class="modal-close" id="closeLoginModal" aria-label="Close modal">&times;</button>
+
+        <h3 id="loginModalTitle" style="margin:0 0 20px;font-size:1.3rem;color:#212121;">
+            Login to {{ site_settings.site_name }}
+        </h3>
+
+        <form id="ajaxLoginForm">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.path }}">
+
+            <div class="form-group">
+                <label for="loginUsername">Mobile Number</label>
+                <input type="tel" id="loginUsername" name="username" class="form-input"
+                       required pattern="[0-9]{10}" placeholder="10-digit mobile number"
+                       autocomplete="tel">
+                <div class="error-msg" id="usernameError"
+                     style="color:#c62828;font-size:0.85rem;display:none;margin-top:4px;"></div>
+            </div>
+
+            <div class="form-group">
+                <label for="loginPassword">Password</label>
+                <input type="password" id="loginPassword" name="password" class="form-input"
+                       required placeholder="Enter password" autocomplete="current-password">
+                <div class="error-msg" id="passwordError"
+                     style="color:#c62828;font-size:0.85rem;display:none;margin-top:4px;"></div>
+                <a href="{% url 'accounts:forgot_password' %}" class="forgot-link">Forgot Password?</a>
+            </div>
+
+            <div id="formError"
+                 style="background:#ffebee;color:#c62828;padding:10px;border-radius:6px;
+                        margin-bottom:15px;display:none;font-size:0.9rem;"></div>
+
+            <button type="submit" class="btn-primary" id="loginSubmitBtn">LOGIN</button>
+        </form>
+
+        <p style="margin-top:15px;text-align:center;font-size:0.9rem;color:#666;">
+            New here?
+            <a href="{% url 'accounts:register' %}" style="color:#2874f0;font-weight:600;">
+                Create Account
+            </a>
+        </p>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     MAIN CONTENT
+═══════════════════════════════════════════════════════ -->
+<main class="container" style="min-height:80vh;padding-top:30px;padding-bottom:30px;">
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+    {% block content %}{% endblock %}
+</main>
+
+<!-- ═══════════════════════════════════════════════════════
+     FOOTER
+═══════════════════════════════════════════════════════ -->
+<footer class="footer">
+    <div class="footer-grid">
+        <div>
+            <h4>ABOUT US</h4>
+            <p>{{ site_settings.about_us }}</p>
+        </div>
+        <div>
+            <h4>POLICIES</h4>
+            <ul>
+                <li><a href="#">Cancellation Policy</a></li>
+                <li><a href="#">Return Policy</a></li>
+                <li><a href="#">Terms &amp; Conditions</a></li>
+            </ul>
+        </div>
+        <div>
+            <h4>CONTACT</h4>
+            <ul>
+                <li><i class="fa fa-phone"></i> {{ site_settings.contact_phone }}</li>
+                <li><i class="fa fa-envelope"></i> {{ site_settings.contact_email }}</li>
+            </ul>
+        </div>
+        <div>
+            <h4>QUICK LINKS</h4>
+            <ul>
+                <li><a href="{% url 'shop:home' %}">Shop</a></li>
+                <li><a href="{% url 'blog:blog_list' %}">Blog</a></li>
+            </ul>
         </div>
     </div>
+    <div class="footer-bottom">
+        © {% now "Y" %} {{ site_settings.site_name }}. All rights reserved.
+    </div>
+</footer>
 
-    <!-- Main Content -->
-    <main class="container" style="min-height: 80vh; padding-top: 30px; padding-bottom: 30px;">
-        {% if messages %}
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-            {% endfor %}
-        {% endif %}
-        {% block content %}{% endblock %}
-    </main>
+<!-- ═══════════════════════════════════════════════════════
+     SCRIPTS
+═══════════════════════════════════════════════════════ -->
+<script>
+document.addEventListener('DOMContentLoaded', () => {
 
-    <!-- Footer -->
-    <footer class="footer">
-        <div class="footer-grid">
-            <div>
-                <h4>ABOUT US</h4>
-                <p>{{ site_settings.about_us }}</p>
-            </div>
-            <div>
-                <h4>POLICIES</h4>
-                <ul>
-                    <li><a href="#">Cancellation Policy</a></li>
-                    <li><a href="#">Return Policy</a></li>
-                    <li><a href="#">Terms &amp; Conditions</a></li>
-                </ul>
-            </div>
-            <div>
-                <h4>CONTACT</h4>
-                <ul>
-                    <li><i class="fa fa-phone"></i> {{ site_settings.contact_phone }}</li>
-                    <li><i class="fa fa-envelope"></i> {{ site_settings.contact_email }}</li>
-                </ul>
-            </div>
-            <div>
-                <h4>QUICK LINKS</h4>
-                <ul>
-                    <li><a href="{% url 'shop:home' %}">Shop</a></li>
-                    <li><a href="{% url 'blog:blog_list' %}">Blog</a></li>
-                </ul>
-            </div>
-        </div>
-        <div class="footer-bottom">© {% now "Y" %} {{ site_settings.site_name }}. All rights reserved.</div>
-    </footer>
+    // ── 1. Mobile Nav ──────────────────────────────────────
+    const mobileBtn   = document.getElementById('mobileMenuBtn');
+    const mobileNav   = document.getElementById('mobileNav');
+    const mobileClose = document.getElementById('mobileNavClose');
 
-    <!-- ✅ SCRIPTS -->
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('✅ DOM loaded');
+    function closeMobileNav() {
+        if (!mobileNav) return;
+        mobileNav.classList.remove('open');
+        mobileNav.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+    }
 
-            // ── 1. Mobile Menu ──────────────────────────────────────────────
-            const mobileBtn   = document.getElementById('mobileMenuBtn');
-            const mobileNav   = document.getElementById('mobileNav');
-            const mobileClose = document.getElementById('mobileNavClose');
+    mobileBtn?.addEventListener('click', () => {
+        mobileNav.classList.add('open');
+        mobileNav.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+    });
+    mobileClose?.addEventListener('click', closeMobileNav);
+    mobileNav?.querySelectorAll('a, button[type="submit"]').forEach(el => {
+        el.addEventListener('click', closeMobileNav);
+    });
 
-            function closeMobileNav() {
-                if (!mobileNav) return;
-                mobileNav.classList.remove('open');
-                mobileNav.setAttribute('aria-hidden', 'true');
-                document.body.style.overflow = '';
-            }
+    // ── 2. Login Modal ─────────────────────────────────────
+    const loginModal      = document.getElementById('loginModal');
+    const loginBtn        = document.getElementById('loginBtn');
+    const mobileLoginBtn  = document.getElementById('mobileLoginBtn');
+    const closeLoginModal = document.getElementById('closeLoginModal');
 
-            if (mobileBtn && mobileNav && mobileClose) {
-                mobileBtn.addEventListener('click', () => {
-                    mobileNav.classList.add('open');
-                    mobileNav.setAttribute('aria-hidden', 'false');
-                    document.body.style.overflow = 'hidden';
-                });
-                mobileClose.addEventListener('click', closeMobileNav);
-                mobileNav.querySelectorAll('a, button').forEach(el => {
-                    el.addEventListener('click', closeMobileNav);
-                });
-            }
+    function openLoginModal() {
+        if (!loginModal) return;
+        loginModal.classList.add('show');
+        document.body.style.overflow = 'hidden';
+        closeMobileNav();
+    }
 
-            // ── 2. Login Modal ──────────────────────────────────────────────
-            // ✅ KEY FIX: use .show class only — no display toggling.
-            //    style.css already handles: .modal { opacity:0; visibility:hidden }
-            //                                .modal.show { opacity:1; visibility:visible }
-            const loginModal      = document.getElementById('loginModal');
-            const loginBtn        = document.getElementById('loginBtn');
-            const mobileLoginBtn  = document.getElementById('mobileLoginBtn');
-            const closeLoginModal = document.getElementById('closeLoginModal');
+    function closeLoginModalFn() {
+        if (!loginModal) return;
+        loginModal.classList.remove('show');
+        document.body.style.overflow = '';
+    }
 
-            console.log('🔐 Elements found —', {
-                loginBtn: !!loginBtn,
-                mobileLoginBtn: !!mobileLoginBtn,
-                loginModal: !!loginModal
-            });
+    loginBtn?.addEventListener('click',       (e) => { e.preventDefault(); e.stopPropagation(); openLoginModal(); });
+    mobileLoginBtn?.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openLoginModal(); });
+    closeLoginModal?.addEventListener('click', closeLoginModalFn);
 
-            function openLoginModal() {
-                if (!loginModal) { console.error('❌ loginModal not found'); return; }
-                loginModal.classList.add('show');
-                document.body.style.overflow = 'hidden';
-                closeMobileNav();
-                console.log('🔐 Modal opened');
-            }
+    loginModal?.addEventListener('click', (e) => {
+        if (e.target === loginModal) closeLoginModalFn();
+    });
 
-            function closeLoginModalFn() {
-                if (!loginModal) return;
-                loginModal.classList.remove('show');
-                document.body.style.overflow = '';
-                console.log('🔐 Modal closed');
-            }
-
-            if (loginBtn)       loginBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openLoginModal(); });
-            if (mobileLoginBtn) mobileLoginBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openLoginModal(); });
-            if (closeLoginModal) closeLoginModal.addEventListener('click', closeLoginModalFn);
-
-            // Backdrop click
-            if (loginModal) {
-                loginModal.addEventListener('click', (e) => {
-                    if (e.target === loginModal) closeLoginModalFn();
-                });
-            }
-            // Escape key
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape' && loginModal && loginModal.classList.contains('show')) {
-                    closeLoginModalFn();
-                }
-            });
-
-            // ── 3. Sticky shadow ────────────────────────────────────────────
-            const navbar = document.getElementById('mainNavbar');
-            if (navbar) {
-                window.addEventListener('scroll', () => {
-                    navbar.classList.toggle('scrolled', window.scrollY > 10);
-                });
-            }
-
-            // ── 4. AJAX Login ───────────────────────────────────────────────
-            const ajaxLoginForm = document.getElementById('ajaxLoginForm');
-            if (ajaxLoginForm) {
-                ajaxLoginForm.addEventListener('submit', async (e) => {
-                    e.preventDefault();
-
-                    const btn = document.getElementById('loginSubmitBtn');
-                    const originalHTML = btn.innerHTML;
-                    btn.disabled = true;
-                    btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Logging in...';
-
-                    // Clear previous errors
-                    document.querySelectorAll('.error-msg').forEach(el => el.style.display = 'none');
-                    const formError = document.getElementById('formError');
-                    if (formError) formError.style.display = 'none';
-
-                    try {
-                        const res = await fetch("{% url 'accounts:login' %}", {
-                            method: 'POST',
-                            headers: { 'X-Requested-With': 'XMLHttpRequest' },
-                            body: new FormData(e.target)
-                        });
-
-                        const data = await res.json();
-                        console.log('🔐 Response:', data);
-
-                        if (data.status === 'success') {
-                            showToast('Login successful! Redirecting…', 'success');
-                            setTimeout(() => { window.location.href = data.redirect || '/'; }, 800);
-                        } else {
-                            // Field errors
-                            if (data.errors) {
-                                const uErr = document.getElementById('usernameError');
-                                const pErr = document.getElementById('passwordError');
-                                if (data.errors.username && uErr) { uErr.textContent = data.errors.username[0]; uErr.style.display = 'block'; }
-                                if (data.errors.password  && pErr) { pErr.textContent = data.errors.password[0];  pErr.style.display = 'block'; }
-                            }
-                            // General error
-                            if (formError && data.message) { formError.textContent = data.message; formError.style.display = 'block'; }
-                            btn.disabled = false;
-                            btn.innerHTML = originalHTML;
-                        }
-                    } catch (err) {
-                        console.error('🔐 AJAX error, falling back:', err);
-                        e.target.submit();   // fallback to normal POST
-                    }
-                });
-            }
-        }); // end DOMContentLoaded
-
-        // ── Toast ─────────────────────────────────────────────────────────────
-        function showToast(message, type = 'info') {
-            const toast = document.createElement('div');
-            toast.innerHTML = `<i class="fa ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i> ${message}`;
-            toast.style.cssText = `
-                position:fixed; bottom:24px; right:24px; z-index:9999;
-                padding:12px 20px; border-radius:8px; font-weight:600;
-                background:${type === 'success' ? '#4CAF50' : '#f44336'};
-                color:#fff; box-shadow:0 4px 12px rgba(0,0,0,0.2);
-                display:flex; align-items:center; gap:8px;
-                animation:_toastIn 0.3s ease;
-            `;
-            document.body.appendChild(toast);
-            setTimeout(() => {
-                toast.style.animation = '_toastOut 0.3s ease';
-                setTimeout(() => toast.remove(), 300);
-            }, 2500);
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && loginModal?.classList.contains('show')) {
+            closeLoginModalFn();
         }
-        if (!document.querySelector('#_toastStyle')) {
-            const s = document.createElement('style'); s.id = '_toastStyle';
-            s.textContent = `@keyframes _toastIn{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}@keyframes _toastOut{from{transform:translateY(0);opacity:1}to{transform:translateY(20px);opacity:0}}`;
-            document.head.appendChild(s);
+    });
+
+    /* Expose so child pages (cart.html loginToOrderBtn) can call it */
+    window.openLoginModal  = openLoginModal;
+    window.closeLoginModal = closeLoginModalFn;
+
+    // ── 3. Sticky shadow ───────────────────────────────────
+    const navbar = document.getElementById('mainNavbar');
+    window.addEventListener('scroll', () => {
+        navbar?.classList.toggle('scrolled', window.scrollY > 10);
+    });
+
+    // ── 4. AJAX Login ──────────────────────────────────────
+    const ajaxLoginForm = document.getElementById('ajaxLoginForm');
+    ajaxLoginForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const btn = document.getElementById('loginSubmitBtn');
+        const originalHTML = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Logging in...';
+
+        document.querySelectorAll('.error-msg').forEach(el => el.style.display = 'none');
+        const formError = document.getElementById('formError');
+        if (formError) formError.style.display = 'none';
+
+        try {
+            const res  = await fetch("{% url 'accounts:login' %}", {
+                method: 'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                body: new FormData(e.target)
+            });
+            const data = await res.json();
+
+            if (data.status === 'success') {
+                window.showToast('Login successful! Redirecting…', 'success');
+                setTimeout(() => { window.location.href = data.redirect || '/'; }, 800);
+            } else {
+                const uErr = document.getElementById('usernameError');
+                const pErr = document.getElementById('passwordError');
+                if (data.errors?.username && uErr) { uErr.textContent = data.errors.username[0]; uErr.style.display = 'block'; }
+                if (data.errors?.password  && pErr) { pErr.textContent = data.errors.password[0];  pErr.style.display = 'block'; }
+                if (formError && data.message) { formError.textContent = data.message; formError.style.display = 'block'; }
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+            }
+        } catch (err) {
+            e.target.submit();
         }
-    </script>
-    {% block scripts %}{% endblock %}
+    });
+
+    // ── 5. Category Nav scroll arrows ─────────────────────
+    const catNav     = document.getElementById('catNav');
+    const catWrapper = document.getElementById('catNavWrapper');
+
+    function checkCatOverflow() {
+        if (!catNav || !catWrapper) return;
+        catWrapper.classList.toggle('overflowing', catNav.scrollWidth > catNav.clientWidth + 4);
+    }
+    checkCatOverflow();
+    window.addEventListener('resize', checkCatOverflow);
+
+    document.getElementById('catScrollLeft')?.addEventListener('click',  () => catNav.scrollBy({ left: -240, behavior: 'smooth' }));
+    document.getElementById('catScrollRight')?.addEventListener('click', () => catNav.scrollBy({ left:  240, behavior: 'smooth' }));
+
+}); // end DOMContentLoaded
+
+
+// ═══════════════════════════════════════════════════════════
+//  GLOBAL CART COUNT UPDATER
+//  Call window.updateCartCount(n) from any page's AJAX handler.
+//  Updates desktop badge + mobile badge with pop animation.
+// ═══════════════════════════════════════════════════════════
+window.updateCartCount = function (count) {
+    /* Desktop badge */
+    const badge = document.getElementById('cart-count');
+    if (badge) {
+        badge.textContent = count;
+        badge.style.transform = 'scale(1.55)';
+        badge.style.transition = 'transform 0.15s ease';
+        setTimeout(() => { badge.style.transform = 'scale(1)'; }, 200);
+    }
+    /* Mobile badge */
+    const mobileBadge = document.getElementById('cart-count-mobile');
+    if (mobileBadge) {
+        mobileBadge.textContent = count;
+    }
+};
+
+
+// ═══════════════════════════════════════════════════════════
+//  GLOBAL TOAST
+// ═══════════════════════════════════════════════════════════
+window.showToast = function (message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.innerHTML = `<i class="fa ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i> ${message}`;
+    toast.style.cssText = `
+        position:fixed;bottom:24px;right:24px;z-index:9999;
+        padding:12px 20px;border-radius:8px;font-weight:600;
+        background:${type === 'success' ? '#4CAF50' : '#f44336'};
+        color:#fff;box-shadow:0 4px 12px rgba(0,0,0,0.2);
+        display:flex;align-items:center;gap:8px;
+        animation:_toastIn 0.3s ease;
+    `;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+        toast.style.animation = '_toastOut 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+    }, 2500);
+};
+</script>
+
+{% block scripts %}{% endblock %}
 </body>
 </html>

@@ -1,577 +1,1187 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}My Cart - StallCart{% endblock %}
+{% block title %}My Cart - {{ site_settings.site_name|default:"StallCart" }}{% endblock %}
 
 {% block content %}
 <div class="cart-container">
+
     <!-- Cart Header -->
     <div class="cart-header">
-        <h2>My Cart ({{ cart_items|length }})</h2>
-        <a href="{% url 'shop:home' %}" class="back-link">← Continue Shopping</a>
+        <h2><i class="fa fa-shopping-cart" style="color:#2874f0;"></i> My Cart
+            <span style="font-size:1rem;color:#888;font-weight:400;">({{ cart_items|length }} item{{ cart_items|length|pluralize }})</span>
+        </h2>
+        <a href="{% url 'shop:home' %}" class="back-link">
+            <i class="fa fa-arrow-left"></i> Continue Shopping
+        </a>
     </div>
 
     {% if cart_items %}
     <div class="cart-grid">
-        <!-- Cart Items Section -->
+
+        <!-- ── Left: Cart Items ──────────────────────── -->
         <div class="cart-items">
             {% for item in cart_items %}
             <div class="cart-item" data-product-id="{{ item.product.id }}">
+
                 <div class="item-image">
-                    <!-- {% if item.product.images.first %}
-                        <img src="{{ item.product.images.first.image.url }}" alt="{{ item.product.name }}">
+                    {% if item.product.primary_image %}
+                        <img src="{{ item.product.primary_image.url }}"
+                             alt="{{ item.product.name }}" loading="lazy">
                     {% else %}
-                        <div class="no-image">No Image</div>
-                    {% endif %} -->
-                     {% if item.product.primary_image %}
-                        <img src="{{ item.product.primary_image.url }}" alt="{{ item.product.name }}" loading="lazy">
-                    {% else %}
-                        <div class="no-image">No Image</div>
+                        <div class="no-image"><i class="fa fa-image"></i></div>
                     {% endif %}
                 </div>
-                
+
                 <div class="item-details">
-                    <h4><a href="{% url 'items:product_detail' item.product.slug %}">{{ item.product.name }}</a></h4>
-                    <p class="item-seller">Sold by: {{ item.product.seller.shop_name }}</p>
-                    <p class="item-price">₹{{ item.product.price }}</p>
-                    
+                    <h4>
+                        <a href="{% url 'items:product_detail' item.product.slug %}">
+                            {{ item.product.name }}
+                        </a>
+                    </h4>
+                    <p class="item-seller">
+                        <i class="fa fa-store" style="font-size:0.8rem;"></i>
+                        Sold by: {{ item.product.seller.shop_name }}
+                    </p>
+
+                    <!-- Price with discount -->
+                    <div class="item-price-row">
+                        {% if item.product.discount_percent > 0 %}
+                            <span class="item-price">₹{{ item.unit_price|floatformat:2 }}</span>
+                            <span class="item-price-original">₹{{ item.original_price|floatformat:2 }}</span>
+                            <span class="item-discount-badge">{{ item.product.discount_percent }}% off</span>
+                        {% else %}
+                            <span class="item-price">₹{{ item.product.price }}</span>
+                        {% endif %}
+                    </div>
+
+                    <!-- Savings info -->
+                    {% if item.savings_per_item > 0 %}
+                    <p class="item-savings" style="color:#388e3c;font-size:0.8rem;font-weight:600;margin:4px 0 0;">
+                        <i class="fa fa-check-circle"></i> You save ₹{{ item.item_total_savings|floatformat:2 }} on this item
+                    </p>
+                    {% endif %}
+
                     <div class="item-actions">
                         <div class="quantity-control">
-                            <button class="qty-btn minus" data-action="decrease">−</button>
-                            <input type="number" class="qty-input" value="{{ item.quantity }}" min="1" max="{{ item.product.stock }}" data-stock="{{ item.product.stock }}">
-                            <button class="qty-btn plus" data-action="increase">+</button>
+                            <button class="qty-btn minus" data-action="decrease" aria-label="Decrease quantity">−</button>
+                            <input type="number" class="qty-input"
+                                   value="{{ item.quantity }}"
+                                   min="1" max="{{ item.product.stock }}"
+                                   data-stock="{{ item.product.stock }}"
+                                   aria-label="Quantity">
+                            <button class="qty-btn plus" data-action="increase" aria-label="Increase quantity">+</button>
                         </div>
+
                         <button class="remove-btn" data-action="remove">
                             <i class="fa fa-trash"></i> Remove
                         </button>
+
+                        <button class="wishlist-btn" title="Save for later">
+                            <i class="fa fa-heart-o"></i> Save
+                        </button>
                     </div>
-                    
-                    <p class="item-subtotal">Subtotal: <strong>₹{{ item.subtotal }}</strong></p>
-                    
+
+                    <p class="item-subtotal">
+                        Subtotal: <strong class="subtotal-value">₹{{ item.subtotal|floatformat:2}}</strong>
+                    </p>
+
                     {% if item.product.stock < item.quantity %}
-                        <p class="low-stock-warning">⚠️ Only {{ item.product.stock }} left in stock!</p>
+                        <p class="low-stock-warning">
+                            <i class="fa fa-exclamation-triangle"></i>
+                            Only {{ item.product.stock }} left in stock!
+                        </p>
                     {% endif %}
+
+                    <!-- Delivery info per item -->
+                    <p class="item-delivery">
+                        <i class="fa fa-truck" style="color:#388e3c;"></i>
+                        {% if item.subtotal >= 499 %}
+                            <span style="color:#388e3c;font-weight:600;">Free Delivery</span>
+                        {% else %}
+                            Delivery ₹40
+                        {% endif %}
+                        · 3–5 days
+                    </p>
                 </div>
             </div>
             {% endfor %}
-        </div>
+        </div><!-- /cart-items -->
 
-        <!-- Price Details Section -->
+        <!-- ── Right: Price Details ──────────────────── -->
         <div class="price-details">
-            <h3>Price Details</h3>
+            <h3>PRICE DETAILS</h3>
+
             <div class="price-row">
                 <span>Price ({{ cart_items|length }} item{{ cart_items|length|pluralize }})</span>
                 <span>₹{{ total|floatformat:2 }}</span>
             </div>
             <div class="price-row">
                 <span>Discount</span>
-                <span class="discount">−₹0.00</span>
+                <span class="discount">−₹{{ total_savings|floatformat:2 }}</span>
             </div>
             <div class="price-row">
                 <span>Delivery Charges</span>
                 <span class="{% if delivery_charge == 0 %}free{% endif %}">
-                    {% if delivery_charge == 0 %}FREE{% else %}₹{{ delivery_charge }}{% endif %}
+                    {% if delivery_charge == 0 %}
+                        <i class="fa fa-check-circle"></i> FREE
+                    {% else %}
+                        ₹{{ delivery_charge }}
+                    {% endif %}
                 </span>
             </div>
+
             {% if total < 499 %}
-                <p class="free-delivery-hint">Add ₹{% with remaining=499|add:"-1"|add:"-total"|floatformat:0 %}{{ remaining|default:0 }}{% endwith %} more for FREE delivery!</p>
+            <div class="free-delivery-hint">
+                <i class="fa fa-info-circle"></i>
+                <!-- Add ₹{{ 499|add:"-1"|add:"-total"|floatformat:0 }} more for FREE delivery -->
+                    Add ₹{{ remaining_amount_for_free_delivery|floatformat:0 }} more for FREE delivery
+
+            </div>
             {% endif %}
-            
+
+            <div class="price-divider"></div>
+
             <div class="price-row total-row">
                 <strong>Total Amount</strong>
-                <strong>₹{{ total|add:delivery_charge|floatformat:2 }}</strong>
+                <strong id="grandTotal">₹{{ total|add:delivery_charge|floatformat:2 }}</strong>
             </div>
-            
-            {% if user.is_authenticated %}
-                <button id="placeOrderBtn" class="btn-primary">PLACE ORDER</button>
+
+            {% if total_savings > 0 %}
+            <div class="savings-msg">
+                <i class="fa fa-tag"></i> You saved <strong>₹{{ total_savings|floatformat:2 }}</strong> on this order! 🎉
+            </div>
             {% else %}
-                <button id="loginToOrderBtn" class="btn-primary">LOGIN TO ORDER</button>
-                <p class="login-hint">Login to save your cart & checkout faster</p>
+            <div class="savings-msg" style="background:#f5f5f5;color:#666;">
+                <i class="fa fa-info-circle"></i> No discounts applied on this order
+            </div>
             {% endif %}
-            
+
+            {% if user.is_authenticated %}
+                <button id="placeOrderBtn" class="btn-place-order">
+                    <i class="fa fa-lock"></i> PLACE ORDER
+                </button>
+            {% else %}
+                <button id="loginToOrderBtn" class="btn-place-order">
+                    <i class="fa fa-sign-in"></i> LOGIN TO ORDER
+                </button>
+                <p class="login-hint">Login to save your cart &amp; checkout faster</p>
+            {% endif %}
+
             <div class="secure-badge">
-                <i class="fa fa-lock"></i> 100% Secure SSL Encrypted Transaction
+                <i class="fa fa-shield-alt"></i> 100% Secure &amp; Encrypted Transaction
             </div>
         </div>
-    </div>
 
-    <!-- Delivery Address Section (for authenticated users) -->
-    {% if user.is_authenticated %}
+    </div><!-- /cart-grid -->
+
+    <!-- ── Delivery Address (Customer Only) ─────────── -->
+    {% if user.is_authenticated and user.role == 'customer' %}
     <div class="delivery-address-section">
-        <h3>📍 Delivery Address</h3>
+        <div class="address-header-row">
+            <h3>📍 Delivery Address</h3>
+            {% if user_addresses|length > 1 %}
+                <select id="addressSelector" class="form-select-sm" style="max-width:200px;">
+                    {% for addr in user_addresses %}
+                        <option value="{{ addr.id }}" {% if addr.id == default_address.id %}selected{% endif %}>
+                            {{ addr.name }} - {{ addr.city }}{% if addr.is_default %} (Default){% endif %}
+                        </option>
+                    {% endfor %}
+                </select>
+            {% endif %}
+        </div>
+        
         <div class="address-card">
-            {% if user.address %}
-                <p><strong>{{ user.address.name|default:user.full_name }}</strong></p>
-                <p>{{ user.address.address }}, {{ user.address.city }}</p>
-                <p>{{ user.address.state }} - {{ user.address.postalCode }}</p>
-                <p>📞 {{ user.address.phone|default:user.phone }}</p>
-                <button class="btn-outline" id="editAddressBtn">Edit Address</button>
+            {% if default_address %}
+                <div class="address-info" id="selectedAddressInfo">
+                    <p><strong>{{ default_address.name }}</strong>
+                       <span class="address-tag">{{ default_address.get_address_type_display|slice:":8" }}</span>
+                       {% if default_address.is_default %}
+                           <span class="badge badge-success" style="margin-left:8px;">✓ Default</span>
+                       {% endif %}
+                    </p>
+                    <p>{{ default_address.address_line1 }}{% if default_address.address_line2 %}, {{ default_address.address_line2 }}{% endif %}</p>
+                    <p>{{ default_address.city }}, {{ default_address.state }} – {{ default_address.postal_code }}</p>
+                    <p><i class="fa fa-phone"></i> {{ default_address.phone }} • {{ default_address.country }}</p>
+                </div>
+                <div class="address-actions">
+                    <button class="btn-outline-sm" onclick="openAddressModal('edit', {{ default_address.id }})">
+                        <i class="fa fa-pencil"></i> Edit
+                    </button>
+                    {% if not default_address.is_default %}
+                    <button class="btn-outline-sm" onclick="setDefaultAddress({{ default_address.id }})">
+                        <i class="fa fa-star"></i> Set Default
+                    </button>
+                    {% endif %}
+                    <button class="btn-outline-sm" id="addAddressBtn">
+                        <i class="fa fa-plus"></i> Add New
+                    </button>
+                </div>
             {% else %}
-                <p>No address saved. Add one during checkout.</p>
-                <button class="btn-outline" id="addAddressBtn">Add Address</button>
+                <div class="no-address">
+                    <i class="fa fa-map-marker-alt"></i>
+                    <p>No delivery address saved.</p>
+                </div>
+                <button class="btn-outline-sm" id="addAddressBtn">
+                    <i class="fa fa-plus"></i> Add Address
+                </button>
             {% endif %}
         </div>
     </div>
     {% endif %}
 
-    <!-- Payment Method Preview -->
+    <!-- ── Payment Method ─────────────────────────────── -->
     <div class="payment-preview">
         <h3>💳 Select Payment Method</h3>
         <div class="payment-options">
             <label class="payment-option">
                 <input type="radio" name="payment" value="UPI" checked>
                 <div class="payment-icon">
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/e/e1/Google_Pay_Logo.svg" alt="GPay" width="40">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/e/e1/Google_Pay_Logo.svg"
+                         alt="GPay" width="38">
                 </div>
-                <span>Online Payment / UPI<br><small>GPay, PhonePe, Cards, NetBanking</small></span>
+                <div class="payment-text">
+                    <span>Online Payment / UPI</span>
+                    <small>GPay, PhonePe, Cards, NetBanking</small>
+                </div>
                 <span class="offer-badge">FLAT ₹50 INSTANT OFF</span>
             </label>
+
             <label class="payment-option">
                 <input type="radio" name="payment" value="COD">
-                <div class="payment-icon">💵</div>
-                <span>Cash on Delivery (COD)<br><small>Safe and Reliable Delivery</small></span>
+                <div class="payment-icon" style="font-size:1.6rem;">💵</div>
+                <div class="payment-text">
+                    <span>Cash on Delivery (COD)</span>
+                    <small>Safe &amp; Reliable</small>
+                </div>
             </label>
         </div>
     </div>
 
     {% else %}
-    <!-- Empty Cart State -->
+    <!-- ── Empty Cart ─────────────────────────────────── -->
     <div class="empty-cart">
-        <i class="fa fa-shopping-cart"></i>
-        <h3>Your cart is empty</h3>
-        <p>Looks like you haven't added any items yet.</p>
-        <a href="{% url 'shop:home' %}" class="btn-primary">Start Shopping</a>
+        <div class="empty-cart-icon">🛒</div>
+        <h3>Your cart is empty!</h3>
+        <p>Looks like you haven't added anything yet. Go ahead, explore our products.</p>
+        <a href="{% url 'shop:home' %}" class="btn-place-order" style="text-decoration:none;display:inline-flex;width:auto;padding:14px 40px;">
+            Start Shopping
+        </a>
     </div>
     {% endif %}
-</div>
 
-<!-- Address Modal (Hidden) -->
-<div id="addressModal" class="modal" style="display:none;">
-    <div class="modal-content">
-        <span class="modal-close">&times;</span>
-        <h3>Add Delivery Address</h3>
+</div><!-- /cart-container -->
+
+
+<!-- ── Address Modal ────────────────────────────────── -->
+<div id="addressModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="addressModalTitle">
+    <div class="modal-content address-modal-content">
+        <button class="modal-close" id="closeAddressModal" aria-label="Close">&times;</button>
+        <h3 id="addressModalTitle" style="margin:0 0 20px;font-size:1.2rem;color:#212121;">
+            <i class="fa fa-map-marker-alt" style="color:#2874f0;"></i>
+            Delivery Address
+        </h3>
         <form id="addressForm">
             {% csrf_token %}
-            <input type="text" name="name" placeholder="Full Name" class="form-input" required>
-            <input type="tel" name="phone" placeholder="Phone Number" class="form-input" required pattern="[0-9]{10}">
-            <textarea name="address" placeholder="House No., Street, Area" class="form-input" required></textarea>
-            <input type="text" name="city" placeholder="City" class="form-input" required>
-            <input type="text" name="state" placeholder="State" class="form-input" required>
-            <input type="text" name="postalCode" placeholder="PIN Code" class="form-input" required pattern="[0-9]{6}">
-            <button type="submit" class="btn-primary">SAVE ADDRESS</button>
+            <input type="hidden" name="action" id="addressAction" value="add_address">
+            <input type="hidden" name="address_id" id="addressId">
+            
+            <div class="addr-grid">
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" name="name" id="addrName" class="form-input"
+                           placeholder="Full Name" required
+                           value="{{ user.full_name|default:'' }}">
+                </div>
+                <div class="form-group">
+                    <label>Phone Number</label>
+                    <input type="tel" name="phone" id="addrPhone" class="form-input"
+                           placeholder="10-digit mobile" required
+                           pattern="[0-9]{10}"
+                           value="{{ user.phone|default:'' }}">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>House No., Street, Area</label>
+                <textarea name="address_line1" id="addrLine1" class="form-input" rows="2"
+                          placeholder="Flat / Building / Street / Area" required></textarea>
+            </div>
+            <div class="form-group">
+                <label>Address Line 2 (Optional)</label>
+                <textarea name="address_line2" id="addrLine2" class="form-input" rows="2"
+                          placeholder="Landmark / Area"></textarea>
+            </div>
+            <div class="addr-grid">
+                <div class="form-group">
+                    <label>City</label>
+                    <input type="text" name="city" id="addrCity" class="form-input" placeholder="City" required>
+                </div>
+                <div class="form-group">
+                    <label>State</label>
+                    <input type="text" name="state" id="addrState" class="form-input" placeholder="State" required>
+                </div>
+            </div>
+            <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+                <div class="form-group">
+                    <label>PIN Code</label>
+                    <input type="text" name="postal_code" id="addrPostal" class="form-input"
+                           placeholder="6-digit PIN" required pattern="[0-9]{6}"
+                           style="max-width:200px;">
+                </div>
+                <div class="form-group">
+                    <label>Country</label>
+                    <select name="country" id="addrCountry" class="form-select">
+                        <option value="India">India</option>
+                        <option value="Nepal">Nepal</option>
+                        <option value="Bangladesh">Bangladesh</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row" style="display:grid; grid-template-columns: 1fr auto; gap:12px; align-items:center;">
+                <div class="form-group">
+                    <label>Address Type</label>
+                    <select name="address_type" id="addrType" class="form-select">
+                        <option value="shipping">📦 Shipping Only</option>
+                        <option value="billing">💳 Billing Only</option>
+                        <option value="both" selected>🔄 Both Shipping & Billing</option>
+                    </select>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; margin-top: 25px;">
+                    <input type="checkbox" id="addrDefault" name="is_default" style="width: auto;">
+                    <label for="addrDefault" style="margin: 0; font-weight: normal; font-size: 0.9rem;">Set as default</label>
+                </div>
+            </div>
+            
+            <div id="addressFormError"
+                 style="background:#ffebee;color:#c62828;padding:10px;border-radius:6px;
+                        margin-bottom:12px;display:none;font-size:0.9rem;"></div>
+            <button type="submit" class="btn-place-order" id="saveAddressBtn">
+                <i class="fa fa-check"></i> SAVE ADDRESS
+            </button>
         </form>
     </div>
 </div>
 {% endblock %}
 
+
 {% block scripts %}
 <script>
-const csrfToken = '{{ csrf_token }}';
-const cartItems = document.querySelectorAll('.cart-item');
-const placeOrderBtn = document.getElementById('placeOrderBtn');
-const loginToOrderBtn = document.getElementById('loginToOrderBtn');
+/* ═══════════════════════════════════════════════════════════
+   CART PAGE JAVASCRIPT
+═══════════════════════════════════════════════════════════ */
+const CSRF = '{{ csrf_token }}';
+const UPDATE_CART_URL  = "{% url 'shop:update_cart' %}";
+const CREATE_ORDER_URL = "{% url 'shop:create_order' %}";
+const SAVE_ADDRESS_URL = "{% url 'accounts:profile' %}";
+const IS_AUTH = {{ user.is_authenticated|lower }};
 
-// Quantity Controls
+// ── Helper: local showToast (delegates to base.html global) ──
+function toast(msg, type) {
+    if (typeof window.showToast === 'function') window.showToast(msg, type);
+    else alert(msg);
+}
+
+// ── 1. Quantity Controls ─────────────────────────────────────
 document.querySelectorAll('.qty-btn').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
-        const input = btn.parentElement.querySelector('.qty-input');
-        const productId = btn.closest('.cart-item').dataset.productId;
+    btn.addEventListener('click', async () => {
+        const row   = btn.closest('.cart-item');
+        const input = row.querySelector('.qty-input');
+        const pid   = row.dataset.productId;
         const stock = parseInt(input.dataset.stock);
-        let qty = parseInt(input.value);
-        
-        if (btn.dataset.action === 'increase' && qty < stock) {
+        let   qty   = parseInt(input.value);
+
+        if (btn.dataset.action === 'increase') {
+            if (qty >= stock) { toast(`Only ${stock} in stock`, 'error'); return; }
             qty++;
-        } else if (btn.dataset.action === 'decrease' && qty > 1) {
+        } else {
+            if (qty <= 1) return;
             qty--;
         }
-        
         input.value = qty;
-        await updateCartItem(productId, qty);
+        await updateCartItem(pid, qty);
     });
 });
 
 // Direct input change
 document.querySelectorAll('.qty-input').forEach(input => {
-    input.addEventListener('change', async (e) => {
-        const productId = e.target.closest('.cart-item').dataset.productId;
-        const stock = parseInt(e.target.dataset.stock);
-        let qty = parseInt(e.target.value);
-        
-        // Validate quantity
+    input.addEventListener('change', async () => {
+        const row   = input.closest('.cart-item');
+        const pid   = row.dataset.productId;
+        const stock = parseInt(input.dataset.stock);
+        let   qty   = parseInt(input.value);
         if (isNaN(qty) || qty < 1) qty = 1;
-        if (qty > stock) {
-            qty = stock;
-            alert(`Only ${stock} items available in stock.`);
-        }
-        
-        e.target.value = qty;
-        await updateCartItem(productId, qty);
+        if (qty > stock) { qty = stock; toast(`Only ${stock} available`, 'error'); }
+        input.value = qty;
+        await updateCartItem(pid, qty);
     });
 });
 
-// Remove Item
+// ── 2. Remove Item ───────────────────────────────────────────
 document.querySelectorAll('.remove-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
         if (!confirm('Remove this item from cart?')) return;
-        const productId = btn.closest('.cart-item').dataset.productId;
-        await updateCartItem(productId, 0, 'remove');
+        const pid = btn.closest('.cart-item').dataset.productId;
+        await updateCartItem(pid, 0, 'remove');
     });
 });
 
-// AJAX: Update Cart Item
+// ── 3. AJAX: Update Cart ─────────────────────────────────────
 async function updateCartItem(productId, quantity, action = 'update') {
     try {
-        const res = await fetch("{% url 'shop:update_cart' %}", {
+        const res  = await fetch(UPDATE_CART_URL, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
-            },
-            body: JSON.stringify({
-                product_id: productId,
-                quantity: quantity,
-                action: action
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+            body: JSON.stringify({ product_id: productId, quantity, action })
+        });
+        const data = await res.json();
+
+        if (data.status === 'success') {
+            // ✅ Update both desktop and mobile cart count via global helper
+            if (typeof window.updateCartCount === 'function') {
+                window.updateCartCount(data.cart_count);
+            }
+
+            if (action === 'remove' || quantity === 0) {
+                // Animate out and remove DOM node
+                const item = document.querySelector(`.cart-item[data-product-id="${productId}"]`);
+                if (item) {
+                    item.style.transition = 'opacity 0.3s, transform 0.3s';
+                    item.style.opacity    = '0';
+                    item.style.transform  = 'translateX(-20px)';
+                    setTimeout(() => {
+                        item.remove();
+                        if (!document.querySelector('.cart-item')) {
+                            window.location.reload(); // Cart empty → show empty state
+                        }
+                    }, 320);
+                }
+            } else {
+                // Update subtotal in-place
+                const item  = document.querySelector(`.cart-item[data-product-id="${productId}"]`);
+                const price = parseFloat(
+                    item.querySelector('.item-price').textContent.replace('₹', '').replace(',', '')
+                );
+                item.querySelector('.subtotal-value').textContent = `₹${(price * quantity).toFixed(2)}`;
+                // Reload for accurate grand total (server recalculates)
+                setTimeout(() => location.reload(), 300);
+            }
+        } else {
+            toast(data.message || 'Failed to update cart', 'error');
+        }
+    } catch (err) {
+        toast('Network error: ' + err.message, 'error');
+    }
+}
+
+// ── 4. Place Order ───────────────────────────────────────────
+const placeOrderBtn = document.getElementById('placeOrderBtn');
+if (placeOrderBtn) {
+    placeOrderBtn.addEventListener('click', async () => {
+        // Check address
+        if (!document.querySelector('.address-info')) {
+            openAddressModal();
+            toast('Please add a delivery address first', 'error');
+            return;
+        }
+
+        const paymentMethod = document.querySelector('input[name="payment"]:checked')?.value || 'COD';
+
+        // Build address from DOM (using selected/default address)
+        const addrInfo = document.querySelector('#selectedAddressInfo');
+        const address = {
+            name: addrInfo?.querySelector('strong')?.textContent?.trim() || '{{ user.full_name|escapejs }}',
+            phone: addrInfo?.querySelector('.fa-phone')?.parentElement?.textContent?.trim().replace('📞', '').trim() || '{{ user.phone|escapejs }}',
+            address_line1: addrInfo?.querySelectorAll('p')[1]?.textContent?.trim() || '',
+            address_line2: '',
+            city: '',
+            state: '',
+            postal_code: '',
+            country: 'India'
+        };
+
+        placeOrderBtn.disabled = true;
+        placeOrderBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Processing...';
+
+        try {
+            const res  = await fetch(CREATE_ORDER_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+                body: JSON.stringify({ address, payment_method: paymentMethod })
+            });
+            const data = await res.json();
+
+            if (data.status === 'success') {
+                if (paymentMethod === 'COD') {
+                    window.location.href = `/orders/success/${data.unique_order_id}/`;
+                } else {
+                    // Razorpay
+                    const rzp = new Razorpay({
+                        key:         data.razorpay_key,
+                        amount:      data.amount,
+                        currency:    data.currency,
+                        name:        data.name,
+                        description: data.description,
+                        order_id:    data.razorpay_order_id,
+                        prefill:     data.prefill,
+                        theme:       { color: '#2874f0' },
+                        handler: function (response) {
+                            window.location.href =
+                                `/orders/success/${data.unique_order_id}/?payment_id=${response.razorpay_payment_id}`;
+                        },
+                        modal: {
+                            ondismiss: function () {
+                                toast('Payment cancelled. You can retry anytime.', 'error');
+                                placeOrderBtn.disabled = false;
+                                placeOrderBtn.innerHTML = '<i class="fa fa-lock"></i> PLACE ORDER';
+                            }
+                        }
+                    });
+                    rzp.open();
+                }
+            } else {
+                toast(data.error || 'Order placement failed. Please try again.', 'error');
+                placeOrderBtn.disabled = false;
+                placeOrderBtn.innerHTML = '<i class="fa fa-lock"></i> PLACE ORDER';
+            }
+        } catch (err) {
+            toast('Network error: ' + err.message, 'error');
+            placeOrderBtn.disabled = false;
+            placeOrderBtn.innerHTML = '<i class="fa fa-lock"></i> PLACE ORDER';
+        }
+    });
+}
+
+// ── 5. Login to Order ────────────────────────────────────────
+const loginToOrderBtn = document.getElementById('loginToOrderBtn');
+if (loginToOrderBtn) {
+    loginToOrderBtn.addEventListener('click', () => {
+        // ✅ FIX: use the class-based modal opener exposed by base.html
+        if (typeof window.openLoginModal === 'function') {
+            window.openLoginModal();
+        } else {
+            // Fallback: add .show class directly
+            const modal = document.getElementById('loginModal');
+            if (modal) {
+                modal.classList.add('show');
+                document.body.style.overflow = 'hidden';
+            }
+        }
+        sessionStorage.setItem('cartReturn', window.location.pathname);
+    });
+}
+
+// ── 6. Address Modal & Management ─────────────────────────────────
+const addressModal = document.getElementById('addressModal');
+const addressForm = document.getElementById('addressForm');
+const addAddressBtn = document.getElementById('addAddressBtn');
+const addressSelector = document.getElementById('addressSelector');
+
+// Open modal for add or edit
+window.openAddressModal = (mode = 'add', addressId = null) => {
+    if (!addressModal) return;
+    
+    // Reset form
+    addressForm.reset();
+    document.getElementById('addressAction').value = mode === 'edit' ? 'update_address' : 'add_address';
+    document.getElementById('addressId').value = addressId || '';
+    document.getElementById('addressFormError').style.display = 'none';
+    
+    // If editing, pre-fill form (simplified - in production, fetch via API)
+    if (mode === 'edit' && addressId) {
+        // You would fetch address data here via API
+        // For now, we'll just show a message
+        toast('Edit mode: Fetching address details...', 'info');
+    }
+    
+    addressModal.classList.add('show');
+    document.body.style.overflow = 'hidden';
+};
+
+function closeAddressFn() {
+    if (!addressModal) return;
+    addressModal.classList.remove('show');
+    document.body.style.overflow = '';
+}
+
+// Button listeners
+addAddressBtn?.addEventListener('click', () => openAddressModal('add'));
+document.getElementById('closeAddressModal')?.addEventListener('click', closeAddressFn);
+addressModal?.addEventListener('click', (e) => {
+    if (e.target === addressModal) closeAddressFn();
+});
+
+// Address selector change (if multiple addresses)
+addressSelector?.addEventListener('change', (e) => {
+    const addressId = e.target.value;
+    // In production, fetch address details via API and update UI
+    // For now, just reload to show selected address
+    window.location.search = `?address=${addressId}`;
+});
+
+// Set default address
+window.setDefaultAddress = async (addressId) => {
+    if (!confirm('Set this address as your default for checkout?')) return;
+    
+    try {
+        const res = await fetch("{% url 'accounts:profile' %}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+            body: JSON.stringify({ 
+                action: 'set_default_address', 
+                address_id: addressId 
             })
         });
         const data = await res.json();
         
         if (data.status === 'success') {
-            // Update cart count in header
-            document.getElementById('cart-count').textContent = data.cart_count;
-            
-            // If item removed, fade out and remove from DOM
-            if (action === 'remove' || quantity === 0) {
-                const item = document.querySelector(`.cart-item[data-product-id="${productId}"]`);
-                if (item) {
-                    item.style.opacity = '0';
-                    item.style.transform = 'translateX(-20px)';
-                    setTimeout(() => {
-                        item.remove();
-                        // Refresh page if cart is now empty
-                        if (document.querySelectorAll('.cart-item').length === 0) {
-                            window.location.reload();
-                        }
-                    }, 300);
-                }
-            } else {
-                // Recalculate subtotal for this item
-                const item = document.querySelector(`.cart-item[data-product-id="${productId}"]`);
-                const price = parseFloat(item.querySelector('.item-price').textContent.replace('₹', ''));
-                item.querySelector('.item-subtotal strong').textContent = `₹${(price * quantity).toFixed(2)}`;
-                
-                // Update total in price details (simplified - in production, recalculate server-side)
-                location.reload(); // For simplicity, reload to update totals
-            }
+            toast('Default address updated!', 'success');
+            setTimeout(() => location.reload(), 500);
         } else {
-            alert(data.message || 'Failed to update cart');
+            toast(data.message || 'Failed to update default', 'error');
         }
     } catch (err) {
-        alert('Network error: ' + err.message);
+        toast('Network error: ' + err.message, 'error');
     }
-}
+};
 
-
-
-// Place Order (Authenticated Users)
-if (placeOrderBtn) {
-    placeOrderBtn.addEventListener('click', async () => {
-        // Validate address if not set
-        const hasAddress = document.querySelector('.address-card p strong');
-        if (!hasAddress) {
-            document.getElementById('addressModal').style.display = 'flex';
-            return;
-        }
+// Save Address Form (AJAX)
+if (addressForm) {
+    addressForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('saveAddressBtn');
+        const errEl = document.getElementById('addressFormError');
+        const formData = new FormData(e.target);
+        const payload = Object.fromEntries(formData.entries());
         
-        // Get selected payment method
-        const paymentMethod = document.querySelector('input[name="payment"]:checked').value;
-        
-        // Get address from DOM (simplified - in production, fetch from backend)
-        const address = {
-            name: document.querySelector('.address-card strong')?.textContent || '{{ user.full_name }}',
-            phone: '{{ user.phone }}',
-            address: document.querySelector('.address-card p:nth-child(2)')?.textContent || '',
-            city: '', state: '', postalCode: '' // Parse from DOM or fetch from backend
-        };
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving...';
+        if (errEl) errEl.style.display = 'none';
         
         try {
-            const res = await fetch("{% url 'shop:create_order' %}", {
+            const res = await fetch(SAVE_ADDRESS_URL, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken
-                },
-                body: JSON.stringify({
-                    address: address,
-                    payment_method: paymentMethod
-                })
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+                body: JSON.stringify(payload)
             });
             const data = await res.json();
             
             if (data.status === 'success') {
-                if (paymentMethod === 'COD') {
-                    // COD: Redirect to success page
-                    window.location.href = `/orders/success/${data.unique_order_id}/`;
-                } else {
-                    // Online Payment: Open Razorpay
-                    const options = {
-                        "key": data.razorpay_key,
-                        "amount": data.amount,
-                        "currency": data.currency,
-                        "name": data.name,
-                        "description": data.description,
-                        "order_id": data.razorpay_order_id,
-                        "prefill": data.prefill,
-                        "theme": { "color": "#2874f0" },
-                        "handler": function(response) {
-                            // Payment successful - redirect to order success
-                            window.location.href = `/orders/success/${data.unique_order_id}/?payment_id=${response.razorpay_payment_id}`;
-                        },
-                        "modal": {
-                            "ondismiss": function() {
-                                alert('Payment cancelled. Please complete your order.');
-                            }
-                        }
-                    };
-                    const rzp = new Razorpay(options);
-                    rzp.open();
-                }
+                toast('Address saved!', 'success');
+                closeAddressFn();
+                setTimeout(() => location.reload(), 600);
             } else {
-                alert(data.error || 'Order placement failed');
+                if (errEl) {
+                    errEl.textContent = data.message || 'Could not save address.';
+                    errEl.style.display = 'block';
+                }
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa fa-check"></i> SAVE ADDRESS';
             }
         } catch (err) {
-            alert('Network error: ' + err.message);
+            toast('Network error: ' + err.message, 'error');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa fa-check"></i> SAVE ADDRESS';
         }
     });
 }
 
-// Login to Order (Unauthenticated Users)
-if (loginToOrderBtn) {
-    loginToOrderBtn.addEventListener('click', () => {
-        // Open login modal from base.html
-        document.getElementById('loginModal').style.display = 'flex';
-        // Store cart return URL
-        sessionStorage.setItem('cartReturn', window.location.pathname);
-    });
-}
-
-// Address Modal Handling
-const addressModal = document.getElementById('addressModal');
-document.getElementById('addAddressBtn')?.addEventListener('click', () => {
-    addressModal.style.display = 'flex';
-});
-document.getElementById('editAddressBtn')?.addEventListener('click', () => {
-    // Pre-fill form with existing address (simplified)
-    addressModal.style.display = 'flex';
-});
-document.querySelector('.modal-close')?.addEventListener('click', () => {
-    addressModal.style.display = 'none';
-});
-window.addEventListener('click', (e) => {
-    if (e.target === addressModal) addressModal.style.display = 'none';
-});
-
-// Save Address (AJAX)
-document.getElementById('addressForm')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const address = Object.fromEntries(formData.entries());
-    
-    try {
-        // In production, save to backend via API
-        // For now, simulate success
-        alert('Address saved!');
-        addressModal.style.display = 'none';
-        location.reload(); // Refresh to show updated address
-    } catch (err) {
-        alert('Failed to save address: ' + err.message);
-    }
-});
-
-// Auto-open login modal if redirected from cart after login
+// ── 8. Auto-open login if redirected back after session ──────
 document.addEventListener('DOMContentLoaded', () => {
     const cartReturn = sessionStorage.getItem('cartReturn');
-    if (cartReturn && window.location.pathname === cartReturn && !'{{ user.is_authenticated }}') {
-        document.getElementById('loginModal').style.display = 'flex';
+    if (cartReturn && window.location.pathname === cartReturn && !IS_AUTH) {
+        window.openLoginModal?.();
         sessionStorage.removeItem('cartReturn');
     }
 });
 </script>
 
+
 <style>
-/* Cart Page Styles */
-.cart-container { max-width: 1200px; margin: 40px auto; padding: 0 20px; }
-.cart-header { 
-    display: flex; justify-content: space-between; align-items: center; 
-    margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid #eee; 
+/* ═══════════════════════════════════════════════
+   CART PAGE STYLES
+═══════════════════════════════════════════════ */
+.cart-container {
+    max-width: 1200px;
+    margin: 30px auto;
+    padding: 0 20px;
 }
-.cart-header h2 { font-size: 1.8rem; color: #212121; }
-.back-link { color: #2874f0; font-weight: 500; }
+
+/* Header */
+.cart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #eee;
+}
+.cart-header h2 {
+    font-size: 1.6rem;
+    color: #212121;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.back-link {
+    color: #2874f0;
+    font-weight: 500;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.95rem;
+}
 .back-link:hover { text-decoration: underline; }
 
-.cart-grid { 
-    display: grid; grid-template-columns: 2fr 1fr; gap: 30px; 
+/* Grid */
+.cart-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 24px;
+    align-items: start;
 }
 
-/* Cart Items */
-.cart-items { display: flex; flex-direction: column; gap: 20px; }
-.cart-item { 
-    display: grid; grid-template-columns: 120px 1fr; gap: 20px; 
-    background: white; padding: 20px; border-radius: 12px; 
-    box-shadow: 0 2px 12px rgba(0,0,0,0.08); 
-}
-.item-image { 
-    width: 120px; height: 120px; border-radius: 8px; overflow: hidden; 
-    background: #f5f5f5; display: flex; align-items: center; justify-content: center; 
-}
-.item-image img { width: 100%; height: 100%; object-fit: cover; }
-.no-image { color: #999; font-size: 0.9rem; }
+/* ── Cart Items ──────────────────────────────── */
+.cart-items { display: flex; flex-direction: column; gap: 16px; }
 
-.item-details h4 { 
-    font-size: 1.1rem; margin-bottom: 5px; 
+.cart-item {
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    gap: 20px;
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+    border: 1px solid #f0f0f0;
+    transition: box-shadow 0.2s;
 }
-.item-details h4 a { color: #212121; }
-.item-seller { 
-    font-size: 0.85rem; color: #666; margin-bottom: 10px; 
+.cart-item:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+
+.item-image {
+    width: 110px;
+    height: 110px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #f8f8f8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #eee;
 }
-.item-price { 
-    font-weight: 700; color: #2874f0; font-size: 1.2rem; margin-bottom: 15px; 
+.item-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.no-image {
+    color: #bbb;
+    font-size: 2rem;
 }
 
-.item-actions { 
-    display: flex; justify-content: space-between; align-items: center; 
-    margin-bottom: 15px; 
+.item-details h4 {
+    font-size: 1rem;
+    margin: 0 0 4px;
+    line-height: 1.4;
 }
-.quantity-control { 
-    display: flex; align-items: center; gap: 10px; 
-    border: 1px solid #ddd; border-radius: 8px; padding: 5px; 
+.item-details h4 a {
+    color: #212121;
+    text-decoration: none;
 }
-.qty-btn { 
-    width: 30px; height: 30px; border: none; background: #f0f0f0; 
-    border-radius: 6px; font-size: 1.2rem; cursor: pointer; 
+.item-details h4 a:hover { color: #2874f0; }
+
+.item-seller {
+    font-size: 0.82rem;
+    color: #888;
+    margin: 0 0 10px;
+}
+
+.item-price-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+.item-price {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #212121;
+}
+.item-price-original {
+    font-size: 0.9rem;
+    color: #aaa;
+    text-decoration: line-through;
+}
+.item-discount-badge {
+    background: #e8f5e9;
+    color: #2e7d32;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.item-actions {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.quantity-control {
+    display: flex;
+    align-items: center;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    overflow: hidden;
+}
+.qty-btn {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: #f5f5f5;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: background 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 .qty-btn:hover { background: #e0e0e0; }
-.qty-input { 
-    width: 50px; text-align: center; border: none; font-size: 1rem; 
-    -moz-appearance: textfield; 
+.qty-input {
+    width: 46px;
+    text-align: center;
+    border: none;
+    border-left: 1px solid #ddd;
+    border-right: 1px solid #ddd;
+    font-size: 0.95rem;
+    height: 32px;
+    -moz-appearance: textfield;
 }
 .qty-input::-webkit-outer-spin-button,
-.qty-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.qty-input::-webkit-inner-spin-button { -webkit-appearance: none; }
 
-.remove-btn { 
-    background: none; border: none; color: #c62828; 
-    font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 5px; 
+.remove-btn, .wishlist-btn {
+    background: none;
+    border: none;
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 10px;
+    border-radius: 5px;
+    transition: background 0.15s;
 }
-.remove-btn:hover { color: #b71c1c; }
+.remove-btn  { color: #c62828; }
+.remove-btn:hover  { background: #ffebee; }
+.wishlist-btn { color: #555; }
+.wishlist-btn:hover { background: #f5f5f5; color: #2874f0; }
 
-.item-subtotal { 
-    font-size: 1rem; color: #333; 
+.item-subtotal {
+    font-size: 0.95rem;
+    color: #444;
+    margin: 0 0 6px;
 }
-.low-stock-warning { 
-    font-size: 0.85rem; color: #ff5252; margin-top: 5px; 
+.item-delivery {
+    font-size: 0.82rem;
+    color: #555;
+    margin: 0;
+}
+.low-stock-warning {
+    font-size: 0.82rem;
+    color: #e65100;
+    margin: 4px 0 0;
 }
 
-/* Price Details */
-.price-details { 
-    background: white; padding: 25px; border-radius: 12px; 
-    box-shadow: 0 2px 12px rgba(0,0,0,0.08); height: fit-content; 
-    position: sticky; top: 100px; 
+/* ── Price Details ───────────────────────────── */
+.price-details {
+    background: white;
+    padding: 24px;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+    border: 1px solid #f0f0f0;
+    position: sticky;
+    top: 130px;  /* below navbar + cat-nav */
 }
-.price-details h3 { 
-    font-size: 1.3rem; margin-bottom: 20px; padding-bottom: 15px; 
-    border-bottom: 1px solid #eee; 
+.price-details h3 {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #888;
+    letter-spacing: 0.06em;
+    margin: 0 0 18px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #eee;
 }
-.price-row { 
-    display: flex; justify-content: space-between; margin-bottom: 12px; 
-    font-size: 0.95rem; 
-}
-.price-row.total-row { 
-    font-size: 1.2rem; padding-top: 15px; border-top: 2px solid #eee; margin-top: 10px; 
+.price-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    font-size: 0.95rem;
+    color: #333;
 }
 .discount { color: #388e3c; font-weight: 600; }
-.free { color: #388e3c; font-weight: 600; }
-.free-delivery-hint { 
-    font-size: 0.85rem; color: #666; margin: 10px 0; 
+.free     { color: #388e3c; font-weight: 600; }
+.price-divider {
+    border-top: 1px dashed #ddd;
+    margin: 16px 0;
+}
+.total-row {
+    font-size: 1.1rem;
+    color: #212121;
+    margin-bottom: 6px;
+}
+.savings-msg {
+    background: #e8f5e9;
+    color: #2e7d32;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.free-delivery-hint {
+    font-size: 0.82rem;
+    color: #f57c00;
+    background: #fff8e1;
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin: 10px 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
-.btn-primary { 
-    width: 100%; padding: 14px; background: #2874f0; color: white; 
-    border: none; border-radius: 10px; font-weight: 600; font-size: 1rem; 
-    cursor: pointer; margin: 20px 0 10px; transition: background 0.2s; 
+.btn-place-order {
+    width: 100%;
+    padding: 15px;
+    background: linear-gradient(135deg, #fb641b, #f4511e);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+    margin: 8px 0 14px;
+    letter-spacing: 0.04em;
+    transition: transform 0.15s, box-shadow 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
 }
-.btn-primary:hover { background: #1a56c4; }
-.login-hint { 
-    font-size: 0.85rem; color: #666; text-align: center; 
+.btn-place-order:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(251,100,27,0.35);
 }
-.secure-badge { 
-    text-align: center; font-size: 0.85rem; color: #666; 
-    display: flex; align-items: center; justify-content: center; gap: 6px; 
+.btn-place-order:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
 }
 
-/* Delivery Address */
-.delivery-address-section { 
-    margin-top: 30px; background: white; padding: 25px; 
-    border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); 
+.login-hint {
+    font-size: 0.82rem;
+    color: #888;
+    text-align: center;
+    margin: 0 0 12px;
 }
-.delivery-address-section h3 { 
-    font-size: 1.3rem; margin-bottom: 15px; 
+.secure-badge {
+    text-align: center;
+    font-size: 0.8rem;
+    color: #888;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 4px;
 }
-.address-card { 
-    background: #f8f9fa; padding: 15px; border-radius: 8px; 
-}
-.address-card p { margin: 5px 0; font-size: 0.95rem; }
+.secure-badge i { color: #388e3c; }
 
-/* Payment Preview */
-.payment-preview { 
-    margin-top: 20px; background: white; padding: 25px; 
-    border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); 
+/* ── Delivery Address ────────────────────────── */
+.delivery-address-section {
+    margin-top: 24px;
+    background: white;
+    padding: 24px;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+    border: 1px solid #f0f0f0;
 }
-.payment-preview h3 { 
-    font-size: 1.3rem; margin-bottom: 15px; 
+.delivery-address-section h3 { font-size: 1.1rem; margin: 0 0 16px; }
+
+.address-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
 }
+.address-header-row h3 {
+    margin: 0;
+    font-size: 1.1rem;
+}
+.form-select-sm {
+    padding: 6px 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    background: white;
+}
+
+.address-card {
+    background: #f8f9ff;
+    border: 1px solid #e0e8ff;
+    border-radius: 10px;
+    padding: 16px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+}
+.address-info p { margin: 4px 0; font-size: 0.92rem; color: #333; }
+.address-tag {
+    display: inline-block;
+    background: #2874f0;
+    color: white;
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 3px;
+    margin-left: 8px;
+    letter-spacing: 0.05em;
+}
+.no-address {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #888;
+    font-size: 0.9rem;
+}
+.no-address i { font-size: 1.3rem; color: #bbb; }
+
+.address-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+.address-actions .btn-outline-sm {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+}
+
+.btn-outline-sm {
+    background: none;
+    border: 1px solid #2874f0;
+    color: #2874f0;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.btn-outline-sm:hover { background: #f0f4ff; }
+
+/* ── Payment ─────────────────────────────────── */
+.payment-preview {
+    margin-top: 20px;
+    background: white;
+    padding: 24px;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+    border: 1px solid #f0f0f0;
+}
+.payment-preview h3 { font-size: 1.1rem; margin: 0 0 16px; }
+
 .payment-options { display: flex; flex-direction: column; gap: 12px; }
-.payment-option { 
-    display: flex; align-items: center; gap: 12px; padding: 12px; 
-    border: 2px solid #eee; border-radius: 10px; cursor: pointer; 
-    transition: border-color 0.2s; 
+.payment-option {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    border: 2px solid #eee;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.15s;
 }
-.payment-option:hover { border-color: #2874f0; }
-.payment-option input[type="radio"] { 
-    width: 18px; height: 18px; cursor: pointer; 
-}
-.payment-icon { 
-    font-size: 1.5rem; display: flex; align-items: center; 
-}
-.payment-option span { flex: 1; font-size: 0.95rem; }
-.payment-option small { 
-    display: block; color: #666; font-size: 0.85rem; margin-top: 3px; 
-}
-.offer-badge { 
-    background: #fff8e1; color: #f57f17; padding: 4px 10px; 
-    border-radius: 20px; font-size: 0.8rem; font-weight: 600; 
-}
-
-/* Empty Cart */
-.empty-cart { 
-    text-align: center; padding: 60px 20px; background: white; 
-    border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); 
-}
-.empty-cart i { 
-    font-size: 4rem; color: #ccc; margin-bottom: 20px; 
-}
-.empty-cart h3 { 
-    font-size: 1.5rem; margin-bottom: 10px; color: #212121; 
-}
-.empty-cart p { 
-    color: #666; margin-bottom: 25px; 
+.payment-option:hover { border-color: #2874f0; background: #f8f9ff; }
+.payment-option:has(input:checked) { border-color: #2874f0; background: #f0f4ff; }
+.payment-option input[type="radio"] { width: 18px; height: 18px; cursor: pointer; accent-color: #2874f0; }
+.payment-icon { display: flex; align-items: center; }
+.payment-text { flex: 1; }
+.payment-text span { display: block; font-weight: 600; font-size: 0.95rem; }
+.payment-text small { color: #888; font-size: 0.82rem; }
+.offer-badge {
+    background: #fff8e1;
+    color: #f57f17;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    white-space: nowrap;
 }
 
-/* Responsive */
-@media (max-width: 768px) {
+/* ── Address Modal ───────────────────────────── */
+.address-modal-content {
+    background: white;
+    padding: 30px;
+    border-radius: 14px;
+    width: 90%;
+    max-width: 520px;
+    position: relative;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    max-height: 90vh;
+    overflow-y: auto;
+}
+.address-modal-content .modal-close {
+    position: absolute;
+    top: 14px;
+    right: 18px;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #999;
+    background: none;
+    border: none;
+}
+.addr-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+/* ── Empty Cart ──────────────────────────────── */
+.empty-cart {
+    text-align: center;
+    padding: 80px 20px;
+    background: white;
+    border-radius: 14px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+}
+.empty-cart-icon { font-size: 5rem; margin-bottom: 20px; }
+.empty-cart h3 { font-size: 1.6rem; color: #212121; margin-bottom: 10px; }
+.empty-cart p  { color: #888; margin-bottom: 30px; }
+
+/* ── Responsive ──────────────────────────────── */
+@media (max-width: 900px) {
     .cart-grid { grid-template-columns: 1fr; }
     .price-details { position: static; }
-    .cart-item { grid-template-columns: 100px 1fr; }
-    .item-image { width: 100px; height: 100px; }
-    .payment-options { flex-direction: column; }
+}
+@media (max-width: 600px) {
+    .cart-item { grid-template-columns: 90px 1fr; gap: 14px; padding: 16px; }
+    .item-image { width: 90px; height: 90px; }
+    .item-actions { gap: 8px; }
+    .address-card { flex-direction: column; }
+    .addr-grid { grid-template-columns: 1fr; }
+    .cart-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+    .address-header-row { flex-direction: column; align-items: flex-start; gap: 10px; }
 }
 </style>
 {% endblock %}

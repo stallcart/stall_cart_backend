@@ -753,3 +753,80 @@ img { max-width: 100%; height: auto; display: block; }
 @media (max-width: 992px) { .product-detail-container { grid-template-columns: 1fr; } .product-gallery .main-image { aspect-ratio: 4/3; } }
 @media (max-width: 768px) { .price-box { flex-direction: column; align-items: flex-start; gap: 5px; } .action-row { flex-direction: column; } .btn-lg { width: 100%; } .tab-headers { flex-wrap: wrap; } .specs-table th, .specs-table td { padding: 10px; font-size: 0.9rem; } .specs-table th { width: 40%; } }
 @media (max-width: 480px) { .thumb { width: 60px; height: 60px; } .final-price { font-size: 1.5rem; } .qty-selector { width: 100%; justify-content: center; } }
+
+
+/* Gender Badge */
+.gender-badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(40, 116, 240, 0.9);
+    color: white;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    z-index: 2;
+}
+
+
+/* Address Cards */
+.address-card, .shop-address-card {
+    background: #f8f9fa; padding: 15px; border-radius: 8px;
+    border-left: 4px solid var(--primary-color, #2874f0);
+    margin-bottom: 15px; position: relative;
+}
+.address-card.default-address {
+    border-left-color: #2e7d32; background: #e8f5e9;
+}
+.address-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 8px; flex-wrap: wrap; gap: 8px;
+}
+.address-header strong { font-size: 1.05rem; }
+.address-actions {
+    display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap;
+}
+.address-actions .btn-sm { padding: 4px 10px; font-size: 0.8rem; }
+.btn-danger {
+    background: #ffebee; border: 1px solid #ffcdd2; color: #c62828;
+}
+.btn-danger:hover { background: #ffcdd2; }
+
+/* Responsive */
+@media (max-width: 768px) {
+    .address-header { flex-direction: column; align-items: flex-start; }
+    .address-actions { flex-direction: column; }
+    .address-actions .btn-sm { width: 100%; text-align: center; }
+}
+
+
+
+/* Address Header Row */
+.address-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+.address-header-row h3 {
+    margin: 0;
+    font-size: 1.1rem;
+}
+.form-select-sm {
+    padding: 6px 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    background: white;
+}
+.address-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+.address-actions .btn-outline-sm {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+}

@@ -19,6 +19,7 @@ class ProductForm(forms.ModelForm):
             'name', 'slug', 'short_description', 'description',
             'price', 'mrp', 'cost_price', 'discount_percent',
             'stock', 'low_stock_threshold', 'status',
+            'gender',
             'primary_image',
             'brand', 'sku', 'weight', 'dimensions',
             'meta_title', 'meta_description',
@@ -38,6 +39,8 @@ class ProductForm(forms.ModelForm):
             'stock': forms.NumberInput(attrs={'class': 'form-input'}),
             'low_stock_threshold': forms.NumberInput(attrs={'class': 'form-input'}),
             'status': forms.Select(attrs={'class': 'form-select'}),
+            'gender': forms.Select(attrs={'class': 'form-select'}),  # ✅ Gender dropdown
+
             'primary_image': forms.ClearableFileInput(attrs={'class': 'form-input'}),
             'brand': forms.TextInput(attrs={'class': 'form-input'}),
             'sku': forms.TextInput(attrs={'class': 'form-input'}),

@@ -64,7 +64,12 @@
                     {% else %}
                         <div class="no-image">No Image</div>
                     {% endif %}
-                    
+                    <!-- ✅ Gender Badge -->
+                    {% if product.gender %}
+                        <span class="gender-badge">
+                            {{ product.get_gender_display }}
+                        </span>
+                    {% endif %}
                     {% if product.discount_percent > 0 %}
                         <span class="discount-badge">-{{ product.discount_percent }}%</span>
                     {% endif %}
@@ -131,6 +136,12 @@
             <a href="{% url 'items:product_detail' product.slug %}">
                 {% if product.primary_image %}
                     <img src="{{ product.primary_image.url }}" alt="{{ product.name }}">
+                {% endif %}
+                <!-- ✅ Gender Badge -->
+                {% if product.gender %}
+                    <span class="gender-badge">
+                        {{ product.get_gender_display }}
+                    </span>
                 {% endif %}
                 {% if product.discount_percent > 0 %}
                     <span class="discount-badge">-{{ product.discount_percent }}%</span>
