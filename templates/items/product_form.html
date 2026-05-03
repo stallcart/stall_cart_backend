@@ -228,15 +228,18 @@
                 </div>
                 
                 <div class="form-group">
-                    <label for="additionalImages">Additional Images</label>
-                    <input type="file" name="images" id="additionalImages" class="form-input" multiple accept="image/*">
-                    <small class="form-help">Upload multiple images (gallery view). Max 5 images.</small>
+                    <label for="{{ form.additional_images.id_for_label }}">Additional Images</label>
+                    {{ form.additional_images }}
+                    {% if form.additional_images.errors %}
+                        <div class="field-error">{{ form.additional_images.errors.0 }}</div>
+                    {% endif %}
+                    <small class="form-help">Upload up to 5 additional images (JPG, PNG, WebP)</small>
                     
                     <!-- Additional Images Preview -->
                     <div class="image-preview-grid" id="additionalImagesPreview">
                         {% if product and product.product_image_product.all %}
                             {% for img in product.product_image_product.all %}
-                                <div class="preview-thumb">
+                                <div class="preview-thumb existing" data-img-id="{{ img.id }}">
                                     <img src="{{ img.image.url }}" alt="Additional image">
                                     <button type="button" class="remove-thumb" title="Remove">×</button>
                                 </div>
@@ -355,22 +358,19 @@ document.addEventListener('DOMContentLoaded', function() {
     function slugify(text) {
         return text.toString().toLowerCase()
             .trim()
-            .replace(/[^\w\s-]/g, '')          // Remove non-word chars
-            .replace(/[\s_-]+/g, '-')          // Replace spaces/underscores with hyphen
-            .replace(/^-+|-+$/g, '');          // Trim hyphens from ends
+            .replace(/[^\w\s-]/g, '')
+            .replace(/[\s_-]+/g, '-')
+            .replace(/^-+|-+$/g, '');
     }
     
-    // Auto-generate slug as user types (only if slug is empty or matches old slug)
     let originalSlug = slugInput?.value || '';
     nameInput?.addEventListener('input', function() {
         if (!slugInput) return;
-        // Only auto-update if slug hasn't been manually edited
         if (slugInput.value === originalSlug || !originalSlug) {
             slugInput.value = slugify(this.value);
         }
     });
     
-    // Manual generate button
     generateBtn?.addEventListener('click', function() {
         if (nameInput && slugInput) {
             slugInput.value = slugify(nameInput.value);
@@ -417,7 +417,7 @@ document.addEventListener('DOMContentLoaded', function() {
     [priceInput, mrpInput, discountInput].forEach(input => {
         input?.addEventListener('input', updatePricePreview);
     });
-    updatePricePreview(); // Initial call
+    updatePricePreview();
     
     // ── 3. Image Preview ────────────────────────────────────────────
     // Primary image preview
@@ -435,22 +435,23 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Additional images preview
-    const additionalImagesInput = document.getElementById('additionalImages');
+    const additionalImagesInput = document.getElementById('{{ form.additional_images.id_for_label }}');
     const additionalPreview = document.getElementById('additionalImagesPreview');
     
     additionalImagesInput?.addEventListener('change', function(e) {
         if (this.files) {
-            // Clear existing previews (except existing ones from DB)
-            const existingThumbs = additionalPreview.querySelectorAll('.preview-thumb:not(.existing)');
-            existingThumbs.forEach(thumb => thumb.remove());
+            // Clear new previews (keep existing DB images)
+            const newThumbs = additionalPreview.querySelectorAll('.preview-thumb.new');
+            newThumbs.forEach(thumb => thumb.remove());
             
             // Limit to 5 total images
             const maxImages = 5;
-            const files = Array.from(this.files).slice(0, maxImages);
+            const existingCount = additionalPreview.querySelectorAll('.preview-thumb.existing').length;
+            const availableSlots = maxImages - existingCount;
+            
+            const files = Array.from(this.files).slice(0, Math.min(availableSlots, this.files.length));
             
             files.forEach((file, index) => {
-                if (index >= maxImages) return;
-                
                 const reader = new FileReader();
                 reader.onload = function(event) {
                     const thumb = document.createElement('div');
@@ -461,21 +462,54 @@ document.addEventListener('DOMContentLoaded', function() {
                     `;
                     additionalPreview.appendChild(thumb);
                     
-                    // Remove thumb on click
                     thumb.querySelector('.remove-thumb')?.addEventListener('click', function() {
                         thumb.remove();
                     });
                 };
                 reader.readAsDataURL(file);
             });
+            
+            if (this.files.length > availableSlots) {
+                showToast(`Only ${availableSlots} more images allowed (max 5 total)`, 'error');
+            }
         }
     });
     
-    // Remove existing image thumb
-    document.querySelectorAll('.preview-thumb .remove-thumb').forEach(btn => {
-        btn.addEventListener('click', function() {
-            this.closest('.preview-thumb').remove();
-        });
+    // Remove image thumb (new or existing)
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('remove-thumb')) {
+            const thumb = e.target.closest('.preview-thumb');
+            const imgId = thumb?.dataset.imgId;
+            
+            if (!imgId) {
+                // New unsaved image - just remove from preview
+                thumb.remove();
+                return;
+            }
+            
+            // Existing saved image - confirm and send AJAX delete
+            if (confirm('Remove this image permanently?')) {
+                fetch(`/items/api/image/${imgId}/delete/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        thumb.remove();
+                        showToast('Image removed', 'success');
+                    } else {
+                        showToast(data.message || 'Failed to remove', 'error');
+                    }
+                })
+                .catch(err => {
+                    showToast('Network error: ' + err.message, 'error');
+                });
+            }
+        }
     });
     
     // ── 4. Delete/Archive Confirmation ─────────────────────────────
@@ -537,12 +571,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const saveBtn = document.getElementById('saveBtn');
     
     productForm?.addEventListener('submit', function(e) {
-        // Basic client-side validation
         const requiredFields = productForm.querySelectorAll('[required]');
         let hasError = false;
         
         requiredFields.forEach(field => {
-            if (!field.value.trim()) {
+            if (!field.value.trim() && field.type !== 'file') {
                 field.classList.add('error');
                 hasError = true;
             } else {
@@ -591,6 +624,33 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
         document.head.appendChild(style);
     }
+    
+    // ── 7. Client-Side Image Validation ────────────────────────────
+    additionalImagesInput?.addEventListener('change', function(e) {
+        const files = this.files;
+        const maxSize = 5 * 1024 * 1024; // 5MB
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+        
+        for (let file of files) {
+            if (file.size > maxSize) {
+                showToast(`Image "${file.name}" is too large (max 5MB)`, 'error');
+                this.value = '';
+                return false;
+            }
+            if (!allowedTypes.includes(file.type)) {
+                showToast(`Image "${file.name}" must be JPG, PNG, or WebP`, 'error');
+                this.value = '';
+                return false;
+            }
+        }
+        
+        const existingCount = additionalPreview?.querySelectorAll('.preview-thumb.existing').length || 0;
+        if (files.length + existingCount > 5) {
+            showToast('Maximum 5 images allowed total', 'error');
+            this.value = '';
+            return false;
+        }
+    });
 });
 </script>
 {% endblock %}

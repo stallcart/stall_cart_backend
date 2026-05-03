@@ -8,7 +8,8 @@ from django.db.models import Q, Sum , F
 from .models import Product, Category, SellerProfile, ProductImage
 from .forms import ProductForm
 from common.decorators import *
-
+from PIL import Image
+import io
 # ---------------------------------------------------------------------------
 # Permission helpers
 # ---------------------------------------------------------------------------
@@ -170,40 +171,60 @@ def seller_dashboard(request):
 # ---------------------------------------------------------------------------
 
 
+
 @seller_or_admin_only
 def product_create(request):
     if request.method == 'POST':
-        form = ProductForm(request.POST, request.FILES, is_superuser=request.user.is_superuser,request_user=request.user )
+        form = ProductForm(
+            request.POST, 
+            request.FILES, 
+            is_superuser=request.user.is_superuser,
+            request_user=request.user
+        )
         if form.is_valid():
             product = form.save(commit=False)
-
+            
             if not request.user.is_superuser:
                 product.seller = request.user.seller_profile
-
+            
             product.created_by = request.user
             product.save()
-
-            # Handle multiple additional images
-            files = request.FILES.getlist('images')
-            if files:
-                for i, img in enumerate(files):
+            
+            # ✅ Handle Primary Image
+            if form.cleaned_data.get('primary_image'):
+                product.primary_image = form.cleaned_data['primary_image']
+                product.save(update_fields=['primary_image'])
+            
+            # ✅ Handle Additional Images
+            additional_images = form.cleaned_data.get('additional_images')
+            if additional_images:
+                for i, img_file in enumerate(additional_images):
                     ProductImage.objects.create(
                         product=product,
-                        image=img,
-                        # If no primary image set, make the first uploaded image primary
-                        is_primary=(i == 0 and not product.primary_image),
+                        image=img_file,
+                        is_primary=(i == 0 and not product.primary_image),  # First as primary if none set
                         display_order=i,
+                        alt_text=product.name
                     )
-
-            messages.success(request, f'Product "{product.name}" created successfully!')
+            
+            messages.success(request, f'✅ Product "{product.name}" created successfully!')
             return redirect('items:admin_dashboard')
+        else:
+            print("❌ Form errors:", form.errors)
+            for field, errors in form.errors.items():
+                messages.error(request, f"{field}: {errors[0]}")
     else:
-        form = ProductForm(is_superuser=request.user.is_superuser,request_user=request.user )
-
+        form = ProductForm(
+            is_superuser=request.user.is_superuser,
+            request_user=request.user
+        )
+    
     return render(request, 'items/product_form.html', {
-        'form': form, 'title': 'Add New Product', 'action': 'Create',
+        'form': form,
+        'title': 'Add New Product',
+        'action': 'Create',
+        'is_superuser': request.user.is_superuser,
     })
-
 
 # ---------------------------------------------------------------------------
 # Product Edit
@@ -212,39 +233,76 @@ def product_create(request):
 @seller_or_admin_only
 def product_edit(request, product_id):
     product = _get_product_for_user(request.user, product_id)
-    print(product)
+    
     if request.method == 'POST':
-        form = ProductForm(request.POST, request.FILES, instance=product,
-            is_superuser=request.user.is_superuser,request_user=request.user)
+        # ✅ Pass request.FILES to handle image uploads
+        form = ProductForm(
+            request.POST, 
+            request.FILES, 
+            instance=product,
+            is_superuser=request.user.is_superuser,
+            request_user=request.user
+        )
+        
         if form.is_valid():
+            # Save form data to instance but don't commit to DB yet
             updated = form.save(commit=False)
-
-            if not request.user.is_superuser:
+            
+            # Handle seller assignment
+            if request.user.is_superuser:
+                # Superuser can change seller via form
+                updated.seller = form.cleaned_data.get('seller')
+            else:
+                # Seller can only edit their own products
                 updated.seller = request.user.seller_profile
-
+            
             updated.updated_by = request.user
-            updated.save()
-
-            # Handle Additional Images:
-            # If user uploads new images, delete old additional images first to prevent duplicates
-            files = request.FILES.getlist('images')
-            if files:
-                product.product_image_product.all().delete()
-                for i, img in enumerate(files):
+            updated.save()  # Now commit to DB
+            
+            # ✅ Handle Primary Image Change
+            # If primary_image was changed in form, update it
+            if 'primary_image' in form.changed_data and form.cleaned_data.get('primary_image'):
+                updated.primary_image = form.cleaned_data['primary_image']
+                updated.save(update_fields=['primary_image'])
+            
+            # ✅ Handle Additional Images Upload
+            additional_images = form.cleaned_data.get('additional_images')
+            if additional_images:
+                # Get current max display_order
+                max_order = product.product_image_product.aggregate(
+                    models.Max('display_order')
+                )['display_order__max'] or -1
+                
+                for i, img_file in enumerate(additional_images):
                     ProductImage.objects.create(
                         product=updated,
-                        image=img,
-                        is_primary=False, # Additional images are not primary by default in edit mode
-                        display_order=i,
+                        image=img_file,
+                        is_primary=False,  # Additional images are never primary
+                        display_order=max_order + i + 1,
+                        alt_text=updated.name
                     )
-
-            messages.success(request, f'Product "{updated.name}" updated!')
+            
+            messages.success(request, f'✅ Product "{updated.name}" updated successfully!')
             return redirect('items:admin_dashboard')
+        else:
+            # ✅ Show form errors for debugging
+            print("❌ Form errors:", form.errors)
+            for field, errors in form.errors.items():
+                messages.error(request, f"{field}: {errors[0]}")
     else:
-        form = ProductForm(instance=product, is_superuser=request.user.is_superuser,request_user=request.user)
-
+        # GET request - populate form with existing data
+        form = ProductForm(
+            instance=product,
+            is_superuser=request.user.is_superuser,
+            request_user=request.user
+        )
+    
     return render(request, 'items/product_form.html', {
-        'form': form, 'product': product, 'title': f'Edit: {product.name}', 'action': 'Update',
+        'form': form,
+        'product': product,
+        'title': f'Edit: {product.name}',
+        'action': 'Update',
+        'is_superuser': request.user.is_superuser,
     })
 
 # ---------------------------------------------------------------------------
@@ -445,5 +503,46 @@ def product_detail(request, slug):
         'related_products': related,
         'is_in_stock': product.stock > 0,
         'cart_count': cart_count, 
+        'show_category_nav': True,
     }
     return render(request, 'shop/product_detail.html', context)
+
+
+@require_POST
+@seller_or_admin_only
+def delete_product_image(request, image_id):
+    """Delete a product image (AJAX)"""
+    image = get_object_or_404(ProductImage, pk=image_id)
+    
+    # Check permissions
+    if not request.user.is_superuser and image.product.seller.user != request.user:
+        return JsonResponse({'status': 'error', 'message': 'Permission denied'}, status=403)
+    
+    # Delete image file and record
+    if image.image:
+        image.image.delete(save=False)  # Delete file from storage
+    image.delete()
+    
+    return JsonResponse({'status': 'success', 'message': 'Image deleted'})
+
+def compress_image(image_file, max_size=1024):
+    """Compress image to max_size pixels while maintaining aspect ratio"""
+    img = Image.open(image_file)
+    if img.width > max_size or img.height > max_size:
+        img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
+    
+    # Convert to RGB if necessary (for JPEG)
+    if img.mode in ('RGBA', 'P'):
+        img = img.convert('RGB')
+    
+    # Save to bytes
+    output = io.BytesIO()
+    img.save(output, format='JPEG', quality=85, optimize=True)
+    output.seek(0)
+    
+    # Create a new InMemoryUploadedFile
+    from django.core.files.uploadedfile import InMemoryUploadedFile
+    return InMemoryUploadedFile(
+        output, 'image', f"{image_file.name.rsplit('.', 1)[0]}.jpg",
+        'image/jpeg', output.getbuffer().nbytes, None
+    )

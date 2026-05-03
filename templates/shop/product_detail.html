@@ -245,10 +245,20 @@
                     {% endif %}
                 </div>
                 {% if user.role == 'customer' or not user.is_authenticated %}
-                    <button class="btn-add-cart-quick" data-product-id="{{ p.id }}" data-stock="{{ p.stock }}">
-                        {% if p.stock > 0 %}+ Cart{% else %}Out{% endif %}
-                    </button>
+                    <!-- <button class="btn-add-cart-quick" data-product-id="{{ p.id }}" data-stock="{{ p.stock }}">
+                        {% if p.stock > 0 %} Add to Cart{% else %}Out{% endif %}
+                    </button> -->
+                    <button class="btn-add-cart" 
+                        data-product-id="{{ p.id }}" 
+                        data-stock="{{ p.stock }}">
+                    {% if p.stock > 0 %}
+                        <i class="fa fa-cart-plus"></i> Add to Cart
+                    {% else %}
+                        <span class="out-of-stock">Out of Stock</span>
+                    {% endif %}
+                </button>
                 {% endif %}
+
                 <div class="share-buttons">
                     <a href="https://wa.me/?text={{ request.build_absolute_uri }}" target="_blank">
                         <i class="fa fa-whatsapp"></i> Share
