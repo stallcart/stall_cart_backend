@@ -30,7 +30,7 @@ class BaseModel(models.Model):
         null=True, blank=True, related_name='%(class)s_updated_by', verbose_name="Updated By"
     )
     is_active = models.BooleanField(default=True, verbose_name="Is Active")
-
+    is_deleted = models.BooleanField(default=False,verbose_name="Is Deleted")
     class Meta:
         abstract = True
 

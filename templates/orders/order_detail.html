@@ -99,9 +99,15 @@
             {% if order.status == 'delivered' %}
             <button class="btn-primary">📝 Rate & Review</button>
             {% endif %}
-            <a href="{% url 'orders:invoice' order.order_id %}" class="btn-outline" target="_blank">
-                🧾 Download Invoice
-            </a>
+            {% if order.unique_order_id %}
+
+                <a href="{% url 'orders:invoice' order.unique_order_id %}" class="btn-outline" target="_blank">
+                    🧾 Download Invoice
+                </a>
+            {% else %}
+                <span class="text-danger">Order ID missing</span>
+            {% endif %}
+
         </div>
     </div>
 </div>

@@ -493,7 +493,12 @@ def product_detail(request, slug):
         .select_related('seller')
         .prefetch_related('product_image_product')[:4]
     )
+    cart_count = 0
     if request.user.is_authenticated and request.user.role == 'customer':
+        cart = getattr(request.user, 'cart', None)
+        if cart:
+            cart_count = cart.total_items
+    else:
         cart = request.session.get('cart', {})
         cart_count = sum(cart.values())
         
