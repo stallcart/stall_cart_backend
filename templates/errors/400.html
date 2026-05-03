@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}Bad Request{% endblock %}
+{% block content %}
+<div class="error-page">
+    <div class="error-icon">⛔</div>
+    <h1>Bad Request</h1>
+    <p>The server couldn't understand your request. Please try again.</p>
+    <a href="{% url 'shop:home' %}" class="btn-primary">Go Home</a>
+</div>
+{% endblock %}

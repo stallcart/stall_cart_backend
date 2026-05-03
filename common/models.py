@@ -3,7 +3,7 @@ import os
 import threading
 from django.db import models
 from django.conf import settings
-from django.core.validators import FileExtensionValidator
+from django.core.validators import FileExtensionValidator 
 from PIL import Image
 
 # Thread-local storage for tracking the current request user
@@ -190,3 +190,17 @@ class SiteSettings(models.Model):
             site = get_current_site(None)  # Requires django.contrib.sites
             return f"https://{site.domain}{self.logo_primary.url}"
         return ''
+    def clean_logo_url(self):
+        if self.logo_url:
+            # Optional: Check image dimensions using PIL
+            from PIL import Image
+            import io
+            try:
+                img = Image.open(io.BytesIO(self.logo_url.read()))
+                width, height = img.size
+                if width > 500 or height > 100:
+                    raise ValidationError("Logo should be max 500×100px for best display.")
+                self.logo_url.seek(0)  # Reset file pointer
+            except:
+                pass  # Skip validation if PIL not available
+        return self.logo_url

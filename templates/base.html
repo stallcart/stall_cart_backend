@@ -19,6 +19,19 @@
     <link href="{% static 'css/style.css' %}" rel="stylesheet">
     
     <style>
+        /* Logo container */
+        .logo {
+            display: flex;
+            align-items: center;
+            flex-shrink: 0; /* Prevent logo from shrinking on small screens */
+        }
+        .logo img {
+            height: 40px;
+            width: auto;
+            max-width: 150px;
+            object-fit: contain;
+            display: block;
+        }
         /* ═══════════════════════════════════════════════
            NAVBAR
         ═══════════════════════════════════════════════ */
@@ -507,6 +520,135 @@
         /* ── Toast animations ───────────────────────── */
         @keyframes _toastIn  { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes _toastOut { from { transform: translateY(0); opacity: 1; } to { transform: translateY(20px); opacity: 0; } }
+        /* ── Cart Badge (Desktop) ─────────────────────────────── */
+        .cart-link { position: relative; font-weight: 600; }
+        .cart-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #ff5252;
+            color: white;
+            font-size: 0.7rem;
+            min-width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            padding: 0 3px;
+            transition: transform 0.15s ease;
+            /* ✅ Prevent overflow */
+            box-sizing: border-box;
+            z-index: 10;
+        }
+
+        /* ── Mobile Cart Badge ───────────────────────────────── */
+        .mobile-cart-badge {
+            background: #ff5252;
+            color: #fff;
+            font-size: 0.72rem;
+            min-width: 18px;
+            height: 18px;
+            border-radius: 9px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 4px;
+            font-weight: 700;
+            margin-left: 4px;
+            /* ✅ Fix overflow on mobile */
+            flex-shrink: 0;
+            vertical-align: middle;
+            box-sizing: border-box;
+        }
+
+        /* ✅ Mobile-specific fixes */
+        @media (max-width: 900px) {
+            .nav-actions {
+                gap: 8px; /* Reduce gap on mobile */
+            }
+            .cart-link {
+                position: relative;
+            }
+            .cart-badge {
+                /* Ensure badge stays within bounds on mobile nav */
+                top: -4px;
+                right: -4px;
+                min-width: 14px;
+                height: 14px;
+                font-size: 0.65rem;
+                padding: 0 2px;
+            }
+            .mobile-nav-content a {
+                /* Ensure flex items don't push badge out */
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                width: 100%;
+            }
+            .mobile-cart-badge {
+                /* Ensure badge doesn't wrap or overflow */
+                margin-left: auto; /* Push to right */
+                flex-shrink: 0;
+            }
+        }
+
+        /* ✅ Very small screens */
+        @media (max-width: 480px) {
+            .cart-badge {
+                min-width: 12px;
+                height: 12px;
+                font-size: 0.6rem;
+                top: -3px;
+                right: -3px;
+            }
+            .mobile-cart-badge {
+                min-width: 16px;
+                height: 16px;
+                font-size: 0.65rem;
+            }
+        }
+
+        /* Password Toggle Button */
+        .password-toggle {
+            transition: color 0.2s ease;
+            opacity: 0.7;
+        }
+        .password-toggle:hover,
+        .password-toggle:focus {
+            color: #2874f0;
+            opacity: 1;
+            outline: none;
+        }
+        .password-toggle:active {
+            transform: translateY(-50%) scale(0.95);
+        }
+
+        /* Ensure form inputs have room for toggle */
+        .form-input {
+            padding-right: 40px !important; /* Space for eye icon */
+        }
+
+        /* Mobile adjustments */
+        @media (max-width: 480px) {
+            .password-toggle {
+                width: 28px;
+                height: 28px;
+                font-size: 1.2rem;
+                right: 8px;
+            }
+            .form-input {
+                padding-right: 44px !important;
+            }
+        }
+
+        /* Accessibility: Focus visible */
+        .password-toggle:focus-visible {
+            outline: 2px solid #2874f0;
+            outline-offset: 2px;
+            border-radius: 4px;
+        }
     </style>
 
     {% block extra_css %}{% endblock %}
@@ -522,11 +664,27 @@
     <div class="nav-container">
 
         <!-- Logo -->
-        <a href="{% url 'shop:home' %}" class="logo">
+        <a href="{% url 'shop:home' %}" class="logo" style="display: flex; align-items: center;">
             {% if site_settings.logo_url %}
-                <img src="{{ site_settings.logo_url }}" alt="{{ site_settings.site_name }}" height="40">
+                <img src="{{ site_settings.logo_url }}" 
+                    alt="{{ site_settings.site_name }}" 
+                    style="
+                        height: 40px;           /* ✅ Fixed height */
+                        width: auto;            /* ✅ Auto width to maintain ratio */
+                        max-width: 150px;       /* ✅ Cap width for very wide logos */
+                        object-fit: contain;    /* ✅ Prevent distortion */
+                        display: block;
+                    "
+                    loading="lazy">
             {% else %}
-                <span style="font-size:1.5rem; font-weight:700; color:#2874f0;">{{ site_settings.site_name }}</span>
+                <span style="
+                    font-size: 1.5rem; 
+                    font-weight: 700; 
+                    color: #2874f0;
+                    white-space: nowrap;        /* ✅ Prevent text wrapping */
+                ">
+                    {{ site_settings.site_name }}
+                </span>
             {% endif %}
         </a>
 
@@ -612,18 +770,15 @@
 <!-- ═══════════════════════════════════════════════════════
      FLIPKART-STYLE CATEGORY NAV (Centered & Context-Aware)
 ═══════════════════════════════════════════════════════ -->
-{% if show_category_nav %}
+<!-- {% if show_category_nav %}
 <nav class="cat-nav-wrapper" id="catNavWrapper" aria-label="Shop by category">
     
-    <!-- Scroll Left Button -->
     <button class="cat-scroll-btn" id="catScrollLeft" aria-label="Scroll categories left">
         <i class="fa fa-chevron-left"></i>
     </button>
     
-    <!-- Category Items Container -->
     <div class="cat-nav" id="catNav" role="list">
         
-        <!-- Top Offers — always first -->
         <a href="{% url 'shop:home' %}" 
            class="cat-item {% if request.resolver_match.url_name == 'home' and not filters.category %}active{% endif %}" 
            role="listitem">
@@ -633,7 +788,6 @@
             <span class="cat-label">Top Offers</span>
         </a>
 
-        <!-- Dynamic categories from context -->
         {% for cat in categories %}
         <a href="{% url 'items:product_list' %}?category={{ cat.slug }}"
            class="cat-item {% if filters.category == cat.slug %}active{% endif %}"
@@ -671,7 +825,6 @@
             
             <span class="cat-label">{{ cat.name }}</span>
             
-            <!-- Subcategory dropdown (if has children) -->
             {% if cat.children.exists %}
                 <span class="cat-chevron">▼</span>
                 <div class="cat-dropdown">
@@ -687,13 +840,12 @@
         
     </div>
     
-    <!-- Scroll Right Button -->
     <button class="cat-scroll-btn" id="catScrollRight" aria-label="Scroll categories right">
         <i class="fa fa-chevron-right"></i>
     </button>
     
 </nav>
-{% endif %}
+{% endif %} -->
 
 <!-- ═══════════════════════════════════════════════════════
      MOBILE SLIDE-OUT MENU
@@ -731,8 +883,10 @@
             <a href="{% url 'items:admin_dashboard' %}"><i class="fa fa-store"></i> Seller Panel</a>
         {% endif %}
         {% if not user.is_authenticated or user.role == 'customer' %}
-            <a href="{% url 'shop:cart' %}">
-                <i class="fa fa-shopping-cart"></i> Cart
+            <a href="{% url 'shop:cart' %}" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                <span style="display: flex; align-items: center; gap: 12px;">
+                    <i class="fa fa-shopping-cart"></i> Cart
+                </span>
                 <!-- ✅ Mobile cart count badge -->
                 <span class="mobile-cart-badge" id="cart-count-mobile">{{ cart_count|default:0 }}</span>
             </a>
@@ -764,12 +918,38 @@
                      style="color:#c62828;font-size:0.85rem;display:none;margin-top:4px;"></div>
             </div>
 
+            <!-- In the login modal, update the password field section -->
             <div class="form-group">
                 <label for="loginPassword">Password</label>
-                <input type="password" id="loginPassword" name="password" class="form-input"
-                       required placeholder="Enter password" autocomplete="current-password">
+                <div style="position: relative;">
+                    <input type="password" id="loginPassword" name="password" class="form-input"
+                        required placeholder="Enter password" autocomplete="current-password"
+                        style="padding-right: 40px;">
+                    <button type="button" class="password-toggle" 
+                            aria-label="Show password"
+                            style="
+                                position: absolute;
+                                right: 12px;
+                                top: 50%;
+                                transform: translateY(-50%);
+                                background: none;
+                                border: none;
+                                color: #666;
+                                cursor: pointer;
+                                padding: 4px;
+                                font-size: 1.1rem;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                width: 24px;
+                                height: 24px;
+                            "
+                            onclick="togglePassword('loginPassword', this)">
+                        <i class="fa fa-eye" id="loginPasswordIcon"></i>
+                    </button>
+                </div>
                 <div class="error-msg" id="passwordError"
-                     style="color:#c62828;font-size:0.85rem;display:none;margin-top:4px;"></div>
+                    style="color:#c62828;font-size:0.85rem;display:none;margin-top:4px;"></div>
                 <a href="{% url 'accounts:forgot_password' %}" class="forgot-link">Forgot Password?</a>
             </div>
 
@@ -1043,6 +1223,45 @@ document.addEventListener('DOMContentLoaded', () => {
                 behavior: 'smooth' 
             });
         }
+    });
+});
+
+// ═══════════════════════════════════════════════════════════
+//  PASSWORD VISIBILITY TOGGLE
+//  Usage: togglePassword('inputId', buttonElement)
+// ═══════════════════════════════════════════════════════════
+window.togglePassword = function(inputId, toggleBtn) {
+    const input = document.getElementById(inputId);
+    const icon = toggleBtn.querySelector('i');
+    
+    if (!input || !icon) return;
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+        toggleBtn.setAttribute('aria-label', 'Hide password');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+        toggleBtn.setAttribute('aria-label', 'Show password');
+    }
+    
+    // Focus back on input for better UX
+    input.focus();
+};
+
+// Auto-initialize any password toggles on page load
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.password-toggle').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const inputId = this.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
+            if (inputId) {
+                window.togglePassword(inputId, this);
+            }
+        });
     });
 });
 </script>

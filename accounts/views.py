@@ -341,7 +341,7 @@ def profile_view(request):
                 order__status='delivered'
             ).aggregate(total=models.Sum('total'))['total'] or 0,
             'rating': seller.rating,
-            'rating_count': seller.rating_count,
+            # 'rating_count': seller.rating_count if seller.rating_count else 0,
         }
         
         # Seller's recent orders

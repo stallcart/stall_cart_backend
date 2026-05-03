@@ -75,15 +75,40 @@
         <h4 class="mb-3">🔐 Set Password</h4>
         
         <div class="form-group">
-            <label for="{{ form.password1.id_for_label }}"><i class="fa fa-lock"></i> {{ form.password1.label }}</label>
-            {{ form.password1 }}
-            {% if form.password1.errors %}<div class="error-text">{{ form.password1.errors.0 }}</div>{% endif %}
+            <label for="{{ form.password1.id_for_label }}">
+                <i class="fa fa-lock"></i> {{ form.password1.label }}
+            </label>
+            <div class="password-wrapper">
+                {{ form.password1 }}
+                <button type="button" 
+                        class="password-toggle" 
+                        onclick="togglePassword('{{ form.password1.id_for_label }}', this)"
+                        aria-label="Toggle password visibility">
+                    <i class="fa fa-eye"></i>
+                </button>
+            </div>
+            {% if form.password1.errors %}
+                <div class="error-text">{{ form.password1.errors.0 }}</div>
+            {% endif %}
         </div>
-        
+
+        <!-- Password 2 (Confirm) -->
         <div class="form-group">
-            <label for="{{ form.password2.id_for_label }}"><i class="fa fa-lock"></i> {{ form.password2.label }}</label>
-            {{ form.password2 }}
-            {% if form.password2.errors %}<div class="error-text">{{ form.password2.errors.0 }}</div>{% endif %}
+            <label for="{{ form.password2.id_for_label }}">
+                <i class="fa fa-lock"></i> {{ form.password2.label }}
+            </label>
+            <div class="password-wrapper">
+                {{ form.password2 }}
+                <button type="button" 
+                        class="password-toggle" 
+                        onclick="togglePassword('{{ form.password2.id_for_label }}', this)"
+                        aria-label="Toggle password visibility">
+                    <i class="fa fa-eye"></i>
+                </button>
+            </div>
+            {% if form.password2.errors %}
+                <div class="error-text">{{ form.password2.errors.0 }}</div>
+            {% endif %}
         </div>
         
         {% if form.non_field_errors %}
@@ -209,5 +234,37 @@ document.addEventListener('DOMContentLoaded', () => {
     .role-options { gap: 8px; }
     .role-option { padding: 10px 12px; font-size: 0.9rem; }
 }
+
+.password-wrapper {
+    position: relative;
+    width: 100%;
+}
+.password-wrapper input {
+    padding-right: 45px !important; /* Space for eye icon */
+}
+.password-toggle {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #888;
+    padding: 6px;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+}
+.password-toggle:hover {
+    color: var(--primary-color, #2874f0);
+    background: rgba(40, 116, 240, 0.08);
+}
 </style>
+
 {% endblock %}
