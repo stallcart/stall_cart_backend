@@ -7,13 +7,16 @@
 <div class="product-form-container">
     <!-- Page Header -->
     <div class="form-header">
-        <h2>📦 {{ title|default:"Add New Product" }}</h2>
-        <p class="text-muted">
-            {% if action == 'Create' %}Add a new product to your catalog{% endif %}
-            {% if action == 'Update' %}Edit product details and inventory{% endif %}
-        </p>
+        <div>
+            <h2>📦 {{ title|default:"Add New Product" }}</h2>
+            <p class="text-muted">
+                {% if action == 'Create' %}Add a new product to your catalog{% endif %}
+                {% if action == 'Update' %}Edit product details and inventory{% endif %}
+            </p>
+        </div>
+
         <a href="{% url 'items:admin_dashboard' %}" class="back-link">
-            <i class="fa fa-arrow-right"></i> Back to Dashboard
+            <i class="fa fa-arrow-left"></i> Back to Dashboard
         </a>
     </div>
 
@@ -603,6 +606,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
 .form-header {
     margin-bottom: 25px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
 }
 .form-header h2 {
     margin: 0 0 5px;
