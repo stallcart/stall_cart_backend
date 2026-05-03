@@ -38,7 +38,7 @@ class SiteSettingsAdmin(admin.ModelAdmin):
     # Organize fields into logical sections
     fieldsets = (
         ('🏷️ Basic Info', {
-            'fields': ('site_name', 'site_tagline', 'meta_description')
+            'fields': ('site_name', 'site_tagline', 'meta_description','about_us')
         }),
         ('🖼️ Logos', {
             'fields': ('logo_primary', 'logo_dark', 'logo_mobile', 'logo_preview'),
