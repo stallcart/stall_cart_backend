@@ -1,38 +1,37 @@
 # items/forms.py
 from django import forms
-from .models import Product, Category, SellerProfile
+from django.core.validators import FileExtensionValidator
+from .models import Product, Category, SellerProfile, ProductImage
 
-
-# items/forms.py
-
+# Custom widget for multiple file uploads
 class MultiFileInput(forms.ClearableFileInput):
     allow_multiple_selected = True
+    template_name = 'django/forms/widgets/clearable_file_input.html'  # Use default template
+
 class ProductForm(forms.ModelForm):
-    """
-    Shared form for both sellers and superusers.
-    
-    - Sellers: seller field is hidden (auto-assigned)
-    - Superusers: seller field is a clean dropdown with search-ready styling
-    """
-    images = forms.FileField(
+    # ✅ Separate field for additional images (not in Meta.fields)
+    additional_images = forms.FileField(
         required=False,
         widget=MultiFileInput(attrs={
-            'class': 'form-input'
-        })
+            'class': 'form-input',
+            'multiple': 'multiple',
+            'accept': 'image/*'
+        }),
+        validators=[FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png', 'webp'])],
+        help_text="Upload up to 5 additional images (JPG, PNG, WebP)"
     )
+    
     class Meta:
         model = Product
         fields = [
-            # ── shown to everyone ──────────────────────────────────────────
             'name', 'slug', 'short_description', 'description',
             'price', 'mrp', 'cost_price', 'discount_percent',
             'stock', 'low_stock_threshold', 'status',
-            'gender',
-            'primary_image',
-            'brand', 'sku', 'weight', 'dimensions',
-            'meta_title', 'meta_description',
-            'is_featured', 'is_hot_deal',
+            'gender', 'primary_image', 'brand', 'sku', 
+            'weight', 'dimensions', 'meta_title', 
+            'meta_description', 'is_featured', 'is_hot_deal',
             'category',
+            # ❌ Do NOT include 'seller' here - we add it conditionally below
         ]
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Product name'}),
@@ -47,7 +46,10 @@ class ProductForm(forms.ModelForm):
             'low_stock_threshold': forms.NumberInput(attrs={'class': 'form-input', 'min': 0, 'placeholder': '5'}),
             'status': forms.Select(attrs={'class': 'form-select'}),
             'gender': forms.Select(attrs={'class': 'form-select'}),
-            'primary_image': forms.ClearableFileInput(attrs={'class': 'form-input'}),
+            'primary_image': forms.ClearableFileInput(attrs={
+                'class': 'form-input',
+                'accept': 'image/*'
+            }),
             'brand': forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Brand name'}),
             'sku': forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'SKU-123'}),
             'weight': forms.NumberInput(attrs={'class': 'form-input', 'step': '0.01', 'placeholder': 'in grams'}),
@@ -58,34 +60,35 @@ class ProductForm(forms.ModelForm):
         }
     
     def __init__(self, *args, **kwargs):
-        # Pop custom kwargs before calling super()
         self.is_superuser = kwargs.pop('is_superuser', False)
         self.request_user = kwargs.pop('request_user', None)
         
         super().__init__(*args, **kwargs)
         
-        # ✅ Only add seller field for superusers
+        # Make required fields explicitly required
+        for field_name in ['name', 'price', 'stock', 'category', 'status']:
+            self.fields[field_name].required = True
+        
+        # ✅ Add seller field for superusers only
         if self.is_superuser:
-            from .models import SellerProfile
             self.fields['seller'] = forms.ModelChoiceField(
                 queryset=SellerProfile.objects.filter(is_verified=True).select_related('user'),
                 required=True,
                 label='👑 Admin Control: Assign to Seller',
                 empty_label='Select a verified seller...',
                 widget=forms.Select(attrs={
-                    'class': 'form-select seller-select',  # ✅ Custom class for styling
+                    'class': 'form-select seller-select',
                     'style': 'border-color: #2874f0; font-weight: 600;'
                 })
             )
-            # Pre-select current seller if editing
             if self.instance.pk and self.instance.seller:
                 self.fields['seller'].initial = self.instance.seller
         else:
-            # For sellers, ensure seller is set but not shown in form
+            # Auto-assign seller for non-superusers
             if self.instance.pk and not self.instance.seller and self.request_user and hasattr(self.request_user, 'seller_profile'):
                 self.instance.seller = self.request_user.seller_profile
     
-    # ── validation ────────────────────────────────────────────────────────────
+    # Validation methods
     def clean_price(self):
         price = self.cleaned_data.get('price')
         if price is not None and price <= 0:
@@ -101,7 +104,7 @@ class ProductForm(forms.ModelForm):
     def clean(self):
         cleaned = super().clean()
         price = cleaned.get('price')
-        mrp   = cleaned.get('mrp')
+        mrp = cleaned.get('mrp')
         if price and mrp and mrp < price:
             self.add_error('mrp', 'MRP should be ≥ selling price.')
         return cleaned

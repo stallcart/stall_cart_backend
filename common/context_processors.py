@@ -1,5 +1,6 @@
 from .models import SiteSettings
-
+from django.core.cache import cache
+from items.models import Category
 def site_settings(request):
     settings = SiteSettings.get_singleton()
     logo_url = settings.logo_primary.url if settings.logo_primary else ''
@@ -25,3 +26,12 @@ def cart_count(request):
         cart = request.session.get('cart', {})
         count = sum(cart.values())
     return {'cart_count': count}
+
+def get_categories():
+    categories = cache.get('main_categories')
+    if not categories:
+        categories = Category.objects.filter(
+            is_active=True, parent__isnull=True
+        ).prefetch_related('children').order_by('name')
+        cache.set('main_categories', categories, 3600)  # Cache for 1 hour
+    return categories

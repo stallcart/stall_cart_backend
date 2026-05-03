@@ -119,18 +119,27 @@
                     data-sku="{{ product.sku|lower }}">
 
                     <td class="item-cell">
-                        {% if product.primary_image %}
-                            <img src="{{ product.primary_image.url }}" alt="{{ product.name }}"
-                                 onerror="this.src='{% static 'images/placeholder.png' %}'">
-                        {% else %}
-                            <div class="img-placeholder">No Image</div>
-                        {% endif %}
-                        <div class="item-info">
-                            <strong>{{ product.name }}</strong>
-                            <small class="text-muted">SKU: {{ product.sku|default:"—" }}</small>
-                            {% if product.is_featured %}<span class="mini-badge featured">★ Featured</span>{% endif %}
-                            {% if product.is_hot_deal %}<span class="mini-badge hot">🔥 Hot</span>{% endif %}
-                        </div>
+                        <a href="{% url 'items:product_detail' product.slug %}" target="_blank" class="product-link">
+                            
+                            {% if product.primary_image %}
+                                <img src="{{ product.primary_image.url }}" alt="{{ product.name }}">
+                            {% else %}
+                                <div class="img-placeholder">No Image</div>
+                            {% endif %}
+                            
+                            <div class="item-info">
+                                <strong>{{ product.name }}</strong>
+                                <small class="text-muted">SKU: {{ product.sku|default:"—" }}</small>
+                                
+                                {% if product.is_featured %}
+                                    <span class="mini-badge featured">★ Featured</span>
+                                {% endif %}
+                                {% if product.is_hot_deal %}
+                                    <span class="mini-badge hot">🔥 Hot</span>
+                                {% endif %}
+                            </div>
+
+                        </a>
                     </td>
 
                     <td>{{ product.category.name|default:"Uncategorized" }}</td>
@@ -327,6 +336,17 @@ document.querySelectorAll('.btn-icon.delete').forEach(btn => {
     .panel-header{flex-direction:column;gap:12px;}
     .dash-tabs{padding:4px;gap:2px;}
     .dash-tab{padding:8px 10px;font-size:.8rem;}
+}
+
+.product-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-decoration: none;
+    color: inherit;
+}
+.product-link:hover strong {
+    color: #2874f0;
 }
 </style>
 {% endblock %}

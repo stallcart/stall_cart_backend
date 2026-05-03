@@ -47,4 +47,5 @@ urlpatterns = [
     path('product/<slug:slug>/', 
          views.product_detail, 
          name='product_detail'),
+    path('api/image/<int:image_id>/delete/', views.delete_product_image, name='delete_product_image'),     
 ]

@@ -31,6 +31,7 @@ def home(request):
         'categories': categories,
         'cart_count': cart_count,
         'user_role': request.user.role if request.user.is_authenticated else None,
+        'show_category_nav': True,
     }
     return render(request, 'shop/home.html', context)
 
@@ -168,7 +169,8 @@ def cart_view(request):
         'default_address': default_address,  # ✅ Pass to template
         'user_addresses': user_addresses,    # ✅ Pass to template
         'cart_count': sum(cart.values()),
-        'remaining_amount_for_free_delivery':remaining_amount_for_free_delivery
+        'remaining_amount_for_free_delivery':remaining_amount_for_free_delivery,
+        'show_category_nav': False,
     }
     
     if request.user.is_authenticated and hasattr(request.user, 'address') and request.user.address:

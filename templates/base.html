@@ -307,6 +307,9 @@
         /* ═══════════════════════════════════════════════
            FLIPKART-STYLE CATEGORY NAV
         ═══════════════════════════════════════════════ */
+        /* ═══════════════════════════════════════════════
+        CENTERED CATEGORY NAV
+        ═══════════════════════════════════════════════ */
         .cat-nav-wrapper {
             background: #fff;
             border-bottom: 1px solid #e8ecf0;
@@ -316,9 +319,13 @@
             z-index: 900;
             display: flex;
             align-items: center;
+            justify-content: center;
+            padding: 0 10px;
         }
+
         .cat-nav {
             max-width: 1280px;
+            width: 100%;
             margin: 0 auto;
             padding: 0 4px;
             display: flex;
@@ -328,6 +335,7 @@
             scrollbar-width: none;
             -ms-overflow-style: none;
             flex: 1;
+            justify-content: flex-start;
         }
         .cat-nav::-webkit-scrollbar { display: none; }
 
@@ -339,21 +347,25 @@
             padding: 10px 16px 8px;
             cursor: pointer;
             border-bottom: 3px solid transparent;
-            transition: border-color 0.2s, background 0.15s;
+            transition: border-color 0.2s, background 0.15s, transform 0.15s;
             text-decoration: none;
             color: #444;
             white-space: nowrap;
             flex-shrink: 0;
             position: relative;
+            min-width: 72px;
         }
         .cat-item:hover {
             background: #f5f8ff;
             border-bottom-color: #2874f0;
+            transform: translateY(-2px);
         }
         .cat-item.active {
             border-bottom-color: #2874f0;
             color: #2874f0;
+            font-weight: 600;
         }
+
         .cat-icon {
             width: 56px;
             height: 56px;
@@ -379,7 +391,9 @@
             box-shadow: 0 6px 16px rgba(40,116,240,0.2);
             border-color: #2874f0;
         }
-        .cat-item.active .cat-icon { background: #e8f0fe; }
+        .cat-item.active .cat-icon { 
+            background: #e8f0fe; 
+        }
 
         .cat-label {
             font-size: 0.76rem;
@@ -391,10 +405,16 @@
             white-space: nowrap;
             letter-spacing: 0.01em;
         }
+
         .cat-chevron {
             font-size: 0.6rem;
             opacity: 0.45;
             margin-top: -3px;
+            transition: transform 0.2s;
+        }
+        .cat-item:hover .cat-chevron {
+            transform: rotate(180deg);
+            opacity: 0.8;
         }
 
         /* Subcategory dropdown */
@@ -454,22 +474,34 @@
             flex-shrink: 0;
             margin: 0 6px;
             transition: box-shadow 0.2s;
+            z-index: 901;
         }
-        .cat-scroll-btn:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-        .cat-nav-wrapper.overflowing .cat-scroll-btn { display: flex; }
+        .cat-scroll-btn:hover { 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border-color: #2874f0;
+            color: #2874f0;
+        }
+        .cat-nav-wrapper.overflowing .cat-scroll-btn { 
+            display: flex; 
+        }
 
         /* Responsive */
         @media (max-width: 900px) {
-            .nav-search { display: none; }
-            .mobile-menu-btn { display: block; }
-            .nav-actions { display: none; }
-            .cat-nav-wrapper { top: 56px; }
+            .cat-nav-wrapper { top: 56px; padding: 0; }
             .cat-icon { width: 46px; height: 46px; font-size: 1.25rem; }
-            .cat-label { font-size: 0.7rem; }
-            .cat-item { padding: 8px 12px 6px; }
+            .cat-label { font-size: 0.7rem; max-width: 60px; }
+            .cat-item { padding: 8px 12px 6px; min-width: 60px; }
+            .cat-dropdown {
+                min-width: 160px;
+                left: 0;
+                transform: translateX(0) translateY(8px);
+            }
+            .cat-item:hover .cat-dropdown {
+                transform: translateX(0) translateY(0);
+            }
         }
-        @media (min-width: 901px) {
-            .mobile-nav { display: none; }
+        @media (max-width: 480px) {
+            .cat-nav-wrapper { display: none; }
         }
 
         /* ── Toast animations ───────────────────────── */
@@ -577,27 +609,37 @@
 <!-- ═══════════════════════════════════════════════════════
      FLIPKART-STYLE CATEGORY NAV
 ═══════════════════════════════════════════════════════ -->
+<!-- ═══════════════════════════════════════════════════════
+     FLIPKART-STYLE CATEGORY NAV (Centered & Context-Aware)
+═══════════════════════════════════════════════════════ -->
+{% if show_category_nav %}
 <nav class="cat-nav-wrapper" id="catNavWrapper" aria-label="Shop by category">
-
+    
+    <!-- Scroll Left Button -->
     <button class="cat-scroll-btn" id="catScrollLeft" aria-label="Scroll categories left">
         <i class="fa fa-chevron-left"></i>
     </button>
-
+    
+    <!-- Category Items Container -->
     <div class="cat-nav" id="catNav" role="list">
-
+        
         <!-- Top Offers — always first -->
-        <a href="{% url 'shop:home' %}" class="cat-item {% if request.resolver_match.url_name == 'home' and not filters.category %}active{% endif %}" role="listitem">
+        <a href="{% url 'shop:home' %}" 
+           class="cat-item {% if request.resolver_match.url_name == 'home' and not filters.category %}active{% endif %}" 
+           role="listitem">
             <div class="cat-icon" style="background:linear-gradient(135deg,#fff8e1,#ffe082);border-color:#ffc107;">
                 🎁
             </div>
             <span class="cat-label">Top Offers</span>
         </a>
 
-        <!-- Dynamic categories -->
+        <!-- Dynamic categories from context -->
         {% for cat in categories %}
         <a href="{% url 'items:product_list' %}?category={{ cat.slug }}"
            class="cat-item {% if filters.category == cat.slug %}active{% endif %}"
-           role="listitem">
+           role="listitem"
+           title="{{ cat.name }}">
+            
             <div class="cat-icon"
                  {% if "women" in cat.name|lower %}style="background:linear-gradient(135deg,#fce4ec,#f48fb1);border-color:#ec407a;"
                  {% elif "men" in cat.name|lower %}style="background:linear-gradient(135deg,#e3f2fd,#90caf9);border-color:#42a5f5;"
@@ -609,8 +651,9 @@
                  {% elif "toy" in cat.name|lower or "kid" in cat.name|lower %}style="background:linear-gradient(135deg,#fbe9e7,#ff8a65);border-color:#ff5722;"
                  {% elif "food" in cat.name|lower or "grocery" in cat.name|lower %}style="background:linear-gradient(135deg,#f9fbe7,#e6ee9c);border-color:#c0ca33;"
                  {% else %}style="background:linear-gradient(135deg,#ede7f6,#b39ddb);border-color:#7e57c2;"{% endif %}>
+                
                 {% if cat.icon_image %}
-                    <img src="{{ cat.icon_image.url }}" alt="{{ cat.name }}">
+                    <img src="{{ cat.icon_image.url }}" alt="{{ cat.name }}" loading="lazy">
                 {% else %}
                     {% if "women" in cat.name|lower %}👗
                     {% elif "men" in cat.name|lower %}👔
@@ -625,7 +668,10 @@
                     {% else %}🛍️{% endif %}
                 {% endif %}
             </div>
+            
             <span class="cat-label">{{ cat.name }}</span>
+            
+            <!-- Subcategory dropdown (if has children) -->
             {% if cat.children.exists %}
                 <span class="cat-chevron">▼</span>
                 <div class="cat-dropdown">
@@ -638,15 +684,47 @@
             {% endif %}
         </a>
         {% endfor %}
-
-    </div><!-- /cat-nav -->
-
+        
+    </div>
+    
+    <!-- Scroll Right Button -->
     <button class="cat-scroll-btn" id="catScrollRight" aria-label="Scroll categories right">
         <i class="fa fa-chevron-right"></i>
     </button>
-
+    
 </nav>
-
+{% endif %}
+{% if show_category_nav %}
+<!-- Mobile Category Dropdown (for very small screens) -->
+<div class="mobile-cat-dropdown" style="display:none; padding:10px 20px; background:#fff; border-bottom:1px solid #eee;">
+    <select class="form-select" onchange="if(this.value) window.location.href=this.value" style="width:100%;">
+        <option value="">📂 Browse Categories</option>
+        <option value="{% url 'shop:home' %}">🎁 Top Offers</option>
+        {% for cat in categories %}
+            <option value="{% url 'items:product_list' %}?category={{ cat.slug }}"
+                    {% if filters.category == cat.slug %}selected{% endif %}>
+                {{ cat.name }}
+            </option>
+        {% endfor %}
+    </select>
+</div>
+<script>
+// Show mobile dropdown on very small screens
+(function() {
+    function toggleMobileCat() {
+        const isMobile = window.innerWidth <= 480;
+        const navWrapper = document.querySelector('.cat-nav-wrapper');
+        const mobileDropdown = document.querySelector('.mobile-cat-dropdown');
+        if (navWrapper && mobileDropdown) {
+            navWrapper.style.display = isMobile ? 'none' : 'flex';
+            mobileDropdown.style.display = isMobile ? 'block' : 'none';
+        }
+    }
+    toggleMobileCat();
+    window.addEventListener('resize', toggleMobileCat);
+})();
+</script>
+{% endif %}
 <!-- ═══════════════════════════════════════════════════════
      MOBILE SLIDE-OUT MENU
 ═══════════════════════════════════════════════════════ -->
@@ -959,6 +1037,44 @@ window.showToast = function (message, type = 'info') {
         setTimeout(() => toast.remove(), 300);
     }, 2500);
 };
+
+// ── Category Nav Enhanced Interactivity ─────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    const catNav = document.getElementById('catNav');
+    const catWrapper = document.getElementById('catNavWrapper');
+    
+    // Check if nav overflows and show scroll buttons
+    function checkCatOverflow() {
+        if (!catNav || !catWrapper) return;
+        catWrapper.classList.toggle('overflowing', catNav.scrollWidth > catNav.clientWidth + 4);
+    }
+    checkCatOverflow();
+    window.addEventListener('resize', checkCatOverflow);
+    
+    // Scroll buttons
+    document.getElementById('catScrollLeft')?.addEventListener('click', () => {
+        catNav.scrollBy({ left: -240, behavior: 'smooth' });
+    });
+    document.getElementById('catScrollRight')?.addEventListener('click', () => {
+        catNav.scrollBy({ left: 240, behavior: 'smooth' });
+    });
+    
+    // Touch swipe support for mobile
+    let touchStartX = 0;
+    catNav?.addEventListener('touchstart', (e) => {
+        touchStartX = e.touches[0].clientX;
+    });
+    catNav?.addEventListener('touchend', (e) => {
+        const touchEndX = e.changedTouches[0].clientX;
+        const diff = touchStartX - touchEndX;
+        if (Math.abs(diff) > 50) {
+            catNav.scrollBy({ 
+                left: diff > 0 ? 240 : -240, 
+                behavior: 'smooth' 
+            });
+        }
+    });
+});
 </script>
 
 {% block scripts %}{% endblock %}
