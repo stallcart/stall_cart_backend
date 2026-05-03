@@ -694,37 +694,7 @@
     
 </nav>
 {% endif %}
-{% if show_category_nav %}
-<!-- Mobile Category Dropdown (for very small screens) -->
-<div class="mobile-cat-dropdown" style="display:none; padding:10px 20px; background:#fff; border-bottom:1px solid #eee;">
-    <select class="form-select" onchange="if(this.value) window.location.href=this.value" style="width:100%;">
-        <option value="">📂 Browse Categories</option>
-        <option value="{% url 'shop:home' %}">🎁 Top Offers</option>
-        {% for cat in categories %}
-            <option value="{% url 'items:product_list' %}?category={{ cat.slug }}"
-                    {% if filters.category == cat.slug %}selected{% endif %}>
-                {{ cat.name }}
-            </option>
-        {% endfor %}
-    </select>
-</div>
-<script>
-// Show mobile dropdown on very small screens
-(function() {
-    function toggleMobileCat() {
-        const isMobile = window.innerWidth <= 480;
-        const navWrapper = document.querySelector('.cat-nav-wrapper');
-        const mobileDropdown = document.querySelector('.mobile-cat-dropdown');
-        if (navWrapper && mobileDropdown) {
-            navWrapper.style.display = isMobile ? 'none' : 'flex';
-            mobileDropdown.style.display = isMobile ? 'block' : 'none';
-        }
-    }
-    toggleMobileCat();
-    window.addEventListener('resize', toggleMobileCat);
-})();
-</script>
-{% endif %}
+
 <!-- ═══════════════════════════════════════════════════════
      MOBILE SLIDE-OUT MENU
 ═══════════════════════════════════════════════════════ -->
