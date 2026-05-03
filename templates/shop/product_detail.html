@@ -223,6 +223,12 @@
                 {% else %}
                     <div class="no-image">No Image</div>
                 {% endif %}
+                <!-- ✅ Gender Badge -->
+                {% if product.gender %}
+                    <span class="gender-badge">
+                        {{ product.get_gender_display }}
+                    </span>
+                {% endif %}
                 {% if p.discount_percent > 0 %}
                     <span class="discount-badge">-{{ p.discount_percent }}%</span>
                 {% endif %}

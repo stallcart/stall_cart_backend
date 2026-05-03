@@ -20,7 +20,15 @@
                         <option value="{{ cat.slug }}" {% if filters.category == cat.slug %}selected{% endif %}>{{ cat.name }}</option>
                     {% endfor %}
                 </select>
-                
+                <!-- ✅ NEW: Gender Filter -->
+                <select name="gender" class="form-select-sm" onchange="document.getElementById('filterForm').submit()">
+                    <option value="">All Genders</option>
+                    {% for value, label in genders %}
+                        <option value="{{ value }}" {% if filters.gender == value %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                    {% endfor %}
+                </select>
                 <select name="sort" class="form-select-sm" onchange="document.getElementById('filterForm').submit()">
                     <option value="-created_at" {% if sort == '-created_at' %}selected{% endif %}>Newest First</option>
                     <option value="price_asc" {% if sort == 'price_asc' %}selected{% endif %}>Price: Low to High</option>
@@ -43,7 +51,12 @@
                     {% else %}
                         <div class="no-image">No Image</div>
                     {% endif %}
-                    
+                    <!-- ✅ Gender Badge -->
+                    {% if product.gender %}
+                        <span class="gender-badge">
+                            {{ product.get_gender_display }}
+                        </span>
+                    {% endif %}
                     {% if product.discount_percent > 0 %}
                         <span class="discount-badge">-{{ product.discount_percent }}%</span>
                     {% endif %}

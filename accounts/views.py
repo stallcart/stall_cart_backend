@@ -1,4 +1,4 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect , get_object_or_404
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import PasswordResetView, PasswordResetDoneView, PasswordResetConfirmView, PasswordResetCompleteView
@@ -8,7 +8,7 @@ from django.contrib import messages
 from django.db import models  # ✅ ADD THIS LINE
 from django.db.models import Sum, Avg, Count
 from decimal import Decimal
-
+from django.views.decorators.http import require_http_methods
 from .forms import UserRegistrationForm, UserLoginForm
 import json
 from items.models import SellerProfile , Product
@@ -198,6 +198,7 @@ class CustomPasswordResetCompleteView(PasswordResetCompleteView):
 
 # accounts/views.py - Update profile_view function
 
+# accounts/views.py
 @login_required
 def profile_view(request):
     """User profile management - role-based sections"""
@@ -214,17 +215,78 @@ def profile_view(request):
                 request.user.save()
                 return JsonResponse({'status': 'success', 'message': 'Profile updated'})
             
+            elif action == 'add_address':
+                if request.user.role != 'customer':
+                    return JsonResponse({'status': 'error', 'message': 'Only customers can add addresses'}, status=403)
+                
+                addr_data = data.get('address', {})
+                is_default = data.get('is_default', False)
+                
+                from accounts.models import Address
+                Address.objects.create(
+                    user=request.user,
+                    name=addr_data.get('name'),
+                    phone=addr_data.get('phone'),
+                    address_line1=addr_data.get('address_line1'),
+                    address_line2=addr_data.get('address_line2', ''),
+                    city=addr_data.get('city'),
+                    state=addr_data.get('state'),
+                    postal_code=addr_data.get('postal_code'),
+                    country=addr_data.get('country', 'India'),
+                    address_type=addr_data.get('address_type', 'shipping'),
+                    is_default=is_default
+                )
+                return JsonResponse({'status': 'success', 'message': 'Address added'})
+            
             elif action == 'update_address':
                 if request.user.role != 'customer':
-                    return JsonResponse({'status': 'error', 'message': 'Only customers can update shipping address'}, status=403)
-                address = data.get('address', {})
-                request.user.address = address
-                request.user.save()
-                return JsonResponse({'status': 'success', 'message': 'Address saved'})
+                    return JsonResponse({'status': 'error', 'message': 'Only customers can update addresses'}, status=403)
+                
+                addr_id = data.get('address_id')
+                addr_data = data.get('address', {})
+                
+                from accounts.models import Address
+                address = get_object_or_404(Address, id=addr_id, user=request.user)
+                address.name = addr_data.get('name', address.name)
+                address.phone = addr_data.get('phone', address.phone)
+                address.address_line1 = addr_data.get('address_line1', address.address_line1)
+                address.address_line2 = addr_data.get('address_line2', address.address_line2)
+                address.city = addr_data.get('city', address.city)
+                address.state = addr_data.get('state', address.state)
+                address.postal_code = addr_data.get('postal_code', address.postal_code)
+                address.country = addr_data.get('country', address.country)
+                address.address_type = addr_data.get('address_type', address.address_type)
+                # Handle is_default separately to trigger model save logic
+                if data.get('is_default') is not None:
+                    address.is_default = data.get('is_default')
+                address.save()
+                return JsonResponse({'status': 'success', 'message': 'Address updated'})
+            
+            elif action == 'delete_address':
+                if request.user.role != 'customer':
+                    return JsonResponse({'status': 'error', 'message': 'Only customers can delete addresses'}, status=403)
+                
+                addr_id = data.get('address_id')
+                from accounts.models import Address
+                address = get_object_or_404(Address, id=addr_id, user=request.user)
+                address.delete()
+                return JsonResponse({'status': 'success', 'message': 'Address deleted'})
+            
+            elif action == 'set_default_address':
+                if request.user.role != 'customer':
+                    return JsonResponse({'status': 'error', 'message': 'Only customers can set default address'}, status=403)
+                
+                addr_id = data.get('address_id')
+                from accounts.models import Address
+                address = get_object_or_404(Address, id=addr_id, user=request.user)
+                address.is_default = True
+                address.save()  # This will unset others via model save()
+                return JsonResponse({'status': 'success', 'message': 'Default address updated'})
             
             elif action == 'update_shop':
                 if request.user.role != 'seller' or not hasattr(request.user, 'seller_profile'):
                     return JsonResponse({'status': 'error', 'message': 'Only sellers can update shop details'}, status=403)
+                
                 shop_data = data.get('shop', {})
                 seller = request.user.seller_profile
                 seller.shop_name = shop_data.get('shop_name', seller.shop_name)
@@ -248,29 +310,26 @@ def profile_view(request):
     # Customer-specific data
     user_orders = []
     wishlist_count = 0
+    customer_addresses = []
+    
     if is_customer:
         from orders.models import Order
+        from accounts.models import Address
         user_orders = Order.objects.filter(user=request.user).order_by('-created_at')[:5]
+        customer_addresses = Address.objects.filter(user=request.user, is_active=True)
         # wishlist_count = request.user.wishlist_items.count()  # If you have wishlist model
     
     # Seller-specific data
     seller_stats = None
     seller_orders = []
+    shop_address = None
+    
     if is_seller:
         from items.models import Product
         from orders.models import OrderItem
+        from accounts.models import SellerShopAddress
         seller = request.user.seller_profile
-        rating_data = getattr(seller, "reviews", None)
-        if rating_data:
-            agg = rating_data.aggregate(
-                avg_rating=Avg('rating'),
-                total_reviews=Count('id')
-            )
-            rating = agg['avg_rating'] or Decimal("0.00")
-            rating_count = agg['total_reviews'] or 0
-        else:
-            rating = seller.rating  # fallback field
-            rating_count = 0
+        
         # Seller stats
         seller_stats = {
             'total_products': seller.products.count(),
@@ -281,18 +340,22 @@ def profile_view(request):
                 product__seller=seller,
                 order__status='delivered'
             ).aggregate(total=models.Sum('total'))['total'] or 0,
-            'rating': rating,
-            'rating_count': rating_count,
+            'rating': seller.rating,
+            'rating_count': seller.rating_count,
         }
         
-        # ✅ Seller's recent orders (items from their products)
+        # Seller's recent orders
         seller_orders = OrderItem.objects.filter(
             product__seller=seller
-        ).select_related(
-            'order', 'product', 'order__user'
-        ).prefetch_related(
+        ).select_related('order', 'product', 'order__user').prefetch_related(
             'order__items__product'
         ).order_by('-order__created_at')[:5]
+        
+        # Shop address
+        try:
+            shop_address = seller.shop_address
+        except SellerShopAddress.DoesNotExist:
+            shop_address = None
     
     context = {
         'user': request.user,
@@ -302,16 +365,40 @@ def profile_view(request):
         # Customer data
         'user_orders': user_orders,
         'wishlist_count': wishlist_count,
+        'customer_addresses': customer_addresses,  # ✅ NEW: Multiple addresses
         # Seller data
         'seller_stats': seller_stats,
         'seller_profile': request.user.seller_profile if is_seller else None,
-        'seller_orders': seller_orders,  # ✅ NEW: Pass seller orders to template
+        'seller_orders': seller_orders,
+        'shop_address': shop_address,  # ✅ NEW: Shop address
     }
     return render(request, 'accounts/profile.html', context)
-
 def redirect_by_role(user):
     if user.is_admin:
         return redirect('admin_dashboard')
     elif user.is_seller:
         return redirect('seller_dashboard')
     return redirect('shop:home')
+
+
+# accounts/views.py
+@login_required
+@require_http_methods(["GET"])
+def get_address_json(request, address_id):
+    """Return address details as JSON for edit modal"""
+    from accounts.models import Address
+    address = get_object_or_404(Address, id=address_id, user=request.user)
+    
+    return JsonResponse({
+        'id': address.id,
+        'name': address.name,
+        'phone': address.phone,
+        'address_line1': address.address_line1,
+        'address_line2': address.address_line2,
+        'city': address.city,
+        'state': address.state,
+        'postal_code': address.postal_code,
+        'country': address.country,
+        'address_type': address.address_type,
+        'is_default': address.is_default,
+    })

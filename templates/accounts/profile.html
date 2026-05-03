@@ -95,200 +95,310 @@
         </form>
     </div>
 
-    <!-- ✅ CUSTOMER: Shipping Address (Only for customers) -->
+    <!-- ✅ CUSTOMER: Multiple Shipping Addresses (Only for customers) -->
     {% if is_customer %}
     <div class="profile-card">
         <div class="card-header">
-            <h3>📍 Shipping Address</h3>
-            <button type="button" class="btn-outline btn-sm" id="editAddressBtn">
-                {% if user.address %}Edit{% else %}Add Address{% endif %}
-            </button>
+            <h3>📍 Shipping Addresses</h3>
+            <button type="button" class="btn-outline btn-sm" id="addAddressBtn">+ Add New Address</button>
         </div>
         
-        <div id="addressView">
-            {% if user.address %}
-            <div class="address-card">
-                <p><strong>{{ user.address.name|default:user.full_name }}</strong></p>
-                <p>{{ user.address.address }}</p>
-                <p>{{ user.address.city }}, {{ user.address.state }} - {{ user.address.postalCode }}</p>
-                <p>📞 {{ user.address.phone|default:user.phone }}</p>
-                <p class="text-muted">Country: {{ user.address.country|default:'India' }}</p>
-            </div>
+        <!-- Address List -->
+        <div id="addressList">
+            {% if customer_addresses %}
+                {% for addr in customer_addresses %}
+                <div class="address-card {% if addr.is_default %}default-address{% endif %}" data-address-id="{{ addr.id }}">
+                    <div class="address-header">
+                        <strong>{{ addr.name }}</strong>
+                        {% if addr.is_default %}
+                            <span class="badge badge-success">✓ Default</span>
+                        {% endif %}
+                        <span class="badge badge-info">{{ addr.get_address_type_display }}</span>
+                    </div>
+                    <p>{{ addr.address_line1 }}{% if addr.address_line2 %}, {{ addr.address_line2 }}{% endif %}</p>
+                    <p>{{ addr.city }}, {{ addr.state }} - {{ addr.postal_code }}</p>
+                    <p>📞 {{ addr.phone }} • {{ addr.country }}</p>
+                    
+                    <div class="address-actions">
+                        {% if not addr.is_default %}
+                        <button class="btn-outline btn-sm" onclick="setDefaultAddress({{ addr.id }})">
+                            Set as Default
+                        </button>
+                        {% endif %}
+                        <button class="btn-outline btn-sm" onclick="openAddressModal('edit', {{ addr.id }})">
+                            Edit
+                        </button>
+                        <button class="btn-danger btn-sm" onclick="deleteAddress({{ addr.id }})">
+                            Delete
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
             {% else %}
-            <p class="empty-state">No address saved. Add one to speed up checkout.</p>
+                <p class="empty-state">No addresses saved. Add one to speed up checkout.</p>
             {% endif %}
         </div>
         
+        <!-- Add/Edit Address Form (Hidden by default) -->
         <form id="addressForm" method="post" style="display:none;">
             {% csrf_token %}
-            <input type="hidden" name="action" value="update_address">
+            <input type="hidden" name="action" id="addressAction" value="add_address">
+            <input type="hidden" name="address_id" id="addressId">
+            
             <div class="form-row">
                 <div class="form-group">
                     <label for="addrName">Full Name *</label>
-                    <input type="text" id="addrName" name="name" class="form-input" 
-                           value="{{ user.address.name|default:user.full_name }}" required>
+                    <input type="text" id="addrName" name="name" class="form-input" required>
                 </div>
                 <div class="form-group">
                     <label for="addrPhone">Phone Number *</label>
-                    <input type="tel" id="addrPhone" name="phone" class="form-input" 
-                           value="{{ user.address.phone|default:user.phone }}" required pattern="[0-9]{10}">
+                    <input type="tel" id="addrPhone" name="phone" class="form-input" required pattern="[0-9]{10}">
                 </div>
             </div>
+            
             <div class="form-group">
-                <label for="addrLine1">Address Line *</label>
-                <textarea id="addrLine1" name="address" class="form-input" rows="2" required>{{ user.address.address }}</textarea>
+                <label for="addrLine1">Address Line 1 *</label>
+                <textarea id="addrLine1" name="address_line1" class="form-input" rows="2" required></textarea>
             </div>
+            
+            <div class="form-group">
+                <label for="addrLine2">Address Line 2 (Optional)</label>
+                <textarea id="addrLine2" name="address_line2" class="form-input" rows="2"></textarea>
+            </div>
+            
             <div class="form-row">
                 <div class="form-group">
                     <label for="addrCity">City *</label>
-                    <input type="text" id="addrCity" name="city" class="form-input" 
-                           value="{{ user.address.city }}" required>
+                    <input type="text" id="addrCity" name="city" class="form-input" required>
                 </div>
                 <div class="form-group">
                     <label for="addrState">State *</label>
-                    <input type="text" id="addrState" name="state" class="form-input" 
-                           value="{{ user.address.state }}" required>
+                    <input type="text" id="addrState" name="state" class="form-input" required>
                 </div>
             </div>
+            
             <div class="form-row">
                 <div class="form-group">
                     <label for="addrPostal">PIN Code *</label>
-                    <input type="text" id="addrPostal" name="postalCode" class="form-input" 
-                           value="{{ user.address.postalCode }}" required pattern="[0-9]{6}">
+                    <input type="text" id="addrPostal" name="postal_code" class="form-input" required pattern="[0-9]{6}">
                 </div>
                 <div class="form-group">
                     <label for="addrCountry">Country</label>
                     <select id="addrCountry" name="country" class="form-select">
-                        <option value="India" {% if user.address.country == 'India' %}selected{% endif %}>India</option>
-                        <option value="Nepal" {% if user.address.country == 'Nepal' %}selected{% endif %}>Nepal</option>
-                        <option value="Bangladesh" {% if user.address.country == 'Bangladesh' %}selected{% endif %}>Bangladesh</option>
+                        <option value="India">India</option>
+                        <option value="Nepal">Nepal</option>
+                        <option value="Bangladesh">Bangladesh</option>
+                        <option value="Other">Other</option>
                     </select>
                 </div>
             </div>
-            <div class="form-actions">
-                <button type="submit" class="btn-primary">Save Address</button>
-                <button type="button" class="btn-outline" id="cancelAddressBtn">Cancel</button>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="addrType">Address Type</label>
+                    <select id="addrType" name="address_type" class="form-select">
+                        <option value="shipping">📦 Shipping Only</option>
+                        <option value="billing">💳 Billing Only</option>
+                        <option value="both" selected>🔄 Both Shipping & Billing</option>
+                    </select>
+                </div>
+                <div class="form-group" style="display: flex; align-items: center; gap: 8px; margin-top: 25px;">
+                    <input type="checkbox" id="addrDefault" name="is_default" style="width: auto;">
+                    <label for="addrDefault" style="margin: 0; font-weight: normal;">Set as default address</label>
+                </div>
             </div>
+            
+            <div id="addressFormError"
+                 style="background:#ffebee;color:#c62828;padding:10px;border-radius:6px;
+                        margin-bottom:12px;display:none;font-size:0.9rem;"></div>
+            <button type="submit" class="btn-primary" id="saveAddressBtn">Save Address</button>
+            <button type="button" class="btn-outline" id="cancelAddressBtn" style="margin-left:10px;">Cancel</button>
         </form>
     </div>
     {% endif %}
 
-    <!-- ✅ SELLER: Shop Details & Orders (Only for sellers) -->
+    <!-- ✅ SELLER: Shop Address & Orders (Only for sellers) -->
     {% if is_seller and seller_profile %}
-    
-    <!-- Shop Details Card -->
-    <div class="profile-card">
-        <div class="card-header">
-            <h3>🏪 Shop Details</h3>
-            <button type="button" class="btn-outline btn-sm" id="editShopBtn">Edit Shop</button>
-        </div>
-        
-        <div id="shopView">
-            <div class="shop-card">
-                <p><strong>Shop Name:</strong> {{ seller_profile.shop_name }}</p>
-                <p><strong>Description:</strong> {{ seller_profile.shop_description|default:"No description yet" }}</p>
-                <p><strong>GST Number:</strong> {{ seller_profile.gst_number|default:"Not provided" }}</p>
-                <p><strong>Verification:</strong> 
-                    {% if seller_profile.is_verified %}
-                        <span class="badge badge-success">✓ Verified</span>
-                    {% else %}
-                        <span class="badge badge-warning">⏳ Pending Verification</span>
+        <!-- Shop Address Card -->
+        <div class="profile-card">
+            <div class="card-header">
+                <h3>🏪 Shop Address</h3>
+                <button type="button" class="btn-outline btn-sm" id="editShopAddressBtn">
+                    {% if shop_address %}Edit{% else %}Add Shop Address{% endif %}
+                </button>
+            </div>
+            
+            <!-- Shop Address View -->
+            <div id="shopAddressView">
+                {% if shop_address %}
+                <div class="shop-address-card">
+                    <p><strong>{{ shop_address.shop_name }}</strong></p>
+                    <p>{{ shop_address.address_line1 }}{% if shop_address.address_line2 %}, {{ shop_address.address_line2 }}{% endif %}</p>
+                    <p>{{ shop_address.city }}, {{ shop_address.state }} - {{ shop_address.postal_code }}</p>
+                    <p>📞 {{ shop_address.shop_phone }} • {{ shop_address.country }}</p>
+                    {% if shop_address.gst_number %}
+                        <p><strong>GST:</strong> {{ shop_address.gst_number }}</p>
                     {% endif %}
-                </p>
-                <p><strong>Rating:</strong> {{ seller_profile.rating }}/5.0 ({{ seller_profile.rating_count }} reviews)</p>
-            </div>
-        </div>
-        
-        <form id="shopForm" method="post" style="display:none;">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="update_shop">
-            <div class="form-group">
-                <label for="shopName">Shop Name *</label>
-                <input type="text" id="shopName" name="shop_name" class="form-input" 
-                       value="{{ seller_profile.shop_name }}" required>
-            </div>
-            <div class="form-group">
-                <label for="shopDesc">Shop Description</label>
-                <textarea id="shopDesc" name="shop_description" class="form-input" rows="3">{{ seller_profile.shop_description }}</textarea>
-            </div>
-            <div class="form-group">
-                <label for="gstNumber">GST Number</label>
-                <input type="text" id="gstNumber" name="gst_number" class="form-input" 
-                       value="{{ seller_profile.gst_number }}" maxlength="15" placeholder="Optional">
-            </div>
-            <div class="form-actions">
-                <button type="submit" class="btn-primary">Save Shop Details</button>
-                <button type="button" class="btn-outline" id="cancelShopBtn">Cancel</button>
-            </div>
-        </form>
-    </div>
-
-    <!-- ✅ SELLER: Orders Received (NEW SECTION) -->
-    <div class="profile-card">
-        <div class="card-header">
-            <h3>📦 Orders Received</h3>
-            <a href="{% url 'orders:seller_orders' %}" class="btn-outline btn-sm">View All Orders</a>
-        </div>
-        
-        {% if seller_orders %}
-        <div class="orders-preview">
-            {% for order in seller_orders %}
-            <div class="order-preview-item">
-                <div>
-                    <strong>Order #{{ order.order.order_id|default:order.order.id|slice:":8"|upper }}</strong>
-                    <p class="text-muted">{{ order.order.created_at|date:"M d, Y, h:i A" }}</p>
-                    <p class="text-muted">{{ order.quantity }} × {{ order.product.name|truncatechars:30 }}</p>
-                    <p class="text-muted">Customer: {{ order.order.user.full_name|default:order.order.guest_email }}</p>
+                    {% if shop_address.pickup_instructions %}
+                        <p><strong>Pickup Instructions:</strong> {{ shop_address.pickup_instructions }}</p>
+                    {% endif %}
+                    <p class="text-muted">
+                        Status: {% if shop_address.is_verified %}✅ Verified{% else %}⏳ Pending Verification{% endif %}
+                    </p>
                 </div>
-                <div class="order-status">
-                    <span class="badge badge-{{ order.order.status }}">
-                        {{ order.order.get_status_display }}
-                    </span>
-                    <strong>₹{{ order.total|floatformat:2 }}</strong>
-                    <a href="{% url 'orders:seller_order_detail' order.order.order_id %}" class="btn-outline btn-sm view-order-btn">
-                        View Details →
-                    </a>
+                {% else %}
+                <p class="empty-state">No shop address added. Add one to enable order pickups.</p>
+                {% endif %}
+            </div>
+            
+            <!-- Shop Address Form (Hidden) -->
+            <form id="shopAddressForm" method="post" style="display:none;">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update_shop_address">
+                
+                <div class="form-group">
+                    <label for="shopAddrName">Shop Name *</label>
+                    <input type="text" id="shopAddrName" name="shop_name" class="form-input" 
+                        value="{{ shop_address.shop_name|default:seller_profile.shop_name }}" required>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="shopAddrPhone">Shop Phone *</label>
+                        <input type="tel" id="shopAddrPhone" name="shop_phone" class="form-input" 
+                            value="{{ shop_address.shop_phone|default:seller_profile.phone }}" required pattern="[0-9]{10}">
+                    </div>
+                    <div class="form-group">
+                        <label for="shopAddrEmail">Shop Email</label>
+                        <input type="email" id="shopAddrEmail" name="shop_email" class="form-input" 
+                            value="{{ shop_address.shop_email|default:user.email }}">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="shopAddrLine1">Address Line 1 *</label>
+                    <textarea id="shopAddrLine1" name="address_line1" class="form-input" rows="2" required>{{ shop_address.address_line1 }}</textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="shopAddrLine2">Address Line 2 (Optional)</label>
+                    <textarea id="shopAddrLine2" name="address_line2" class="form-input" rows="2">{{ shop_address.address_line2 }}</textarea>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="shopAddrCity">City *</label>
+                        <input type="text" id="shopAddrCity" name="city" class="form-input" 
+                            value="{{ shop_address.city }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="shopAddrState">State *</label>
+                        <input type="text" id="shopAddrState" name="state" class="form-input" 
+                            value="{{ shop_address.state }}" required>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="shopAddrPostal">PIN Code *</label>
+                        <input type="text" id="shopAddrPostal" name="postal_code" class="form-input" 
+                            value="{{ shop_address.postal_code }}" required pattern="[0-9]{6}">
+                    </div>
+                    <div class="form-group">
+                        <label for="shopAddrCountry">Country</label>
+                        <select id="shopAddrCountry" name="country" class="form-select">
+                            <option value="India" {% if shop_address.country == 'India' %}selected{% endif %}>India</option>
+                            <option value="Nepal" {% if shop_address.country == 'Nepal' %}selected{% endif %}>Nepal</option>
+                            <option value="Bangladesh" {% if shop_address.country == 'Bangladesh' %}selected{% endif %}>Bangladesh</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="shopAddrGST">GST Number</label>
+                        <input type="text" id="shopAddrGST" name="gst_number" class="form-input" 
+                            value="{{ shop_address.gst_number|default:seller_profile.gst_number }}" maxlength="15">
+                    </div>
+                    <div class="form-group">
+                        <label for="shopPickupInstr">Pickup Instructions</label>
+                        <textarea id="shopPickupInstr" name="pickup_instructions" class="form-input" rows="2" placeholder="e.g., Gate code, contact person">{{ shop_address.pickup_instructions }}</textarea>
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">Save Shop Address</button>
+                    <button type="button" class="btn-outline" id="cancelShopAddressBtn" style="margin-left:10px;">Cancel</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Orders Received Section -->
+        <div class="profile-card">
+            <div class="card-header">
+                <h3>📦 Orders Received</h3>
+                <a href="{% url 'orders:seller_orders' %}" class="btn-outline btn-sm">View All Orders</a>
+            </div>
+            
+            {% if seller_orders %}
+            <div class="orders-preview">
+                {% for order in seller_orders %}
+                <div class="order-preview-item">
+                    <div>
+                        <strong>Order #{{ order.order.unique_order_id|default:order.order.id|slice:":8"|upper }}</strong>
+                        <p class="text-muted">{{ order.order.created_at|date:"M d, Y, h:i A" }}</p>
+                        <p class="text-muted">{{ order.quantity }} × {{ order.product.name|truncatechars:30 }}</p>
+                        <p class="text-muted">Customer: {{ order.order.user.full_name|default:order.order.guest_email }}</p>
+                    </div>
+                    <div class="order-status">
+                        <span class="badge badge-{{ order.order.status }}">
+                            {{ order.order.get_status_display }}
+                        </span>
+                        <strong>₹{{ order.total|floatformat:2 }}</strong>
+                        <a href="{% url 'orders:seller_order_detail' order.order.unique_order_id|default:order.order.id %}" class="btn-outline btn-sm view-order-btn">
+                            View Details →
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="empty-state">No orders yet. <a href="{% url 'items:product_create' %}">Add products</a> to start selling!</p>
+            {% endif %}
+        </div>
+
+        <!-- Seller Stats Grid -->
+        <div class="profile-card">
+            <div class="card-header">
+                <h3>📊 Seller Dashboard</h3>
+                <a href="{% url 'items:admin_dashboard' %}" class="btn-outline btn-sm">Manage Products</a>
+            </div>
+            <div class="seller-stats-grid">
+                <div class="stat-box">
+                    <span class="stat-num">{{ seller_stats.published }}</span>
+                    <span class="stat-label">Published Products</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-num">{{ seller_stats.draft }}</span>
+                    <span class="stat-label">Draft Products</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-num">{{ seller_stats.total_sales }}</span>
+                    <span class="stat-label">Items Sold</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-num">₹{{ seller_stats.total_revenue|floatformat:0 }}</span>
+                    <span class="stat-label">Total Revenue</span>
                 </div>
             </div>
-            {% endfor %}
-        </div>
-        {% else %}
-        <p class="empty-state">No orders yet. <a href="{% url 'items:product_create' %}">Add products</a> to start selling!</p>
-        {% endif %}
-    </div>
-
-    <!-- Seller Stats Grid -->
-    <div class="profile-card">
-        <div class="card-header">
-            <h3>📊 Seller Dashboard</h3>
-            <a href="{% url 'items:admin_dashboard' %}" class="btn-outline btn-sm">Manage Products</a>
-        </div>
-        <div class="seller-stats-grid">
-            <div class="stat-box">
-                <span class="stat-num">{{ seller_stats.published }}</span>
-                <span class="stat-label">Published Products</span>
-            </div>
-            <div class="stat-box">
-                <span class="stat-num">{{ seller_stats.draft }}</span>
-                <span class="stat-label">Draft Products</span>
-            </div>
-            <div class="stat-box">
-                <span class="stat-num">{{ seller_stats.total_sales }}</span>
-                <span class="stat-label">Items Sold</span>
-            </div>
-            <div class="stat-box">
-                <span class="stat-num">₹{{ seller_stats.total_revenue|floatformat:0 }}</span>
-                <span class="stat-label">Total Revenue</span>
+            <div class="seller-quick-links">
+                <a href="{% url 'items:product_create' %}" class="btn-primary">+ Add New Product</a>
+                <a href="{% url 'items:admin_dashboard' %}?status=draft" class="btn-outline">View Drafts</a>
+                <a href="{% url 'orders:seller_orders' %}" class="btn-outline">View All Orders</a>
             </div>
         </div>
-        <div class="seller-quick-links">
-            <a href="{% url 'items:product_create' %}" class="btn-primary">+ Add New Product</a>
-            <a href="{% url 'items:admin_dashboard' %}?status=draft" class="btn-outline">View Drafts</a>
-            <a href="{% url 'orders:seller_orders' %}" class="btn-outline">View All Orders</a>
-        </div>
-    </div>
     {% endif %}
-
+    
     <!-- ✅ ACCOUNT SECURITY (All Roles) -->
     <div class="profile-card">
         <div class="card-header">
@@ -324,7 +434,7 @@
                 {% for order in user_orders %}
                 <div class="order-preview-item">
                     <div>
-                        <strong>Order #{{ order.order_id|default:order.id|slice:":8"|upper }}</strong>
+                        <strong>Order #{{ order.unique_order_id|default:order.id|slice:":8"|upper }}</strong>
                         <p class="text-muted">{{ order.created_at|date:"M d, Y" }}</p>
                         <p class="text-muted">{{ order.items.count }} item{{ order.items.count|pluralize }}</p>
                     </div>
@@ -333,7 +443,7 @@
                             {{ order.get_status_display }}
                         </span>
                         <strong>₹{{ order.total_amount|floatformat:2 }}</strong>
-                        <a href="{% url 'orders:order_detail' order.order_id %}" class="btn-outline btn-sm view-order-btn">
+                        <a href="{% url 'orders:order_detail' order.unique_order_id|default:order.id %}" class="btn-outline btn-sm view-order-btn">
                             View Order →
                         </a>
                     </div>
@@ -361,6 +471,94 @@
         </div>
     </div>
     {% endif %}
+</div>
+
+<!-- ✅ Address Modal (Reusable for Add/Edit) -->
+<div id="addressModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="addressModalTitle">
+    <div class="modal-content address-modal-content">
+        <button class="modal-close" id="closeAddressModal" aria-label="Close">&times;</button>
+        <h3 id="addressModalTitle" style="margin:0 0 20px;font-size:1.2rem;color:#212121;">
+            <i class="fa fa-map-marker-alt" style="color:#2874f0;"></i>
+            <span id="modalTitleText">Add Delivery Address</span>
+        </h3>
+        <form id="addressForm">
+            {% csrf_token %}
+            <input type="hidden" name="action" id="addressAction" value="add_address">
+            <input type="hidden" name="address_id" id="addressId">
+            
+            <div class="addr-grid">
+                <div class="form-group">
+                    <label>Full Name *</label>
+                    <input type="text" name="name" id="addrName" class="form-input"
+                           placeholder="Full Name" required>
+                </div>
+                <div class="form-group">
+                    <label>Phone Number *</label>
+                    <input type="tel" name="phone" id="addrPhone" class="form-input"
+                           placeholder="10-digit mobile" required pattern="[0-9]{10}">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>House No., Street, Area *</label>
+                <textarea name="address_line1" id="addrLine1" class="form-input" rows="2"
+                          placeholder="Flat / Building / Street / Area" required></textarea>
+            </div>
+            <div class="form-group">
+                <label>Address Line 2 (Optional)</label>
+                <textarea name="address_line2" id="addrLine2" class="form-input" rows="2"
+                          placeholder="Landmark / Area"></textarea>
+            </div>
+            <div class="addr-grid">
+                <div class="form-group">
+                    <label>City *</label>
+                    <input type="text" name="city" id="addrCity" class="form-input" placeholder="City" required>
+                </div>
+                <div class="form-group">
+                    <label>State *</label>
+                    <input type="text" name="state" id="addrState" class="form-input" placeholder="State" required>
+                </div>
+            </div>
+            <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+                <div class="form-group">
+                    <label>PIN Code *</label>
+                    <input type="text" name="postal_code" id="addrPostal" class="form-input"
+                           placeholder="6-digit PIN" required pattern="[0-9]{6}"
+                           style="max-width:200px;">
+                </div>
+                <div class="form-group">
+                    <label>Country</label>
+                    <select name="country" id="addrCountry" class="form-select">
+                        <option value="India">India</option>
+                        <option value="Nepal">Nepal</option>
+                        <option value="Bangladesh">Bangladesh</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row" style="display:grid; grid-template-columns: 1fr auto; gap:12px; align-items:center;">
+                <div class="form-group">
+                    <label>Address Type</label>
+                    <select name="address_type" id="addrType" class="form-select">
+                        <option value="shipping">📦 Shipping Only</option>
+                        <option value="billing">💳 Billing Only</option>
+                        <option value="both" selected>🔄 Both Shipping & Billing</option>
+                    </select>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; margin-top: 25px;">
+                    <input type="checkbox" id="addrDefault" name="is_default" style="width: auto;">
+                    <label for="addrDefault" style="margin: 0; font-weight: normal; font-size: 0.9rem;">Set as default</label>
+                </div>
+            </div>
+            
+            <div id="addressFormError"
+                 style="background:#ffebee;color:#c62828;padding:10px;border-radius:6px;
+                        margin-bottom:12px;display:none;font-size:0.9rem;"></div>
+            <button type="submit" class="btn-primary" id="saveAddressBtn">
+                <i class="fa fa-check"></i> SAVE ADDRESS
+            </button>
+            <button type="button" class="btn-outline" id="cancelAddressModalBtn" style="margin-left:10px;">Cancel</button>
+        </form>
+    </div>
 </div>
 {% endblock %}
 
@@ -427,108 +625,232 @@ document.getElementById('profileForm')?.addEventListener('submit', async (e) => 
     }
 });
 
-// Address Edit Toggle (Customers Only)
+// Address Modal Management (Customers Only)
 {% if is_customer %}
-const editAddressBtn = document.getElementById('editAddressBtn');
-const cancelAddressBtn = document.getElementById('cancelAddressBtn');
-const addressView = document.getElementById('addressView');
+const addressModal = document.getElementById('addressModal');
 const addressForm = document.getElementById('addressForm');
+const addAddressBtn = document.getElementById('addAddressBtn');
 
-editAddressBtn?.addEventListener('click', () => {
-    addressView.style.display = 'none';
-    addressForm.style.display = 'block';
-    editAddressBtn.style.display = 'none';
+// Open modal for add or edit (ASYNC VERSION with API fetch)
+window.openAddressModal = async (mode = 'add', addressId = null) => {
+    console.log('🔓 Opening address modal:', { mode, addressId });
+    
+    if (!addressModal) {
+        console.error('❌ addressModal element not found');
+        return;
+    }
+    
+    // Reset form
+    addressForm.reset();
+    document.getElementById('addressAction').value = mode === 'edit' ? 'update_address' : 'add_address';
+    document.getElementById('addressId').value = addressId || '';
+    document.getElementById('addressFormError').style.display = 'none';
+    document.getElementById('modalTitleText').textContent = mode === 'edit' ? 'Edit Address' : 'Add Delivery Address';
+    
+    // If editing, fetch and pre-fill form
+    if (mode === 'edit' && addressId) {
+        try {
+            console.log('🔍 Fetching address details for ID:', addressId);
+            const res = await fetch(`/accounts/api/address/${addressId}/`);
+            
+            if (!res.ok) {
+                throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+            }
+            
+            const addr = await res.json();
+            console.log('✅ Address data loaded:', addr);
+            
+            // Pre-fill form fields
+            document.getElementById('addrName').value = addr.name || '';
+            document.getElementById('addrPhone').value = addr.phone || '';
+            document.getElementById('addrLine1').value = addr.address_line1 || '';
+            document.getElementById('addrLine2').value = addr.address_line2 || '';
+            document.getElementById('addrCity').value = addr.city || '';
+            document.getElementById('addrState').value = addr.state || '';
+            document.getElementById('addrPostal').value = addr.postal_code || '';
+            document.getElementById('addrCountry').value = addr.country || 'India';
+            document.getElementById('addrType').value = addr.address_type || 'both';
+            document.getElementById('addrDefault').checked = addr.is_default || false;
+            
+            showToast('Address details loaded', 'success');
+        } catch (err) {
+            console.error('❌ Failed to load address:', err);
+            showToast('Could not load address details. Please try again.', 'error');
+            // Still open modal for manual entry
+        }
+    }
+    
+    // Show modal using CSS class (more reliable than inline style)
+    addressModal.classList.add('show');
+    document.body.style.overflow = 'hidden';
+    console.log('✅ Modal opened');
+};
+
+function closeAddressModalFn() {
+    if (!addressModal) return;
+    addressModal.classList.remove('show');
+    document.body.style.overflow = '';
+    console.log('✅ Modal closed');
+}
+
+// Button listeners
+addAddressBtn?.addEventListener('click', () => openAddressModal('add'));
+document.getElementById('closeAddressModal')?.addEventListener('click', closeAddressModalFn);
+document.getElementById('cancelAddressModalBtn')?.addEventListener('click', closeAddressModalFn);
+
+// Close modal when clicking outside content
+addressModal?.addEventListener('click', (e) => {
+    if (e.target === addressModal) {
+        closeAddressModalFn();
+    }
 });
 
-cancelAddressBtn?.addEventListener('click', () => {
-    addressView.style.display = 'block';
-    addressForm.style.display = 'none';
-    editAddressBtn.style.display = 'inline-block';
-});
-
-document.getElementById('addressForm')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const address = {
-        name: formData.get('name'),
-        phone: formData.get('phone'),
-        address: formData.get('address'),
-        city: formData.get('city'),
-        state: formData.get('state'),
-        postalCode: formData.get('postalCode'),
-        country: formData.get('country')
-    };
+// Delete Address
+window.deleteAddress = async (addressId) => {
+    if (!confirm('Delete this address? This cannot be undone.')) return;
     
     try {
         const res = await fetch("{% url 'accounts:profile' %}", {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
-            body: JSON.stringify({ action: 'update_address', address })
+            body: JSON.stringify({ action: 'delete_address', address_id: addressId })
         });
         const data = await res.json();
         
         if (data.status === 'success') {
-            showToast('Address saved!', 'success');
+            showToast('Address deleted', 'success');
             window.location.reload();
         } else {
-            alert(data.error || 'Failed to save address');
+            alert(data.message || 'Failed to delete address');
         }
     } catch (err) {
         alert('Network error: ' + err.message);
     }
-});
+};
+
+// Set Default Address
+window.setDefaultAddress = async (addressId) => {
+    try {
+        const res = await fetch("{% url 'accounts:profile' %}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
+            body: JSON.stringify({ action: 'set_default_address', address_id: addressId })
+        });
+        const data = await res.json();
+        
+        if (data.status === 'success') {
+            showToast('Default address updated!', 'success');
+            window.location.reload();
+        } else {
+            alert(data.message || 'Failed to set default');
+        }
+    } catch (err) {
+        alert('Network error: ' + err.message);
+    }
+};
+
+// Save Address Form (AJAX)
+if (addressForm) {
+    addressForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('saveAddressBtn');
+        const errEl = document.getElementById('addressFormError');
+        const formData = new FormData(e.target);
+        const payload = Object.fromEntries(formData.entries());
+        
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving...';
+        if (errEl) errEl.style.display = 'none';
+        
+        try {
+            const res = await fetch("{% url 'accounts:profile' %}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            
+            if (data.status === 'success') {
+                showToast('Address saved!', 'success');
+                closeAddressModalFn();
+                setTimeout(() => location.reload(), 600);
+            } else {
+                if (errEl) {
+                    errEl.textContent = data.message || 'Could not save address.';
+                    errEl.style.display = 'block';
+                }
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa fa-check"></i> SAVE ADDRESS';
+            }
+        } catch (err) {
+            alert('Network error: ' + err.message);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa fa-check"></i> SAVE ADDRESS';
+        }
+    });
+}
 {% endif %}
 
-// Shop Edit Toggle (Sellers Only)
+// Shop Address Management (Sellers Only)
 {% if is_seller %}
-const editShopBtn = document.getElementById('editShopBtn');
-const cancelShopBtn = document.getElementById('cancelShopBtn');
-const shopView = document.getElementById('shopView');
-const shopForm = document.getElementById('shopForm');
+const editShopAddressBtn = document.getElementById('editShopAddressBtn');
+const cancelShopAddressBtn = document.getElementById('cancelShopAddressBtn');
+const shopAddressView = document.getElementById('shopAddressView');
+const shopAddressForm = document.getElementById('shopAddressForm');
 
-editShopBtn?.addEventListener('click', () => {
-    shopView.style.display = 'none';
-    shopForm.style.display = 'block';
-    editShopBtn.style.display = 'none';
+editShopAddressBtn?.addEventListener('click', () => {
+    shopAddressView.style.display = 'none';
+    shopAddressForm.style.display = 'block';
+    editShopAddressBtn.style.display = 'none';
 });
 
-cancelShopBtn?.addEventListener('click', () => {
-    shopView.style.display = 'block';
-    shopForm.style.display = 'none';
-    editShopBtn.style.display = 'inline-block';
+cancelShopAddressBtn?.addEventListener('click', () => {
+    shopAddressView.style.display = 'block';
+    shopAddressForm.style.display = 'none';
+    editShopAddressBtn.style.display = 'inline-block';
 });
 
-document.getElementById('shopForm')?.addEventListener('submit', async (e) => {
+document.getElementById('shopAddressForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = e.target.querySelector('button[type="submit"]');
     btn.disabled = true;
     btn.textContent = 'Saving...';
     
-    const shopData = {
-        shop_name: document.getElementById('shopName').value,
-        shop_description: document.getElementById('shopDesc').value,
-        gst_number: document.getElementById('gstNumber').value
+    const formData = new FormData(e.target);
+    const shopAddr = {
+        shop_name: formData.get('shop_name'),
+        shop_phone: formData.get('shop_phone'),
+        shop_email: formData.get('shop_email'),
+        address_line1: formData.get('address_line1'),
+        address_line2: formData.get('address_line2'),
+        city: formData.get('city'),
+        state: formData.get('state'),
+        postal_code: formData.get('postal_code'),
+        country: formData.get('country'),
+        gst_number: formData.get('gst_number'),
+        pickup_instructions: formData.get('pickup_instructions'),
     };
     
     try {
         const res = await fetch("{% url 'accounts:profile' %}", {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
-            body: JSON.stringify({ action: 'update_shop', shop: shopData })
+            body: JSON.stringify({ action: 'update_shop_address', shop_address: shopAddr })
         });
         const data = await res.json();
         
         if (data.status === 'success') {
-            showToast('Shop details updated!', 'success');
+            showToast('Shop address saved!', 'success');
             window.location.reload();
         } else {
-            alert(data.error || 'Failed to update shop');
+            alert(data.message || 'Failed to save shop address');
+            btn.disabled = false;
+            btn.textContent = 'Save Shop Address';
         }
     } catch (err) {
         alert('Network error: ' + err.message);
-    } finally {
         btn.disabled = false;
-        btn.textContent = 'Save Shop Details';
+        btn.textContent = 'Save Shop Address';
     }
 });
 {% endif %}
@@ -536,7 +858,7 @@ document.getElementById('shopForm')?.addEventListener('submit', async (e) => {
 // Toast notification
 function showToast(message, type = 'info') {
     const toast = document.createElement('div');
-    toast.textContent = message;
+    toast.innerHTML = `<i class="fa ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i> ${message}`;
     toast.style.cssText = `
         position: fixed; bottom: 24px; right: 24px; z-index: 9999;
         padding: 12px 22px; border-radius: 8px; font-weight: 600;
@@ -558,6 +880,7 @@ if (!document.querySelector('#profile-animations')) {
     style.textContent = `
         @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes slideDown { from { transform: translateY(0); opacity: 1; } to { transform: translateY(20px); opacity: 0; } }
+        @keyframes modalSlideIn { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     `;
     document.head.appendChild(style);
 }
@@ -694,6 +1017,60 @@ if (!document.querySelector('#profile-animations')) {
 .shop-card p { margin: 8px 0; font-size: 0.95rem; }
 .shop-card .badge { padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
 
+/* ✅ MODAL STYLES - CRITICAL FOR MODAL TO WORK */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: none; /* Hidden by default */
+    align-items: center;
+    justify-content: center;
+    z-index: 1200;
+    padding: 20px;
+    transition: opacity 0.3s ease;
+}
+.modal.show {
+    display: flex !important; /* Show when .show class is added */
+}
+.modal-content {
+    background: white;
+    padding: 30px;
+    border-radius: 14px;
+    width: 90%;
+    max-width: 520px;
+    position: relative;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: modalSlideIn 0.3s ease;
+}
+@keyframes modalSlideIn {
+    from { transform: translateY(-20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+.modal-close {
+    position: absolute;
+    top: 14px;
+    right: 18px;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #999;
+    background: none;
+    border: none;
+    line-height: 1;
+}
+.modal-close:hover {
+    color: #333;
+}
+.addr-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .profile-stats { grid-template-columns: repeat(2, 1fr); }
@@ -703,6 +1080,7 @@ if (!document.querySelector('#profile-animations')) {
     .seller-stats-grid { grid-template-columns: repeat(2, 1fr); }
     .seller-quick-links, .admin-links { flex-direction: column; }
     .view-order-btn { width: 100%; }
+    .addr-grid { grid-template-columns: 1fr; }
 }
 </style>
 {% endblock %}

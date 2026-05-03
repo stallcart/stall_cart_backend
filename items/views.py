@@ -354,6 +354,7 @@ def product_list(request):
 
     # Filters
     category_slug = request.GET.get('category')
+    gender = request.GET.get('gender')
     min_price = request.GET.get('min_price')
     max_price = request.GET.get('max_price')
     search = request.GET.get('search')
@@ -361,6 +362,8 @@ def product_list(request):
 
     if category_slug:
         products = products.filter(category__slug=category_slug)
+    if gender:  # ✅ Apply gender filter
+        products = products.filter(gender=gender)    
     if min_price:
         products = products.filter(price__gte=min_price)
     if max_price:
@@ -386,6 +389,7 @@ def product_list(request):
     context = {
         'products': products,
         'categories': Category.objects.filter(is_active=True),
+        'genders': Product.GENDER_CHOICES,
         'filters': request.GET.dict(),
         'sort': sort,
     }
