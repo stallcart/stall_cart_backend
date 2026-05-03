@@ -5,6 +5,8 @@ from .models import Product, Category, SellerProfile
 
 # items/forms.py
 
+class MultiFileInput(forms.ClearableFileInput):
+    allow_multiple_selected = True
 class ProductForm(forms.ModelForm):
     """
     Shared form for both sellers and superusers.
@@ -12,7 +14,12 @@ class ProductForm(forms.ModelForm):
     - Sellers: seller field is hidden (auto-assigned)
     - Superusers: seller field is a clean dropdown with search-ready styling
     """
-
+    images = forms.FileField(
+        required=False,
+        widget=MultiFileInput(attrs={
+            'class': 'form-input'
+        })
+    )
     class Meta:
         model = Product
         fields = [
@@ -26,7 +33,6 @@ class ProductForm(forms.ModelForm):
             'meta_title', 'meta_description',
             'is_featured', 'is_hot_deal',
             'category',
-            # ❌ REMOVE 'seller' from here - we handle it separately below
         ]
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Product name'}),
