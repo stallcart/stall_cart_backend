@@ -51,11 +51,16 @@
             padding: 10px 20px;
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 16px; /* ✅ Add this */
+            justify-content: space-between;
         }
 
         /* Search */
-        .nav-search { flex: 1; max-width: 500px; position: relative; }
+        .nav-search {
+            flex: 0 1 500px; /* ✅ Instead of flex:1 */
+            max-width: 500px;
+            position: relative;
+        }       
         .nav-search form { display: flex; width: 100%; }
         .nav-search input {
             width: 100%;
@@ -85,8 +90,8 @@
         .nav-actions {
             display: flex;
             align-items: center;
-            gap: 12px;
-            margin-left: auto;
+            gap: 10px;
+            margin-left: 0; /* ❌ remove auto push */
         }
         .nav-link {
             color: #333;
