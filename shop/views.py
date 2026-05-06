@@ -115,7 +115,9 @@ def cart_view(request):
         default_address = user_addresses.filter(is_default=True).first()
         if not default_address and user_addresses:
             default_address = user_addresses[0]
-    
+    remaining_amount_for_free_delivery = 0        
+    if total <500 :
+        remaining_amount_for_free_delivery = 500 - total
     context = {
         'cart_items': cart_items,
         'total': total,
@@ -124,6 +126,7 @@ def cart_view(request):
         'default_address': default_address,
         'user_addresses': user_addresses,
         'cart_count': sum(item['quantity'] for item in cart_items),
+        'remaining_amount_for_free_delivery':remaining_amount_for_free_delivery 
     }
     
     return render(request, 'shop/cart.html', context)

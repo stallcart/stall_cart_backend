@@ -1,0 +1,265 @@
+<!-- home.html -->
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ site_settings.site_name|default:"StallCart" }} | India's Premium Fashion Destination{% endblock %}
+{% block meta_description %}{{ site_settings.meta_description|default:"Shop premium fashion for men & women. Free delivery, easy returns, 100% original products." }}{% endblock %}
+
+{% block content %}
+<!-- ✅ DYNAMIC Hero Banner -->
+<section class="hero">
+    <div class="hero-content">
+        <h1>{{ site_settings.site_tagline|default:"SUMMER COLLECTION 2026" }}</h1>
+        <h2>ELITE FASHION.</h2>
+        <p>{{ site_settings.meta_description|default:"From the grace of Sarees to the edge of Modern Shirts. Discover curated pieces that define your style." }}</p>
+        <a href="#products" class="btn-primary">Shop Latest Collection</a>
+    </div>
+</section>
+<!-- ✅ CATEGORY COLLECTIONS (Below Hero) -->
+<section class="collections-section">
+    <div class="container">
+        <h3>Shop by Collection</h3>
+        <div class="collections-grid">
+            {% for cat in categories|slice:":6" %}
+            <a href="{% url 'items:product_list' %}?category={{ cat.slug }}" class="collection-card">
+                <div class="collection-icon">
+                    {% if "women" in cat.name|lower %}👗{% elif "men" in cat.name|lower %}👔{% elif "furniture" in cat.name|lower %}🪑{% elif "electronics" in cat.name|lower %}📱{% else %}🛍️{% endif %}
+                </div>
+                <span>{{ cat.name }}</span>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</section> 
+<!-- Product Grid -->
+<section id="products" class="product-section">
+    <div class="section-header">
+        <h3>TRENDING 2026</h3>
+        <div class="filters">
+            <form method="get" class="filter-form" id="filterForm">
+                <select name="category" class="form-select-sm" onchange="document.getElementById('filterForm').submit()">
+                    <option value="">All Categories</option>
+                    {% for cat in categories %}
+                        <option value="{{ cat.slug }}" {% if filters.category == cat.slug %}selected{% endif %}>
+                            {{ cat.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <select name="sort" class="form-select-sm" onchange="document.getElementById('filterForm').submit()">
+                    <option value="-created_at" {% if filters.sort == '-created_at' %}selected{% endif %}>Newest First</option>
+                    <option value="price_asc" {% if filters.sort == 'price_asc' %}selected{% endif %}>Price: Low to High</option>
+                    <option value="price_desc" {% if filters.sort == 'price_desc' %}selected{% endif %}>Price: High to Low</option>
+                    <option value="-views_count" {% if filters.sort == '-views_count' %}selected{% endif %}>Most Popular</option>
+                </select>
+            </form>
+        </div>
+    </div>
+    
+    <div class="product-grid">
+        {% for product in products %}
+        <div class="product-card" data-category="{{ product.category.slug }}" data-price="{{ product.price }}">
+            <a href="{% url 'items:product_detail' product.slug %}" class="product-link">
+                <div class="image-wrapper">
+                    {% if product.primary_image %}
+                        <img src="{{ product.primary_image.url }}" alt="{{ product.name }}" loading="lazy">
+                    {% else %}
+                        <div class="no-image">No Image</div>
+                    {% endif %}
+                    <!-- ✅ Gender Badge -->
+                    {% if product.gender %}
+                        <span class="gender-badge">
+                            {{ product.get_gender_display }}
+                        </span>
+                    {% endif %}
+                    {% if product.discount_percent > 0 %}
+                        <span class="discount-badge">-{{ product.discount_percent }}%</span>
+                    {% endif %}
+                    {% if product.is_hot_deal %}
+                        <span class="hot-badge">🔥 Hot</span>
+                    {% endif %}
+                </div>
+            </a>
+            <div class="product-info">
+                <h4><a href="{% url 'items:product_detail' product.slug %}">{{ product.name }}</a></h4>
+                <p class="seller-name">by {{ product.seller.shop_name }}</p>
+                
+                <div class="price-row">
+                    {% if product.discount_percent > 0 %}
+                        <span class="original-price">₹{{ product.price }}</span>
+                        <span class="current-price">₹{{ product.discount_price|floatformat:2 }}</span>
+                    {% else %}
+                        <span class="current-price">₹{{ product.price }}</span>
+                    {% endif %}
+                </div>
+                
+                {% if product.stock <= product.low_stock_threshold and product.stock > 0 %}
+                    <span class="low-stock">⚠️ Only {{ product.stock }} left!</span>
+                {% endif %}
+                
+                <!-- ✅ Only show Add to Cart for customers/guests -->
+                {% if user.role == 'customer' or not user.is_authenticated %}
+                    <button class="btn-add-cart" 
+                            data-product-id="{{ product.id }}" 
+                            data-stock="{{ product.stock }}">
+                        {% if product.stock > 0 %}
+                            <i class="fa fa-cart-plus"></i> Add to Cart
+                        {% else %}
+                            <span class="out-of-stock">Out of Stock</span>
+                        {% endif %}
+                    </button>
+                {% else %}
+                    <a href="{% url 'items:product_detail' product.slug %}" class="btn-outline">View Details</a>
+                {% endif %}
+            </div>
+        </div>
+        {% empty %}
+        <div class="empty-state">
+            <i class="fa fa-search" style="font-size: 3rem; color: #ccc; margin-bottom: 15px;"></i>
+            <h3>No products found</h3>
+            <p>Try adjusting your search or filter criteria.</p>
+            <a href="{% url 'items:product_list' %}" class="btn-outline">Clear Filters</a>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+
+<!-- Deals Section (Dynamic) -->
+{% if hot_products %}
+<section class="deals-section">
+    <div class="deals-header">
+        <h3>🔥 Deals of the Day</h3>
+        <div class="countdown" id="countdown">23h : 59m : 55s</div>
+        <a href="{% url 'items:product_list' %}?sort=-views_count" class="view-all">View All →</a>
+    </div>
+    <div class="products-carousel">
+        {% for product in hot_products %}
+        <div class="product-card-interactive">
+            <a href="{% url 'items:product_detail' product.slug %}">
+                {% if product.primary_image %}
+                    <img src="{{ product.primary_image.url }}" alt="{{ product.name }}">
+                {% endif %}
+                <!-- ✅ Gender Badge -->
+                {% if product.gender %}
+                    <span class="gender-badge">
+                        {{ product.get_gender_display }}
+                    </span>
+                {% endif %}
+                {% if product.discount_percent > 0 %}
+                    <span class="discount-badge">-{{ product.discount_percent }}%</span>
+                {% endif %}
+            </a>
+            <div class="product-info">
+                <h4>{{ product.name|truncatechars:25 }}</h4>
+                <div class="price-row">
+                    {% if product.discount_percent > 0 %}
+                        <span class="original-price">₹{{ product.price }}</span>
+                        <span class="deal-price">₹{{ product.discount_price|floatformat:2 }}</span>
+                    {% else %}
+                        <span class="price">₹{{ product.price }}</span>
+                    {% endif %}
+                </div>
+                {% if user.role == 'customer' or not user.is_authenticated %}
+                    <button class="btn-add-cart-quick" data-product-id="{{ product.id }}" data-stock="{{ product.stock }}">
+                        {% if product.stock > 0 %}Quick Add{% else %}Out{% endif %}
+                    </button>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+const csrfToken = '{{ csrf_token }}';
+const userRole = '{{ user_role }}'; // Passed from view
+
+// Filter & Sort Logic (server-side)
+document.getElementById('filterForm')?.addEventListener('change', (e) => {
+    e.target.form.submit();
+});
+
+// Add to Cart (AJAX) - Only for customers/guests
+document.querySelectorAll('.btn-add-cart, .btn-add-cart-quick').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        if (userRole && userRole !== 'customer') {
+            alert('Sellers cannot add products to cart. Please switch to a customer account.');
+            return;
+        }
+        
+        const productId = btn.dataset.productId;
+        const stock = parseInt(btn.dataset.stock);
+        
+        if (stock <= 0) {
+            showToast('Sorry, this item is out of stock!', 'error');
+            return;
+        }
+        
+        const originalHTML = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Adding...';
+        
+        try {
+            const res = await fetch("{% url 'shop:add_to_cart' %}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ product_id: productId, quantity: 1 })
+            });
+            const data = await res.json();
+            
+            if (data.status === 'success') {
+                const cartCount = document.getElementById('cart-count');
+                if (cartCount) cartCount.textContent = data.cart_count;
+                showToast(data.message || 'Added to cart!', 'success');
+                btn.innerHTML = '<i class="fa fa-check"></i> Added!';
+                btn.style.background = '#2e7d32';
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = originalHTML;
+                    btn.style.background = '';
+                }, 1500);
+            } else {
+                showToast(data.message || 'Failed to add', 'error');
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+            }
+        } catch (err) {
+            showToast('Network error', 'error');
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+        }
+    });
+});
+
+// Simple toast notification
+function showToast(msg, type='info') {
+    const t = document.createElement('div');
+    t.innerHTML = `<i class="fa ${type==='success'?'fa-check-circle':'fa-exclamation-circle'}"></i> ${msg}`;
+    t.style.cssText = `position:fixed;bottom:24px;right:24px;z-index:9999;padding:12px 20px;border-radius:8px;font-weight:600;background:${type==='success'?'#4CAF50':'#f44336'};color:#fff;box-shadow:0 4px 12px rgba(0,0,0,0.2);display:flex;align-items:center;gap:8px;animation:slideUp 0.3s ease;`;
+    document.body.appendChild(t);
+    setTimeout(() => { t.style.animation='slideDown 0.3s ease'; setTimeout(()=>t.remove(),300); }, 2500);
+}
+if(!document.querySelector('#toast-anim')){
+    const s=document.createElement('style'); s.id='toast-anim';
+    s.textContent='@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}@keyframes slideDown{from{transform:translateY(0);opacity:1}to{transform:translateY(20px);opacity:0}}';
+    document.head.appendChild(s);
+}
+
+// Countdown Timer
+function updateCountdown() {
+    const now = new Date();
+    const end = new Date();
+    end.setHours(23, 59, 59);
+    const diff = end - now;
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+    document.getElementById('countdown').textContent = `${hours}h : ${minutes}m : ${seconds}s`;
+}
+setInterval(updateCountdown, 1000);
+updateCountdown();
+</script>
+{% endblock %}

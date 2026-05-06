@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Shop | {{ site_settings.site_name|default:"StallCart" }}{% endblock %}
+{% block meta_description %}Browse our premium collection. Free delivery, secure payments, and 100% original products.{% endblock %}
+
+{% block content %}
+<section class="product-section">
+    <!-- Header & Filters -->
+    <div class="section-header">
+        <h2>🛍️ All Products</h2>
+        
+        <div class="filters">
+            <form method="get" class="filter-form" id="filterForm">
+                <!-- <input type="text" name="search" placeholder="Search products..." value="{{ filters.search }}" class="form-input-sm"> -->
+                
+                <select name="category" class="form-select-sm" onchange="document.getElementById('filterForm').submit()">
+                    <option value="">All Categories</option>
+                    {% for cat in categories %}
+                        <option value="{{ cat.slug }}" {% if filters.category == cat.slug %}selected{% endif %}>{{ cat.name }}</option>
+                    {% endfor %}
+                </select>
+                <!-- ✅ NEW: Gender Filter -->
+                <select name="gender" class="form-select-sm" onchange="document.getElementById('filterForm').submit()">
+                    <option value="">All Genders</option>
+                    {% for value, label in genders %}
+                        <option value="{{ value }}" {% if filters.gender == value %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <select name="sort" class="form-select-sm" onchange="document.getElementById('filterForm').submit()">
+                    <option value="-created_at" {% if sort == '-created_at' %}selected{% endif %}>Newest First</option>
+                    <option value="price_asc" {% if sort == 'price_asc' %}selected{% endif %}>Price: Low to High</option>
+                    <option value="price_desc" {% if sort == 'price_desc' %}selected{% endif %}>Price: High to Low</option>
+                    <option value="-views_count" {% if sort == '-views_count' %}selected{% endif %}>Most Popular</option>
+                </select>
+            </form>
+        </div>
+    </div>
+
+    <!-- Product Grid -->
+    {% if products %}
+    <div class="product-grid">
+        {% for product in products %}
+        <div class="product-card">
+            <a href="{% url 'items:product_detail' product.slug %}" class="product-link">
+                <div class="image-wrapper">
+                    {% if product.primary_image %}
+                        <img src="{{ product.primary_image.url }}" alt="{{ product.name }}" loading="lazy">
+                    {% else %}
+                        <div class="no-image">No Image</div>
+                    {% endif %}
+                    <!-- ✅ Gender Badge -->
+                    {% if product.gender %}
+                        <span class="gender-badge">
+                            {{ product.get_gender_display }}
+                        </span>
+                    {% endif %}
+                    {% if product.discount_percent > 0 %}
+                        <span class="discount-badge">-{{ product.discount_percent }}%</span>
+                    {% endif %}
+                    {% if product.is_hot_deal %}
+                        <span class="hot-badge">🔥 Hot</span>
+                    {% endif %}
+                </div>
+            </a>
+            
+            <div class="product-info">
+                <h4><a href="{% url 'items:product_detail' product.slug %}">{{ product.name }}</a></h4>
+                <p class="seller-name">by {{ product.seller.shop_name }}</p>
+                
+                <div class="price-row">
+                    {% if product.discount_percent > 0 %}
+                        <span class="original-price">₹{{ product.price }}</span>
+                        <span class="current-price">₹{{ product.discount_price|floatformat:2 }}</span>
+                    {% else %}
+                        <span class="current-price">₹{{ product.price }}</span>
+                    {% endif %}
+                </div>
+                
+                {% if product.stock <= product.low_stock_threshold and product.stock > 0 %}
+                    <span class="low-stock">⚠️ Only {{ product.stock }} left!</span>
+                {% endif %}
+                
+                <button class="btn-add-cart" 
+                        data-product-id="{{ product.id }}" 
+                        data-stock="{{ product.stock }}">
+                    {% if product.stock > 0 %}
+                        <i class="fa fa-cart-plus"></i> Add to Cart
+                    {% else %}
+                        <span class="out-of-stock">Out of Stock</span>
+                    {% endif %}
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="fa fa-search" style="font-size: 3rem; color: #ccc; margin-bottom: 15px;"></i>
+        <h3>No products found</h3>
+        <p>Try adjusting your search or filter criteria.</p>
+        <a href="{% url 'items:product_list' %}" class="btn-outline">Clear Filters</a>
+    </div>
+    {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const csrfToken = '{{ csrf_token }}';
+
+// Add to Cart AJAX
+document.querySelectorAll('.btn-add-cart').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        if (btn.disabled || btn.classList.contains('out-of-stock')) return;
+        
+        const productId = btn.dataset.productId;
+        const stock = parseInt(btn.dataset.stock);
+        
+        if (stock <= 0) {
+            showToast('Sorry, this item is out of stock!', 'error');
+            return;
+        }
+        
+        const originalHTML = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Adding...';
+        
+        try {
+            const res = await fetch("{% url 'shop:add_to_cart' %}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ product_id: productId, quantity: 1 })
+            });
+            const data = await res.json();
+            
+            if (data.status === 'success') {
+                const cartCount = document.getElementById('cart-count');
+                if (cartCount) cartCount.textContent = data.cart_count;
+                showToast(data.message || 'Added to cart!', 'success');
+                btn.innerHTML = '<i class="fa fa-check"></i> Added!';
+                btn.style.background = '#2e7d32';
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = originalHTML;
+                    btn.style.background = '';
+                }, 1500);
+            } else {
+                showToast(data.message || 'Failed to add', 'error');
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+            }
+        } catch (err) {
+            showToast('Network error', 'error');
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+        }
+    });
+});
+
+function showToast(msg, type='info') {
+    const t = document.createElement('div');
+    t.innerHTML = `<i class="fa ${type==='success'?'fa-check-circle':'fa-exclamation-circle'}"></i> ${msg}`;
+    t.style.cssText = `position:fixed;bottom:24px;right:24px;z-index:9999;padding:12px 20px;border-radius:8px;font-weight:600;background:${type==='success'?'#4CAF50':'#f44336'};color:#fff;box-shadow:0 4px 12px rgba(0,0,0,0.2);display:flex;align-items:center;gap:8px;animation:slideUp 0.3s ease;`;
+    document.body.appendChild(t);
+    setTimeout(() => { t.style.animation='slideDown 0.3s ease'; setTimeout(()=>t.remove(),300); }, 2500);
+}
+if(!document.querySelector('#toast-anim')){
+    const s=document.createElement('style'); s.id='toast-anim';
+    s.textContent='@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}@keyframes slideDown{from{transform:translateY(0);opacity:1}to{transform:translateY(20px);opacity:0}}';
+    document.head.appendChild(s);
+}
+</script>
+{% endblock %}

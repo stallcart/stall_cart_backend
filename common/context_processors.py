@@ -1,6 +1,7 @@
 from .models import SiteSettings
 from django.core.cache import cache
 from items.models import Category
+from shop.models import Cart 
 def site_settings(request):
     settings = SiteSettings.get_singleton()
     logo_url = settings.logo_primary.url if settings.logo_primary else ''
@@ -19,19 +20,30 @@ def site_settings(request):
         'OG_LOGO_URL': og_logo,  # ✅ Absolute URL for social sharing
     }
 
+# context_processors.py
+
 def cart_count(request):
-    """Add cart count to every template context"""
+    """
+    Add cart count to every template context.
+    ONLY uses database Cart model - no session fallback.
+    Guests will see cart_count = 0 until they log in.
+    """
     cart_count = 0
     
-    if request.user.is_authenticated and request.user.role == 'customer':
-        # Use database cart
-        cart = getattr(request.user, 'cart', None)
-        if cart:
-            cart_count = cart.total_items
-    else:
-        # Fallback to session cart for guests
-        cart = request.session.get('cart', {})
-        cart_count = sum(cart.values())
+    # Only authenticated customers get a database cart
+    if request.user.is_authenticated and getattr(request.user, 'role', None) == 'customer':
+        try:
+            # Fetch cart with annotated total_items for efficiency
+            cart = request.user.cart
+            if cart:
+                # Use the model property (cached via @property)
+                cart_count = cart.total_items
+        except Cart.DoesNotExist:
+            # User has no cart yet - that's okay, count is 0
+            cart_count = 0
+        except AttributeError:
+            # Safety fallback if cart relation isn't loaded
+            cart_count = 0
     
     return {'cart_count': cart_count}
 
