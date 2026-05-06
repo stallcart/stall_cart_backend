@@ -10,6 +10,7 @@ from common.models import SiteSettings
 from django.conf import settings
 from shop.models import *
 from .services import CartService
+from common.decorators import *
 
 def home(request):
     """Main shop page - matches index.html"""
@@ -57,6 +58,7 @@ def product_detail(request, slug):
     }
     return render(request, 'shop/product_detail.html', context)
 
+@customer_only
 @require_POST
 def add_to_cart(request):
     """AJAX: Add product to session cart"""
@@ -126,7 +128,7 @@ def cart_view(request):
     
     return render(request, 'shop/cart.html', context)
 
-
+@customer_only
 @require_POST
 def add_to_cart(request):
     """AJAX: Add product to cart"""
@@ -149,7 +151,7 @@ def add_to_cart(request):
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
-
+@customer_only
 @require_POST
 def update_cart(request):
     """AJAX: Update cart item quantity or remove"""
@@ -177,8 +179,7 @@ def update_cart(request):
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 
-    
-@login_required
+@customer_only    
 def checkout(request):
     """Checkout page - address + payment selection"""
     if request.user.role != 'customer':
@@ -203,107 +204,91 @@ def checkout(request):
 
 # shop/views.py - create_order function
 
-@login_required
+@customer_only
 @require_POST
 def create_order(request):
-    """Create order from DB cart (FIXED VERSION)"""
+    """Create order - CUSTOMERS ONLY"""
     import json
     from django.db import transaction
-
+    
     try:
         data = json.loads(request.body)
         address = data.get('address', {})
         payment_method = data.get('payment_method', 'cod').lower()
-
-        # ✅ GET CART FROM DB
-        cart = getattr(request.user, 'cart', None)
-        if not cart or not cart.items.exists():
+        
+        # Get cart from DB
+        try:
+            cart = Cart.objects.get(user=request.user)
+        except Cart.DoesNotExist:
+            return JsonResponse({'error': 'Cart not found'}, status=400)
+        
+        if not cart.items.exists():
             return JsonResponse({'error': 'Cart is empty'}, status=400)
-
+        
         cart_items = cart.items.select_related('product', 'product__seller')
-
-        # ❌ STOCK VALIDATION FIRST
+        
+        # Stock validation
         for item in cart_items:
             if item.quantity > item.product.stock:
-                return JsonResponse({
-                    'error': f"Not enough stock for {item.product.name}"
-                }, status=400)
-
+                return JsonResponse({'error': f'Not enough stock for {item.product.name}'}, status=400)
+        
         total = sum(item.subtotal for item in cart_items)
-
+        
         with transaction.atomic():
-
-            # ✅ CREATE ORDER
             order = Order.objects.create(
-                user=request.user,
-                total_amount=total,
-                shipping_address=address,
-                payment_method=payment_method,
+                user=request.user, total_amount=total,
+                shipping_address=address, payment_method=payment_method,
                 payment_status='pending',
             )
-
-            # ✅ CREATE ORDER ITEMS
+            
             for item in cart_items:
                 OrderItem.objects.create(
-                    order=order,
-                    product=item.product,
-                    seller=item.product.seller,
-                    quantity=item.quantity,
-                    price=item.unit_price,
-                    total=item.subtotal
+                    order=order, product=item.product, seller=item.product.seller,
+                    quantity=item.quantity, price=item.unit_price, total=item.subtotal
                 )
-
-                # reduce stock
                 item.product.stock -= item.quantity
                 item.product.save()
-
-            # ✅ CLEAR CART (REAL FIX)
+            
             cart.items.all().delete()
-
-        # =======================
-        # RAZORPAY
-        # =======================
+        
+        # Razorpay for non-COD
         if payment_method != 'cod':
-
             import razorpay
-            from django.conf import settings
-
-            razorpay_client = razorpay.Client(
-                auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET)
-            )
-
+            razorpay_client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
             razorpay_order = razorpay_client.order.create({
-                'amount': int(total * 100),
-                'currency': 'INR',
-                'receipt': order.unique_order_id,
-                'payment_capture': 1
+                'amount': int(total * 100), 'currency': 'INR',
+                'receipt': order.unique_order_id, 'payment_capture': 1
             })
-
             order.razorpay_order_id = razorpay_order['id']
             order.save()
-
+            
             return JsonResponse({
-                'status': 'success',
-                'order_id': order.unique_order_id,
+                'status': 'success', 'order_id': order.unique_order_id,
                 'razorpay_order_id': razorpay_order['id'],
-                'key': settings.RAZORPAY_KEY_ID,
-                'amount': int(total * 100),
-                'currency': 'INR',
+                'key': settings.RAZORPAY_KEY_ID, 'amount': int(total * 100), 'currency': 'INR',
             })
-
-        return JsonResponse({
-            'status': 'success',
-            'order_id': order.unique_order_id
-        })
-
+        
+        return JsonResponse({'status': 'success', 'order_id': order.unique_order_id})
+        
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return JsonResponse({'error': str(e)}, status=500)
+# @login_required
+# def order_success(request, order_id):
+#     """Order confirmation page"""
+#     try:
+#         order = Order.objects.get(id=order_id, user=request.user)
+#         return render(request, 'shop/order_success.html', {'order': order})
+#     except Order.DoesNotExist:
+#         return redirect('shop:home')
+
 
 @login_required
 def order_success(request, order_id):
-    """Order confirmation page"""
+    """Order confirmation"""
     try:
-        order = Order.objects.get(id=order_id, user=request.user)
+        order = Order.objects.get(unique_order_id=order_id, user=request.user)
         return render(request, 'shop/order_success.html', {'order': order})
     except Order.DoesNotExist:
         return redirect('shop:home')
