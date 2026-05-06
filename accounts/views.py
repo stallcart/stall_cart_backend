@@ -540,7 +540,11 @@ def profile_view(request):
     
     if is_seller:
         seller = request.user.seller_profile
-        
+        order_ids = set(
+            OrderItem.objects.filter(product__seller=seller)
+            .values_list('order_id', flat=True)
+        )
+        total_orders_count = len(order_ids)
         # Seller stats
         seller_stats = {
             'total_products': seller.products.count(),
@@ -551,10 +555,13 @@ def profile_view(request):
                 product__seller=seller,
                 order__status='delivered'
             ).aggregate(total=Sum('total'))['total'] or 0,
-            'total_orders': OrderItem.objects.filter(
-                product__seller=seller
-            ).select_related('order').distinct('order').count(),
+            # 'total_orders': OrderItem.objects.filter(
+            #     product__seller=seller
+            # ).select_related('order').distinct('order').count(),
+            'total_orders': total_orders_count,  # ✅ Fixed: SQLite compatible
+
         }
+
         
         # Seller's recent orders
         seller_orders = OrderItem.objects.filter(
