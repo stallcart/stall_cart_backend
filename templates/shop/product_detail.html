@@ -97,13 +97,14 @@
 
         <!-- Action Buttons -->
         <div class="action-row">
+            {% if user.role == 'customer' or not user.is_authenticated %}
+
             <div class="qty-selector">
                 <button type="button" class="qty-btn" onclick="changeQty(-1)">−</button>
                 <input type="number" id="qtyInput" class="qty-input" value="1" min="1" max="{{ product.stock }}">
                 <button type="button" class="qty-btn" onclick="changeQty(1)">+</button>
             </div>
             
-            {% if user.role == 'customer' or not user.is_authenticated %}
                 <button class="btn-primary btn-lg" id="addToCartBtn" 
                         data-product-id="{{ product.id }}" 
                         data-stock="{{ product.stock }}">
