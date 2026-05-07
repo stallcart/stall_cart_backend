@@ -345,10 +345,66 @@
             </div>
             <div>
                 <h4>Contact</h4>
+
                 <ul>
-                    <li><i class="fa fa-phone"></i> {{ site_settings.contact_phone }}</li>
-                    <li><i class="fa fa-envelope"></i> {{ site_settings.contact_email }}</li>
+                    <li>
+                        <i class="fa fa-phone"></i>
+                        {{ site_settings.contact_phone }}
+                    </li>
+
+                    <li>
+                        <i class="fa fa-envelope"></i>
+                        {{ site_settings.contact_email }}
+                    </li>
+
+                    {% if site_settings.contact_whatsapp %}
+                    <li>
+                        <a href="{{ site_settings.whatsapp_link }}"
+                        target="_blank"
+                        rel="noopener"
+                        style="display:flex;align-items:center;gap:8px;color:inherit;text-decoration:none;">
+                            <i class="fab fa-whatsapp" style="color:#25D366;"></i>
+                            WhatsApp
+                        </a>
+                    </li>
+                    {% endif %}
                 </ul>
+
+                <!-- Social Media -->
+                <div class="footer-social"
+                    style="display:flex;align-items:center;gap:14px;margin-top:16px;flex-wrap:wrap;">
+
+                    {% if site_settings.social_instagram %}
+                    <a href="{{ site_settings.social_instagram }}"
+                    target="_blank"
+                    rel="noopener"
+                    aria-label="Instagram"
+                    style="font-size:1.2rem;color:#E4405F;transition:0.3s;">
+                        <i class="fab fa-instagram"></i>
+                    </a>
+                    {% endif %}
+
+                    {% if site_settings.social_facebook %}
+                    <a href="{{ site_settings.social_facebook }}"
+                    target="_blank"
+                    rel="noopener"
+                    aria-label="Facebook"
+                    style="font-size:1.2rem;color:#1877F2;transition:0.3s;">
+                        <i class="fab fa-facebook"></i>
+                    </a>
+                    {% endif %}
+
+                    {% if site_settings.social_twitter %}
+                    <a href="{{ site_settings.social_twitter }}"
+                    target="_blank"
+                    rel="noopener"
+                    aria-label="Twitter"
+                    style="font-size:1.2rem;color:#1DA1F2;transition:0.3s;">
+                        <i class="fab fa-twitter"></i>
+                    </a>
+                    {% endif %}
+
+                </div>
             </div>
             <div>
                 <h4>Quick Links</h4>
