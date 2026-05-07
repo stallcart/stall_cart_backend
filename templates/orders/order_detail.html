@@ -101,7 +101,7 @@
             {% endif %}
             {% if order.unique_order_id %}
 
-                <a href="{% url 'orders:invoice' order.unique_order_id %}" class="btn-outline" target="_blank">
+                <a href="{% url 'orders:invoice_download' order.unique_order_id %}" class="btn-outline" target="_blank">
                     🧾 Download Invoice
                 </a>
             {% else %}

@@ -4,205 +4,439 @@
 {% block title %}My Cart - {{ site_settings.site_name|default:"StallCart" }}{% endblock %}
 
 {% block content %}
-<div class="cart-container">
+<section class="product-section" style="background:var(--white);">
+    <div class="container">
+        
+        <!-- Cart Header -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid var(--gray-100);flex-wrap:wrap;gap:12px;">
+            <h2 class="section-title" style="margin:0;display:flex;align-items:center;gap:10px;">
+                <i class="fa fa-shopping-cart" style="color:var(--blue-500);"></i> 
+                My Cart
+                <span style="font-size:0.9rem;color:var(--gray-500);font-weight:400;">
+                    ({{ cart_items|length }} item{{ cart_items|length|pluralize }})
+                </span>
+            </h2>
+            <a href="{% url 'shop:home' %}" class="btn-outline" style="width:auto;padding:8px 16px;font-size:0.875rem;">
+                <i class="fa fa-arrow-left"></i> Continue Shopping
+            </a>
+        </div>
 
-    <!-- Cart Header -->
-    <div class="cart-header">
-        <h2><i class="fa fa-shopping-cart" style="color:#2874f0;"></i> My Cart
-            <span style="font-size:1rem;color:#888;font-weight:400;">({{ cart_items|length }} item{{ cart_items|length|pluralize }})</span>
-        </h2>
-        <a href="{% url 'shop:home' %}" class="back-link">
-            <i class="fa fa-arrow-left"></i> Continue Shopping
-        </a>
-    </div>
+        {% if cart_items %}
+        <div class="cart-grid" style="display:grid;grid-template-columns:1fr;gap:24px;align-items:start;">
+            {% if cart_items|length > 0 %}
+            <style>
+                @media (min-width: 900px) {
+                    .cart-grid {
+                        grid-template-columns: 2fr 1fr !important;
+                    }
+                }
+            </style>
+            {% endif %}
 
-    {% if cart_items %}
-    <div class="cart-grid">
-
-        <!-- ── Left: Cart Items ──────────────────────── -->
-        <div class="cart-items">
-            {% for item in cart_items %}
-            <div class="cart-item" data-product-id="{{ item.product.id }}">
-                <div class="item-image">
-                    {% if item.product.primary_image %}
-                        <img src="{{ item.product.primary_image.url }}" alt="{{ item.product.name }}" loading="lazy">
-                    {% else %}
-                        <div class="no-image"><i class="fa fa-image"></i></div>
-                    {% endif %}
-                </div>
-                <div class="item-details">
-                    <h4><a href="{% url 'items:product_detail' item.product.slug %}">{{ item.product.name }}</a></h4>
-                    <p class="item-seller"><i class="fa fa-store"></i> Sold by: {{ item.product.seller.shop_name }}</p>
-                    <div class="item-price-row">
-                        {% if item.product.discount_percent > 0 %}
-                            <span class="item-price">₹{{ item.unit_price|floatformat:2 }}</span>
-                            <span class="item-price-original">₹{{ item.original_price|floatformat:2 }}</span>
-                            <span class="item-discount-badge">{{ item.product.discount_percent }}% off</span>
+            <!-- ── Left: Cart Items ──────────────────────── -->
+            <div class="cart-items" style="display:flex;flex-direction:column;gap:16px;">
+                {% for item in cart_items %}
+                <article class="cart-item" data-product-id="{{ item.product.id }}" 
+                         style="display:grid;grid-template-columns:100px 1fr;gap:16px;background:var(--white);padding:16px;border-radius:var(--radius-lg);border:1.5px solid var(--gray-100);transition:all var(--transition);">
+                    
+                    <!-- Product Image -->
+                    <div class="item-image" style="width:100px;height:100px;border-radius:var(--radius-md);overflow:hidden;background:var(--gray-50);border:1px solid var(--gray-200);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                        {% if item.product.primary_image %}
+                            <img src="{{ item.product.primary_image.url }}" 
+                                 alt="{{ item.product.name }}" 
+                                 loading="lazy"
+                                 style="width:100%;height:100%;object-fit:cover;">
                         {% else %}
-                            <span class="item-price">₹{{ item.product.price }}</span>
+                            <div class="no-image" style="color:var(--gray-300);font-size:1.5rem;">
+                                <i class="fa fa-image"></i>
+                            </div>
                         {% endif %}
                     </div>
-                    {% if item.savings_per_item > 0 %}
-                    <p class="item-savings"><i class="fa fa-check-circle"></i> You save ₹{{ item.item_total_savings|floatformat:2 }}</p>
-                    {% endif %}
-                    <div class="item-actions">
-                        <div class="quantity-control">
-                            <button class="qty-btn minus" data-action="decrease">−</button>
-                            <input type="number" class="qty-input" value="{{ item.quantity }}" min="1" max="{{ item.product.stock }}" data-stock="{{ item.product.stock }}">
-                            <button class="qty-btn plus" data-action="increase">+</button>
+                    
+                    <!-- Product Details -->
+                    <div class="item-details" style="display:flex;flex-direction:column;gap:8px;">
+                        <h4 style="margin:0;font-size:0.95rem;font-weight:600;line-height:1.4;">
+                            <a href="{% url 'items:product_detail' item.product.slug %}" style="color:var(--gray-800);text-decoration:none;">
+                                {{ item.product.name|truncatechars:50 }}
+                            </a>
+                        </h4>
+                        <p class="item-seller" style="font-size:0.78rem;color:var(--gray-500);margin:0;">
+                            <i class="fa fa-store" style="color:var(--blue-400);margin-right:4px;"></i>
+                            Sold by: {{ item.product.seller.shop_name|truncatechars:25 }}
+                        </p>
+                        
+                        <!-- Price Row -->
+                        <div class="item-price-row" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:4px 0;">
+                            {% if item.product.discount_percent > 0 %}
+                                <span class="item-price" style="font-weight:700;color:var(--gray-900);font-size:1.1rem;">₹{{ item.unit_price|floatformat:2 }}</span>
+                                <span class="item-price-original" style="font-size:0.85rem;color:var(--gray-400);text-decoration:line-through;">₹{{ item.original_price|floatformat:2 }}</span>
+                                <span class="discount-badge" style="background:var(--red);color:var(--white);font-size:0.7rem;font-weight:700;padding:2px 8px;border-radius:20px;">{{ item.product.discount_percent }}% OFF</span>
+                            {% else %}
+                                <span class="item-price" style="font-weight:700;color:var(--gray-900);font-size:1.1rem;">₹{{ item.product.price }}</span>
+                            {% endif %}
                         </div>
-                        <button class="remove-btn" data-action="remove"><i class="fa fa-trash"></i> Remove</button>
-                        <button class="wishlist-btn"><i class="fa fa-heart-o"></i> Save</button>
+                        
+                        {% if item.savings_per_item > 0 %}
+                        <p class="item-savings" style="font-size:0.8rem;color:var(--green);margin:0;font-weight:600;">
+                            <i class="fa fa-check-circle"></i> You save ₹{{ item.item_total_savings|floatformat:2 }}
+                        </p>
+                        {% endif %}
+                        
+                        <!-- Actions Row -->
+                        <div class="item-actions" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:8px 0;">
+                            <!-- Quantity Selector -->
+                            <div class="qty-selector" style="display:inline-flex;align-items:center;border:1.5px solid var(--gray-200);border-radius:var(--radius-md);overflow:hidden;background:var(--white);">
+                                <button type="button" class="qty-btn minus" data-action="decrease" 
+                                        style="background:var(--gray-50);border:none;width:36px;height:40px;font-size:1.1rem;cursor:pointer;color:var(--gray-600);transition:all var(--transition);">−</button>
+                                <input type="number" class="qty-input" value="{{ item.quantity }}" min="1" 
+                                       max="{{ item.product.stock }}" data-stock="{{ item.product.stock }}"
+                                       style="width:44px;text-align:center;border:none;border-left:1.5px solid var(--gray-200);border-right:1.5px solid var(--gray-200);height:40px;font-size:0.9rem;font-weight:600;-moz-appearance:textfield;font-family:inherit;">
+                                <button type="button" class="qty-btn plus" data-action="increase"
+                                        style="background:var(--gray-50);border:none;width:36px;height:40px;font-size:1.1rem;cursor:pointer;color:var(--gray-600);transition:all var(--transition);">+</button>
+                            </div>
+                            
+                            <!-- Remove Button -->
+                            <button class="remove-btn" data-action="remove" 
+                                    style="background:none;border:none;color:var(--red);font-size:0.85rem;cursor:pointer;display:flex;align-items:center;gap:4px;padding:6px 10px;border-radius:var(--radius-sm);transition:all var(--transition);">
+                                <i class="fa fa-trash"></i> Remove
+                            </button>
+                            
+                            <!-- Wishlist Button -->
+                            <button class="wishlist-btn" 
+                                    style="background:none;border:none;color:var(--gray-500);font-size:0.85rem;cursor:pointer;display:flex;align-items:center;gap:4px;padding:6px 10px;border-radius:var(--radius-sm);transition:all var(--transition);">
+                                <i class="fa fa-heart"></i> Save
+                            </button>
+                        </div>
+                        
+                        <!-- Subtotal & Delivery -->
+                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-top:4px;">
+                            <p class="item-subtotal" style="font-size:0.9rem;color:var(--gray-700);margin:0;">
+                                Subtotal: <strong class="subtotal-value" style="color:var(--gray-900);">₹{{ item.subtotal|floatformat:2}}</strong>
+                            </p>
+                            <p class="item-delivery" style="font-size:0.78rem;color:var(--gray-500);margin:0;display:flex;align-items:center;gap:4px;">
+                                <i class="fa fa-truck" style="color:var(--blue-400);"></i>
+                                {% if item.subtotal >= 499 %}
+                                    <span style="color:var(--green);font-weight:600;">Free Delivery</span>
+                                {% else %}
+                                    Delivery ₹40
+                                {% endif %}
+                                · 3–5 days
+                            </p>
+                        </div>
+                        
+                        <!-- Low Stock Warning -->
+                        {% if item.product.stock < item.quantity %}
+                            <p class="low-stock-warning" style="font-size:0.78rem;color:var(--red);margin:4px 0 0;font-weight:600;">
+                                <i class="fa fa-exclamation-triangle"></i> Only {{ item.product.stock }} left!
+                            </p>
+                        {% endif %}
                     </div>
-                    <p class="item-subtotal">Subtotal: <strong class="subtotal-value">₹{{ item.subtotal|floatformat:2}}</strong></p>
-                    {% if item.product.stock < item.quantity %}
-                        <p class="low-stock-warning"><i class="fa fa-exclamation-triangle"></i> Only {{ item.product.stock }} left!</p>
-                    {% endif %}
-                    <p class="item-delivery"><i class="fa fa-truck"></i> {% if item.subtotal >= 499 %}<span style="color:#388e3c;font-weight:600;">Free Delivery</span>{% else %}Delivery ₹40{% endif %} · 3–5 days</p>
-                </div>
+                </article>
+                {% endfor %}
             </div>
-            {% endfor %}
-        </div>
 
-        <!-- ── Right: Price Details ──────────────────── -->
-        <div class="price-details">
-            <h3>PRICE DETAILS</h3>
-            <div class="price-row"><span>Price ({{ cart_items|length }} item{{ cart_items|length|pluralize }})</span><span>₹{{ total|floatformat:2 }}</span></div>
-            <div class="price-row"><span>Discount</span><span class="discount">−₹{{ total_savings|floatformat:2 }}</span></div>
-            <div class="price-row"><span>Delivery Charges</span><span class="{% if delivery_charge == 0 %}free{% endif %}">{% if delivery_charge == 0 %}<i class="fa fa-check-circle"></i> FREE{% else %}₹{{ delivery_charge }}{% endif %}</span></div>
-            {% if total < 499 %}
-            <div class="free-delivery-hint"><i class="fa fa-info-circle"></i> Add ₹{{ remaining_for_free_delivery|floatformat:0 }} more for FREE delivery</div>
-            {% endif %}
-            <div class="price-divider"></div>
-            <div class="price-row total-row"><strong>Total Amount</strong><strong id="grandTotal">₹{{ total|add:delivery_charge|floatformat:2 }}</strong></div>
-            {% if total_savings > 0 %}
-            <div class="savings-msg"><i class="fa fa-tag"></i> You saved <strong>₹{{ total_savings|floatformat:2 }}</strong>! 🎉</div>
-            {% else %}
-            <div class="savings-msg" style="background:#f5f5f5;color:#666;"><i class="fa fa-info-circle"></i> No discounts applied</div>
-            {% endif %}
-            {% if user.is_authenticated %}
-                <button id="placeOrderBtn" class="btn-place-order"><i class="fa fa-lock"></i> PLACE ORDER</button>
-            {% else %}
-                <button id="loginToOrderBtn" class="btn-place-order"><i class="fa fa-sign-in"></i> LOGIN TO ORDER</button>
-                <p class="login-hint">Login to save your cart & checkout faster</p>
-            {% endif %}
-            <div class="secure-badge"><i class="fa fa-shield-alt"></i> 100% Secure Transaction</div>
-        </div>
-    </div>
-
-    <!-- ── Delivery Address (Customer Only) ─────────── -->
-    {% if user.is_authenticated and user.role == 'customer' %}
-    <div class="delivery-address-section">
-        <div class="address-header-row">
-            <h3>📍 Delivery Address</h3>
-            {% if user_addresses|length > 1 %}
-                <select id="addressSelector" class="form-select-sm" style="max-width:200px;">
-                    {% for addr in user_addresses %}
-                        <option value="{{ addr.id }}" {% if addr.id == default_address.id %}selected{% endif %}>
-                            {{ addr.name }} - {{ addr.city }}{% if addr.is_default %} (Default){% endif %}
-                        </option>
-                    {% endfor %}
-                </select>
-            {% endif %}
-        </div>
-        <div class="address-card">
-            {% if default_address %}
-                <div class="address-info" id="selectedAddressInfo">
-                    <p><strong>{{ default_address.name }}</strong>
-                       <span class="address-tag">{{ default_address.get_address_type_display|slice:":8" }}</span>
-                       {% if default_address.is_default %}<span class="badge badge-success" style="margin-left:8px;">✓ Default</span>{% endif %}
+            <!-- ── Right: Price Details (Sticky) ──────────────────── -->
+            <aside class="price-details" style="background:var(--white);padding:20px;border-radius:var(--radius-lg);border:1.5px solid var(--gray-100);box-shadow:var(--shadow-sm);position:sticky;top:80px;align-self:start;">
+                <h3 style="font-size:0.85rem;font-weight:700;color:var(--gray-600);letter-spacing:0.06em;margin:0 0 16px;padding-bottom:12px;border-bottom:1px solid var(--gray-100);text-transform:uppercase;">
+                    Price Details
+                </h3>
+                
+                <div class="price-row" style="display:flex;justify-content:space-between;margin-bottom:10px;font-size:0.9rem;color:var(--gray-700);">
+                    <span>Price ({{ cart_items|length }} item{{ cart_items|length|pluralize }})</span>
+                    <span>₹{{ total|floatformat:2 }}</span>
+                </div>
+                <div class="price-row" style="display:flex;justify-content:space-between;margin-bottom:10px;font-size:0.9rem;">
+                    <span>Discount</span>
+                    <span class="discount" style="color:var(--green);font-weight:600;">−₹{{ total_savings|floatformat:2 }}</span>
+                </div>
+                <div class="price-row" style="display:flex;justify-content:space-between;margin-bottom:10px;font-size:0.9rem;">
+                    <span>Delivery Charges</span>
+                    <span class="{% if delivery_charge == 0 %}free{% endif %}" 
+                          style="{% if delivery_charge == 0 %}color:var(--green);font-weight:600;{% else %}color:var(--gray-700);{% endif %}">
+                        {% if delivery_charge == 0 %}
+                            <i class="fa fa-check-circle"></i> FREE
+                        {% else %}
+                            ₹{{ delivery_charge }}
+                        {% endif %}
+                    </span>
+                </div>
+                
+                {% if total < 499 %}
+                <div class="free-delivery-hint" style="font-size:0.8rem;color:var(--amber);background:var(--amber-bg);padding:8px 12px;border-radius:var(--radius-sm);margin:10px 0;display:flex;align-items:center;gap:6px;">
+                    <i class="fa fa-info-circle"></i> 
+                    Add ₹{{ remaining_amount_for_free_delivery|floatformat:0 }} more for FREE delivery
+                </div>
+                {% endif %}
+                
+                <div class="price-divider" style="border-top:1px dashed var(--gray-200);margin:14px 0;"></div>
+                
+                <div class="price-row total-row" style="display:flex;justify-content:space-between;font-size:1.1rem;color:var(--gray-900);margin-bottom:8px;">
+                    <strong>Total Amount</strong>
+                    <strong id="grandTotal">₹{{ total|add:delivery_charge|floatformat:2 }}</strong>
+                </div>
+                
+                {% if total_savings > 0 %}
+                <div class="savings-msg" style="background:var(--green-bg);color:#065F46;font-size:0.85rem;font-weight:600;padding:10px 14px;border-radius:var(--radius-md);margin-bottom:16px;display:flex;align-items:center;gap:6px;">
+                    <i class="fa fa-tag"></i> You saved <strong>₹{{ total_savings|floatformat:2 }}</strong>! 🎉
+                </div>
+                {% else %}
+                <div class="savings-msg" style="background:var(--gray-100);color:var(--gray-600);font-size:0.85rem;padding:10px 14px;border-radius:var(--radius-md);margin-bottom:16px;display:flex;align-items:center;gap:6px;">
+                    <i class="fa fa-info-circle"></i> No discounts applied
+                </div>
+                {% endif %}
+                
+                {% if user.is_authenticated %}
+                    <button id="placeOrderBtn" class="btn-primary btn-lg" style="width:100%;padding:12px 20px;font-size:0.95rem;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;">
+                        <i class="fa fa-lock"></i> PLACE ORDER
+                    </button>
+                {% else %}
+                    <button id="loginToOrderBtn" class="btn-primary btn-lg" style="width:100%;padding:12px 20px;font-size:0.95rem;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;">
+                        <i class="fa fa-sign-in-alt"></i> LOGIN TO ORDER
+                    </button>
+                    <p class="login-hint" style="font-size:0.8rem;color:var(--gray-500);text-align:center;margin:10px 0 0;">
+                        Login to save your cart & checkout faster
                     </p>
-                    <p>{{ default_address.address_line1 }}{% if default_address.address_line2 %}, {{ default_address.address_line2 }}{% endif %}</p>
-                    <p>{{ default_address.city }}, {{ default_address.state }} – {{ default_address.postal_code }}</p>
-                    <p><i class="fa fa-phone"></i> {{ default_address.phone }} • {{ default_address.country }}</p>
+                {% endif %}
+                
+                <div class="secure-badge" style="text-align:center;font-size:0.75rem;color:var(--gray-500);display:flex;align-items:center;justify-content:center;gap:5px;margin-top:12px;">
+                    <i class="fa fa-shield-alt" style="color:var(--green);"></i> 100% Secure Transaction
                 </div>
-                <div class="address-actions">
-                    <button class="btn-outline-sm" onclick="openAddressModal('edit', {{ default_address.id }})"><i class="fa fa-pencil"></i> Edit</button>
-                    {% if not default_address.is_default %}
-                    <button class="btn-outline-sm" onclick="setDefaultAddress({{ default_address.id }})"><i class="fa fa-star"></i> Set Default</button>
-                    {% endif %}
-                    <button class="btn-outline-sm" id="addAddressBtn"><i class="fa fa-plus"></i> Add New</button>
+            </aside>
+        </div>
+
+        <!-- ── Delivery Address (Customer Only) ─────────── -->
+        {% if user.is_authenticated and user.role == 'customer' %}
+        <div class="delivery-address-section" style="margin-top:24px;background:var(--white);padding:20px;border-radius:var(--radius-lg);border:1.5px solid var(--gray-100);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px;">
+                <h3 style="margin:0;font-size:1.1rem;color:var(--gray-800);display:flex;align-items:center;gap:8px;">
+                    <i class="fa fa-map-marker-alt" style="color:var(--blue-400);"></i> Delivery Address
+                </h3>
+                {% if user_addresses|length > 1 %}
+                    <select id="addressSelector" class="form-select-sm" style="max-width:220px;padding:8px 12px;border:1.5px solid var(--gray-200);border-radius:var(--radius-md);font-size:0.875rem;background:var(--white);color:var(--gray-700);">
+                        {% for addr in user_addresses %}
+                            <option value="{{ addr.id }}" {% if addr.id == default_address.id %}selected{% endif %}>
+                                {{ addr.name }} - {{ addr.city }}{% if addr.is_default %} (Default){% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                {% endif %}
+            </div>
+            
+            <div class="address-card" style="background:var(--blue-50);border:1.5px solid var(--blue-100);border-radius:var(--radius-lg);padding:16px;border-left:4px solid var(--blue-400);">
+                {% if default_address %}
+                    <div class="address-info" id="selectedAddressInfo">
+                        <p style="margin:0 0 8px;font-size:0.95rem;color:var(--gray-800);">
+                            <strong>{{ default_address.name }}</strong>
+                            <span class="address-tag" style="display:inline-block;background:var(--blue-500);color:var(--white);font-size:0.68rem;font-weight:700;padding:2px 8px;border-radius:3px;margin-left:8px;">
+                                {{ default_address.get_address_type_display|slice:":8" }}
+                            </span>
+                            {% if default_address.is_default %}
+                                <span class="badge badge-success" style="margin-left:8px;background:var(--green);color:var(--white);font-size:0.65rem;font-weight:700;padding:2px 6px;border-radius:3px;">✓ Default</span>
+                            {% endif %}
+                        </p>
+                        <p style="margin:4px 0;font-size:0.9rem;color:var(--gray-700);line-height:1.5;">
+                            {{ default_address.address_line1 }}{% if default_address.address_line2 %}, {{ default_address.address_line2 }}{% endif %}
+                        </p>
+                        <p style="margin:4px 0;font-size:0.9rem;color:var(--gray-700);">
+                            {{ default_address.city }}, {{ default_address.state }} – {{ default_address.postal_code }}
+                        </p>
+                        <p style="margin:8px 0 0;font-size:0.85rem;color:var(--gray-600);">
+                            <i class="fa fa-phone" style="color:var(--blue-400);margin-right:4px;"></i> 
+                            {{ default_address.phone }} • {{ default_address.country }}
+                        </p>
+                    </div>
+                    <div class="address-actions" style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+                        <button class="btn-outline" onclick="openAddressModal('edit', {{ default_address.id }})" 
+                                style="width:auto;padding:7px 14px;font-size:0.8rem;">
+                            <i class="fa fa-pencil"></i> Edit
+                        </button>
+                        {% if not default_address.is_default %}
+                        <button class="btn-outline" onclick="setDefaultAddress({{ default_address.id }})" 
+                                style="width:auto;padding:7px 14px;font-size:0.8rem;">
+                            <i class="fa fa-star"></i> Set Default
+                        </button>
+                        {% endif %}
+                        <button class="btn-outline" id="addAddressBtn" 
+                                style="width:auto;padding:7px 14px;font-size:0.8rem;">
+                            <i class="fa fa-plus"></i> Add New
+                        </button>
+                    </div>
+                {% else %}
+                    <div class="no-address" style="display:flex;align-items:center;gap:10px;color:var(--gray-500);font-size:0.9rem;">
+                        <i class="fa fa-map-marker-alt" style="font-size:1.2rem;color:var(--gray-300);"></i>
+                        <p style="margin:0;">No delivery address saved.</p>
+                    </div>
+                    <button class="btn-primary" id="addAddressBtn" 
+                            style="width:auto;padding:8px 16px;font-size:0.85rem;margin-top:12px;">
+                        <i class="fa fa-plus"></i> Add Address
+                    </button>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- ── Payment Method ─────────────────────────────── -->
+        <div class="payment-preview" style="margin-top:24px;background:var(--white);padding:20px;border-radius:var(--radius-lg);border:1.5px solid var(--gray-100);">
+            <h3 style="margin:0 0 16px;font-size:1.1rem;color:var(--gray-800);display:flex;align-items:center;gap:8px;">
+                <i class="fa fa-credit-card" style="color:var(--blue-400);"></i> Select Payment Method
+            </h3>
+            <div class="payment-options" style="display:flex;flex-direction:column;gap:12px;">
+                
+                <!-- UPI / Online Payment -->
+                <label class="payment-option" style="display:flex;align-items:center;gap:14px;padding:14px 16px;border:2px solid var(--gray-200);border-radius:var(--radius-lg);cursor:pointer;transition:all var(--transition);background:var(--white);">
+                    <input type="radio" name="payment" value="UPI" checked 
+                           style="width:18px;height:18px;cursor:pointer;accent-color:var(--blue-500);">
+                    <div class="payment-icon" style="display:flex;align-items:center;">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/e/e1/Google_Pay_Logo.svg" 
+                             alt="GPay" width="36" style="filter:drop-shadow(0 1px 2px rgba(0,0,0,0.1));">
+                    </div>
+                    <div class="payment-text" style="flex:1;">
+                        <span style="display:block;font-weight:600;font-size:0.95rem;color:var(--gray-800);">Online Payment / UPI</span>
+                        <small style="color:var(--gray-500);font-size:0.8rem;">GPay, PhonePe, Cards, NetBanking</small>
+                    </div>
+                    <span class="offer-badge" style="background:var(--amber-bg);color:var(--amber);padding:4px 10px;border-radius:20px;font-size:0.75rem;font-weight:700;white-space:nowrap;">
+                        FLAT ₹50 OFF
+                    </span>
+                </label>
+                
+                <!-- COD -->
+                <label class="payment-option" style="display:flex;align-items:center;gap:14px;padding:14px 16px;border:2px solid var(--gray-200);border-radius:var(--radius-lg);cursor:pointer;transition:all var(--transition);background:var(--white);">
+                    <input type="radio" name="payment" value="COD" 
+                           style="width:18px;height:18px;cursor:pointer;accent-color:var(--blue-500);">
+                    <div class="payment-icon" style="display:flex;align-items:center;font-size:1.4rem;">💵</div>
+                    <div class="payment-text" style="flex:1;">
+                        <span style="display:block;font-weight:600;font-size:0.95rem;color:var(--gray-800);">Cash on Delivery (COD)</span>
+                        <small style="color:var(--gray-500);font-size:0.8rem;">Safe & Reliable • No extra charges</small>
+                    </div>
+                </label>
+                
+            </div>
+        </div>
+
+        {% else %}
+        <!-- ── Empty Cart ─────────────────────────────────── -->
+        <div class="empty-state" style="text-align:center;padding:60px 20px;background:var(--white);border-radius:var(--radius-xl);border:1.5px solid var(--gray-100);">
+            <div style="font-size:4rem;color:var(--gray-200);margin-bottom:20px;">
+                <i class="fa fa-shopping-cart"></i>
+            </div>
+            <h3 style="color:var(--gray-800);margin-bottom:10px;font-size:1.3rem;">Your cart is empty!</h3>
+            <p style="color:var(--gray-500);max-width:400px;margin:0 auto 24px;">
+                Looks like you haven't added anything yet. Start exploring our amazing products!
+            </p>
+            <a href="{% url 'shop:home' %}" class="btn-primary" style="width:auto;padding:12px 32px;font-size:0.95rem;">
+                <i class="fa fa-arrow-right"></i> Start Shopping
+            </a>
+        </div>
+        {% endif %}
+        
+    </div>
+</section>
+
+<!-- ✅ ADDRESS MODAL (Matches base.html login modal styling) -->
+<div id="addressModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="addressModalTitle" style="z-index:1600;">
+    <div class="modal-content" style="max-width:520px;">
+        <div class="modal-header-bar">
+            <h3 id="addressModalTitle" style="font-size:1.1rem;font-weight:700;color:var(--blue-800);margin:0;display:flex;align-items:center;gap:8px;">
+                <i class="fa fa-map-marker-alt" style="color:var(--blue-400);"></i> 
+                <span id="modalTitleText">Add Address</span>
+            </h3>
+            <button class="modal-close" id="closeAddressModal" aria-label="Close">
+                <i class="fa fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="modal-body">
+            <form id="addressModalForm">
+                {% csrf_token %}
+                <input type="hidden" id="addressAction" value="add_address">
+                <input type="hidden" id="addressId" value="">
+                
+                <div class="form-group">
+                    <label class="form-label" for="modalAddrName">Full Name *</label>
+                    <input type="text" id="modalAddrName" name="name" class="form-input" 
+                           placeholder="Enter your full name" required>
                 </div>
-            {% else %}
-                <div class="no-address"><i class="fa fa-map-marker-alt"></i><p>No delivery address saved.</p></div>
-                <button class="btn-outline-sm" id="addAddressBtn"><i class="fa fa-plus"></i> Add Address</button>
-            {% endif %}
+                
+                <div class="form-group">
+                    <label class="form-label" for="modalAddrPhone">Phone Number *</label>
+                    <input type="tel" id="modalAddrPhone" name="phone" class="form-input" 
+                           placeholder="10-digit mobile number" pattern="[0-9]{10}" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="modalAddrLine1">Address Line 1 *</label>
+                    <textarea id="modalAddrLine1" name="address_line1" class="form-input" 
+                              placeholder="House no., Building, Street" rows="2" required></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="modalAddrLine2">Address Line 2 (Optional)</label>
+                    <textarea id="modalAddrLine2" name="address_line2" class="form-input" 
+                              placeholder="Area, Colony, Landmark" rows="2"></textarea>
+                </div>
+                
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                    <div class="form-group">
+                        <label class="form-label" for="modalAddrCity">City *</label>
+                        <input type="text" id="modalAddrCity" name="city" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="modalAddrState">State *</label>
+                        <input type="text" id="modalAddrState" name="state" class="form-input" required>
+                    </div>
+                </div>
+                
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                    <div class="form-group">
+                        <label class="form-label" for="modalAddrPostal">PIN Code *</label>
+                        <input type="text" id="modalAddrPostal" name="postal_code" class="form-input" 
+                               placeholder="6-digit PIN" pattern="[0-9]{6}" maxlength="6" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="modalAddrCountry">Country</label>
+                        <select id="modalAddrCountry" name="country" class="form-select-sm" style="width:100%;">
+                            <option value="India" selected>India</option>
+                            <!-- <option value="Nepal">Nepal</option>
+                            <option value="Bangladesh">Bangladesh</option> -->
+                        </select>
+                    </div>
+                </div>
+                
+                <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end;">
+                    <div class="form-group">
+                        <label class="form-label" for="modalAddrType">Address Type</label>
+                        <select id="modalAddrType" name="address_type" class="form-select-sm" style="width:100%;">
+                            <option value="shipping">Shipping</option>
+                            <option value="billing">Billing</option>
+                            <option value="both" selected>Both</option>
+                        </select>
+                    </div>
+                    <div style="padding-top:24px;">
+                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.9rem;color:var(--gray-700);">
+                            <input type="checkbox" id="modalAddrDefault" name="is_default" style="width:16px;height:16px;accent-color:var(--blue-500);">
+                            Set as Default
+                        </label>
+                    </div>
+                </div>
+                
+                <div id="addressModalError" class="form-error-box" style="display:none;"></div>
+                
+                <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+                    <button type="button" class="btn-outline" id="cancelAddressModalBtn" 
+                            style="width:auto;padding:10px 20px;font-size:0.9rem;">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn-primary" id="saveAddressModalBtn" 
+                            style="width:auto;padding:10px 20px;font-size:0.9rem;">
+                        Save Address
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
-    {% endif %}
-
-    <!-- ── Payment Method ─────────────────────────────── -->
-    <div class="payment-preview">
-        <h3>💳 Select Payment Method</h3>
-        <div class="payment-options">
-            <label class="payment-option">
-                <input type="radio" name="payment" value="UPI" checked>
-                <div class="payment-icon"><img src="https://upload.wikimedia.org/wikipedia/commons/e/e1/Google_Pay_Logo.svg" alt="GPay" width="38"></div>
-                <div class="payment-text"><span>Online Payment / UPI</span><small>GPay, PhonePe, Cards, NetBanking</small></div>
-                <span class="offer-badge">FLAT ₹50 INSTANT OFF</span>
-            </label>
-            <label class="payment-option">
-                <input type="radio" name="payment" value="COD">
-                <div class="payment-icon" style="font-size:1.6rem;">💵</div>
-                <div class="payment-text"><span>Cash on Delivery (COD)</span><small>Safe & Reliable</small></div>
-            </label>
-        </div>
-    </div>
-
-    {% else %}
-    <!-- ── Empty Cart ─────────────────────────────────── -->
-    <div class="empty-cart">
-        <div class="empty-cart-icon">🛒</div>
-        <h3>Your cart is empty!</h3>
-        <p>Looks like you haven't added anything yet. Go ahead, explore our products.</p>
-        <a href="{% url 'shop:home' %}" class="btn-place-order" style="text-decoration:none;display:inline-flex;width:auto;padding:14px 40px;">Start Shopping</a>
-    </div>
-    {% endif %}
 </div>
 
-<!-- ✅ ADDRESS MODAL  -->
-<div id="addressModal" class="modal-overlay" style="display:none;">
-    <div class="modal-box">
-        <button class="modal-close" id="closeAddressModal">&times;</button>
-        <h3 class="modal-title"><i class="fa fa-map-marker-alt"></i> <span id="modalTitleText">Add Address</span></h3>
-        <form id="addressModalForm">
-            {% csrf_token %}
-            <input type="hidden" id="addressAction" value="add_address">
-            <input type="hidden" id="addressId" value="">
-            <div class="form-row">
-                <input type="text" id="modalAddrName" name="name" class="form-input" placeholder="Full Name *" required>
-                <input type="tel" id="modalAddrPhone" name="phone" class="form-input" placeholder="Phone *" pattern="[0-9]{10}" required>
-            </div>
-            <textarea id="modalAddrLine1" name="address_line1" class="form-input" placeholder="Address Line 1 *" rows="2" required></textarea>
-            <textarea id="modalAddrLine2" name="address_line2" class="form-input" placeholder="Address Line 2 (Optional)" rows="2"></textarea>
-            <div class="form-row">
-                <input type="text" id="modalAddrCity" name="city" class="form-input" placeholder="City *" required>
-                <input type="text" id="modalAddrState" name="state" class="form-input" placeholder="State *" required>
-            </div>
-            <div class="form-row">
-                <input type="text" id="modalAddrPostal" name="postal_code" class="form-input" placeholder="PIN Code *" pattern="[0-9]{6}" maxlength="6" required>
-                <select id="modalAddrCountry" name="country" class="form-select">
-                    <option value="India">India</option>
-                    <option value="Nepal">Nepal</option>
-                    <option value="Bangladesh">Bangladesh</option>
-                </select>
-            </div>
-            <div class="form-row">
-                <select id="modalAddrType" name="address_type" class="form-select">
-                    <option value="shipping">Shipping</option>
-                    <option value="billing">Billing</option>
-                    <option value="both" selected>Both</option>
-                </select>
-                <label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="modalAddrDefault" name="is_default"> Default</label>
-            </div>
-            <div id="addressModalError" class="form-error" style="display:none;color:#c62828;background:#ffebee;padding:8px 12px;border-radius:6px;margin:10px 0;"></div>
-            <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
-                <button type="submit" class="btn-primary" id="saveAddressModalBtn">Save</button>
-                <button type="button" class="btn-outline" id="cancelAddressModalBtn">Cancel</button>
-            </div>
-        </form>
-    </div>
-</div>
+<!-- Razorpay Script (loaded in base.html, but ensure it's available) -->
 {% endblock %}
 
 {% block scripts %}
@@ -214,13 +448,24 @@ document.addEventListener('DOMContentLoaded', function() {
     const SAVE_ADDRESS_URL = "{% url 'accounts:profile' %}";
     const IS_AUTH = {{ user.is_authenticated|lower }};
     
-    // Toast helper
-    function toast(msg, type) {
-        if (typeof window.showToast === 'function') window.showToast(msg, type);
-        else alert(msg);
+    // ── Toast Helper (uses base.html global if available) ──
+    function toast(msg, type = 'info') {
+        if (typeof window.showToast === 'function') {
+            window.showToast(msg, type);
+        } else {
+            // Fallback toast
+            const t = document.createElement('div');
+            t.innerHTML = `<i class="fa ${type==='success'?'fa-check-circle':'fa-exclamation-circle'}"></i> ${msg}`;
+            t.style.cssText = `position:fixed;bottom:24px;right:16px;z-index:9999;padding:12px 20px;border-radius:var(--radius-lg);font-weight:600;background:${type==='success'?'var(--green)':'var(--red)'};color:#fff;box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:8px;font-size:0.9rem;animation:toastIn 0.3s ease;`;
+            document.body.appendChild(t);
+            setTimeout(() => {
+                t.style.animation = 'toastOut 0.3s ease forwards';
+                setTimeout(() => t.remove(), 300);
+            }, 2800);
+        }
     }
     
-    // ===== QUANTITY CONTROLS =====
+    // ── Quantity Controls ─────────────────────────────────
     document.querySelectorAll('.qty-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
             const row = btn.closest('.cart-item');
@@ -228,35 +473,49 @@ document.addEventListener('DOMContentLoaded', function() {
             const pid = row.dataset.productId;
             const stock = parseInt(input.dataset.stock);
             let qty = parseInt(input.value);
+            
             if (btn.dataset.action === 'increase') {
                 if (qty >= stock) { toast(`Only ${stock} in stock`, 'error'); return; }
                 qty++;
-            } else { if (qty <= 1) return; qty--; }
+            } else { 
+                if (qty <= 1) return; 
+                qty--; 
+            }
             input.value = qty;
             await updateCartItem(pid, qty);
         });
     });
+    
     document.querySelectorAll('.qty-input').forEach(input => {
         input.addEventListener('change', async () => {
             const row = input.closest('.cart-item');
             const pid = row.dataset.productId;
             const stock = parseInt(input.dataset.stock);
             let qty = parseInt(input.value);
+            
             if (isNaN(qty) || qty < 1) qty = 1;
             if (qty > stock) { qty = stock; toast(`Only ${stock} available`, 'error'); }
             input.value = qty;
             await updateCartItem(pid, qty);
         });
     });
+    
     document.querySelectorAll('.remove-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
-            if (!confirm('Remove this item?')) return;
+            if (!confirm('Remove this item from cart?')) return;
             const pid = btn.closest('.cart-item').dataset.productId;
             await updateCartItem(pid, 0, 'remove');
         });
     });
     
+    // ── Update Cart Item (AJAX) ───────────────────────────
     async function updateCartItem(productId, quantity, action = 'update') {
+        const itemEl = document.querySelector(`.cart-item[data-product-id="${productId}"]`);
+        if (itemEl) {
+            itemEl.style.opacity = '0.7';
+            itemEl.style.pointerEvents = 'none';
+        }
+        
         try {
             const res = await fetch(UPDATE_CART_URL, {
                 method: 'POST',
@@ -264,84 +523,195 @@ document.addEventListener('DOMContentLoaded', function() {
                 body: JSON.stringify({ product_id: productId, quantity, action })
             });
             const data = await res.json();
+            
             if (data.status === 'success') {
-                if (typeof window.updateCartCount === 'function') window.updateCartCount(data.cart_count);
+                // Update cart badges
+                if (typeof window.updateCartCount === 'function') {
+                    window.updateCartCount(data.cart_count);
+                }
+                
                 if (action === 'remove' || quantity === 0) {
-                    const item = document.querySelector(`.cart-item[data-product-id="${productId}"]`);
-                    if (item) {
-                        item.style.transition = 'opacity 0.3s, transform 0.3s';
-                        item.style.opacity = '0'; item.style.transform = 'translateX(-20px)';
-                        setTimeout(() => { item.remove(); if (!document.querySelector('.cart-item')) location.reload(); }, 320);
+                    // Remove item with animation
+                    if (itemEl) {
+                        itemEl.style.transition = 'opacity 0.3s, transform 0.3s';
+                        itemEl.style.opacity = '0'; 
+                        itemEl.style.transform = 'translateX(-20px)';
+                        setTimeout(() => { 
+                            itemEl.remove(); 
+                            if (!document.querySelector('.cart-item')) {
+                                location.reload(); 
+                            }
+                        }, 320);
                     }
                 } else {
-                    const item = document.querySelector(`.cart-item[data-product-id="${productId}"]`);
-                    const price = parseFloat(item.querySelector('.item-price').textContent.replace('₹','').replace(',',''));
-                    item.querySelector('.subtotal-value').textContent = `₹${(price * quantity).toFixed(2)}`;
+                    // Update subtotal
+                    const priceEl = itemEl?.querySelector('.item-price');
+                    if (priceEl) {
+                        const price = parseFloat(priceEl.textContent.replace('₹','').replace(',',''));
+                        const subtotalEl = itemEl.querySelector('.subtotal-value');
+                        if (subtotalEl) {
+                            subtotalEl.textContent = `₹${(price * quantity).toFixed(2)}`;
+                        }
+                    }
+                    // Refresh price summary
                     setTimeout(() => location.reload(), 300);
                 }
-            } else toast(data.message || 'Failed to update cart', 'error');
-        } catch (err) { toast('Network error: ' + err.message, 'error'); }
+                toast('Cart updated!', 'success');
+            } else {
+                toast(data.message || 'Failed to update cart', 'error');
+                if (itemEl) {
+                    itemEl.style.opacity = '1';
+                    itemEl.style.pointerEvents = 'auto';
+                }
+            }
+        } catch (err) {
+            console.error('Cart update error:', err);
+            toast('Network error. Please try again.', 'error');
+            if (itemEl) {
+                itemEl.style.opacity = '1';
+                itemEl.style.pointerEvents = 'auto';
+            }
+        }
     }
     
-    // ===== PLACE ORDER =====
+    // ── Place Order with Razorpay ─────────────────────────
     const placeOrderBtn = document.getElementById('placeOrderBtn');
     if (placeOrderBtn) {
         placeOrderBtn.addEventListener('click', async () => {
-            if (!document.querySelector('.address-info')) { openAddressModal(); toast('Please add a delivery address first', 'error'); return; }
+            // Validate address
+            if (!document.querySelector('.address-info')) { 
+                toast('Please add a delivery address first', 'error');
+                if (typeof openAddressModal === 'function') openAddressModal();
+                return; 
+            }
+            
             const paymentMethod = document.querySelector('input[name="payment"]:checked')?.value || 'COD';
             const addrInfo = document.querySelector('#selectedAddressInfo');
+            
+            // Extract address details
             const address = {
                 name: addrInfo?.querySelector('strong')?.textContent?.trim() || '{{ user.full_name|escapejs }}',
                 phone: addrInfo?.querySelector('.fa-phone')?.parentElement?.textContent?.trim().replace('📞','').trim() || '{{ user.phone|escapejs }}',
                 address_line1: addrInfo?.querySelectorAll('p')[1]?.textContent?.trim() || '',
-                address_line2: '', city: '', state: '', postal_code: '', country: 'India'
+                address_line2: addrInfo?.querySelectorAll('p')[2]?.textContent?.trim() || '',
+                city: '', state: '', postal_code: '', country: 'India'
             };
-            placeOrderBtn.disabled = true; placeOrderBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Processing...';
+            
+            // Disable button & show loading
+            const originalHTML = placeOrderBtn.innerHTML;
+            placeOrderBtn.disabled = true; 
+            placeOrderBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Processing...';
+            
             try {
                 const res = await fetch(CREATE_ORDER_URL, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
-                    body: JSON.stringify({ address, payment_method: paymentMethod })
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+                    body: JSON.stringify({ 
+                        address: address, 
+                        payment_method: paymentMethod,
+                        cart_items: Array.from(document.querySelectorAll('.cart-item')).map(item => ({
+                            product_id: item.dataset.productId,
+                            quantity: parseInt(item.querySelector('.qty-input').value)
+                        }))
+                    })
                 });
                 const data = await res.json();
+                
                 if (data.status === 'success') {
                     if (paymentMethod === 'COD') {
-                        window.location.href = `/orders/success/${data.order_id}/`;
+                        // COD: Redirect to success page
+                        toast('Order placed successfully! 🎉', 'success');
+                        setTimeout(() => {
+                            window.location.href = `/orders/success/${data.order_id}/`;
+                        }, 1000);
                     } else {
-                        const rzp = new Razorpay({
-                            key: data.key, amount: data.amount, currency: data.currency, name: '{{ site_settings.site_name }}',
-                            description: 'Order Payment', order_id: data.razorpay_order_id, payment_capture: 1,
-                            theme: { color: '#2874f0' },
-                            handler: function(response) { window.location.href = `/orders/success/${data.order_id}/?payment_id=${response.razorpay_payment_id}`; },
-                            modal: { ondismiss: function() { toast('Payment cancelled', 'error'); placeOrderBtn.disabled=false; placeOrderBtn.innerHTML='<i class="fa fa-lock"></i> PLACE ORDER'; } }
-                        });
+                        // Razorpay Payment
+                        if (typeof Razorpay === 'undefined') {
+                            toast('Payment gateway not loaded. Please refresh.', 'error');
+                            placeOrderBtn.disabled = false;
+                            placeOrderBtn.innerHTML = originalHTML;
+                            return;
+                        }
+                        
+                        const options = {
+                            key: data.key,
+                            amount: data.amount,
+                            currency: data.currency,
+                            name: '{{ site_settings.site_name|escapejs }}',
+                            description: 'Order #' + data.order_id,
+                            order_id: data.razorpay_order_id,
+                            payment_capture: 1,
+                            theme: { 
+                                color: '#2874F0',
+                                hide_topbar: false,
+                                backdrop_color: '#ffffff'
+                            },
+                            modal: {
+                                ondismiss: function() { 
+                                    toast('Payment cancelled', 'error'); 
+                                    placeOrderBtn.disabled = false; 
+                                    placeOrderBtn.innerHTML = originalHTML; 
+                                }
+                            },
+                            handler: function(response) { 
+                                toast('Payment successful! 🎉', 'success');
+                                window.location.href = `/orders/success/${data.order_id}/?payment_id=${response.razorpay_payment_id}`;
+                            },
+                            prefill: {
+                                name: address.name,
+                                contact: address.phone,
+                                email: '{{ user.email|escapejs }}'
+                            },
+                            notes: {
+                                address: address.address_line1
+                            }
+                        };
+                        
+                        const rzp = new Razorpay(options);
                         rzp.open();
                     }
-                } else { toast(data.error || 'Order failed', 'error'); placeOrderBtn.disabled=false; placeOrderBtn.innerHTML='<i class="fa fa-lock"></i> PLACE ORDER'; }
-            } catch (err) { toast('Network error: ' + err.message, 'error'); placeOrderBtn.disabled=false; placeOrderBtn.innerHTML='<i class="fa fa-lock"></i> PLACE ORDER'; }
+                } else {
+                    toast(data.error || 'Order failed. Please try again.', 'error');
+                    placeOrderBtn.disabled = false;
+                    placeOrderBtn.innerHTML = originalHTML;
+                }
+            } catch (err) {
+                console.error('Order error:', err);
+                toast('Network error. Please try again.', 'error');
+                placeOrderBtn.disabled = false;
+                placeOrderBtn.innerHTML = originalHTML;
+            }
         });
     }
     
-    // ===== LOGIN TO ORDER =====
+    // ── Login to Order ───────────────────────────────────
     const loginToOrderBtn = document.getElementById('loginToOrderBtn');
     if (loginToOrderBtn) {
-        loginToOrderBtn.addEventListener('click', () => {
-            if (typeof window.openLoginModal === 'function') window.openLoginModal();
-            else { const modal = document.getElementById('loginModal'); if (modal) { modal.classList.add('show'); document.body.style.overflow='hidden'; } }
+        loginToOrderBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (typeof window.openLoginModal === 'function') {
+                window.openLoginModal();
+            } else {
+                const modal = document.getElementById('loginModal');
+                if (modal) {
+                    modal.classList.add('show');
+                    document.body.style.overflow = 'hidden';
+                }
+            }
             sessionStorage.setItem('cartReturn', window.location.pathname);
         });
     }
     
-    // ===== ADDRESS MODAL (Add/Edit) - SAME AS PROFILE PAGE =====
+    // ── Address Modal Functions ──────────────────────────
     {% if user.is_authenticated and user.role == 'customer' %}
     const addressModal = document.getElementById('addressModal');
     const addressModalForm = document.getElementById('addressModalForm');
     const addAddressBtn = document.getElementById('addAddressBtn');
     const addressSelector = document.getElementById('addressSelector');
     
-    // Global openAddressModal function (used by buttons with onclick)
+    // Global openAddressModal function
     window.openAddressModal = async function(mode = 'add', addressId = null) {
-        console.log('🔓 openAddressModal:', { mode, addressId });
-        if (!addressModal) { console.error('❌ Modal not found'); return; }
+        if (!addressModal) return;
         
         // Reset form
         addressModalForm.reset();
@@ -366,50 +736,69 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('modalAddrCountry').value = addr.country || 'India';
                 document.getElementById('modalAddrType').value = addr.address_type || 'both';
                 document.getElementById('modalAddrDefault').checked = addr.is_default || false;
-            } catch (err) { console.error('❌ Fetch failed:', err); toast('Could not load address', 'error'); }
+            } catch (err) {
+                console.error('Fetch address error:', err);
+                toast('Could not load address', 'error');
+            }
         }
         
-        // Show modal
-        addressModal.classList.add('active');
-        addressModal.style.display = 'flex';
-        document.body.style.overflow = 'hidden';
-        setTimeout(() => document.getElementById('modalAddrName')?.focus(), 100);
+        // Show modal using base.html modal system
+        if (addressModal) {
+            addressModal.classList.add('show');
+            document.body.style.overflow = 'hidden';
+            setTimeout(() => document.getElementById('modalAddrName')?.focus(), 300);
+        }
     };
     
-    function closeModal() {
-        if (!addressModal) return;
-        addressModal.classList.remove('active');
-        addressModal.style.display = 'none';
-        document.body.style.overflow = '';
-        addressModalForm.reset();
+    function closeAddressModal() {
+        if (addressModal) {
+            addressModal.classList.remove('show');
+            document.body.style.overflow = '';
+            addressModalForm.reset();
+        }
     }
     
-    // Button listeners
-    addAddressBtn?.addEventListener('click', (e) => { e.preventDefault(); openAddressModal('add'); });
-    document.getElementById('closeAddressModal')?.addEventListener('click', closeModal);
-    document.getElementById('cancelAddressModalBtn')?.addEventListener('click', closeModal);
-    addressModal?.addEventListener('click', (e) => { if (e.target === addressModal) closeModal(); });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && addressModal?.style.display === 'flex') closeModal(); });
-    
-    // Address selector change
-    addressSelector?.addEventListener('change', (e) => {
-        const addrId = e.target.value;
-        // Fetch and update address display (simplified: just reload)
-        window.location.search = `?address=${addrId}`;
+    // Event listeners
+    addAddressBtn?.addEventListener('click', (e) => { 
+        e.preventDefault(); 
+        openAddressModal('add'); 
+    });
+    document.getElementById('closeAddressModal')?.addEventListener('click', closeAddressModal);
+    document.getElementById('cancelAddressModalBtn')?.addEventListener('click', closeAddressModal);
+    addressModal?.addEventListener('click', (e) => { 
+        if (e.target === addressModal) closeAddressModal(); 
+    });
+    document.addEventListener('keydown', (e) => { 
+        if (e.key === 'Escape' && addressModal?.classList.contains('show')) closeAddressModal(); 
     });
     
+    // ── Address selector change (FIXED) ─────────────────
+    addressSelector?.addEventListener('change', (e) => {
+        const addrId = e.target.value;
+        // ✅ Use full URL reload with query param
+        const url = new URL(window.location);
+        url.searchParams.set('address', addrId);
+        window.location.href = url.toString();
+    });
     // Set default address
     window.setDefaultAddress = async (addressId) => {
-        if (!confirm('Set as default address?')) return;
+        if (!confirm('Set this as your default address?')) return;
         try {
             const res = await fetch(SAVE_ADDRESS_URL, {
-                method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
                 body: JSON.stringify({ action: 'set_default_address', address_id: addressId })
             });
             const data = await res.json();
-            if (data.status === 'success') { toast('Default updated!', 'success'); setTimeout(() => location.reload(), 500); }
-            else toast(data.message || 'Failed', 'error');
-        } catch (err) { toast('Network error', 'error'); }
+            if (data.status === 'success') { 
+                toast('Default address updated!', 'success'); 
+                setTimeout(() => location.reload(), 500); 
+            } else { 
+                toast(data.message || 'Failed to update', 'error'); 
+            }
+        } catch (err) { 
+            toast('Network error', 'error'); 
+        }
     };
     
     // Save address form (AJAX)
@@ -419,7 +808,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const btn = document.getElementById('saveAddressModalBtn');
             const errEl = document.getElementById('addressModalError');
             const originalText = btn.innerHTML;
-            btn.disabled = true; btn.innerHTML = 'Saving...'; errEl.style.display = 'none';
+            
+            btn.disabled = true; 
+            btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving...'; 
+            errEl.style.display = 'none';
             
             const payload = {
                 action: document.getElementById('addressAction').value,
@@ -438,137 +830,74 @@ document.addEventListener('DOMContentLoaded', function() {
             
             try {
                 const res = await fetch(SAVE_ADDRESS_URL, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF, 'X-Requested-With': 'XMLHttpRequest' },
+                    method: 'POST', 
+                    headers: { 
+                        'Content-Type': 'application/json', 
+                        'X-CSRFToken': CSRF, 
+                        'X-Requested-With': 'XMLHttpRequest' 
+                    },
                     body: JSON.stringify(payload)
                 });
                 const data = await res.json();
+                
                 if (data.status === 'success') {
-                    toast('Address saved!', 'success');
-                    closeModal();
+                    toast('Address saved successfully!', 'success');
+                    closeAddressModal();
                     setTimeout(() => location.reload(), 600);
                 } else {
                     errEl.textContent = data.message || data.error || 'Save failed';
                     errEl.style.display = 'block';
-                    btn.disabled = false; btn.innerHTML = originalText;
+                    btn.disabled = false; 
+                    btn.innerHTML = originalText;
                 }
             } catch (err) {
                 errEl.textContent = 'Network error: ' + err.message;
                 errEl.style.display = 'block';
-                btn.disabled = false; btn.innerHTML = originalText;
+                btn.disabled = false; 
+                btn.innerHTML = originalText;
             }
         });
     }
     {% endif %}
     
-    // Auto-open login if redirected after session
+    // ── Auto-open login if redirected after session ─────
     const cartReturn = sessionStorage.getItem('cartReturn');
     if (cartReturn && window.location.pathname === cartReturn && !IS_AUTH) {
-        if (typeof window.openLoginModal === 'function') window.openLoginModal();
+        if (typeof window.openLoginModal === 'function') {
+            window.openLoginModal();
+        }
         sessionStorage.removeItem('cartReturn');
     }
+    
+    // ── Wishlist Button (Simple Toggle) ──────────────────
+    document.querySelectorAll('.wishlist-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const icon = this.querySelector('i');
+            if (icon.classList.contains('fa-heart')) {
+                icon.classList.remove('fa-heart');
+                icon.classList.add('fa-solid', 'fa-heart');
+                icon.style.color = 'var(--red)';
+                toast('Added to Wishlist!', 'success');
+            } else {
+                icon.classList.remove('fa-solid');
+                icon.classList.add('fa-heart');
+                icon.style.color = '';
+                toast('Removed from Wishlist', 'info');
+            }
+        });
+    });
+    
+    // ── Payment Option Visual Feedback ───────────────────
+    document.querySelectorAll('.payment-option').forEach(option => {
+        option.addEventListener('click', function() {
+            document.querySelectorAll('.payment-option').forEach(o => {
+                o.style.borderColor = 'var(--gray-200)';
+                o.style.background = 'var(--white)';
+            });
+            this.style.borderColor = 'var(--blue-400)';
+            this.style.background = 'var(--blue-50)';
+        });
+    });
 });
 </script>
-{% endblock %}
-
-{% block extra_css %}
-<style>
-/* ===== CART PAGE STYLES ===== */
-.cart-container { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
-.cart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #eee; }
-.cart-header h2 { font-size: 1.6rem; color: #212121; display: flex; align-items: center; gap: 10px; }
-.back-link { color: #2874f0; font-weight: 500; text-decoration: none; display: flex; align-items: center; gap: 6px; font-size: 0.95rem; }
-.back-link:hover { text-decoration: underline; }
-.cart-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; align-items: start; }
-.cart-items { display: flex; flex-direction: column; gap: 16px; }
-.cart-item { display: grid; grid-template-columns: 110px 1fr; gap: 20px; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.07); border: 1px solid #f0f0f0; transition: box-shadow 0.2s; }
-.cart-item:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
-.item-image { width: 110px; height: 110px; border-radius: 8px; overflow: hidden; background: #f8f8f8; display: flex; align-items: center; justify-content: center; border: 1px solid #eee; }
-.item-image img { width: 100%; height: 100%; object-fit: cover; }
-.no-image { color: #bbb; font-size: 2rem; }
-.item-details h4 { font-size: 1rem; margin: 0 0 4px; line-height: 1.4; }
-.item-details h4 a { color: #212121; text-decoration: none; }
-.item-details h4 a:hover { color: #2874f0; }
-.item-seller { font-size: 0.82rem; color: #888; margin: 0 0 10px; }
-.item-price-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
-.item-price { font-size: 1.15rem; font-weight: 700; color: #212121; }
-.item-price-original { font-size: 0.9rem; color: #aaa; text-decoration: line-through; }
-.item-discount-badge { background: #e8f5e9; color: #2e7d32; font-size: 0.78rem; font-weight: 600; padding: 2px 8px; border-radius: 4px; }
-.item-actions { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; flex-wrap: wrap; }
-.quantity-control { display: flex; align-items: center; border: 1px solid #ddd; border-radius: 6px; overflow: hidden; }
-.qty-btn { width: 32px; height: 32px; border: none; background: #f5f5f5; font-size: 1.1rem; cursor: pointer; transition: background 0.15s; display: flex; align-items: center; justify-content: center; }
-.qty-btn:hover { background: #e0e0e0; }
-.qty-input { width: 46px; text-align: center; border: none; border-left: 1px solid #ddd; border-right: 1px solid #ddd; font-size: 0.95rem; height: 32px; -moz-appearance: textfield; }
-.qty-input::-webkit-outer-spin-button, .qty-input::-webkit-inner-spin-button { -webkit-appearance: none; }
-.remove-btn, .wishlist-btn { background: none; border: none; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 5px; padding: 6px 10px; border-radius: 5px; transition: background 0.15s; }
-.remove-btn { color: #c62828; }
-.remove-btn:hover { background: #ffebee; }
-.wishlist-btn { color: #555; }
-.wishlist-btn:hover { background: #f5f5f5; color: #2874f0; }
-.item-subtotal { font-size: 0.95rem; color: #444; margin: 0 0 6px; }
-.item-delivery { font-size: 0.82rem; color: #555; margin: 0; }
-.low-stock-warning { font-size: 0.82rem; color: #e65100; margin: 4px 0 0; }
-.price-details { background: white; padding: 24px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.07); border: 1px solid #f0f0f0; position: sticky; top: 130px; }
-.price-details h3 { font-size: 0.85rem; font-weight: 700; color: #888; letter-spacing: 0.06em; margin: 0 0 18px; padding-bottom: 14px; border-bottom: 1px solid #eee; }
-.price-row { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 0.95rem; color: #333; }
-.discount { color: #388e3c; font-weight: 600; }
-.free { color: #388e3c; font-weight: 600; }
-.price-divider { border-top: 1px dashed #ddd; margin: 16px 0; }
-.total-row { font-size: 1.1rem; color: #212121; margin-bottom: 6px; }
-.savings-msg { background: #e8f5e9; color: #2e7d32; font-size: 0.85rem; font-weight: 600; padding: 8px 12px; border-radius: 6px; margin-bottom: 18px; display: flex; align-items: center; gap: 6px; }
-.free-delivery-hint { font-size: 0.82rem; color: #f57c00; background: #fff8e1; padding: 8px 12px; border-radius: 6px; margin: 10px 0; display: flex; align-items: center; gap: 6px; }
-.btn-place-order { width: 100%; padding: 15px; background: linear-gradient(135deg, #fb641b, #f4511e); color: white; border: none; border-radius: 10px; font-weight: 700; font-size: 1rem; cursor: pointer; margin: 8px 0 14px; letter-spacing: 0.04em; transition: transform 0.15s, box-shadow 0.15s; display: flex; align-items: center; justify-content: center; gap: 8px; }
-.btn-place-order:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(251,100,27,0.35); }
-.btn-place-order:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
-.login-hint { font-size: 0.82rem; color: #888; text-align: center; margin: 0 0 12px; }
-.secure-badge { text-align: center; font-size: 0.8rem; color: #888; display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 4px; }
-.secure-badge i { color: #388e3c; }
-.delivery-address-section { margin-top: 24px; background: white; padding: 24px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.07); border: 1px solid #f0f0f0; }
-.delivery-address-section h3 { font-size: 1.1rem; margin: 0 0 16px; }
-.address-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-.address-header-row h3 { margin: 0; font-size: 1.1rem; }
-.form-select-sm { padding: 6px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem; background: white; }
-.address-card { background: #f8f9ff; border: 1px solid #e0e8ff; border-radius: 10px; padding: 16px 20px; display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
-.address-info p { margin: 4px 0; font-size: 0.92rem; color: #333; }
-.address-tag { display: inline-block; background: #2874f0; color: white; font-size: 0.68rem; font-weight: 700; padding: 2px 8px; border-radius: 3px; margin-left: 8px; letter-spacing: 0.05em; }
-.no-address { display: flex; align-items: center; gap: 10px; color: #888; font-size: 0.9rem; }
-.no-address i { font-size: 1.3rem; color: #bbb; }
-.address-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
-.address-actions .btn-outline-sm { padding: 6px 12px; font-size: 0.8rem; }
-.btn-outline-sm { background: none; border: 1px solid #2874f0; color: #2874f0; padding: 8px 16px; border-radius: 6px; font-size: 0.85rem; font-weight: 600; cursor: pointer; white-space: nowrap; transition: background 0.15s; display: flex; align-items: center; gap: 5px; }
-.btn-outline-sm:hover { background: #f0f4ff; }
-.payment-preview { margin-top: 20px; background: white; padding: 24px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.07); border: 1px solid #f0f0f0; }
-.payment-preview h3 { font-size: 1.1rem; margin: 0 0 16px; }
-.payment-options { display: flex; flex-direction: column; gap: 12px; }
-.payment-option { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border: 2px solid #eee; border-radius: 10px; cursor: pointer; transition: border-color 0.2s, background 0.15s; }
-.payment-option:hover { border-color: #2874f0; background: #f8f9ff; }
-.payment-option:has(input:checked) { border-color: #2874f0; background: #f0f4ff; }
-.payment-option input[type="radio"] { width: 18px; height: 18px; cursor: pointer; accent-color: #2874f0; }
-.payment-icon { display: flex; align-items: center; }
-.payment-text { flex: 1; }
-.payment-text span { display: block; font-weight: 600; font-size: 0.95rem; }
-.payment-text small { color: #888; font-size: 0.82rem; }
-.offer-badge { background: #fff8e1; color: #f57f17; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; white-space: nowrap; }
-.empty-cart { text-align: center; padding: 80px 20px; background: white; border-radius: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
-.empty-cart-icon { font-size: 5rem; margin-bottom: 20px; }
-.empty-cart h3 { font-size: 1.6rem; color: #212121; margin-bottom: 10px; }
-.empty-cart p { color: #888; margin-bottom: 30px; }
-
-/* ===== MODAL STYLES (Same as profile.html) ===== */
-.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 9999; padding: 20px; }
-.modal-overlay.active { display: flex !important; }
-.modal-box { background: #fff; padding: 24px; border-radius: 12px; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; position: relative; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
-.modal-close { position: absolute; top: 12px; right: 16px; font-size: 1.5rem; background: none; border: none; cursor: pointer; color: #666; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-.modal-close:hover { background: #f0f0f0; color: #333; }
-.modal-title { margin: 0 0 20px; font-size: 1.2rem; display: flex; align-items: center; gap: 8px; }
-.form-row { display: flex; gap: 12px; margin-bottom: 12px; }
-.form-input, .form-select { flex: 1; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; }
-.form-input:focus, .form-select:focus { border-color: #2874f0; outline: none; box-shadow: 0 0 0 3px rgba(40,116,240,0.1); }
-textarea.form-input { width: 100%; resize: vertical; }
-.btn-primary { background: #2874f0; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; }
-.btn-primary:hover { background: #1a56c4; }
-.btn-outline { background: #fff; color: #333; border: 1px solid #ddd; padding: 10px 20px; border-radius: 8px; cursor: pointer; }
-.btn-outline:hover { background: #f5f5f5; }
-@media (max-width: 900px) { .cart-grid { grid-template-columns: 1fr; } .price-details { position: static; } }
-@media (max-width: 600px) { .cart-item { grid-template-columns: 90px 1fr; gap: 14px; padding: 16px; } .item-image { width: 90px; height: 90px; } .item-actions { gap: 8px; } .address-card { flex-direction: column; } .form-row { flex-direction: column; } .modal-box { margin: 10px; padding: 20px; } .cart-header { flex-direction: column; align-items: flex-start; gap: 10px; } .address-header-row { flex-direction: column; align-items: flex-start; gap: 10px; } }
-</style>
 {% endblock %}

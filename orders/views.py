@@ -17,7 +17,6 @@ from .models import Order, OrderItem, ReturnRequest, OrderStatusLog, OrderReturn
 from items.models import Product, SellerProfile
 from delivery.models import DeliveryPartner
 from django.conf import settings
-
 logger = logging.getLogger(__name__)
 User = get_user_model()
 
@@ -159,20 +158,184 @@ def return_detail(request, return_id):
 
 @login_required
 def download_invoice(request, order_id):
-    """Generate & download PDF invoice"""
-    order = get_object_or_404(Order, unique_order_id=order_id, user=request.user)
-    html_string = render_to_string('orders/invoice.html', {'order': order})
+    """
+    Generate & download PDF invoice using xhtml2pdf (macOS compatible).
+    Falls back to HTML download if PDF generation fails.
+    """
+    # 1. Fetch order with related data (prevent N+1)
+    order = get_object_or_404(
+        Order.objects.prefetch_related('items__product', 'items__seller'),
+        unique_order_id=order_id,
+        user=request.user
+    )
     
+    # 2. Render template WITH request for context processors
     try:
-        from weasyprint import HTML
-        pdf = HTML(string=html_string).write_pdf()
-        response = HttpResponse(pdf, content_type='application/pdf')
-        response['Content-Disposition'] = f'attachment; filename="invoice-{order.unique_order_id}.pdf"'
-        return response
-    except ImportError:
-        messages.error(request, "PDF generation not available. Please contact support.")
+        html_string = render_to_string(
+            'orders/invoice.html',
+            {'order': order},
+            request=request  # 🔑 Critical for site_settings context processor
+        )
+    except Exception as e:
+        logger.error(f"Template render error for invoice {order_id}: {e}")
+        messages.error(request, "Could not generate invoice. Please try again.")
         return redirect('orders:order_detail', order_id=order_id)
+    
+    # 3. Generate PDF using xhtml2pdf
+    try:
+        from xhtml2pdf import pisa
+        
+        # Create response with PDF content type
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = f'inline; filename="invoice-{order.unique_order_id}.pdf"'
+        
+        # Generate PDF - dest=response writes directly to HttpResponse
+        pdf_result = pisa.CreatePDF(
+            src=html_string,
+            dest=response,
+            encoding='utf-8',
+            # Optional: Handle relative image URLs
+            link_callback=lambda uri, rel: _link_callback(uri, rel, request)
+        )
+        
+        # Check for errors
+        if pdf_result.err:
+            logger.error(f"xhtml2pdf errors: {pdf_result.err}")
+            messages.error(request, "Could not generate PDF. Downloading as HTML instead.")
+            return _download_invoice_html(request, order)
+        
+        # Success - PDF is already in response
+        return response
+        
+    except ImportError:
+        logger.error("xhtml2pdf not installed. Run: pip install xhtml2pdf")
+        messages.error(
+            request, 
+            "PDF generation requires xhtml2pdf. Please contact support or download as HTML."
+        )
+        return _download_invoice_html(request, order)
+        
+    except Exception as e:
+        logger.error(f"PDF generation failed for order {order_id}: {e}", exc_info=True)
+        messages.error(request, f"Could not generate PDF: {str(e)[:100]}")
+        return _download_invoice_html(request, order)
 
+
+def _link_callback(uri, rel, request):
+    """
+    Convert relative media URLs to absolute paths for xhtml2pdf.
+    Handles static files and user uploads.
+    """
+    from django.contrib.staticfiles.storage import staticfiles_storage
+    from django.conf import settings
+    import os
+    
+    # Handle static files
+    if uri.startswith(settings.STATIC_URL):
+        path = uri.replace(settings.STATIC_URL, '', 1)
+        try:
+            return staticfiles_storage.path(path)
+        except:
+            return None
+    
+    # Handle media files
+    if uri.startswith(settings.MEDIA_URL):
+        path = uri.replace(settings.MEDIA_URL, '', 1)
+        media_path = os.path.join(settings.MEDIA_ROOT, path)
+        if os.path.exists(media_path):
+            return media_path
+        return None
+    
+    # Handle absolute URLs - try to download
+    if uri.startswith('http'):
+        import urllib.request
+        import tempfile
+        try:
+            with urllib.request.urlopen(uri) as response:
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as tmp:
+                    tmp.write(response.read())
+                    return tmp.name
+        except:
+            pass
+    
+    return None
+
+
+def _download_invoice_html(request, order):
+    """Fallback: Download invoice as HTML file for browser PDF conversion"""
+    html_string = render_to_string('orders/invoice.html', {'order': order}, request=request)
+    
+    response = HttpResponse(html_string, content_type='text/html')
+    response['Content-Disposition'] = f'attachment; filename="invoice-{order.unique_order_id}.html"'
+    messages.info(
+        request, 
+        "Downloaded as HTML. Open the file in your browser and use 'Print → Save as PDF'."
+    )
+    return response
+
+
+@login_required
+def preview_invoice(request, order_id):
+    """
+    Preview invoice in browser (HTML) for client-side PDF export.
+    Add ?print=1 to URL to auto-open print dialog.
+    """
+    order = get_object_or_404(
+        Order.objects.prefetch_related('items__product'),
+        unique_order_id=order_id,
+        user=request.user
+    )
+    
+    html_string = render_to_string(
+        'orders/invoice.html',
+        {'order': order},
+        request=request
+    )
+    
+    return HttpResponse(html_string)
+
+
+@login_required
+def debug_invoice(request, order_id):
+    """
+    Debug endpoint to test invoice generation.
+    Access: /orders/order/ORD-XXXXXX/invoice/debug/
+    """
+    order = get_object_or_404(Order, unique_order_id=order_id, user=request.user)
+    
+    # Test 1: Template render
+    try:
+        html = render_to_string('orders/invoice.html', {'order': order}, request=request)
+        test1 = "✅ Template rendered"
+    except Exception as e:
+        return JsonResponse({'error': f'Template render failed: {str(e)}'}, status=500)
+    
+    # Test 2: xhtml2pdf import
+    try:
+        from xhtml2pdf import pisa
+        test2 = "✅ xhtml2pdf imported"
+    except ImportError as e:
+        return JsonResponse({'error': f'xhtml2pdf not installed: {str(e)}'}, status=500)
+    
+    # Test 3: PDF generation
+    try:
+        dest = BytesIO()
+        result = pisa.CreatePDF(html, dest=dest, encoding='utf-8')
+        if result.err:
+            return JsonResponse({'error': f'PDF errors: {result.err}'}, status=500)
+        test3 = f"✅ PDF generated ({len(dest.getvalue())} bytes)"
+    except Exception as e:
+        return JsonResponse({'error': f'PDF generation failed: {str(e)}'}, status=500)
+    
+    return JsonResponse({
+        'order_id': order.unique_order_id,
+        'status': 'success',
+        'tests': [test1, test2, test3],
+        'message': 'All checks passed! PDF should download correctly.',
+        'download_url': request.build_absolute_uri(
+            f"/orders/order/{order_id}/invoice/download/"
+        )
+    })
 # ==================== SELLER VIEWS ====================
 
 @seller_only
