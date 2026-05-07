@@ -21,25 +21,78 @@ class ProductImageInline(admin.TabularInline):
     image_preview.short_description = 'Preview'
 
 # Seller Profile Admin
+
 @admin.register(SellerProfile)
 class SellerProfileAdmin(admin.ModelAdmin):
-    list_display = ('shop_name', 'user', 'phone', 'is_verified', 'product_count', 'total_sales', 'created_at')
-    list_filter = ('is_verified', 'created_at')
-    search_fields = ('shop_name', 'user__phone', 'user__full_name')
-    readonly_fields = ('created_at', 'updated_at', 'created_by', 'updated_by')
-    
-    fieldsets = (
-        ('Shop Info', {'fields': ('user', 'shop_name', 'shop_description')}),
-        ('Verification', {'fields': ('gst_number', 'is_verified', 'rating')}),
-        ('Contact', {'fields': ('phone', 'address')}),
-        ('Audit', {'fields': ('created_at', 'updated_at', 'created_by', 'updated_by')}),
+    list_display = (
+        'shop_name',
+        'user',
+        'phone',
+        'is_verified',
+        'is_active',
+        'product_count',
+        'total_sales',
+        'created_at'
     )
-    
+
+    # ✅ Editable directly from admin list page
+    list_editable = ('is_verified', 'is_active')
+
+    list_filter = ('is_verified', 'is_active', 'created_at')
+
+    search_fields = (
+        'shop_name',
+        'user__phone',
+        'user__full_name'
+    )
+
+    readonly_fields = (
+        'created_at',
+        'updated_at',
+        'created_by',
+        'updated_by'
+    )
+
+    fieldsets = (
+        ('Shop Info', {
+            'fields': (
+                'user',
+                'shop_name',
+                'shop_description'
+            )
+        }),
+
+        ('Verification', {
+            'fields': (
+                'gst_number',
+                'is_verified',
+                'is_active',
+                'rating'
+            )
+        }),
+
+        ('Contact', {
+            'fields': (
+                'phone',
+                'address'
+            )
+        }),
+
+        ('Audit', {
+            'fields': (
+                'created_at',
+                'updated_at',
+                'created_by',
+                'updated_by'
+            )
+        }),
+    )
+
     def product_count(self, obj):
         return obj.products.count()
+
     product_count.short_description = 'Products'
-    
-   
+
     def total_sales(self, obj):
         from orders.models import OrderItem
 
@@ -48,10 +101,10 @@ class SellerProfileAdmin(admin.ModelAdmin):
             order__status='Delivered'
         ).aggregate(total=Sum('price'))['total'] or 0
 
-        # ✅ Proper formatting
         formatted = f"{total:,.2f}"
 
         return format_html('<strong>₹{}</strong>', formatted)
+
     total_sales.short_description = 'Total Sales'
 
 # Category Admin
