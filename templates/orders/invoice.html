@@ -1,0 +1,614 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Invoice #{{ order.unique_order_id }} - {{ site_settings.site_name }}</title>
+    <style type="text/css">
+        /* ===== XHTML2PDF COMPATIBLE STYLES ===== */
+        /* Use absolute units (pt/px), avoid CSS variables, flexbox, grid */
+        
+        @page {
+            size: A4;
+            margin: 1.5cm;
+            @bottom-center {
+                content: "Page " counter(page) " of " counter(pages);
+                font-size: 9pt;
+                color: #64748b;
+            }
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            font-size: 11pt;
+            line-height: 1.5;
+            color: #1e293b;
+            background: #ffffff;
+        }
+        
+        /* ===== COLORS (inline, no CSS variables) ===== */
+        .text-blue { color: #2874f0; }
+        .text-gray-500 { color: #64748b; }
+        .text-gray-700 { color: #334155; }
+        .text-gray-900 { color: #0f172a; }
+        .bg-blue-50 { background-color: #ebf2ff; }
+        .bg-gray-50 { background-color: #f8fafc; }
+        .border-gray-200 { border-color: #e2e8f0; }
+        
+        /* ===== LAYOUT ===== */
+        .invoice-container {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        /* ===== HEADER ===== */
+        .invoice-header {
+            display: table;
+            width: 100%;
+            margin-bottom: 20pt;
+            padding-bottom: 15pt;
+            border-bottom: 2pt solid #99beff;
+        }
+        
+        .invoice-logo {
+            display: table-cell;
+            vertical-align: middle;
+            width: 60%;
+        }
+        
+        .invoice-logo img {
+            max-height: 50pt;
+            width: auto;
+        }
+        
+        .invoice-logo-text {
+            font-size: 18pt;
+            font-weight: bold;
+            color: #2874f0;
+        }
+        
+        .invoice-meta {
+            display: table-cell;
+            vertical-align: middle;
+            width: 40%;
+            text-align: right;
+        }
+        
+        .invoice-title {
+            font-size: 20pt;
+            font-weight: bold;
+            color: #0f172a;
+            margin-bottom: 3pt;
+        }
+        
+        .invoice-number {
+            font-size: 12pt;
+            color: #64748b;
+            margin-bottom: 5pt;
+        }
+        
+        .invoice-date {
+            font-size: 11pt;
+            color: #475569;
+        }
+        
+        /* ===== SECTIONS ===== */
+        .invoice-section {
+            margin-bottom: 20pt;
+        }
+        
+        .section-title {
+            font-size: 12pt;
+            font-weight: bold;
+            color: #334155;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 10pt;
+            padding-bottom: 6pt;
+            border-bottom: 1pt solid #e2e8f0;
+        }
+        
+        /* ===== ADDRESSES ===== */
+        .addresses-grid {
+            display: table;
+            width: 100%;
+            table-layout: fixed;
+        }
+        
+        .address-col {
+            display: table-cell;
+            width: 50%;
+            padding-right: 15pt;
+            vertical-align: top;
+        }
+        
+        .address-col:last-child {
+            padding-right: 0;
+        }
+        
+        .address-label {
+            font-size: 10pt;
+            font-weight: bold;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 4pt;
+        }
+        
+        .address-name {
+            font-weight: bold;
+            color: #1e293b;
+            margin-bottom: 3pt;
+            font-size: 11pt;
+        }
+        
+        .address-line {
+            color: #475569;
+            margin: 2pt 0;
+            font-size: 11pt;
+        }
+        
+        .address-phone {
+            color: #475569;
+            margin-top: 5pt;
+            font-size: 11pt;
+        }
+        
+        /* ===== ORDER TABLE ===== */
+        .order-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 12pt;
+            font-size: 10pt;
+        }
+        
+        .order-table th {
+            text-align: left;
+            padding: 8pt 10pt;
+            background-color: #ebf2ff;
+            color: #1249a8;
+            font-weight: bold;
+            border-bottom: 2pt solid #99beff;
+        }
+        
+        .order-table td {
+            padding: 10pt;
+            border-bottom: 1pt solid #f1f4f9;
+            vertical-align: top;
+        }
+        
+        .order-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .product-name {
+            font-weight: bold;
+            color: #1e293b;
+            margin-bottom: 3pt;
+            font-size: 11pt;
+        }
+        
+        .product-sku {
+            font-size: 9pt;
+            color: #94a3b8;
+        }
+        
+        .product-price {
+            font-weight: bold;
+            color: #1e293b;
+        }
+        
+        .product-total {
+            font-weight: bold;
+            color: #0f172a;
+        }
+        
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        
+        /* ===== PRICING SUMMARY ===== */
+        .pricing-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11pt;
+        }
+        
+        .pricing-table td {
+            padding: 6pt 10pt;
+            border-bottom: 1pt solid #f1f4f9;
+        }
+        
+        .pricing-table .label {
+            text-align: right;
+            color: #475569;
+        }
+        
+        .pricing-table .value {
+            text-align: right;
+            font-weight: bold;
+            color: #1e293b;
+        }
+        
+        .pricing-table .total-row {
+            background-color: #ebf2ff;
+            border-top: 2pt solid #99beff;
+            border-bottom: none;
+        }
+        
+        .pricing-table .total-row .label {
+            color: #1249a8;
+            font-weight: bold;
+            font-size: 12pt;
+        }
+        
+        .pricing-table .total-row .value {
+            color: #1a5fd4;
+            font-weight: bold;
+            font-size: 16pt;
+        }
+        
+        /* ===== STATUS BADGES ===== */
+        .status-badge {
+            display: inline-block;
+            padding: 3pt 10pt;
+            border-radius: 15pt;
+            font-size: 9pt;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .status-pending { background-color: #f59e0b; color: #78350f; }
+        .status-confirmed { background-color: #c3d9ff; color: #1249a8; }
+        .status-processing { background-color: #f59e0b; color: #92400e; }
+        .status-shipped { background-color: #99beff; color: #0c347c; }
+        .status-out_for_delivery { background-color: #4b8dfa; color: #ffffff; }
+        .status-delivered { background-color: #10b981; color: #064e3b; }
+        .status-cancelled { background-color: #ef4444; color: #991b1b; }
+        .status-returned { background-color: #e2e8f0; color: #334155; }
+        .status-refund_initiated { background-color: #10b981; color: #064e3b; }
+        
+        /* ===== PAYMENT INFO ===== */
+        .payment-box {
+            background-color: #f8fafc;
+            border-radius: 8pt;
+            padding: 10pt 14pt;
+            margin-top: 12pt;
+        }
+        
+        .payment-method {
+            margin-bottom: 6pt;
+            font-size: 11pt;
+        }
+        
+        .payment-status {
+            font-size: 10pt;
+            font-weight: bold;
+        }
+        
+        .payment-paid { color: #10b981; }
+        .payment-pending { color: #f59e0b; }
+        .payment-failed { color: #ef4444; }
+        
+        /* ===== FOOTER ===== */
+        .invoice-footer {
+            margin-top: 30pt;
+            padding-top: 15pt;
+            border-top: 2pt solid #e2e8f0;
+            text-align: center;
+            font-size: 10pt;
+        }
+        
+        .thank-you {
+            font-size: 12pt;
+            font-weight: bold;
+            color: #1a5fd4;
+            margin-bottom: 12pt;
+        }
+        
+        .footer-note {
+            color: #64748b;
+            margin-bottom: 8pt;
+            line-height: 1.4;
+        }
+        
+        .footer-contact {
+            color: #475569;
+            margin: 3pt 0;
+            font-size: 10pt;
+        }
+        
+        .footer-copyright {
+            font-size: 9pt;
+            color: #94a3b8;
+            margin-top: 12pt;
+        }
+        
+        /* ===== UTILITIES ===== */
+        .font-bold { font-weight: bold; }
+        .text-muted { color: #64748b; }
+        .mb-6 { margin-bottom: 6pt; }
+        .mb-8 { margin-bottom: 8pt; }
+        .mt-10 { margin-top: 10pt; }
+        
+        /* ===== HIDE IN PDF ===== */
+        .no-print { display: none; }
+        
+        /* ===== PRINT BUTTON (shown in browser, hidden in PDF) ===== */
+        @media screen {
+            .no-print { 
+                display: block !important; 
+                position: fixed;
+                bottom: 20pt;
+                right: 20pt;
+                z-index: 9999;
+            }
+            .print-btn {
+                background-color: #2874f0;
+                color: #ffffff;
+                border: none;
+                padding: 10pt 20pt;
+                border-radius: 8pt;
+                font-weight: bold;
+                font-size: 11pt;
+                cursor: pointer;
+                box-shadow: 0 3pt 10pt rgba(0,0,0,0.15);
+            }
+            .print-btn:hover {
+                background-color: #1a5fd4;
+            }
+            .print-hint {
+                font-size: 9pt;
+                color: #64748b;
+                margin-top: 6pt;
+                text-align: center;
+                max-width: 180pt;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="invoice-container">
+        
+        <!-- Header -->
+        <div class="invoice-header">
+            <div class="invoice-logo">
+                {% if site_settings.logo_url %}
+                    <!-- xhtml2pdf: Use absolute URL for images -->
+                    <img src="{{ request.build_absolute_uri:site_settings.logo_url }}" alt="{{ site_settings.site_name }}">
+                {% else %}
+                    <div class="invoice-logo-text">{{ site_settings.site_name }}</div>
+                {% endif %}
+            </div>
+            <div class="invoice-meta">
+                <div class="invoice-title">INVOICE</div>
+                <div class="invoice-number">#{{ order.unique_order_id }}</div>
+                <div class="invoice-date">Date: {{ order.created_at|date:"F d, Y" }}</div>
+            </div>
+        </div>
+        
+        <!-- Company Info -->
+        <div class="invoice-section">
+            <div class="address-label">From</div>
+            <div class="address-name">{{ site_settings.site_name }}</div>
+            <div class="address-line">{{ site_settings.contact_address|default:"123 Commerce Street" }}</div>
+            <div class="address-line">
+                {{ site_settings.contact_city|default:"Mumbai" }}, 
+                {{ site_settings.contact_state|default:"MH" }} 
+                {{ site_settings.contact_pin|default:"400001" }}
+            </div>
+            <div class="address-phone">📞 {{ site_settings.contact_phone|default:"+91 98765 43210" }}</div>
+            <div class="address-phone">✉️ {{ site_settings.contact_email|default:"support@stallcart.com" }}</div>
+        </div>
+        
+        <!-- Addresses (JSON Fields - Safe Access) -->
+        <div class="invoice-section">
+            <div class="addresses-grid">
+                <!-- Bill To -->
+                <div class="address-col">
+                    <div class="address-label">Bill To</div>
+                    <div class="address-name">
+                        {{ order.billing_address.name|default:order.user.full_name|default:order.guest_email }}
+                    </div>
+                    <div class="address-line">{{ order.billing_address.address_line1|default:"" }}</div>
+                    {% if order.billing_address.address_line2 %}
+                    <div class="address-line">{{ order.billing_address.address_line2 }}</div>
+                    {% endif %}
+                    <div class="address-line">
+                        {{ order.billing_address.city|default:"" }}, 
+                        {{ order.billing_address.state|default:"" }} - 
+                        {{ order.billing_address.postal_code|default:"" }}
+                    </div>
+                    <div class="address-line">{{ order.billing_address.country|default:"India" }}</div>
+                    <div class="address-phone">📞 {{ order.billing_address.phone|default:order.guest_phone|default:order.user.phone }}</div>
+                </div>
+                
+                <!-- Ship To -->
+                <div class="address-col">
+                    <div class="address-label">Ship To</div>
+                    <div class="address-name">{{ order.shipping_address.name|default:"" }}</div>
+                    <div class="address-line">{{ order.shipping_address.address_line1|default:"" }}</div>
+                    {% if order.shipping_address.address_line2 %}
+                    <div class="address-line">{{ order.shipping_address.address_line2 }}</div>
+                    {% endif %}
+                    <div class="address-line">
+                        {{ order.shipping_address.city|default:"" }}, 
+                        {{ order.shipping_address.state|default:"" }} - 
+                        {{ order.shipping_address.postal_code|default:"" }}
+                    </div>
+                    <div class="address-line">{{ order.shipping_address.country|default:"India" }}</div>
+                    <div class="address-phone">📞 {{ order.shipping_address.phone|default:"" }}</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Order Details Table -->
+        <div class="invoice-section">
+            <div class="section-title">Order Items</div>
+            <table class="order-table">
+                <thead>
+                    <tr>
+                        <th width="50%">Product</th>
+                        <th width="15%" class="text-right">Price</th>
+                        <th width="10%" class="text-right">Qty</th>
+                        <th width="25%" class="text-right">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in order.items.all %}
+                    <tr>
+                        <td>
+                            <div class="product-name">{{ item.product.name }}</div>
+                            {% if item.product.sku %}
+                            <div class="product-sku">SKU: {{ item.product.sku }}</div>
+                            {% endif %}
+                            {% if item.seller %}
+                            <div class="text-muted" style="font-size:9pt;margin-top:2pt;">
+                                Sold by: {{ item.seller.shop_name|default:"StallCart" }}
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td class="text-right">
+                            <span class="product-price">₹{{ item.price|floatformat:2 }}</span>
+                        </td>
+                        <td class="text-right">
+                            <span>{{ item.quantity }}</span>
+                        </td>
+                        <td class="text-right">
+                            <span class="product-total">₹{{ item.total|floatformat:2 }}</span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="text-center text-muted" style="padding:15pt;">
+                            No items found in this order.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pricing Summary -->
+        <div class="invoice-section">
+            <table class="pricing-table">
+                <tr>
+                    <td class="label">Subtotal ({{ order.items.count }} item{{ order.items.count|pluralize }})</td>
+                    <td class="value">₹{{ order.subtotal|default:order.total_amount|floatformat:2 }}</td>
+                </tr>
+                {% if order.discount_amount and order.discount_amount > 0 %}
+                <tr>
+                    <td class="label">Discount</td>
+                    <td class="value" style="color:#ef4444;">-₹{{ order.discount_amount|floatformat:2 }}</td>
+                </tr>
+                {% endif %}
+                {% if order.delivery_charge and order.delivery_charge > 0 %}
+                <tr>
+                    <td class="label">Delivery Charge</td>
+                    <td class="value">₹{{ order.delivery_charge|floatformat:2 }}</td>
+                </tr>
+                {% endif %}
+                {% if order.tax_amount and order.tax_amount > 0 %}
+                <tr>
+                    <td class="label">Tax (GST)</td>
+                    <td class="value">₹{{ order.tax_amount|floatformat:2 }}</td>
+                </tr>
+                {% endif %}
+                <tr class="total-row">
+                    <td class="label">Grand Total</td>
+                    <td class="value">₹{{ order.total_amount|floatformat:2 }}</td>
+                </tr>
+            </table>
+        </div>
+        
+        <!-- Payment & Status -->
+        <div class="invoice-section">
+            <div class="section-title">Payment & Status</div>
+            <table style="width:100%;font-size:11pt;">
+                <tr>
+                    <td style="width:50%;vertical-align:top;padding-right:15pt;">
+                        <div class="address-label mb-6">Payment Method</div>
+                        <div class="payment-box">
+                            <div class="payment-method">
+                                <strong>
+                                    {% if order.payment_method == 'cod' %}💵 Cash on Delivery
+                                    {% elif order.payment_method == 'razorpay' %}💳 Razorpay (UPI/Card)
+                                    {% elif order.payment_method == 'wallet' %}👛 StallCart Wallet
+                                    {% else %}{{ order.payment_method|title }}{% endif %}
+                                </strong>
+                            </div>
+                            <div class="payment-status 
+                                {% if order.payment_status == 'paid' %}payment-paid
+                                {% elif order.payment_status == 'failed' %}payment-failed
+                                {% else %}payment-pending{% endif %}">
+                                {{ order.get_payment_status_display|default:"Pending" }}
+                            </div>
+                            {% if order.razorpay_payment_id %}
+                            <div style="font-size:9pt;color:#64748b;margin-top:4pt;">
+                                Payment ID: {{ order.razorpay_payment_id|truncatechars:20 }}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td style="width:50%;vertical-align:top;">
+                        <div class="address-label mb-6">Order Status</div>
+                        <span class="status-badge status-{{ order.status|lower }}">
+                            {{ order.get_status_display }}
+                        </span>
+                        {% if order.delivered_at %}
+                        <div style="font-size:10pt;color:#64748b;margin-top:6pt;">
+                            Delivered: {{ order.delivered_at|date:"M d, Y h:i A" }}
+                        </div>
+                        {% endif %}
+                        {% if order.tracking_number and order.courier_name %}
+                        <div style="font-size:10pt;color:#64748b;margin-top:6pt;">
+                            {{ order.courier_name }}: {{ order.tracking_number }}
+                        </div>
+                        {% endif %}
+                    </td>
+                </tr>
+            </table>
+        </div>
+        
+        <!-- Footer -->
+        <div class="invoice-footer">
+            <div class="thank-you">Thank you for shopping with {{ site_settings.site_name }}!</div>
+            <div class="footer-note">
+                This is a computer-generated invoice and does not require a signature.<br>
+                For queries, contact support with order number: <strong>#{{ order.unique_order_id }}</strong>
+            </div>
+            <div class="footer-contact">📧 {{ site_settings.contact_email }}</div>
+            <div class="footer-contact">📞 {{ site_settings.contact_phone }}</div>
+            {% if site_settings.contact_whatsapp %}
+            <div class="footer-contact">💬 WhatsApp: {{ site_settings.contact_whatsapp }}</div>
+            {% endif %}
+            <div class="footer-copyright">
+                © {% now "Y" %} {{ site_settings.site_name }}. All rights reserved.
+            </div>
+        </div>
+        
+    </div>
+    
+    <!-- Print Button (visible in browser, hidden in PDF) -->
+    <div class="no-print">
+        <button onclick="window.print()" class="print-btn">🖨️ Save as PDF</button>
+        <p class="print-hint">Use browser print dialog → "Save as PDF"</p>
+    </div>
+    
+    <!-- Auto-print if ?print=1 in URL -->
+    <script type="text/javascript">
+        // xhtml2pdf doesn't execute JS, but browser preview will
+        if (window.location.search.indexOf('print=1') !== -1) {
+            window.addEventListener('load', function() {
+                setTimeout(function() { window.print(); }, 500);
+            });
+        }
+    </script>
+</body>
+</html>

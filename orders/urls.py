@@ -34,9 +34,24 @@ urlpatterns = [
          name='return_detail'),
     
     # Download Invoice
-    path('order/<str:order_id>/invoice/', 
-         customer_only(views.download_invoice), 
-         name='invoice'),
+#     path('order/<str:order_id>/invoice/', 
+#          customer_only(views.download_invoice), 
+#          name='invoice'),
+     path(
+        'order/<str:order_id>/invoice/',
+        views.download_invoice,
+        name='invoice_download'
+    ),
+    path(
+        'order/<str:order_id>/invoice/preview/',
+        views.preview_invoice,
+        name='invoice_preview'
+    ),
+    path(
+        'order/<str:order_id>/invoice/debug/',
+        views.debug_invoice,
+        name='invoice_debug'
+    ),
     
     # ==================== ✅ SELLER URLS (Restricted to sellers only) ====================
     
