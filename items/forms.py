@@ -1,8 +1,8 @@
 # items/forms.py
 from django import forms
 from django.core.validators import FileExtensionValidator
-from .models import Product, Category, SellerProfile, ProductImage
-
+from .models import Product, Category, SellerProfile, ProductImage,ProductVariant
+from django.forms import inlineformset_factory, BaseInlineFormSet
 # Custom widget for multiple file uploads
 # class MultiFileInput(forms.ClearableFileInput):
 #     allow_multiple_selected = True
@@ -289,3 +289,130 @@ class ProductForm(forms.ModelForm):
         if price and mrp and mrp < price:
             self.add_error('mrp', 'MRP should be ≥ selling price.')
         return cleaned
+    
+
+
+
+class ProductVariantForm(forms.ModelForm):
+    """Form for individual product variant"""
+    class Meta:
+        model = ProductVariant
+        fields = ['size_value', 'size_type', 'color', 'price_override', 'stock', 'is_active', 'attributes']
+        widgets = {
+            'size_value': forms.TextInput(attrs={
+                'class': 'form-input', 
+                'placeholder': 'e.g., M, 6, 24x36',
+                'required': 'required'
+            }),
+            'size_type': forms.Select(attrs={'class': 'form-select'}),
+            'color': forms.TextInput(attrs={
+                'class': 'form-input', 
+                'placeholder': 'Optional: Red, Gold, Walnut'
+            }),
+            'price_override': forms.NumberInput(attrs={
+                'class': 'form-input', 
+                'step': '0.01', 
+                'placeholder': 'Leave blank to use product price'
+            }),
+            'stock': forms.NumberInput(attrs={
+                'class': 'form-input', 
+                'min': '0', 
+                'placeholder': '0',
+                'required': 'required'
+            }),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-checkbox'}),
+            'attributes': forms.Textarea(attrs={
+                'class': 'form-input', 
+                'rows': 2,
+                'placeholder': 'JSON: {"material": "Cotton", "fit": "Slim"}'
+            }),
+        }
+        labels = {
+            'size_value': 'Size/Variant Value *',
+            'size_type': 'Variant Type',
+            'color': 'Color/Finish',
+            'price_override': 'Price Override (₹)',
+            'stock': 'Stock *',
+            'is_active': 'Active',
+            'attributes': 'Custom Attributes (JSON)',
+        }
+        help_texts = {
+            'size_value': 'e.g., S/M/L, 6/7/8, 24x36 inches',
+            'size_type': 'Helps with filtering and display',
+            'price_override': 'Leave blank to use base product price',
+            'attributes': 'Optional JSON for extra specs',
+        }
+
+    def clean_price_override(self):
+        price = self.cleaned_data.get('price_override')
+        if price is not None and price <= 0:
+            raise forms.ValidationError('Price override must be greater than 0.')
+        return price
+
+    def clean_stock(self):
+        stock = self.cleaned_data.get('stock')
+        if stock is not None and stock < 0:
+            raise forms.ValidationError('Stock cannot be negative.')
+        return stock
+
+
+class BaseVariantFormSet(BaseInlineFormSet):
+    """Custom formset validation"""
+
+    def clean(self):
+        super().clean()
+
+        seen = set()
+
+        for form in self.forms:
+
+            # Skip empty/deleted forms
+            if not hasattr(form, 'cleaned_data'):
+                continue
+
+            if form.cleaned_data.get('DELETE'):
+                continue
+
+            if not form.cleaned_data:
+                continue
+
+            size = (
+                form.cleaned_data.get('size_value', '')
+                .strip()
+                .lower()
+            )
+
+            color = (
+                form.cleaned_data.get('color', '')
+                .strip()
+                .lower()
+            )
+
+            key = (size, color)
+
+            if key in seen:
+                raise forms.ValidationError(
+                    f'Duplicate variant: "{size}"'
+                    f'{f" / {color}" if color else ""} already exists.'
+                )
+
+            seen.add(key)
+
+
+ProductVariantFormSet = inlineformset_factory(
+    Product,
+    ProductVariant,
+    form=ProductVariantForm,
+    formset=BaseVariantFormSet,
+    fields=[
+        'size_value',
+        'size_type',
+        'color',
+        'price_override',
+        'stock',
+        'is_active',
+        'attributes'
+    ],
+    extra=1,
+    can_delete=True,
+)
