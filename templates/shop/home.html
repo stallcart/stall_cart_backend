@@ -151,6 +151,30 @@
     .price-current { font-size: 1rem; }
     .btn-view-details { padding: 9px; font-size: 0.82rem; }
 }
+.btn-share {
+    width: 100%;
+    padding: 10px;
+    margin-top: 8px;
+    background: var(--white);
+    color: var(--gray-700);
+    border: 2px solid var(--gray-200);
+    border-radius: var(--radius-md);
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.btn-share:hover {
+    background: var(--blue-500);
+    color: var(--white);
+    border-color: var(--blue-500);
+    transform: translateY(-2px);
+}
 </style>
 {% endblock %}
 
@@ -352,6 +376,11 @@
                         <i class="fa fa-eye"></i> 
                         {% if product.stock > 0 %}View Details{% else %}Out of Stock{% endif %}
                     </a>
+                    <button class="btn-share"
+                            data-name="{{ product.name }}"
+                            data-url="{{ request.scheme }}://{{ request.get_host }}{% url 'items:product_detail' product.slug %}">
+                        <i class="fa fa-share-alt"></i> Share
+                    </button>
                 </div>
             </div>
 
@@ -614,5 +643,37 @@ if (typeof window.showToast !== 'function') {
         }, 2800);
     };
 }
+
+document.querySelectorAll('.btn-share').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const name = btn.dataset.name;
+        const url = btn.dataset.url;
+
+        // ✅ Mobile Web Share API
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: name,
+                    text: `Check out this product: ${name}`,
+                    url: url
+                });
+                showToast('Shared successfully!', 'success');
+            } catch (err) {
+                console.log('Share cancelled');
+            }
+        } else {
+            // ✅ Fallback (copy link)
+            try {
+                await navigator.clipboard.writeText(url);
+                showToast('Link copied to clipboard!', 'success');
+            } catch {
+                showToast('Unable to copy link', 'error');
+            }
+        }
+    });
+});
 </script>
 {% endblock %}

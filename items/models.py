@@ -343,7 +343,25 @@ class ProductVariant(BaseModel):
     @property
     def is_in_stock(self):
         return self.stock > 0 and self.is_active
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
 
+        # Update parent product stock
+        total_stock = self.product.variants.filter(
+            is_active=True
+        ).aggregate(
+            total=models.Sum('stock')
+        )['total'] or 0
+
+        self.product.stock = total_stock
+
+        # Auto update status
+        if total_stock <= 0:
+            self.product.status = 'out_of_stock'
+        elif self.product.status == 'out_of_stock':
+            self.product.status = 'published'
+
+        self.product.save(update_fields=['stock', 'status'])
     class Meta:
         verbose_name = 'Product Variant'
         verbose_name_plural = 'Product Variants'
