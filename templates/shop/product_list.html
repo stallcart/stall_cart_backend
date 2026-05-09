@@ -14,7 +14,8 @@
     .filter-form { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
     
     /* Product card hover lift */
-    .product-card { will-change: transform; }
+    .product-card { will-change: transform; transition: transform 0.2s ease, box-shadow 0.2s ease; }
+    .product-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
     
     /* Badge entrance animation */
     .gender-badge, .discount-badge, .hot-badge, .featured-badge {
@@ -22,11 +23,84 @@
     }
     @keyframes badgeSlide { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
     
-    /* Add to cart button success state */
-    .btn-add-cart.added {
-        background: var(--green) !important;
-        color: var(--white) !important;
-        border-color: var(--green) !important;
+    /* ✅ Price Display Styles */
+    .price-display {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        margin-bottom: 10px;
+        flex-wrap: wrap;
+    }
+    .price-mrp {
+        font-size: 0.8rem;
+        color: var(--gray-400);
+        text-decoration: line-through;
+        font-weight: 400;
+    }
+    .price-current {
+        font-size: 1.1rem;
+        font-weight: 800;
+        color: var(--gray-900);
+    }
+    .price-discount {
+        background: var(--red);
+        color: white;
+        font-size: 0.7rem;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 12px;
+    }
+    
+    /* ✅ View Details Button Styles */
+    .btn-view-details {
+        width: 100%;
+        padding: 10px;
+        background: var(--white);
+        color: var(--blue-600);
+        border: 2px solid var(--blue-200);
+        border-radius: var(--radius-md);
+        font-size: 0.85rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all var(--transition);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        text-decoration: none;
+    }
+    .btn-view-details:hover {
+        background: var(--blue-500);
+        color: var(--white);
+        border-color: var(--blue-500);
+        transform: translateY(-2px);
+    }
+    .btn-view-details.out-of-stock {
+        background: var(--gray-100);
+        color: var(--gray-400);
+        border-color: var(--gray-200);
+        cursor: not-allowed;
+        opacity: 0.7;
+    }
+    .btn-view-details.out-of-stock:hover {
+        transform: none;
+        background: var(--gray-100);
+        color: var(--gray-400);
+    }
+    
+    /* Out of stock overlay */
+    .out-of-stock-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(255,255,255,0.85);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        color: var(--red);
+        font-size: 0.85rem;
+        border-radius: var(--radius-lg);
+        z-index: 2;
     }
 </style>
 {% endblock %}
@@ -75,7 +149,7 @@
             </div>
         </div>
 
-        <!-- Active Filters Tags (Optional Enhancement) -->
+        <!-- Active Filters Tags -->
         {% if filters.category or filters.gender or filters.search %}
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 20px;">
             {% if filters.search %}
@@ -105,7 +179,8 @@
         <div class="product-grid" id="productGrid">
             {% for product in products %}
             <article class="product-card" data-product-id="{{ product.id }}">
-                <a href="{% url 'items:product_detail' product.slug %}" class="product-link" aria-label="View {{ product.name }}">
+                <!-- ✅ Image links to product detail -->
+                <a href="{% url 'items:product_detail' product.slug %}" class="product-link" aria-label="View {{ product.name }}" style="display:block;">
                     <div class="image-wrapper">
                         {% if product.primary_image %}
                             <img src="{{ product.primary_image.url }}" 
@@ -131,6 +206,11 @@
                         {% if product.is_featured %}
                             <span class="featured-badge" style="position:absolute;bottom:8px;left:8px;background:var(--blue-500);color:#fff;font-size:0.7rem;font-weight:700;padding:3px 8px;border-radius:20px;">⭐ Featured</span>
                         {% endif %}
+                        
+                        <!-- ✅ Out of Stock Overlay -->
+                        {% if product.stock <= 0 %}
+                            <div class="out-of-stock-overlay">Out of Stock</div>
+                        {% endif %}
                     </div>
                 </a>
                 
@@ -145,12 +225,18 @@
                         {{ product.seller.shop_name|truncatechars:20 }}
                     </p>
                     
-                    <div class="price-row">
-                        {% if product.discount_percent > 0 %}
-                            <span class="original-price">₹{{ product.price }}</span>
-                            <span class="current-price">₹{{ product.discount_price|floatformat:2 }}</span>
+                    <!-- ✅ UPDATED: Price Display with MRP + Discount -->
+                    <div class="price-display">
+                        {% if product.discount_percent > 0 and product.mrp %}
+                            <span class="price-mrp">₹{{ product.mrp|floatformat:0 }}</span>
+                            <span class="price-current">₹{{ product.discount_price|floatformat:2 }}</span>
+                            <span class="price-discount">-{{ product.discount_percent }}%</span>
+                        {% elif product.discount_percent > 0 %}
+                            <span class="price-mrp">₹{{ product.price|floatformat:0 }}</span>
+                            <span class="price-current">₹{{ product.discount_price|floatformat:2 }}</span>
+                            <span class="price-discount">-{{ product.discount_percent }}%</span>
                         {% else %}
-                            <span class="current-price">₹{{ product.price }}</span>
+                            <span class="price-current">₹{{ product.price|floatformat:2 }}</span>
                         {% endif %}
                     </div>
                     
@@ -160,23 +246,19 @@
                         </span>
                     {% endif %}
                     
-                    <button class="btn-add-cart" 
-                            data-product-id="{{ product.id }}" 
-                            data-stock="{{ product.stock }}"
-                            {% if product.stock <= 0 %}disabled{% endif %}
-                            aria-label="{% if product.stock > 0 %}Add {{ product.name }} to cart{% else %}Out of stock{% endif %}">
-                        {% if product.stock > 0 %}
-                            <i class="fa fa-cart-plus"></i> <span class="btn-text">Add to Cart</span>
-                        {% else %}
-                            <span class="out-of-stock"><i class="fa fa-times-circle"></i> Out of Stock</span>
-                        {% endif %}
-                    </button>
+                    <!-- ✅ UPDATED: View Details Button (replaces Add to Cart) -->
+                    <a href="{% url 'items:product_detail' product.slug %}" 
+                       class="btn-view-details {% if product.stock <= 0 %}out-of-stock{% endif %}"
+                       aria-label="{% if product.stock > 0 %}View details for {{ product.name }}{% else %}{{ product.name }} is out of stock{% endif %}">
+                        <i class="fa fa-eye"></i> 
+                        <span class="btn-text">{% if product.stock > 0 %}View Details{% else %}Out of Stock{% endif %}</span>
+                    </a>
                 </div>
             </article>
             {% endfor %}
         </div>
         
-        <!-- Pagination (if needed) -->
+        <!-- Pagination -->
         {% if is_paginated %}
         <div style="display:flex;justify-content:center;gap:8px;margin-top:32px;flex-wrap:wrap;">
             {% if page_obj.has_previous %}
@@ -218,7 +300,7 @@
     </div>
 </section>
 
-<!-- Quick View Modal (Optional Enhancement) -->
+<!-- Quick View Modal (Optional - kept for future use) -->
 <div id="quickViewModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="quickViewTitle" style="z-index:1600;">
     <div class="modal-content" style="max-width:720px;">
         <div class="modal-header-bar">
@@ -237,145 +319,8 @@
 
 {% block scripts %}
 <script>
-const csrfToken = '{{ csrf_token }}';
-
-// ── Add to Cart with Animation ─────────────────────────────
-document.querySelectorAll('.btn-add-cart').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
-        e.preventDefault();
-        if (btn.disabled || btn.querySelector('.out-of-stock')) return;
-        
-        const productId = btn.dataset.productId;
-        const stock = parseInt(btn.dataset.stock);
-        const originalHTML = btn.innerHTML;
-        const btnText = btn.querySelector('.btn-text');
-        
-        if (stock <= 0) {
-            showToast('Sorry, this item is out of stock!', 'error');
-            return;
-        }
-        
-        // Loading state
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> <span class="btn-text">Adding...</span>';
-        
-        try {
-            const res = await fetch("{% url 'shop:add_to_cart' %}", {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-                body: JSON.stringify({ product_id: productId, quantity: 1 })
-            });
-            const data = await res.json();
-            
-            if (data.status === 'success') {
-                // Update cart badges
-                const badges = document.querySelectorAll('#cart-count, #cart-count-mobile');
-                badges.forEach(badge => {
-                    if (badge) {
-                        badge.textContent = data.cart_count;
-                        badge.style.transform = 'scale(1.4)';
-                        setTimeout(() => badge.style.transform = '', 200);
-                    }
-                });
-                
-                // Success animation on button
-                btn.classList.add('added');
-                btn.innerHTML = '<i class="fa fa-check"></i> <span class="btn-text">Added!</span>';
-                showToast(data.message || '✓ Added to cart!', 'success');
-                
-                // Reset after delay
-                setTimeout(() => {
-                    btn.disabled = false;
-                    btn.classList.remove('added');
-                    btn.innerHTML = originalHTML;
-                }, 1800);
-                
-            } else {
-                showToast(data.message || 'Failed to add to cart', 'error');
-                btn.disabled = false;
-                btn.innerHTML = originalHTML;
-            }
-        } catch (err) {
-            console.error('Cart error:', err);
-            showToast('Network error. Please try again.', 'error');
-            btn.disabled = false;
-            btn.innerHTML = originalHTML;
-        }
-    });
-});
-
-// ── Global Toast (matches base.html design) ─────────────────
-window.showToast = function(message, type = 'info') {
-    const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
-    const bg = type === 'success' ? 'var(--green)' : 'var(--red)';
-    
-    const toast = document.createElement('div');
-    toast.innerHTML = `<i class="fa ${icon}"></i> ${message}`;
-    toast.style.cssText = `
-        position:fixed; bottom:24px; right:16px; z-index:9999;
-        padding:12px 20px; border-radius:var(--radius-lg); font-weight:600;
-        background:${bg}; color:#fff; box-shadow:var(--shadow-lg);
-        display:flex; align-items:center; gap:8px; font-size:0.9rem;
-        animation:toastIn 0.3s ease; max-width:calc(100vw - 32px);
-    `;
-    document.body.appendChild(toast);
-    
-    setTimeout(() => {
-        toast.style.animation = 'toastOut 0.3s ease forwards';
-        setTimeout(() => toast.remove(), 300);
-    }, 2800);
-};
-
-// ── Quick View Modal (Optional Enhancement) ─────────────────
-const quickViewModal = document.getElementById('quickViewModal');
-const quickViewContent = document.getElementById('quickViewContent');
-const closeQuickView = document.getElementById('closeQuickView');
-
-function openQuickView(productId) {
-    if (!quickViewModal) return;
-    quickViewModal.classList.add('show');
-    document.body.style.overflow = 'hidden';
-    quickViewContent.innerHTML = `<i class="fa fa-spinner fa-spin" style="font-size:2rem;"></i><p style="margin-top:12px;">Loading...</p>`;
-    
-    // Fetch product details (implement your endpoint)
-    fetch(`/api/products/${productId}/quick-view/`)
-        .then(res => res.json())
-        .then(data => {
-            quickViewContent.innerHTML = `
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;text-align:left;">
-                    <div style="aspect-ratio:1;background:var(--gray-50);border-radius:var(--radius-lg);overflow:hidden;">
-                        <img src="${data.image}" alt="${data.name}" style="width:100%;height:100%;object-fit:contain;">
-                    </div>
-                    <div>
-                        <h3 style="font-size:1.2rem;margin-bottom:8px;">${data.name}</h3>
-                        <p style="color:var(--gray-500);font-size:0.9rem;margin-bottom:12px;">${data.seller}</p>
-                        <div style="font-size:1.4rem;font-weight:800;color:var(--gray-900);margin-bottom:16px;">₹${data.price}</div>
-                        <button class="btn-primary" style="padding:10px 20px;font-size:0.9rem;">
-                            <i class="fa fa-cart-plus"></i> Add to Cart
-                        </button>
-                    </div>
-                </div>
-            `;
-        })
-        .catch(() => {
-            quickViewContent.innerHTML = `<p style="color:var(--red);">Failed to load product.</p>`;
-        });
-}
-
-function closeQuickViewModal() {
-    if (!quickViewModal) return;
-    quickViewModal.classList.remove('show');
-    document.body.style.overflow = '';
-}
-
-closeQuickView?.addEventListener('click', closeQuickViewModal);
-quickViewModal?.addEventListener('click', (e) => {
-    if (e.target === quickViewModal) closeQuickViewModal();
-});
-
 // ── Filter Form: Smooth Submit ─────────────────────────────
 document.getElementById('filterForm')?.addEventListener('submit', (e) => {
-    // Add subtle loading indicator on filters
     const selects = e.target.querySelectorAll('select');
     selects.forEach(s => s.style.opacity = '0.7');
     setTimeout(() => selects.forEach(s => s.style.opacity = '1'), 300);
@@ -412,6 +357,41 @@ if ('IntersectionObserver' in window) {
             observer.observe(img);
         }
     });
+}
+
+// ── Global Toast (kept for other pages that may use it) ─────
+if (typeof window.showToast !== 'function') {
+    window.showToast = function(message, type = 'info') {
+        const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
+        const bg = type === 'success' ? 'var(--green)' : 'var(--red)';
+        
+        const toast = document.createElement('div');
+        toast.innerHTML = `<i class="fa ${icon}"></i> ${message}`;
+        toast.style.cssText = `
+            position:fixed; bottom:24px; right:24px; z-index:9999;
+            padding:12px 20px; border-radius:var(--radius-lg); font-weight:600;
+            background:${bg}; color:#fff; box-shadow:var(--shadow-lg);
+            display:flex; align-items:center; gap:8px; font-size:0.9rem;
+            animation:toastIn 0.3s ease; max-width:calc(100vw - 48px);
+        `;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.style.animation = 'toastOut 0.3s ease forwards';
+            setTimeout(() => toast.remove(), 300);
+        }, 2800);
+    };
+}
+
+// Add toast animations if not present
+if (!document.querySelector('#toast-animations')) {
+    const style = document.createElement('style');
+    style.id = 'toast-animations';
+    style.textContent = `
+        @keyframes toastIn { from { transform:translateY(20px); opacity:0; } to { transform:translateY(0); opacity:1; } }
+        @keyframes toastOut { from { transform:translateY(0); opacity:1; } to { transform:translateY(20px); opacity:0; } }
+    `;
+    document.head.appendChild(style);
 }
 </script>
 {% endblock %}

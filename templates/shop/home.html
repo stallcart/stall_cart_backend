@@ -51,7 +51,7 @@
 .out-of-stock-overlay {
     position: absolute;
     inset: 0;
-    background: rgba(255,255,255,0.7);
+    background: rgba(255,255,255,0.85);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -59,12 +59,97 @@
     color: var(--red);
     font-size: 0.85rem;
     border-radius: var(--radius-lg);
+    z-index: 2;
+}
+
+/* Price display enhancements */
+.price-display {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+.price-mrp {
+    font-size: 0.8rem;
+    color: var(--gray-400);
+    text-decoration: line-through;
+    font-weight: 400;
+}
+.price-current {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--gray-900);
+}
+.price-discount {
+    background: var(--red);
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 12px;
+}
+
+/* View Details button */
+.btn-view-details {
+    width: 100%;
+    padding: 10px;
+    background: var(--white);
+    color: var(--blue-600);
+    border: 2px solid var(--blue-200);
+    border-radius: var(--radius-md);
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    text-decoration: none;
+}
+.btn-view-details:hover {
+    background: var(--blue-500);
+    color: var(--white);
+    border-color: var(--blue-500);
+    transform: translateY(-2px);
+}
+
+/* Quick Add button (for carousel) */
+.btn-quick-add {
+    width: 100%;
+    padding: 8px;
+    background: var(--blue-50);
+    color: var(--blue-600);
+    border: 1.5px solid var(--blue-200);
+    border-radius: var(--radius-sm);
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+.btn-quick-add:hover {
+    background: var(--blue-500);
+    color: var(--white);
+    border-color: var(--blue-500);
+}
+.btn-quick-add:disabled {
+    background: var(--gray-100);
+    color: var(--gray-400);
+    border-color: var(--gray-200);
+    cursor: not-allowed;
 }
 
 /* Responsive adjustments */
 @media (max-width: 480px) {
     .feature-strip { display: none; }
     .hero { padding-top: 36px; padding-bottom: 56px; }
+    .price-current { font-size: 1rem; }
+    .btn-view-details { padding: 9px; font-size: 0.82rem; }
 }
 </style>
 {% endblock %}
@@ -163,7 +248,7 @@
 </section>
 
 <!-- ═══════════════════════════════════════
-     PRODUCT GRID
+     PRODUCT GRID – UPDATED WITH PRICE + VIEW DETAILS
 ═══════════════════════════════════════ -->
 <section id="products" class="section-wrap">
     <div class="container">
@@ -203,7 +288,7 @@
                  data-category="{{ product.category.slug }}"
                  data-price="{{ product.price }}">
 
-                <a href="{% url 'items:product_detail' product.slug %}">
+                <a href="{% url 'items:product_detail' product.slug %}" style="display:block;">
                     <div class="image-wrapper">
                         {% if product.primary_image %}
                             <img src="{{ product.primary_image.url }}"
@@ -233,17 +318,23 @@
                 <div class="product-info">
                     <h4>
                         <a href="{% url 'items:product_detail' product.slug %}">
-                            {{ product.name }}
+                            {{ product.name|truncatechars:40 }}
                         </a>
                     </h4>
-                    <p class="seller-name">by {{ product.seller.shop_name }}</p>
+                    <p class="seller-name">by {{ product.seller.shop_name|truncatechars:20 }}</p>
 
-                    <div class="price-row">
-                        {% if product.discount_percent > 0 %}
-                            <span class="original-price">₹{{ product.price }}</span>
-                            <span class="current-price">₹{{ product.discount_price|floatformat:2 }}</span>
+                    <!-- ✅ UPDATED: Price Display with MRP + Discount -->
+                    <div class="price-display">
+                        {% if product.discount_percent > 0 and product.mrp %}
+                            <span class="price-mrp">₹{{ product.mrp|floatformat:0 }}</span>
+                            <span class="price-current">₹{{ product.discount_price|floatformat:2 }}</span>
+                            <span class="price-discount">-{{ product.discount_percent }}%</span>
+                        {% elif product.discount_percent > 0 %}
+                            <span class="price-mrp">₹{{ product.price|floatformat:0 }}</span>
+                            <span class="price-current">₹{{ product.discount_price|floatformat:2 }}</span>
+                            <span class="price-discount">-{{ product.discount_percent }}%</span>
                         {% else %}
-                            <span class="current-price">₹{{ product.price }}</span>
+                            <span class="price-current">₹{{ product.price|floatformat:2 }}</span>
                         {% endif %}
                     </div>
 
@@ -254,22 +345,13 @@
                         </span>
                     {% endif %}
 
-                    {% if user.role == 'customer' or not user.is_authenticated %}
-                        <button class="btn-add-cart"
-                                data-product-id="{{ product.id }}"
-                                data-stock="{{ product.stock }}"
-                                {% if product.stock == 0 %}disabled{% endif %}>
-                            {% if product.stock > 0 %}
-                                <i class="fa fa-cart-plus"></i> Add to Cart
-                            {% else %}
-                                Out of Stock
-                            {% endif %}
-                        </button>
-                    {% else %}
-                        <a href="{% url 'items:product_detail' product.slug %}" class="btn-outline">
-                            View Details
-                        </a>
-                    {% endif %}
+                    <!-- ✅ UPDATED: View Details Button (replaces Add to Cart) -->
+                    <a href="{% url 'items:product_detail' product.slug %}" 
+                       class="btn-view-details"
+                       {% if product.stock == 0 %}style="opacity:0.6;cursor:not-allowed;"{% endif %}>
+                        <i class="fa fa-eye"></i> 
+                        {% if product.stock > 0 %}View Details{% else %}Out of Stock{% endif %}
+                    </a>
                 </div>
             </div>
 
@@ -291,7 +373,7 @@
 </section>
 
 <!-- ═══════════════════════════════════════
-     DEALS OF THE DAY
+     DEALS OF THE DAY – UPDATED
 ═══════════════════════════════════════ -->
 {% if hot_products %}
 <section class="section-wrap" style="background:var(--white);">
@@ -326,21 +408,31 @@
                     {% if product.discount_percent > 0 %}
                         <span class="discount-badge">-{{ product.discount_percent }}%</span>
                     {% endif %}
+                    {% if product.stock == 0 %}
+                        <div class="out-of-stock-overlay" style="font-size:0.75rem;">Out of Stock</div>
+                    {% endif %}
                 </a>
                 <div class="product-info" style="padding:10px;">
                     <h4 style="font-size:0.83rem;margin-bottom:6px;">
                         {{ product.name|truncatechars:28 }}
                     </h4>
-                    <div class="price-row">
-                        {% if product.discount_percent > 0 %}
-                            <span class="original-price">₹{{ product.price }}</span>
-                            <span class="deal-price">₹{{ product.discount_price|floatformat:2 }}</span>
+                    
+                    <!-- ✅ Price Display for Carousel -->
+                    <div class="price-display" style="margin-bottom:8px;">
+                        {% if product.discount_percent > 0 and product.mrp %}
+                            <span class="price-mrp" style="font-size:0.75rem;">₹{{ product.mrp|floatformat:0 }}</span>
+                            <span class="price-current" style="font-size:0.95rem;">₹{{ product.discount_price|floatformat:2 }}</span>
+                        {% elif product.discount_percent > 0 %}
+                            <span class="price-mrp" style="font-size:0.75rem;">₹{{ product.price|floatformat:0 }}</span>
+                            <span class="price-current" style="font-size:0.95rem;">₹{{ product.discount_price|floatformat:2 }}</span>
                         {% else %}
-                            <span class="current-price">₹{{ product.price }}</span>
+                            <span class="price-current" style="font-size:0.95rem;">₹{{ product.price|floatformat:2 }}</span>
                         {% endif %}
                     </div>
+                    
+                    <!-- ✅ Quick Add Button (for carousel only - optional) -->
                     {% if user.role == 'customer' or not user.is_authenticated %}
-                        <button class="btn-add-cart-quick"
+                        <button class="btn-quick-add"
                                 data-product-id="{{ product.id }}"
                                 data-stock="{{ product.stock }}"
                                 {% if product.stock == 0 %}disabled{% endif %}>
@@ -350,6 +442,12 @@
                                 Out of Stock
                             {% endif %}
                         </button>
+                    {% else %}
+                        <a href="{% url 'items:product_detail' product.slug %}" 
+                           class="btn-view-details" 
+                           style="padding:8px;font-size:0.78rem;">
+                            View
+                        </a>
                     {% endif %}
                 </div>
             </div>
@@ -408,10 +506,11 @@
 const csrfToken = '{{ csrf_token }}';
 const userRole  = '{{ user.role|default:"" }}';
 
-// ── Add to Cart ─────────────────────────────────
-document.querySelectorAll('.btn-add-cart, .btn-add-cart-quick').forEach(btn => {
+// ── Quick Add to Cart (for carousel only) ─────────────────────────────────
+document.querySelectorAll('.btn-quick-add').forEach(btn => {
     btn.addEventListener('click', async (e) => {
         e.preventDefault();
+        e.stopPropagation(); // Prevent link click
 
         if (userRole && userRole !== 'customer') {
             showToast('Sellers cannot add to cart. Use a customer account.', 'error');
@@ -427,11 +526,13 @@ document.querySelectorAll('.btn-add-cart, .btn-add-cart-quick').forEach(btn => {
         }
 
         if (!userRole) {
-            // Guest: let Django handle it or open login
+            // Guest: open login modal or redirect
             if (window.openLoginModal) {
                 window.openLoginModal();
                 return;
             }
+            window.location.href = "{% url 'accounts:login' %}?next={{ request.path }}";
+            return;
         }
 
         const orig = btn.innerHTML;
@@ -450,8 +551,10 @@ document.querySelectorAll('.btn-add-cart, .btn-add-cart-quick').forEach(btn => {
             const data = await res.json();
 
             if (data.status === 'success') {
-                window.updateCartCount(data.cart_count);
-                window.showToast('Added to cart!', 'success');
+                if (window.updateCartCount) {
+                    window.updateCartCount(data.cart_count);
+                }
+                showToast('Added to cart!', 'success');
                 btn.innerHTML = '<i class="fa fa-check"></i> Added';
                 btn.style.background = 'var(--green)';
                 btn.style.borderColor = 'var(--green)';
@@ -464,12 +567,12 @@ document.querySelectorAll('.btn-add-cart, .btn-add-cart-quick').forEach(btn => {
                     btn.style.color = '';
                 }, 1800);
             } else {
-                window.showToast(data.message || 'Failed to add to cart.', 'error');
+                showToast(data.message || 'Failed to add to cart.', 'error');
                 btn.disabled = false;
                 btn.innerHTML = orig;
             }
         } catch {
-            window.showToast('Network error. Please try again.', 'error');
+            showToast('Network error. Please try again.', 'error');
             btn.disabled = false;
             btn.innerHTML = orig;
         }
@@ -491,7 +594,25 @@ function updateCountdown() {
 setInterval(updateCountdown, 1000);
 updateCountdown();
 
-// ── Default perks (fallback if Django doesn't provide them) ──
-// These are rendered inline above via template — this is just a reference
+// ── Global Toast (if not already defined in base.html) ─────────────────
+if (typeof window.showToast !== 'function') {
+    window.showToast = function(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.innerHTML = `<i class="fa ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i> ${message}`;
+        toast.style.cssText = `
+            position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+            padding: 12px 20px; border-radius: 8px; font-weight: 600;
+            background: ${type === 'success' ? 'var(--green)' : 'var(--red)'};
+            color: #fff; box-shadow: var(--shadow-lg);
+            display: flex; align-items: center; gap: 8px;
+            animation: toastIn 0.3s ease; max-width: calc(100vw - 48px);
+        `;
+        document.body.appendChild(toast);
+        setTimeout(() => {
+            toast.style.animation = 'toastOut 0.3s ease forwards';
+            setTimeout(() => toast.remove(), 300);
+        }, 2800);
+    };
+}
 </script>
 {% endblock %}

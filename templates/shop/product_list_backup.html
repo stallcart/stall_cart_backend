@@ -4,130 +4,260 @@
 {% block title %}Shop | {{ site_settings.site_name|default:"StallCart" }}{% endblock %}
 {% block meta_description %}Browse our premium collection. Free delivery, secure payments, and 100% original products.{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* Product List Specific Enhancements */
+    .product-section { animation: fadeIn 0.4s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    
+    /* Filter form enhancements */
+    .filter-form { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    
+    /* Product card hover lift */
+    .product-card { will-change: transform; }
+    
+    /* Badge entrance animation */
+    .gender-badge, .discount-badge, .hot-badge, .featured-badge {
+        animation: badgeSlide 0.3s ease;
+    }
+    @keyframes badgeSlide { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+    
+    /* Add to cart button success state */
+    .btn-add-cart.added {
+        background: var(--green) !important;
+        color: var(--white) !important;
+        border-color: var(--green) !important;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <section class="product-section">
-    <!-- Header & Filters -->
-    <div class="section-header">
-        <h2>🛍️ All Products</h2>
+    <div class="container">
         
-        <div class="filters">
-            <form method="get" class="filter-form" id="filterForm">
-                <!-- <input type="text" name="search" placeholder="Search products..." value="{{ filters.search }}" class="form-input-sm"> -->
-                
-                <select name="category" class="form-select-sm" onchange="document.getElementById('filterForm').submit()">
-                    <option value="">All Categories</option>
-                    {% for cat in categories %}
-                        <option value="{{ cat.slug }}" {% if filters.category == cat.slug %}selected{% endif %}>{{ cat.name }}</option>
-                    {% endfor %}
-                </select>
-                <!-- ✅ NEW: Gender Filter -->
-                <select name="gender" class="form-select-sm" onchange="document.getElementById('filterForm').submit()">
-                    <option value="">All Genders</option>
-                    {% for value, label in genders %}
-                        <option value="{{ value }}" {% if filters.gender == value %}selected{% endif %}>
-                            {{ label }}
-                        </option>
-                    {% endfor %}
-                </select>
-                <select name="sort" class="form-select-sm" onchange="document.getElementById('filterForm').submit()">
-                    <option value="-created_at" {% if sort == '-created_at' %}selected{% endif %}>Newest First</option>
-                    <option value="price_asc" {% if sort == 'price_asc' %}selected{% endif %}>Price: Low to High</option>
-                    <option value="price_desc" {% if sort == 'price_desc' %}selected{% endif %}>Price: High to Low</option>
-                    <option value="-views_count" {% if sort == '-views_count' %}selected{% endif %}>Most Popular</option>
-                </select>
-            </form>
-        </div>
-    </div>
-
-    <!-- Product Grid -->
-    {% if products %}
-    <div class="product-grid">
-        {% for product in products %}
-        <div class="product-card">
-            <a href="{% url 'items:product_detail' product.slug %}" class="product-link">
-                <div class="image-wrapper">
-                    {% if product.primary_image %}
-                        <img src="{{ product.primary_image.url }}" alt="{{ product.name }}" loading="lazy">
-                    {% else %}
-                        <div class="no-image">No Image</div>
-                    {% endif %}
-                    <!-- ✅ Gender Badge -->
-                    {% if product.gender %}
-                        <span class="gender-badge">
-                            {{ product.get_gender_display }}
-                        </span>
-                    {% endif %}
-                    {% if product.discount_percent > 0 %}
-                        <span class="discount-badge">-{{ product.discount_percent }}%</span>
-                    {% endif %}
-                    {% if product.is_hot_deal %}
-                        <span class="hot-badge">🔥 Hot</span>
-                    {% endif %}
-                </div>
-            </a>
+        <!-- Header & Filters -->
+        <div class="section-header">
+            <div>
+                <h2 class="section-title">🛍️ All <span>Products</span></h2>
+                <p class="section-subtitle">Discover {{ products|length }}+ items in our collection</p>
+            </div>
             
-            <div class="product-info">
-                <h4><a href="{% url 'items:product_detail' product.slug %}">{{ product.name }}</a></h4>
-                <p class="seller-name">by {{ product.seller.shop_name }}</p>
-                
-                <div class="price-row">
-                    {% if product.discount_percent > 0 %}
-                        <span class="original-price">₹{{ product.price }}</span>
-                        <span class="current-price">₹{{ product.discount_price|floatformat:2 }}</span>
-                    {% else %}
-                        <span class="current-price">₹{{ product.price }}</span>
-                    {% endif %}
-                </div>
-                
-                {% if product.stock <= product.low_stock_threshold and product.stock > 0 %}
-                    <span class="low-stock">⚠️ Only {{ product.stock }} left!</span>
-                {% endif %}
-                
-                <button class="btn-add-cart" 
-                        data-product-id="{{ product.id }}" 
-                        data-stock="{{ product.stock }}">
-                    {% if product.stock > 0 %}
-                        <i class="fa fa-cart-plus"></i> Add to Cart
-                    {% else %}
-                        <span class="out-of-stock">Out of Stock</span>
-                    {% endif %}
-                </button>
+            <div class="filters">
+                <form method="get" class="filter-form" id="filterForm">
+                    <!-- Category Filter -->
+                    <select name="category" class="form-select-sm" aria-label="Filter by category" onchange="document.getElementById('filterForm').submit()">
+                        <option value="">All Categories</option>
+                        {% for cat in categories %}
+                            <option value="{{ cat.slug }}" {% if filters.category == cat.slug %}selected{% endif %}>
+                                {{ cat.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    
+                    <!-- Gender Filter -->
+                    <select name="gender" class="form-select-sm" aria-label="Filter by gender" onchange="document.getElementById('filterForm').submit()">
+                        <option value="">All Genders</option>
+                        {% for value, label in genders %}
+                            <option value="{{ value }}" {% if filters.gender == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    
+                    <!-- Sort Filter -->
+                    <select name="sort" class="form-select-sm" aria-label="Sort products" onchange="document.getElementById('filterForm').submit()">
+                        <option value="-created_at" {% if sort == '-created_at' %}selected{% endif %}>✨ Newest</option>
+                        <option value="price_asc" {% if sort == 'price_asc' %}selected{% endif %}>💰 Low to High</option>
+                        <option value="price_desc" {% if sort == 'price_desc' %}selected{% endif %}>💎 High to Low</option>
+                        <option value="-views_count" {% if sort == '-views_count' %}selected{% endif %}>🔥 Most Popular</option>
+                    </select>
+                </form>
             </div>
         </div>
-        {% endfor %}
+
+        <!-- Active Filters Tags (Optional Enhancement) -->
+        {% if filters.category or filters.gender or filters.search %}
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 20px;">
+            {% if filters.search %}
+                <span style="background:var(--blue-50);color:var(--blue-700);padding:4px 10px;border-radius:20px;font-size:0.75rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;">
+                    🔍 "{{ filters.search }}"
+                    <a href="?{% for key, value in request.GET.items %}{% if key != 'search' %}{{ key }}={{ value }}&{% endif %}{% endfor %}" style="color:inherit;text-decoration:none;font-weight:700;">×</a>
+                </span>
+            {% endif %}
+            {% if filters.category %}
+                <span style="background:var(--blue-50);color:var(--blue-700);padding:4px 10px;border-radius:20px;font-size:0.75rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;">
+                    📁 {{ filters.category }}
+                    <a href="?{% for key, value in request.GET.items %}{% if key != 'category' %}{{ key }}={{ value }}&{% endif %}{% endfor %}" style="color:inherit;text-decoration:none;font-weight:700;">×</a>
+                </span>
+            {% endif %}
+            {% if filters.gender %}
+                <span style="background:var(--blue-50);color:var(--blue-700);padding:4px 10px;border-radius:20px;font-size:0.75rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;">
+                    👤 {{ filters.gender }}
+                    <a href="?{% for key, value in request.GET.items %}{% if key != 'gender' %}{{ key }}={{ value }}&{% endif %}{% endfor %}" style="color:inherit;text-decoration:none;font-weight:700;">×</a>
+                </span>
+            {% endif %}
+            <a href="{% url 'items:product_list' %}" style="font-size:0.75rem;color:var(--gray-500);text-decoration:none;font-weight:600;">Clear all</a>
+        </div>
+        {% endif %}
+
+        <!-- Product Grid -->
+        {% if products %}
+        <div class="product-grid" id="productGrid">
+            {% for product in products %}
+            <article class="product-card" data-product-id="{{ product.id }}">
+                <a href="{% url 'items:product_detail' product.slug %}" class="product-link" aria-label="View {{ product.name }}">
+                    <div class="image-wrapper">
+                        {% if product.primary_image %}
+                            <img src="{{ product.primary_image.url }}" 
+                                 alt="{{ product.name }}" 
+                                 loading="lazy"
+                                 onerror="this.parentElement.innerHTML='<div class=\'no-image\'>Image unavailable</div>'">
+                        {% else %}
+                            <div class="no-image">
+                                <i class="fa fa-image" style="font-size:2rem;"></i>
+                            </div>
+                        {% endif %}
+                        
+                        <!-- Badges -->
+                        {% if product.gender %}
+                            <span class="gender-badge">{{ product.get_gender_display }}</span>
+                        {% endif %}
+                        {% if product.discount_percent > 0 %}
+                            <span class="discount-badge">-{{ product.discount_percent }}%</span>
+                        {% endif %}
+                        {% if product.is_hot_deal %}
+                            <span class="hot-badge">🔥 Hot</span>
+                        {% endif %}
+                        {% if product.is_featured %}
+                            <span class="featured-badge" style="position:absolute;bottom:8px;left:8px;background:var(--blue-500);color:#fff;font-size:0.7rem;font-weight:700;padding:3px 8px;border-radius:20px;">⭐ Featured</span>
+                        {% endif %}
+                    </div>
+                </a>
+                
+                <div class="product-info">
+                    <h4>
+                        <a href="{% url 'items:product_detail' product.slug %}">
+                            {{ product.name|truncatechars:50 }}
+                        </a>
+                    </h4>
+                    <p class="seller-name">
+                        <i class="fa fa-store" style="margin-right:4px;"></i>
+                        {{ product.seller.shop_name|truncatechars:20 }}
+                    </p>
+                    
+                    <div class="price-row">
+                        {% if product.discount_percent > 0 %}
+                            <span class="original-price">₹{{ product.price }}</span>
+                            <span class="current-price">₹{{ product.discount_price|floatformat:2 }}</span>
+                        {% else %}
+                            <span class="current-price">₹{{ product.price }}</span>
+                        {% endif %}
+                    </div>
+                    
+                    {% if product.stock <= product.low_stock_threshold and product.stock > 0 %}
+                        <span class="low-stock">
+                            <i class="fa fa-exclamation-triangle"></i> Only {{ product.stock }} left!
+                        </span>
+                    {% endif %}
+                    
+                    <button class="btn-add-cart" 
+                            data-product-id="{{ product.id }}" 
+                            data-stock="{{ product.stock }}"
+                            {% if product.stock <= 0 %}disabled{% endif %}
+                            aria-label="{% if product.stock > 0 %}Add {{ product.name }} to cart{% else %}Out of stock{% endif %}">
+                        {% if product.stock > 0 %}
+                            <i class="fa fa-cart-plus"></i> <span class="btn-text">Add to Cart</span>
+                        {% else %}
+                            <span class="out-of-stock"><i class="fa fa-times-circle"></i> Out of Stock</span>
+                        {% endif %}
+                    </button>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+        
+        <!-- Pagination (if needed) -->
+        {% if is_paginated %}
+        <div style="display:flex;justify-content:center;gap:8px;margin-top:32px;flex-wrap:wrap;">
+            {% if page_obj.has_previous %}
+                <a href="?page=1{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}" 
+                   class="btn-outline" style="width:auto;padding:8px 16px;">« First</a>
+                <a href="?page={{ page_obj.previous_page_number }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}" 
+                   class="btn-outline" style="width:auto;padding:8px 16px;">‹ Prev</a>
+            {% endif %}
+            
+            <span style="padding:8px 16px;background:var(--blue-50);color:var(--blue-700);border-radius:var(--radius-md);font-weight:600;font-size:0.875rem;">
+                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+            </span>
+            
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}" 
+                   class="btn-outline" style="width:auto;padding:8px 16px;">Next ›</a>
+                <a href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}" 
+                   class="btn-outline" style="width:auto;padding:8px 16px;">Last »</a>
+            {% endif %}
+        </div>
+        {% endif %}
+        
+        {% else %}
+        <!-- Empty State -->
+        <div class="empty-state">
+            <div style="font-size:3.5rem;color:var(--gray-200);margin-bottom:16px;">
+                <i class="fa fa-box-open"></i>
+            </div>
+            <h3>No products found</h3>
+            <p style="color:var(--gray-500);max-width:400px;margin:0 auto 20px;">
+                Try adjusting your search terms, removing filters, or check back later for new arrivals.
+            </p>
+            <a href="{% url 'items:product_list' %}" class="btn-outline" style="width:auto;padding:10px 24px;">
+                <i class="fa fa-rotate-right"></i> Clear All Filters
+            </a>
+        </div>
+        {% endif %}
+        
     </div>
-    {% else %}
-    <div class="empty-state">
-        <i class="fa fa-search" style="font-size: 3rem; color: #ccc; margin-bottom: 15px;"></i>
-        <h3>No products found</h3>
-        <p>Try adjusting your search or filter criteria.</p>
-        <a href="{% url 'items:product_list' %}" class="btn-outline">Clear Filters</a>
-    </div>
-    {% endif %}
 </section>
+
+<!-- Quick View Modal (Optional Enhancement) -->
+<div id="quickViewModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="quickViewTitle" style="z-index:1600;">
+    <div class="modal-content" style="max-width:720px;">
+        <div class="modal-header-bar">
+            <h3 id="quickViewTitle"><i class="fa fa-eye" style="color:var(--blue-400);margin-right:8px;"></i> Quick View</h3>
+            <button class="modal-close" id="closeQuickView" aria-label="Close">
+                <i class="fa fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" id="quickViewContent" style="text-align:center;color:var(--gray-500);">
+            <i class="fa fa-spinner fa-spin" style="font-size:2rem;"></i>
+            <p style="margin-top:12px;">Loading product details...</p>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
 const csrfToken = '{{ csrf_token }}';
 
-// Add to Cart AJAX
+// ── Add to Cart with Animation ─────────────────────────────
 document.querySelectorAll('.btn-add-cart').forEach(btn => {
     btn.addEventListener('click', async (e) => {
         e.preventDefault();
-        if (btn.disabled || btn.classList.contains('out-of-stock')) return;
+        if (btn.disabled || btn.querySelector('.out-of-stock')) return;
         
         const productId = btn.dataset.productId;
         const stock = parseInt(btn.dataset.stock);
+        const originalHTML = btn.innerHTML;
+        const btnText = btn.querySelector('.btn-text');
         
         if (stock <= 0) {
             showToast('Sorry, this item is out of stock!', 'error');
             return;
         }
         
-        const originalHTML = btn.innerHTML;
+        // Loading state
         btn.disabled = true;
-        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Adding...';
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> <span class="btn-text">Adding...</span>';
         
         try {
             const res = await fetch("{% url 'shop:add_to_cart' %}", {
@@ -138,40 +268,150 @@ document.querySelectorAll('.btn-add-cart').forEach(btn => {
             const data = await res.json();
             
             if (data.status === 'success') {
-                const cartCount = document.getElementById('cart-count');
-                if (cartCount) cartCount.textContent = data.cart_count;
-                showToast(data.message || 'Added to cart!', 'success');
-                btn.innerHTML = '<i class="fa fa-check"></i> Added!';
-                btn.style.background = '#2e7d32';
+                // Update cart badges
+                const badges = document.querySelectorAll('#cart-count, #cart-count-mobile');
+                badges.forEach(badge => {
+                    if (badge) {
+                        badge.textContent = data.cart_count;
+                        badge.style.transform = 'scale(1.4)';
+                        setTimeout(() => badge.style.transform = '', 200);
+                    }
+                });
+                
+                // Success animation on button
+                btn.classList.add('added');
+                btn.innerHTML = '<i class="fa fa-check"></i> <span class="btn-text">Added!</span>';
+                showToast(data.message || '✓ Added to cart!', 'success');
+                
+                // Reset after delay
                 setTimeout(() => {
                     btn.disabled = false;
+                    btn.classList.remove('added');
                     btn.innerHTML = originalHTML;
-                    btn.style.background = '';
-                }, 1500);
+                }, 1800);
+                
             } else {
-                showToast(data.message || 'Failed to add', 'error');
+                showToast(data.message || 'Failed to add to cart', 'error');
                 btn.disabled = false;
                 btn.innerHTML = originalHTML;
             }
         } catch (err) {
-            showToast('Network error', 'error');
+            console.error('Cart error:', err);
+            showToast('Network error. Please try again.', 'error');
             btn.disabled = false;
             btn.innerHTML = originalHTML;
         }
     });
 });
 
-function showToast(msg, type='info') {
-    const t = document.createElement('div');
-    t.innerHTML = `<i class="fa ${type==='success'?'fa-check-circle':'fa-exclamation-circle'}"></i> ${msg}`;
-    t.style.cssText = `position:fixed;bottom:24px;right:24px;z-index:9999;padding:12px 20px;border-radius:8px;font-weight:600;background:${type==='success'?'#4CAF50':'#f44336'};color:#fff;box-shadow:0 4px 12px rgba(0,0,0,0.2);display:flex;align-items:center;gap:8px;animation:slideUp 0.3s ease;`;
-    document.body.appendChild(t);
-    setTimeout(() => { t.style.animation='slideDown 0.3s ease'; setTimeout(()=>t.remove(),300); }, 2500);
+// ── Global Toast (matches base.html design) ─────────────────
+window.showToast = function(message, type = 'info') {
+    const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
+    const bg = type === 'success' ? 'var(--green)' : 'var(--red)';
+    
+    const toast = document.createElement('div');
+    toast.innerHTML = `<i class="fa ${icon}"></i> ${message}`;
+    toast.style.cssText = `
+        position:fixed; bottom:24px; right:16px; z-index:9999;
+        padding:12px 20px; border-radius:var(--radius-lg); font-weight:600;
+        background:${bg}; color:#fff; box-shadow:var(--shadow-lg);
+        display:flex; align-items:center; gap:8px; font-size:0.9rem;
+        animation:toastIn 0.3s ease; max-width:calc(100vw - 32px);
+    `;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.animation = 'toastOut 0.3s ease forwards';
+        setTimeout(() => toast.remove(), 300);
+    }, 2800);
+};
+
+// ── Quick View Modal (Optional Enhancement) ─────────────────
+const quickViewModal = document.getElementById('quickViewModal');
+const quickViewContent = document.getElementById('quickViewContent');
+const closeQuickView = document.getElementById('closeQuickView');
+
+function openQuickView(productId) {
+    if (!quickViewModal) return;
+    quickViewModal.classList.add('show');
+    document.body.style.overflow = 'hidden';
+    quickViewContent.innerHTML = `<i class="fa fa-spinner fa-spin" style="font-size:2rem;"></i><p style="margin-top:12px;">Loading...</p>`;
+    
+    // Fetch product details (implement your endpoint)
+    fetch(`/api/products/${productId}/quick-view/`)
+        .then(res => res.json())
+        .then(data => {
+            quickViewContent.innerHTML = `
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;text-align:left;">
+                    <div style="aspect-ratio:1;background:var(--gray-50);border-radius:var(--radius-lg);overflow:hidden;">
+                        <img src="${data.image}" alt="${data.name}" style="width:100%;height:100%;object-fit:contain;">
+                    </div>
+                    <div>
+                        <h3 style="font-size:1.2rem;margin-bottom:8px;">${data.name}</h3>
+                        <p style="color:var(--gray-500);font-size:0.9rem;margin-bottom:12px;">${data.seller}</p>
+                        <div style="font-size:1.4rem;font-weight:800;color:var(--gray-900);margin-bottom:16px;">₹${data.price}</div>
+                        <button class="btn-primary" style="padding:10px 20px;font-size:0.9rem;">
+                            <i class="fa fa-cart-plus"></i> Add to Cart
+                        </button>
+                    </div>
+                </div>
+            `;
+        })
+        .catch(() => {
+            quickViewContent.innerHTML = `<p style="color:var(--red);">Failed to load product.</p>`;
+        });
 }
-if(!document.querySelector('#toast-anim')){
-    const s=document.createElement('style'); s.id='toast-anim';
-    s.textContent='@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}@keyframes slideDown{from{transform:translateY(0);opacity:1}to{transform:translateY(20px);opacity:0}}';
-    document.head.appendChild(s);
+
+function closeQuickViewModal() {
+    if (!quickViewModal) return;
+    quickViewModal.classList.remove('show');
+    document.body.style.overflow = '';
+}
+
+closeQuickView?.addEventListener('click', closeQuickViewModal);
+quickViewModal?.addEventListener('click', (e) => {
+    if (e.target === quickViewModal) closeQuickViewModal();
+});
+
+// ── Filter Form: Smooth Submit ─────────────────────────────
+document.getElementById('filterForm')?.addEventListener('submit', (e) => {
+    // Add subtle loading indicator on filters
+    const selects = e.target.querySelectorAll('select');
+    selects.forEach(s => s.style.opacity = '0.7');
+    setTimeout(() => selects.forEach(s => s.style.opacity = '1'), 300);
+});
+
+// ── Keyboard Navigation for Product Cards ───────────────────
+document.querySelectorAll('.product-card').forEach(card => {
+    card.setAttribute('tabindex', '0');
+    card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            card.querySelector('.product-link')?.click();
+        }
+    });
+});
+
+// ── Lazy Load Enhancement ───────────────────────────────────
+if ('IntersectionObserver' in window) {
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const img = entry.target;
+                if (img.dataset.src) {
+                    img.src = img.dataset.src;
+                    img.removeAttribute('data-src');
+                    observer.unobserve(img);
+                }
+            }
+        });
+    }, { rootMargin: '50px' });
+    
+    document.querySelectorAll('img[loading="lazy"]').forEach(img => {
+        if (img.src === '' && img.dataset.src) {
+            observer.observe(img);
+        }
+    });
 }
 </script>
 {% endblock %}
