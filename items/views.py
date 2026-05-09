@@ -172,139 +172,265 @@ def seller_dashboard(request):
 
 
 
+# @seller_or_admin_only
+# def product_create(request):
+#     if request.method == 'POST':
+#         form = ProductForm(
+#             request.POST, 
+#             request.FILES, 
+#             is_superuser=request.user.is_superuser,
+#             request_user=request.user
+#         )
+#         if form.is_valid():
+#             product = form.save(commit=False)
+            
+#             if not request.user.is_superuser:
+#                 product.seller = request.user.seller_profile
+            
+#             product.created_by = request.user
+#             product.save()
+            
+#             # ✅ Handle Primary Image
+#             if form.cleaned_data.get('primary_image'):
+#                 product.primary_image = form.cleaned_data['primary_image']
+#                 product.save(update_fields=['primary_image'])
+            
+#             # ✅ Handle Additional Images
+#             additional_images = form.cleaned_data.get('additional_images')
+#             if additional_images:
+#                 for i, img_file in enumerate(additional_images):
+#                     ProductImage.objects.create(
+#                         product=product,
+#                         image=img_file,
+#                         is_primary=(i == 0 and not product.primary_image),  # First as primary if none set
+#                         display_order=i,
+#                         alt_text=product.name
+#                     )
+            
+#             messages.success(request, f'✅ Product "{product.name}" created successfully!')
+#             return redirect('items:admin_dashboard')
+#         else:
+#             print("❌ Form errors:", form.errors)
+#             for field, errors in form.errors.items():
+#                 messages.error(request, f"{field}: {errors[0]}")
+#     else:
+#         form = ProductForm(
+#             is_superuser=request.user.is_superuser,
+#             request_user=request.user
+#         )
+    
+#     return render(request, 'items/product_form.html', {
+#         'form': form,
+#         'title': 'Add New Product',
+#         'action': 'Create',
+#         'is_superuser': request.user.is_superuser,
+#     })
+
+# # ---------------------------------------------------------------------------
+# # Product Edit
+# # ---------------------------------------------------------------------------
+
+# @seller_or_admin_only
+# def product_edit(request, product_id):
+#     product = _get_product_for_user(request.user, product_id)
+    
+#     if request.method == 'POST':
+#         # ✅ Pass request.FILES to handle image uploads
+#         form = ProductForm(
+#             request.POST, 
+#             request.FILES, 
+#             instance=product,
+#             is_superuser=request.user.is_superuser,
+#             request_user=request.user
+#         )
+        
+#         if form.is_valid():
+#             # Save form data to instance but don't commit to DB yet
+#             updated = form.save(commit=False)
+            
+#             # Handle seller assignment
+#             if request.user.is_superuser:
+#                 # Superuser can change seller via form
+#                 updated.seller = form.cleaned_data.get('seller')
+#             else:
+#                 # Seller can only edit their own products
+#                 updated.seller = request.user.seller_profile
+            
+#             updated.updated_by = request.user
+#             updated.save()  # Now commit to DB
+            
+#             # ✅ Handle Primary Image Change
+#             # If primary_image was changed in form, update it
+#             if 'primary_image' in form.changed_data and form.cleaned_data.get('primary_image'):
+#                 updated.primary_image = form.cleaned_data['primary_image']
+#                 updated.save(update_fields=['primary_image'])
+            
+#             # ✅ Handle Additional Images Upload
+#             additional_images = form.cleaned_data.get('additional_images')
+#             if additional_images:
+#                 # Get current max display_order
+#                 max_order = product.product_image_product.aggregate(
+#                     models.Max('display_order')
+#                 )['display_order__max'] or -1
+                
+#                 for i, img_file in enumerate(additional_images):
+#                     ProductImage.objects.create(
+#                         product=updated,
+#                         image=img_file,
+#                         is_primary=False,  # Additional images are never primary
+#                         display_order=max_order + i + 1,
+#                         alt_text=updated.name
+#                     )
+            
+#             messages.success(request, f'✅ Product "{updated.name}" updated successfully!')
+#             return redirect('items:admin_dashboard')
+#         else:
+#             # ✅ Show form errors for debugging
+#             print("❌ Form errors:", form.errors)
+#             for field, errors in form.errors.items():
+#                 messages.error(request, f"{field}: {errors[0]}")
+#     else:
+#         # GET request - populate form with existing data
+#         form = ProductForm(
+#             instance=product,
+#             is_superuser=request.user.is_superuser,
+#             request_user=request.user
+#         )
+    
+#     return render(request, 'items/product_form.html', {
+#         'form': form,
+#         'product': product,
+#         'title': f'Edit: {product.name}',
+#         'action': 'Update',
+#         'is_superuser': request.user.is_superuser,
+#     })
+
 @seller_or_admin_only
 def product_create(request):
     if request.method == 'POST':
         form = ProductForm(
-            request.POST, 
-            request.FILES, 
+            request.POST,
+            request.FILES,
             is_superuser=request.user.is_superuser,
-            request_user=request.user
+            request_user=request.user,
         )
         if form.is_valid():
             product = form.save(commit=False)
-            
-            if not request.user.is_superuser:
+
+            # ✅ Assign seller BEFORE save() so models.py line 145 doesn't blow up
+            if request.user.is_superuser:
+                product.seller = form.cleaned_data.get('seller')
+            else:
                 product.seller = request.user.seller_profile
-            
+
             product.created_by = request.user
-            product.save()
-            
-            # ✅ Handle Primary Image
-            if form.cleaned_data.get('primary_image'):
-                product.primary_image = form.cleaned_data['primary_image']
-                product.save(update_fields=['primary_image'])
-            
-            # ✅ Handle Additional Images
-            additional_images = form.cleaned_data.get('additional_images')
-            if additional_images:
-                for i, img_file in enumerate(additional_images):
-                    ProductImage.objects.create(
-                        product=product,
-                        image=img_file,
-                        is_primary=(i == 0 and not product.primary_image),  # First as primary if none set
-                        display_order=i,
-                        alt_text=product.name
-                    )
-            
+            product.save()  # seller is set now — safe
+
+            # if form.cleaned_data.get('primary_image'):
+            #     product.primary_image = form.cleaned_data['primary_image']
+            #     product.save(update_fields=['primary_image'])
+
+            additional_images = form.cleaned_data.get('additional_images') or []
+            for i, img_file in enumerate(additional_images):
+                ProductImage.objects.create(
+                    product=product,
+                    image=img_file,
+                    is_primary=(i == 0 and not product.primary_image),
+                    display_order=i,
+                    alt_text=product.name,
+                )
+
             messages.success(request, f'✅ Product "{product.name}" created successfully!')
             return redirect('items:admin_dashboard')
         else:
-            print("❌ Form errors:", form.errors)
             for field, errors in form.errors.items():
                 messages.error(request, f"{field}: {errors[0]}")
     else:
         form = ProductForm(
             is_superuser=request.user.is_superuser,
-            request_user=request.user
+            request_user=request.user,
         )
-    
+
     return render(request, 'items/product_form.html', {
-        'form': form,
-        'title': 'Add New Product',
-        'action': 'Create',
+        'form':         form,
+        'title':        'Add New Product',
+        'action':       'Create',
         'is_superuser': request.user.is_superuser,
     })
-
 # ---------------------------------------------------------------------------
-# Product Edit
+# Product Edit  (FIXED: same list-iteration fix + proper max_order fallback)
 # ---------------------------------------------------------------------------
-
+ 
 @seller_or_admin_only
 def product_edit(request, product_id):
     product = _get_product_for_user(request.user, product_id)
-    
+ 
     if request.method == 'POST':
-        # ✅ Pass request.FILES to handle image uploads
         form = ProductForm(
-            request.POST, 
-            request.FILES, 
+            request.POST,
+            request.FILES,
             instance=product,
             is_superuser=request.user.is_superuser,
-            request_user=request.user
+            request_user=request.user,
         )
-        
+ 
         if form.is_valid():
-            # Save form data to instance but don't commit to DB yet
             updated = form.save(commit=False)
-            
-            # Handle seller assignment
+ 
             if request.user.is_superuser:
-                # Superuser can change seller via form
                 updated.seller = form.cleaned_data.get('seller')
             else:
-                # Seller can only edit their own products
                 updated.seller = request.user.seller_profile
-            
+ 
             updated.updated_by = request.user
-            updated.save()  # Now commit to DB
-            
-            # ✅ Handle Primary Image Change
-            # If primary_image was changed in form, update it
-            if 'primary_image' in form.changed_data and form.cleaned_data.get('primary_image'):
-                updated.primary_image = form.cleaned_data['primary_image']
-                updated.save(update_fields=['primary_image'])
-            
-            # ✅ Handle Additional Images Upload
-            additional_images = form.cleaned_data.get('additional_images')
+            updated.save()
+ 
+            # ── Primary Image ────────────────────────────────────────────
+            # if 'primary_image' in form.changed_data and form.cleaned_data.get('primary_image'):
+            #     updated.primary_image = form.cleaned_data['primary_image']
+            #     updated.save(update_fields=['primary_image'])
+ 
+            # ── Additional Images ────────────────────────────────────────
+            # MultipleFileField always gives us a list (empty list when nothing chosen).
+            additional_images = form.cleaned_data.get('additional_images') or []
             if additional_images:
-                # Get current max display_order
-                max_order = product.product_image_product.aggregate(
-                    models.Max('display_order')
-                )['display_order__max'] or -1
-                
+                from django.db.models import Max
+                max_order = (
+                    product.product_image_product
+                    .aggregate(max_order=Max('display_order'))['max_order']
+                )
+                                # aggregate returns None when there are no rows yet
+                if max_order is None:
+                    max_order = -1
+ 
                 for i, img_file in enumerate(additional_images):
                     ProductImage.objects.create(
                         product=updated,
                         image=img_file,
-                        is_primary=False,  # Additional images are never primary
+                        is_primary=False,
                         display_order=max_order + i + 1,
-                        alt_text=updated.name
+                        alt_text=updated.name,
                     )
-            
+ 
             messages.success(request, f'✅ Product "{updated.name}" updated successfully!')
             return redirect('items:admin_dashboard')
         else:
-            # ✅ Show form errors for debugging
-            print("❌ Form errors:", form.errors)
             for field, errors in form.errors.items():
                 messages.error(request, f"{field}: {errors[0]}")
     else:
-        # GET request - populate form with existing data
         form = ProductForm(
             instance=product,
             is_superuser=request.user.is_superuser,
-            request_user=request.user
+            request_user=request.user,
         )
-    
+ 
     return render(request, 'items/product_form.html', {
-        'form': form,
-        'product': product,
-        'title': f'Edit: {product.name}',
-        'action': 'Update',
+        'form':         form,
+        'product':      product,
+        'title':        f'Edit: {product.name}',
+        'action':       'Update',
         'is_superuser': request.user.is_superuser,
     })
-
 # ---------------------------------------------------------------------------
 # Product Toggle Status (AJAX)
 # ---------------------------------------------------------------------------
@@ -452,10 +578,67 @@ def product_list(request):
     return render(request, 'shop/product_list.html', context)
 
 
-def product_detail(request, slug):
-    """Public product detail page — Amazon/Flipkart style."""
-    cart_count = 0
+# def product_detail(request, slug):
+#     """Public product detail page — Amazon/Flipkart style."""
+#     cart_count = 0
 
+#     product = get_object_or_404(
+#         Product.objects.select_related('seller', 'category')
+#                        .prefetch_related('product_image_product'),
+#         slug=slug,
+#         status='published',
+#     )
+
+#     # Increment view count (atomic update)
+#     Product.objects.filter(pk=product.pk).update(
+#         views_count=F('views_count') + 1
+#     )
+#     product.refresh_from_db()
+
+  
+#     # Get all images for gallery
+#     images = list(product.product_image_product.all().order_by('display_order', '-is_primary'))
+    
+#     # Add primary_image to gallery if not already included
+#     if product.primary_image:
+#         primary_exists = any(img.image.name == product.primary_image.name for img in images)
+#         if not primary_exists:
+#             # Create a simple object to hold primary image
+#             class PrimaryImage:
+#                 def __init__(self, image):
+#                     self.image = image
+#                     self.is_primary = True
+#                     self.alt_text = product.name
+#             images.insert(0, PrimaryImage(product.primary_image))
+
+#     # Related products (same category, published, in stock)
+#     related = (
+#         Product.objects
+#         .filter(category=product.category, status='published', stock__gt=0)
+#         .exclude(pk=product.pk)
+#         .select_related('seller')
+#         .prefetch_related('product_image_product')[:4]
+#     )
+#     cart_count = 0
+#     if request.user.is_authenticated and request.user.role == 'customer':
+#         cart = getattr(request.user, 'cart', None)
+#         if cart:
+#             cart_count = cart.total_items
+#     else:
+#         cart = request.session.get('cart', {})
+#         cart_count = sum(cart.values()) 
+        
+#     context = {
+#         'product': product,
+#         'images': images,
+#         'related_products': related,
+#         'is_in_stock': product.stock > 0,
+#         'cart_count': cart_count, 
+#         'show_category_nav': True,
+#     }
+#     return render(request, 'shop/product_detail.html', context)
+
+def product_detail(request, slug):
     product = get_object_or_404(
         Product.objects.select_related('seller', 'category')
                        .prefetch_related('product_image_product'),
@@ -463,21 +646,13 @@ def product_detail(request, slug):
         status='published',
     )
 
-    # Increment view count (atomic update)
-    Product.objects.filter(pk=product.pk).update(
-        views_count=F('views_count') + 1
-    )
+    Product.objects.filter(pk=product.pk).update(views_count=F('views_count') + 1)
     product.refresh_from_db()
 
-  
-    # Get all images for gallery
     images = list(product.product_image_product.all().order_by('display_order', '-is_primary'))
-    
-    # Add primary_image to gallery if not already included
     if product.primary_image:
         primary_exists = any(img.image.name == product.primary_image.name for img in images)
         if not primary_exists:
-            # Create a simple object to hold primary image
             class PrimaryImage:
                 def __init__(self, image):
                     self.image = image
@@ -485,7 +660,6 @@ def product_detail(request, slug):
                     self.alt_text = product.name
             images.insert(0, PrimaryImage(product.primary_image))
 
-    # Related products (same category, published, in stock)
     related = (
         Product.objects
         .filter(category=product.category, status='published', stock__gt=0)
@@ -493,6 +667,7 @@ def product_detail(request, slug):
         .select_related('seller')
         .prefetch_related('product_image_product')[:4]
     )
+
     cart_count = 0
     if request.user.is_authenticated and request.user.role == 'customer':
         cart = getattr(request.user, 'cart', None)
@@ -501,18 +676,23 @@ def product_detail(request, slug):
     else:
         cart = request.session.get('cart', {})
         cart_count = sum(cart.values())
-        
+
+    # ✅ superuser OR the seller whose user account matches request.user
+    can_manage = request.user.is_authenticated and (
+        request.user.is_superuser or
+        product.seller.user_id == request.user.pk
+    )
+
     context = {
-        'product': product,
-        'images': images,
-        'related_products': related,
-        'is_in_stock': product.stock > 0,
-        'cart_count': cart_count, 
+        'product':           product,
+        'images':            images,
+        'related_products':  related,
+        'is_in_stock':       product.stock > 0,
+        'cart_count':        cart_count,
         'show_category_nav': True,
+        'can_manage':        can_manage,
     }
     return render(request, 'shop/product_detail.html', context)
-
-
 @require_POST
 @seller_or_admin_only
 def delete_product_image(request, image_id):

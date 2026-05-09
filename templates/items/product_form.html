@@ -37,14 +37,14 @@
             </div>
             
             <div class="form-row two-col">
-                <div class="form-group">
+                <!-- <div class="form-group">
                     <label for="{{ form.name.id_for_label }}">Product Name *</label>
                     {{ form.name }}
                     {% if form.name.errors %}<div class="field-error">{{ form.name.errors.0 }}</div>{% endif %}
                     <small class="form-help">Enter a clear, descriptive product name</small>
-                </div>
+                </div> -->
                 
-                <div class="form-group">
+                <!-- <div class="form-group">
                     <label for="{{ form.slug.id_for_label }}">URL Slug</label>
                     <div class="slug-input-group">
                         <span class="slug-prefix">/items/product/</span>
@@ -55,9 +55,14 @@
                     </div>
                     {% if form.slug.errors %}<div class="field-error">{{ form.slug.errors.0 }}</div>{% endif %}
                     <small class="form-help">Auto-generated from name. Use lowercase, hyphens only.</small>
-                </div>
+                </div> -->
             </div>
-            
+             <div class="form-group">
+                <label for="{{ form.name.id_for_label }}">Product Name *</label>
+                {{ form.name }}
+                {% if form.name.errors %}<div class="field-error">{{ form.name.errors.0 }}</div>{% endif %}
+                <small class="form-help">Enter a clear, descriptive product name</small>
+            </div>
             <div class="form-group">
                 <label for="{{ form.short_description.id_for_label }}">Short Description *</label>
                 {{ form.short_description }}

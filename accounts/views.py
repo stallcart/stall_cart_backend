@@ -377,6 +377,222 @@ class CustomPasswordResetCompleteView(PasswordResetCompleteView):
 
 
 
+# @login_required
+# def profile_view(request):
+#     """User profile management - role-based sections with AJAX support"""
+    
+#     # Handle AJAX POST requests
+#     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+#         try:
+#             data = json.loads(request.body)
+#             action = data.get('action')
+            
+#             # ===== UPDATE PERSONAL PROFILE =====
+#             if action == 'update_profile':
+#                 request.user.full_name = data.get('full_name', request.user.full_name)
+#                 request.user.email = data.get('email', request.user.email)
+#                 request.user.save()
+#                 return JsonResponse({'status': 'success', 'message': 'Profile updated'})
+            
+#             # ===== ADDRESS MANAGEMENT (Customers Only) =====
+#             elif action in ['add_address', 'update_address']:
+#                 if request.user.role != 'customer':
+#                     return JsonResponse(
+#                         {'status': 'error', 'message': 'Only customers can manage addresses'}, 
+#                         status=403
+#                     )
+                
+#                 # Extract address fields (flat format for simplicity)
+#                 addr_data = {
+#                     'name': data.get('name'),
+#                     'phone': data.get('phone'),
+#                     'address_line1': data.get('address_line1'),
+#                     'address_line2': data.get('address_line2', ''),
+#                     'city': data.get('city'),
+#                     'state': data.get('state'),
+#                     'postal_code': data.get('postal_code'),
+#                     'country': data.get('country', 'India'),
+#                     'address_type': data.get('address_type', 'shipping'),
+#                     'is_default': data.get('is_default', False),
+#                 }
+                
+#                 # Validate required fields
+#                 required = ['name', 'phone', 'address_line1', 'city', 'state', 'postal_code']
+#                 missing = [f for f in required if not addr_data.get(f)]
+#                 if missing:
+#                     return JsonResponse({
+#                         'status': 'error', 
+#                         'message': f'Missing required fields: {", ".join(missing)}'
+#                     }, status=400)
+                
+#                 if action == 'add_address':
+#                     Address.objects.create(user=request.user, **addr_data)
+#                     return JsonResponse({'status': 'success', 'message': 'Address added'})
+                
+#                 elif action == 'update_address':
+#                     addr_id = data.get('address_id')
+#                     if not addr_id:
+#                         return JsonResponse(
+#                             {'status': 'error', 'message': 'Address ID required'}, 
+#                             status=400
+#                         )
+                    
+#                     address = get_object_or_404(Address, id=addr_id, user=request.user)
+#                     for key, value in addr_data.items():
+#                         setattr(address, key, value)
+#                     address.save()  # Triggers model's save() logic for is_default
+#                     return JsonResponse({'status': 'success', 'message': 'Address updated'})
+            
+#             # ===== DELETE ADDRESS =====
+#             elif action == 'delete_address':
+#                 if request.user.role != 'customer':
+#                     return JsonResponse(
+#                         {'status': 'error', 'message': 'Only customers can delete addresses'}, 
+#                         status=403
+#                     )
+                
+#                 addr_id = data.get('address_id')
+#                 address = get_object_or_404(Address, id=addr_id, user=request.user)
+#                 address.delete()
+#                 return JsonResponse({'status': 'success', 'message': 'Address deleted'})
+            
+#             # ===== SET DEFAULT ADDRESS =====
+#             elif action == 'set_default_address':
+#                 if request.user.role != 'customer':
+#                     return JsonResponse(
+#                         {'status': 'error', 'message': 'Only customers can set default address'}, 
+#                         status=403
+#                     )
+                
+#                 addr_id = data.get('address_id')
+#                 address = get_object_or_404(Address, id=addr_id, user=request.user)
+#                 address.is_default = True
+#                 address.save()  # Model's save() will unset others
+#                 return JsonResponse({'status': 'success', 'message': 'Default address updated'})
+            
+#             # ===== UPDATE SHOP ADDRESS (Sellers Only) =====
+#             elif action == 'update_shop_address':
+#                 if request.user.role != 'seller' or not hasattr(request.user, 'seller_profile'):
+#                     return JsonResponse(
+#                         {'status': 'error', 'message': 'Only sellers can update shop details'}, 
+#                         status=403
+#                     )
+                
+#                 shop_data = data.get('shop_address', {})
+#                 seller = request.user.seller_profile
+                
+#                 # Get or create shop address
+#                 shop_address, created = SellerShopAddress.objects.get_or_create(
+#                     seller=seller,
+#                     defaults={
+#                         'shop_name': shop_data.get('shop_name'),
+#                         'shop_phone': shop_data.get('shop_phone'),
+#                         'shop_email': shop_data.get('shop_email', seller.user.email),
+#                         'address_line1': shop_data.get('address_line1'),
+#                         'address_line2': shop_data.get('address_line2', ''),
+#                         'city': shop_data.get('city'),
+#                         'state': shop_data.get('state'),
+#                         'postal_code': shop_data.get('postal_code'),
+#                         'country': shop_data.get('country', 'India'),
+#                         'gst_number': shop_data.get('gst_number', ''),
+#                         'pickup_instructions': shop_data.get('pickup_instructions', ''),
+#                     }
+#                 )
+                
+#                 if not created:
+#                     # Update existing
+#                     for key, value in shop_data.items():
+#                         if hasattr(shop_address, key):
+#                             setattr(shop_address, key, value)
+#                     shop_address.save()
+                
+#                 return JsonResponse({'status': 'success', 'message': 'Shop address saved'})
+            
+#             # ===== INVALID ACTION =====
+#             return JsonResponse({'status': 'error', 'message': 'Invalid action'}, status=400)
+            
+#         except json.JSONDecodeError:
+#             return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
+#         except Exception as e:
+#             import traceback
+#             traceback.print_exc()  # Log to console/server logs
+#             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+    
+#     # ===== GET REQUEST: Render Profile Page =====
+#     is_customer = request.user.role == 'customer'
+#     is_seller = request.user.role == 'seller' and hasattr(request.user, 'seller_profile')
+#     is_admin = request.user.is_superuser
+    
+#     # Customer-specific data
+#     user_orders = []
+#     wishlist_count = 0
+#     customer_addresses = []
+    
+#     if is_customer:
+#         user_orders = Order.objects.filter(user=request.user).order_by('-created_at')[:5]
+#         customer_addresses = Address.objects.filter(user=request.user, is_active=True)
+#         # wishlist_count = request.user.wishlist_items.count()  # Uncomment if you have wishlist
+    
+#     # Seller-specific data
+#     seller_stats = None
+#     seller_orders = []
+#     shop_address = None
+    
+#     if is_seller:
+#         seller = request.user.seller_profile
+#         order_ids = set(
+#             OrderItem.objects.filter(product__seller=seller)
+#             .values_list('order_id', flat=True)
+#         )
+#         total_orders_count = len(order_ids)
+#         # Seller stats
+#         seller_stats = {
+#             'total_products': seller.products.count(),
+#             'published': seller.products.filter(status='published').count(),
+#             'draft': seller.products.filter(status='draft').count(),
+#             'total_sales': seller.products.aggregate(total=Sum('sold_count'))['total'] or 0,
+#             'total_revenue': OrderItem.objects.filter(
+#                 product__seller=seller,
+#                 order__status='delivered'
+#             ).aggregate(total=Sum('total'))['total'] or 0,
+#             # 'total_orders': OrderItem.objects.filter(
+#             #     product__seller=seller
+#             # ).select_related('order').distinct('order').count(),
+#             'total_orders': total_orders_count,  # ✅ Fixed: SQLite compatible
+
+#         }
+
+        
+#         # Seller's recent orders
+#         seller_orders = OrderItem.objects.filter(
+#             product__seller=seller
+#         ).select_related('order', 'product', 'order__user').prefetch_related(
+#             'order__items__product'
+#         ).order_by('-order__created_at')[:5]
+        
+#         # Shop address
+#         try:
+#             shop_address = seller.shop_address
+#         except SellerShopAddress.DoesNotExist:
+#             shop_address = None
+    
+#     context = {
+#         'user': request.user,
+#         'is_customer': is_customer,
+#         'is_seller': is_seller,
+#         'is_admin': is_admin,
+#         # Customer data
+#         'user_orders': user_orders,
+#         'wishlist_count': wishlist_count,
+#         'customer_addresses': customer_addresses,
+#         # Seller data
+#         'seller_stats': seller_stats,
+#         'seller_profile': request.user.seller_profile if is_seller else None,
+#         'seller_orders': seller_orders,
+#         'shop_address': shop_address,
+#     }
+#     return render(request, 'accounts/profile.html', context)
+
 @login_required
 def profile_view(request):
     """User profile management - role-based sections with AJAX support"""
@@ -389,10 +605,26 @@ def profile_view(request):
             
             # ===== UPDATE PERSONAL PROFILE =====
             if action == 'update_profile':
-                request.user.full_name = data.get('full_name', request.user.full_name)
-                request.user.email = data.get('email', request.user.email)
-                request.user.save()
-                return JsonResponse({'status': 'success', 'message': 'Profile updated'})
+                # Get and validate input
+                new_full_name = data.get('full_name', request.user.full_name)
+                new_email = data.get('email', request.user.email)
+                
+                # Basic email validation
+                if new_email and '@' not in new_email:
+                    return JsonResponse({'status': 'error', 'message': 'Invalid email format'}, status=400)
+                
+                # Check if email is already taken by another user
+                if new_email and new_email != request.user.email:
+                    if User.objects.filter(email=new_email).exclude(pk=request.user.pk).exists():
+                        return JsonResponse({'status': 'error', 'message': 'Email already registered'}, status=400)
+                
+                try:
+                    request.user.full_name = new_full_name.strip() if new_full_name else request.user.full_name
+                    request.user.email = new_email.strip().lower() if new_email else request.user.email
+                    request.user.save()
+                    return JsonResponse({'status': 'success', 'message': 'Profile updated'})
+                except Exception as e:
+                    return JsonResponse({'status': 'error', 'message': f'Update failed: {str(e)}'}, status=400)
             
             # ===== ADDRESS MANAGEMENT (Customers Only) =====
             elif action in ['add_address', 'update_address']:
@@ -555,11 +787,7 @@ def profile_view(request):
                 product__seller=seller,
                 order__status='delivered'
             ).aggregate(total=Sum('total'))['total'] or 0,
-            # 'total_orders': OrderItem.objects.filter(
-            #     product__seller=seller
-            # ).select_related('order').distinct('order').count(),
             'total_orders': total_orders_count,  # ✅ Fixed: SQLite compatible
-
         }
 
         
