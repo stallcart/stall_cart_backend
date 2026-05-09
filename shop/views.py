@@ -207,76 +207,406 @@ def checkout(request):
 
 # shop/views.py - create_order function
 
+# @customer_only
+# @require_POST
+# def create_order(request):
+#     """Create order - CUSTOMERS ONLY"""
+#     import json
+#     from django.db import transaction
+    
+#     try:
+#         data = json.loads(request.body)
+#         address = data.get('address', {})
+#         payment_method = data.get('payment_method', 'cod').lower()
+        
+#         # Get cart from DB
+#         try:
+#             cart = Cart.objects.get(user=request.user)
+#         except Cart.DoesNotExist:
+#             return JsonResponse({'error': 'Cart not found'}, status=400)
+        
+#         if not cart.items.exists():
+#             return JsonResponse({'error': 'Cart is empty'}, status=400)
+        
+#         cart_items = cart.items.select_related('product', 'product__seller')
+        
+#         # Stock validation
+#         for item in cart_items:
+#             if item.quantity > item.product.stock:
+#                 return JsonResponse({'error': f'Not enough stock for {item.product.name}'}, status=400)
+        
+#         total = sum(item.subtotal for item in cart_items)
+        
+#         with transaction.atomic():
+#             order = Order.objects.create(
+#                 user=request.user, total_amount=total,
+#                 shipping_address=address, payment_method=payment_method,
+#                 payment_status='pending',
+#             )
+            
+#             for item in cart_items:
+#                 OrderItem.objects.create(
+#                     order=order, product=item.product, seller=item.product.seller,
+#                     quantity=item.quantity, price=item.unit_price, total=item.subtotal
+#                 )
+#                 item.product.stock -= item.quantity
+#                 item.product.save()
+            
+#             cart.items.all().delete()
+        
+#         # Razorpay for non-COD
+#         if payment_method != 'cod':
+#             import razorpay
+#             razorpay_client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+#             razorpay_order = razorpay_client.order.create({
+#                 'amount': int(total * 100), 'currency': 'INR',
+#                 'receipt': order.unique_order_id, 'payment_capture': 1
+#             })
+#             order.razorpay_order_id = razorpay_order['id']
+#             order.save()
+            
+#             return JsonResponse({
+#                 'status': 'success', 'order_id': order.unique_order_id,
+#                 'razorpay_order_id': razorpay_order['id'],
+#                 'key': settings.RAZORPAY_KEY_ID, 'amount': int(total * 100), 'currency': 'INR',
+#             })
+        
+#         return JsonResponse({'status': 'success', 'order_id': order.unique_order_id})
+        
+#     except Exception as e:
+#         import traceback
+#         traceback.print_exc()
+#         return JsonResponse({'error': str(e)}, status=500)
 @customer_only
 @require_POST
 def create_order(request):
-    """Create order - CUSTOMERS ONLY"""
+    """
+    Correct Production Flow
+
+    COD:
+        Validate -> Create Order -> Create Items -> Reduce Stock
+
+    Razorpay:
+        Validate -> Create Razorpay Order ->
+        Create DB Order ->
+        Create Items ->
+        Return Razorpay Data
+
+    NOTE:
+    Stock should ideally reduce AFTER payment verification.
+    """
+
     import json
+    import logging
+    import traceback
+    import razorpay
+
+    from decimal import Decimal
     from django.db import transaction
-    
+    from django.http import JsonResponse
+    from django.conf import settings
+
     try:
+        # =====================================
+        # REQUEST DATA
+        # =====================================
         data = json.loads(request.body)
+
         address = data.get('address', {})
         payment_method = data.get('payment_method', 'cod').lower()
-        
-        # Get cart from DB
+
+        # =====================================
+        # GET CART
+        # =====================================
         try:
             cart = Cart.objects.get(user=request.user)
+
         except Cart.DoesNotExist:
-            return JsonResponse({'error': 'Cart not found'}, status=400)
-        
-        if not cart.items.exists():
-            return JsonResponse({'error': 'Cart is empty'}, status=400)
-        
-        cart_items = cart.items.select_related('product', 'product__seller')
-        
-        # Stock validation
-        for item in cart_items:
-            if item.quantity > item.product.stock:
-                return JsonResponse({'error': f'Not enough stock for {item.product.name}'}, status=400)
-        
-        total = sum(item.subtotal for item in cart_items)
-        
-        with transaction.atomic():
-            order = Order.objects.create(
-                user=request.user, total_amount=total,
-                shipping_address=address, payment_method=payment_method,
-                payment_status='pending',
-            )
-            
-            for item in cart_items:
-                OrderItem.objects.create(
-                    order=order, product=item.product, seller=item.product.seller,
-                    quantity=item.quantity, price=item.unit_price, total=item.subtotal
-                )
-                item.product.stock -= item.quantity
-                item.product.save()
-            
-            cart.items.all().delete()
-        
-        # Razorpay for non-COD
-        if payment_method != 'cod':
-            import razorpay
-            razorpay_client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
-            razorpay_order = razorpay_client.order.create({
-                'amount': int(total * 100), 'currency': 'INR',
-                'receipt': order.unique_order_id, 'payment_capture': 1
-            })
-            order.razorpay_order_id = razorpay_order['id']
-            order.save()
-            
             return JsonResponse({
-                'status': 'success', 'order_id': order.unique_order_id,
+                'status': 'error',
+                'message': 'Cart not found'
+            }, status=400)
+
+        if not cart.items.exists():
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Cart is empty'
+            }, status=400)
+
+        cart_items = cart.items.select_related(
+            'product',
+            'product__seller'
+        )
+
+        # =====================================
+        # STOCK VALIDATION
+        # =====================================
+        for item in cart_items:
+
+            if item.quantity > item.product.stock:
+
+                return JsonResponse({
+                    'status': 'error',
+                    'message': f'Only {item.product.stock} left for {item.product.name}'
+                }, status=400)
+
+        # =====================================
+        # CALCULATE TOTALS
+        # =====================================
+        subtotal = sum(
+            Decimal(str(item.subtotal))
+            for item in cart_items
+        )
+
+        delivery_charge = Decimal('0')
+
+        if subtotal < Decimal('499'):
+            delivery_charge = Decimal('40')
+
+        total_amount = subtotal + delivery_charge
+
+        # =====================================
+        # CREATE RAZORPAY ORDER FIRST
+        # =====================================
+        razorpay_order = None
+
+        if payment_method != 'cod':
+
+            try:
+                client = razorpay.Client(
+                    auth=(
+                        settings.RAZORPAY_KEY_ID,
+                        settings.RAZORPAY_KEY_SECRET
+                    )
+                )
+
+                razorpay_order = client.order.create({
+
+                    'amount': int(total_amount * 100),
+
+                    'currency': 'INR',
+
+                    'payment_capture': 1,
+
+                    'notes': {
+                        'user_id': str(request.user.id),
+                        'email': request.user.email or ''
+                    }
+                })
+
+            except Exception as e:
+
+                print("\n========== RAZORPAY ERROR ==========")
+                print("ERROR:", str(e))
+                print("====================================\n")
+
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'Unable to initialize payment gateway',
+                    'actual_error': str(e)
+                }, status=500)
+
+        # =====================================
+        # CREATE DATABASE ORDER
+        # =====================================
+        with transaction.atomic():
+
+            order = Order.objects.create(
+
+                user=request.user,
+
+                total_amount=total_amount,
+
+                delivery_charge=delivery_charge,
+
+                shipping_address=address,
+
+                payment_method='razorpay'
+                if payment_method != 'cod'
+                else 'cod',
+
+                payment_status='pending',
+
+                status='pending',
+
+                razorpay_order_id=
+                razorpay_order['id']
+                if razorpay_order
+                else None,
+
+                notes=json.dumps({
+
+                    'cart_items': [
+                        {
+                            'product': item.product.name,
+                            'qty': item.quantity,
+                            'price': float(
+                                item.price
+                                if hasattr(item, 'price')
+                                else item.unit_price
+                            ),
+                            'subtotal': float(item.subtotal)
+                        }
+                        for item in cart_items
+                    ],
+
+                    'subtotal': float(subtotal),
+
+                    'delivery_charge': float(delivery_charge),
+
+                    'total_amount': float(total_amount)
+
+                })
+
+            )
+
+            print("ORDER CREATED:", order.unique_order_id)
+
+            # =====================================
+            # CREATE ORDER ITEMS
+            # =====================================
+            for item in cart_items:
+
+                item_price = (
+                    item.price
+                    if hasattr(item, 'price')
+                    else item.unit_price
+                )
+
+                OrderItem.objects.create(
+
+                    order=order,
+
+                    product=item.product,
+
+                    seller=item.product.seller,
+
+                    quantity=item.quantity,
+
+                    price=item_price,
+
+                    total=item.subtotal
+                )
+
+            # =====================================
+            # COD ONLY:
+            # REDUCE STOCK + CLEAR CART
+            # =====================================
+            if payment_method == 'cod':
+
+                for item in cart_items:
+
+                    item.product.stock -= item.quantity
+
+                    item.product.save(
+                        update_fields=['stock']
+                    )
+
+                cart.items.all().delete()
+
+                order.payment_status = 'pending'
+                order.status = 'confirmed'
+                order.save(
+                    update_fields=[
+                        'payment_status',
+                        'status'
+                    ]
+                )
+
+        # =====================================
+        # ONLINE PAYMENT RESPONSE
+        # =====================================
+        if payment_method != 'cod':
+
+            return JsonResponse({
+
+                'status': 'success',
+
+                'payment_method': 'razorpay',
+
+                'order_id': order.unique_order_id,
+
                 'razorpay_order_id': razorpay_order['id'],
-                'key': settings.RAZORPAY_KEY_ID, 'amount': int(total * 100), 'currency': 'INR',
+
+                'key': settings.RAZORPAY_KEY_ID,
+
+                'amount': int(total_amount * 100),
+
+                'currency': 'INR',
+
+                'name': getattr(
+                    settings,
+                    'SITE_NAME',
+                    'StallCart'
+                ),
+
+                'description':
+                f'Order #{order.unique_order_id}',
+
+                'prefill': {
+
+                    'name': getattr(
+                        request.user,
+                        'full_name',
+                        ''
+                    ) or '',
+
+                    'email': request.user.email or '',
+
+                    'contact': getattr(
+                        request.user,
+                        'phone',
+                        ''
+                    ) or ''
+                },
+
+                'theme': {
+                    'color': '#2874F0'
+                }
+
             })
-        
-        return JsonResponse({'status': 'success', 'order_id': order.unique_order_id})
-        
+
+        # =====================================
+        # COD SUCCESS RESPONSE
+        # =====================================
+        return JsonResponse({
+
+            'status': 'success',
+
+            'payment_method': 'cod',
+
+            'order_id': order.unique_order_id,
+
+            'message':
+            'Order placed successfully.'
+
+        })
+
+    except json.JSONDecodeError:
+
+        return JsonResponse({
+            'status': 'error',
+            'message': 'Invalid JSON data'
+        }, status=400)
+
     except Exception as e:
-        import traceback
+
+        print("\n========== ORDER ERROR ==========")
+        print("ERROR TYPE:", type(e).__name__)
+        print("ERROR MESSAGE:", str(e))
+        print("=================================\n")
+
         traceback.print_exc()
-        return JsonResponse({'error': str(e)}, status=500)
+
+        logging.exception(
+            "Full order creation error"
+        )
+
+        return JsonResponse({
+            'status': 'error',
+            'message': str(e),
+            'error_type': type(e).__name__
+        }, status=500)
 # @login_required
 # def order_success(request, order_id):
 #     """Order confirmation page"""
@@ -295,3 +625,36 @@ def order_success(request, order_id):
         return render(request, 'shop/order_success.html', {'order': order})
     except Order.DoesNotExist:
         return redirect('shop:home')
+    
+
+# shop/views.py - Add this new view
+
+@customer_only
+@require_POST
+def verify_payment(request):
+    import json, hmac, hashlib
+    from django.conf import settings
+    try:
+        data = json.loads(request.body)
+        payment_id = data.get('razorpay_payment_id')
+        order_id = data.get('razorpay_order_id')
+        signature = data.get('razorpay_signature')
+        internal_order_id = data.get('order_id')
+        
+        message = f"{order_id}|{payment_id}"
+        expected_signature = hmac.new(
+            settings.RAZORPAY_KEY_SECRET.encode(),
+            message.encode(),
+            hashlib.sha256
+        ).hexdigest()
+        
+        if signature == expected_signature:
+            from orders.models import Order
+            order = Order.objects.get(unique_order_id=internal_order_id, user=request.user)
+            order.payment_status = 'completed'
+            order.razorpay_payment_id = payment_id
+            order.save(update_fields=['payment_status', 'razorpay_payment_id'])
+            return JsonResponse({'status': 'success', 'message': 'Payment verified'})
+        return JsonResponse({'status': 'error', 'message': 'Signature mismatch'}, status=400)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': 'Verification failed'}, status=500)

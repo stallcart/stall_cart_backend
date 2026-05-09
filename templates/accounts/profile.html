@@ -484,6 +484,7 @@ cancelEditBtn?.addEventListener('click', () => {
 });
 
 // Profile Form Submit (AJAX)
+// Profile Form Submit (AJAX) - FIXED
 document.getElementById('profileForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = document.getElementById('saveProfileBtn');
@@ -515,7 +516,8 @@ document.getElementById('profileForm')?.addEventListener('submit', async (e) => 
             saveProfileBtn.style.display = 'none';
             cancelEditBtn.style.display = 'none';
         } else {
-            showToast(data.error || 'Failed to update profile', 'error');
+            // ✅ FIXED: Handle both 'message' and 'error' keys from backend
+            showToast(data.message || data.error || 'Failed to update profile', 'error');
         }
     } catch (err) {
         showToast('Network error: ' + err.message, 'error');
