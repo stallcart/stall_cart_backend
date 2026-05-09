@@ -139,31 +139,58 @@ def cart_view(request):
     
     return render(request, 'shop/cart.html', context)
 
+# @customer_only
+# @require_POST
+# def add_to_cart(request):
+#     """AJAX: Add product to cart"""
+#     import json
+#     try:
+#         data = json.loads(request.body)
+#         product_id = data.get('product_id')
+#         quantity = int(data.get('quantity', 1))
+        
+#         if not product_id or quantity < 1:
+#             return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
+#         variant_id = data.get('variant_id')  # ✅ New optional field
+#         # AFTER (fixed)
+#         if variant_id:
+#             variant = get_object_or_404(ProductVariant, pk=variant_id, product_id=product_id, is_active=True)
+#             if variant.stock < quantity:
+#                 return JsonResponse({'status': 'error', 'message': f'Only {variant.stock} available'}, status=400)
+#             cart_count = CartService.add_to_cart(request, product_id, quantity, variant_id=variant_id)
+#         else:
+#             product = get_object_or_404(Product, pk=product_id, is_active=True)
+#             if product.stock < quantity:
+#                 return JsonResponse({'status': 'error', 'message': f'Only {product.stock} available'}, status=400)
+#             cart_count = CartService.add_to_cart(request, product_id, quantity)
+        
+#         return JsonResponse({
+#             'status': 'success',
+#             'message': 'Added to cart!',
+#             'cart_count': cart_count
+#         })
+#     except Exception as e:
+#         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 @customer_only
 @require_POST
 def add_to_cart(request):
-    """AJAX: Add product to cart"""
     import json
     try:
         data = json.loads(request.body)
         product_id = data.get('product_id')
         quantity = int(data.get('quantity', 1))
-        
+        variant_id = data.get('variant_id')  # may be None
+
         if not product_id or quantity < 1:
             return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
-        variant_id = data.get('variant_id')  # ✅ New optional field
-        if variant_id:
-            variant = get_object_or_404(ProductVariant, pk=variant_id, product_id=product_id, is_active=True)
-            if variant.stock < quantity:
-                return JsonResponse({'status': 'error', 'message': f'Only {variant.stock} available'}, status=400)
-        else:
-            product = get_object_or_404(Product, pk=product_id, is_active=True)
 
-            if product.stock < quantity:
-                return JsonResponse({'status': 'error', 'message': f'Only {product.stock} available'}, status=400)
-        
-        cart_count = CartService.add_to_cart(request, product_id, quantity)
-        
+        try:
+            cart_count = CartService.add_to_cart(
+                request, product_id, quantity, variant_id=variant_id
+            )
+        except ValueError as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
         return JsonResponse({
             'status': 'success',
             'message': 'Added to cart!',

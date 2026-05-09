@@ -1,7 +1,7 @@
 # shop/models.py
 from django.db import models
 from django.conf import settings
-from items.models import Product
+from items.models import Product, ProductVariant
 from common.models import BaseModel
 class Cart(BaseModel):
     """
@@ -51,21 +51,34 @@ class CartItem(BaseModel):
         on_delete=models.CASCADE,
         related_name='cart_items'
     )
+    variant = models.ForeignKey(          # ← ADD THIS
+        ProductVariant,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='cart_items'
+    )
     quantity = models.PositiveIntegerField(default=1)
     added_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
-        unique_together = ['cart', 'product']  # One entry per product per cart
+        unique_together = ['cart', 'product', 'variant']
         ordering = ['-updated_at']
     
     def __str__(self):
         return f"{self.quantity}x {self.product.name}"
     
     @property
+    # def unit_price(self):
+    #     """Price per unit (with discount applied)"""
+    #     return self.product.discount_price if self.product.discount_percent > 0 else self.product.price
     def unit_price(self):
-        """Price per unit (with discount applied)"""
+        # Use variant price if available, else product price
+        if self.variant and self.variant.price_override:
+            return self.variant.price_override
         return self.product.discount_price if self.product.discount_percent > 0 else self.product.price
+
     
     @property
     def subtotal(self):

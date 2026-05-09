@@ -839,52 +839,140 @@ def product_list(request):
 #         'show_category_nav': True,
 #     }
 #     return render(request, 'shop/product_detail.html', context)
+# def product_detail(request, slug):
+#     product = get_object_or_404(
+#         Product.objects.select_related('seller', 'category')
+#                        .prefetch_related('product_image_product','variants',),
+#         slug=slug,
+#         status='published',
+#     )
+
+#     Product.objects.filter(pk=product.pk).update(views_count=F('views_count') + 1)
+#     product.refresh_from_db()
+
+#     images = list(product.product_image_product.all().order_by('display_order', '-is_primary'))
+#     if product.primary_image:
+#         primary_exists = any(img.image.name == product.primary_image.name for img in images)
+#         if not primary_exists:
+#             class PrimaryImage:
+#                 def __init__(self, image):
+#                     self.image = image
+#                     self.is_primary = True
+#                     self.alt_text = product.name
+#             images.insert(0, PrimaryImage(product.primary_image))
+
+#     related = (
+#         Product.objects
+#         .filter(category=product.category, status='published', stock__gt=0)
+#         .exclude(pk=product.pk)
+#         .select_related('seller')
+#         .prefetch_related('product_image_product')[:4]
+#     )
+
+#     cart_count = 0
+#     if request.user.is_authenticated and request.user.role == 'customer':
+#         cart = getattr(request.user, 'cart', None)
+#         if cart:
+#             cart_count = cart.total_items
+#     else:
+#         cart = request.session.get('cart', {})
+#         cart_count = sum(cart.values())
+
+#     # ✅ superuser OR the seller whose user account matches request.user
+#     can_manage = request.user.is_authenticated and (
+#         request.user.is_superuser or
+#         product.seller.user_id == request.user.pk
+#     )
+#     variants_data = []
+#     for v in product.variants.filter(is_active=True).order_by('size_value'):
+#         variants_data.append({
+#             'id': v.id,
+#             'size_value': v.size_value,
+#             'size_type': v.size_type,
+#             'color': v.color,
+#             'price': str(v.effective_price),
+#             'stock': v.stock,
+#             'is_in_stock': v.is_in_stock,
+#             'attributes': v.attributes,
+#         })
+#     context = {
+#         'product':           product,
+#         'images':            images,
+#         'related_products':  related,
+#         'is_in_stock':       product.stock > 0,
+#         'cart_count':        cart_count,
+#         'show_category_nav': True,
+#         'can_manage':        can_manage,
+#         'variants': product.variants.filter(is_active=True).order_by('size_value'),
+#         'variants_json': json.dumps(variants_data, cls=DjangoJSONEncoder),  # For JS
+#         'has_variants': product.variants.filter(is_active=True, stock__gt=0).exists(),
+#     }
+#     return render(request, 'shop/product_detail.html', context)
 def product_detail(request, slug):
+
     product = get_object_or_404(
-        Product.objects.select_related('seller', 'category')
-                       .prefetch_related('product_image_product','variants',),
+        Product.objects.select_related(
+            'seller',
+            'category'
+        ).prefetch_related(
+            'product_image_product',
+            'variants',
+        ),
         slug=slug,
         status='published',
     )
+    print(product)
+    # Increment views
+    Product.objects.filter(pk=product.pk).update(
+        views_count=F('views_count') + 1
+    )
 
-    Product.objects.filter(pk=product.pk).update(views_count=F('views_count') + 1)
     product.refresh_from_db()
 
-    images = list(product.product_image_product.all().order_by('display_order', '-is_primary'))
+    # ─────────────────────────────────────────────
+    # Images
+    # ─────────────────────────────────────────────
+    images = list(
+        product.product_image_product.all().order_by(
+            'display_order',
+            '-is_primary'
+        )
+    )
+
+    # Add primary image if missing
     if product.primary_image:
-        primary_exists = any(img.image.name == product.primary_image.name for img in images)
+        primary_exists = any(
+            img.image.name == product.primary_image.name
+            for img in images
+        )
+
         if not primary_exists:
+
             class PrimaryImage:
                 def __init__(self, image):
                     self.image = image
                     self.is_primary = True
                     self.alt_text = product.name
+
             images.insert(0, PrimaryImage(product.primary_image))
 
-    related = (
-        Product.objects
-        .filter(category=product.category, status='published', stock__gt=0)
-        .exclude(pk=product.pk)
-        .select_related('seller')
-        .prefetch_related('product_image_product')[:4]
-    )
+    # ─────────────────────────────────────────────
+    # Variants
+    # ─────────────────────────────────────────────
+    variants_queryset = product.variants.filter(
+        is_active=True
+    ).order_by('size_value')
+    print(variants_queryset)
+    has_variants = variants_queryset.exists()
 
-    cart_count = 0
-    if request.user.is_authenticated and request.user.role == 'customer':
-        cart = getattr(request.user, 'cart', None)
-        if cart:
-            cart_count = cart.total_items
-    else:
-        cart = request.session.get('cart', {})
-        cart_count = sum(cart.values())
-
-    # ✅ superuser OR the seller whose user account matches request.user
-    can_manage = request.user.is_authenticated and (
-        request.user.is_superuser or
-        product.seller.user_id == request.user.pk
-    )
     variants_data = []
-    for v in product.variants.filter(is_active=True).order_by('size_value'):
+
+    total_variant_stock = 0
+
+    for v in variants_queryset:
+
+        total_variant_stock += v.stock
+        print(v.is_in_stock)
         variants_data.append({
             'id': v.id,
             'size_value': v.size_value,
@@ -895,19 +983,94 @@ def product_detail(request, slug):
             'is_in_stock': v.is_in_stock,
             'attributes': v.attributes,
         })
+
+    # ─────────────────────────────────────────────
+    # Stock Logic
+    # ─────────────────────────────────────────────
+
+    # If product has variants → use variant stock
+    # Else use product stock
+
+    if has_variants:
+        total_stock = total_variant_stock
+        is_in_stock = total_variant_stock > 0
+    else:
+        total_stock = product.stock
+        is_in_stock = product.stock > 0
+
+    # ─────────────────────────────────────────────
+    # Related Products
+    # ─────────────────────────────────────────────
+
+    related = (
+        Product.objects
+        .filter(
+            category=product.category,
+            status='published'
+        )
+        .exclude(pk=product.pk)
+        .select_related('seller')
+        .prefetch_related('product_image_product')[:4]
+    )
+
+    # ─────────────────────────────────────────────
+    # Cart Count
+    # ─────────────────────────────────────────────
+
+    cart_count = 0
+
+    if request.user.is_authenticated and request.user.role == 'customer':
+
+        cart = getattr(request.user, 'cart', None)
+
+        if cart:
+            cart_count = cart.total_items
+
+    else:
+        cart = request.session.get('cart', {})
+        cart_count = sum(cart.values())
+
+    # ─────────────────────────────────────────────
+    # Permissions
+    # ─────────────────────────────────────────────
+
+    can_manage = request.user.is_authenticated and (
+        request.user.is_superuser or
+        product.seller.user_id == request.user.pk
+    )
+
+    # ─────────────────────────────────────────────
+    # Context
+    # ─────────────────────────────────────────────
+    print(is_in_stock)
+    print(total_stock)
     context = {
-        'product':           product,
-        'images':            images,
-        'related_products':  related,
-        'is_in_stock':       product.stock > 0,
-        'cart_count':        cart_count,
+        'product': product,
+        'images': images,
+        'related_products': related,
+
+        'is_in_stock': is_in_stock,
+        'total_stock': total_stock,
+
+        'cart_count': cart_count,
         'show_category_nav': True,
-        'can_manage':        can_manage,
-        'variants': product.variants.filter(is_active=True).order_by('size_value'),
-        'variants_json': json.dumps(variants_data, cls=DjangoJSONEncoder),  # For JS
-        'has_variants': product.variants.filter(is_active=True, stock__gt=0).exists(),
+        'can_manage': can_manage,
+
+        'variants': variants_queryset,
+        'variants_json': json.dumps(
+            variants_data,
+            cls=DjangoJSONEncoder
+        ),
+
+        # IMPORTANT
+        'has_variants': has_variants,
     }
-    return render(request, 'shop/product_detail.html', context)
+
+    return render(
+        request,
+        'shop/product_detail.html',
+        context
+    )
 @require_POST
 @seller_or_admin_only
 def delete_product_image(request, image_id):
