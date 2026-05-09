@@ -6,10 +6,12 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.db.models import Q, Sum , F
 from .models import Product, Category, SellerProfile, ProductImage
-from .forms import ProductForm
+from .forms import *
 from common.decorators import *
 from PIL import Image
 import io
+import json
+from django.core.serializers.json import DjangoJSONEncoder
 # ---------------------------------------------------------------------------
 # Permission helpers
 # ---------------------------------------------------------------------------
@@ -305,6 +307,134 @@ def seller_dashboard(request):
 #         'is_superuser': request.user.is_superuser,
 #     })
 
+# @seller_or_admin_only
+# def product_create(request):
+#     if request.method == 'POST':
+#         form = ProductForm(
+#             request.POST,
+#             request.FILES,
+#             is_superuser=request.user.is_superuser,
+#             request_user=request.user,
+#         )
+#         if form.is_valid():
+#             product = form.save(commit=False)
+
+#             # ✅ Assign seller BEFORE save() so models.py line 145 doesn't blow up
+#             if request.user.is_superuser:
+#                 product.seller = form.cleaned_data.get('seller')
+#             else:
+#                 product.seller = request.user.seller_profile
+
+#             product.created_by = request.user
+#             product.save()  # seller is set now — safe
+
+#             # if form.cleaned_data.get('primary_image'):
+#             #     product.primary_image = form.cleaned_data['primary_image']
+#             #     product.save(update_fields=['primary_image'])
+
+#             additional_images = form.cleaned_data.get('additional_images') or []
+#             for i, img_file in enumerate(additional_images):
+#                 ProductImage.objects.create(
+#                     product=product,
+#                     image=img_file,
+#                     is_primary=(i == 0 and not product.primary_image),
+#                     display_order=i,
+#                     alt_text=product.name,
+#                 )
+
+#             messages.success(request, f'✅ Product "{product.name}" created successfully!')
+#             return redirect('items:admin_dashboard')
+#         else:
+#             for field, errors in form.errors.items():
+#                 messages.error(request, f"{field}: {errors[0]}")
+#     else:
+#         form = ProductForm(
+#             is_superuser=request.user.is_superuser,
+#             request_user=request.user,
+#         )
+
+#     return render(request, 'items/product_form.html', {
+#         'form':         form,
+#         'title':        'Add New Product',
+#         'action':       'Create',
+#         'is_superuser': request.user.is_superuser,
+#     })
+# # ---------------------------------------------------------------------------
+# # Product Edit  (FIXED: same list-iteration fix + proper max_order fallback)
+# # ---------------------------------------------------------------------------
+ 
+# @seller_or_admin_only
+# def product_edit(request, product_id):
+#     product = _get_product_for_user(request.user, product_id)
+ 
+#     if request.method == 'POST':
+#         form = ProductForm(
+#             request.POST,
+#             request.FILES,
+#             instance=product,
+#             is_superuser=request.user.is_superuser,
+#             request_user=request.user,
+#         )
+ 
+#         if form.is_valid():
+#             updated = form.save(commit=False)
+ 
+#             if request.user.is_superuser:
+#                 updated.seller = form.cleaned_data.get('seller')
+#             else:
+#                 updated.seller = request.user.seller_profile
+ 
+#             updated.updated_by = request.user
+#             updated.save()
+ 
+#             # ── Primary Image ────────────────────────────────────────────
+#             # if 'primary_image' in form.changed_data and form.cleaned_data.get('primary_image'):
+#             #     updated.primary_image = form.cleaned_data['primary_image']
+#             #     updated.save(update_fields=['primary_image'])
+ 
+#             # ── Additional Images ────────────────────────────────────────
+#             # MultipleFileField always gives us a list (empty list when nothing chosen).
+#             additional_images = form.cleaned_data.get('additional_images') or []
+#             if additional_images:
+#                 from django.db.models import Max
+#                 max_order = (
+#                     product.product_image_product
+#                     .aggregate(max_order=Max('display_order'))['max_order']
+#                 )
+#                                 # aggregate returns None when there are no rows yet
+#                 if max_order is None:
+#                     max_order = -1
+ 
+#                 for i, img_file in enumerate(additional_images):
+#                     ProductImage.objects.create(
+#                         product=updated,
+#                         image=img_file,
+#                         is_primary=False,
+#                         display_order=max_order + i + 1,
+#                         alt_text=updated.name,
+#                     )
+ 
+#             messages.success(request, f'✅ Product "{updated.name}" updated successfully!')
+#             return redirect('items:admin_dashboard')
+#         else:
+#             for field, errors in form.errors.items():
+#                 messages.error(request, f"{field}: {errors[0]}")
+#     else:
+#         form = ProductForm(
+#             instance=product,
+#             is_superuser=request.user.is_superuser,
+#             request_user=request.user,
+#         )
+ 
+#     return render(request, 'items/product_form.html', {
+#         'form':         form,
+#         'product':      product,
+#         'title':        f'Edit: {product.name}',
+#         'action':       'Update',
+#         'is_superuser': request.user.is_superuser,
+#     })
+
+
 @seller_or_admin_only
 def product_create(request):
     if request.method == 'POST':
@@ -314,22 +444,23 @@ def product_create(request):
             is_superuser=request.user.is_superuser,
             request_user=request.user,
         )
-        if form.is_valid():
+        variant_formset = ProductVariantFormSet(
+            request.POST, 
+            prefix='variants'
+        )
+        
+        if form.is_valid() and variant_formset.is_valid():
             product = form.save(commit=False)
 
-            # ✅ Assign seller BEFORE save() so models.py line 145 doesn't blow up
             if request.user.is_superuser:
                 product.seller = form.cleaned_data.get('seller')
             else:
                 product.seller = request.user.seller_profile
 
             product.created_by = request.user
-            product.save()  # seller is set now — safe
+            product.save()
 
-            # if form.cleaned_data.get('primary_image'):
-            #     product.primary_image = form.cleaned_data['primary_image']
-            #     product.save(update_fields=['primary_image'])
-
+            # Handle images
             additional_images = form.cleaned_data.get('additional_images') or []
             for i, img_file in enumerate(additional_images):
                 ProductImage.objects.create(
@@ -340,28 +471,63 @@ def product_create(request):
                     alt_text=product.name,
                 )
 
+            # ✅ Save variants with SKU generation
+            variants = variant_formset.save(commit=False)
+            for variant in variants:
+                variant.product = product
+                
+                # Generate SKU for new variants only
+                if not variant.sku and product.sku:
+                    base_sku = product.sku.replace(' ', '-').upper()
+                    size_part = variant.size_value.replace(' ', '-').upper()
+                    color_part = variant.color.replace(' ', '-').upper() if variant.color else ''
+                    
+                    candidate_sku = f"{base_sku}-{size_part}"
+                    if color_part:
+                        candidate_sku += f"-{color_part}"
+                    
+                    # Check for duplicates
+                    final_sku = candidate_sku
+                    counter = 1
+                    while ProductVariant.objects.filter(sku=final_sku).exists():
+                        final_sku = f"{candidate_sku}-{counter}"
+                        counter += 1
+                    
+                    variant.sku = final_sku
+                
+                variant.save()
+            
+            for obj in variant_formset.deleted_objects:
+                obj.delete()
+
             messages.success(request, f'✅ Product "{product.name}" created successfully!')
             return redirect('items:admin_dashboard')
         else:
-            for field, errors in form.errors.items():
-                messages.error(request, f"{field}: {errors[0]}")
+            if not form.is_valid():
+                for field, errors in form.errors.items():
+                    messages.error(request, f"{field}: {errors[0]}")
+            if not variant_formset.is_valid():
+                for err in variant_formset.non_form_errors():
+                    messages.error(request, f"Variants: {err}")
+                for form_err in variant_formset.forms:
+                    if form_err.errors:
+                        messages.error(request, f"Variant errors: {form_err.errors}")
     else:
         form = ProductForm(
             is_superuser=request.user.is_superuser,
             request_user=request.user,
         )
+        variant_formset = ProductVariantFormSet(prefix='variants')
 
     return render(request, 'items/product_form.html', {
-        'form':         form,
-        'title':        'Add New Product',
-        'action':       'Create',
+        'form': form,
+        'variant_formset': variant_formset,
+        'title': 'Add New Product',
+        'action': 'Create',
         'is_superuser': request.user.is_superuser,
     })
-# ---------------------------------------------------------------------------
-# Product Edit  (FIXED: same list-iteration fix + proper max_order fallback)
-# ---------------------------------------------------------------------------
- 
-@seller_or_admin_only
+
+@seller_or_admin_only  
 def product_edit(request, product_id):
     product = _get_product_for_user(request.user, product_id)
  
@@ -373,36 +539,28 @@ def product_edit(request, product_id):
             is_superuser=request.user.is_superuser,
             request_user=request.user,
         )
+        variant_formset = ProductVariantFormSet(
+            request.POST, 
+            instance=product,
+            prefix='variants'
+        )
  
-        if form.is_valid():
+        if form.is_valid() and variant_formset.is_valid():
             updated = form.save(commit=False)
- 
             if request.user.is_superuser:
                 updated.seller = form.cleaned_data.get('seller')
             else:
                 updated.seller = request.user.seller_profile
- 
             updated.updated_by = request.user
             updated.save()
- 
-            # ── Primary Image ────────────────────────────────────────────
-            # if 'primary_image' in form.changed_data and form.cleaned_data.get('primary_image'):
-            #     updated.primary_image = form.cleaned_data['primary_image']
-            #     updated.save(update_fields=['primary_image'])
- 
-            # ── Additional Images ────────────────────────────────────────
-            # MultipleFileField always gives us a list (empty list when nothing chosen).
+
+            # Handle images
             additional_images = form.cleaned_data.get('additional_images') or []
             if additional_images:
                 from django.db.models import Max
-                max_order = (
-                    product.product_image_product
-                    .aggregate(max_order=Max('display_order'))['max_order']
-                )
-                                # aggregate returns None when there are no rows yet
-                if max_order is None:
-                    max_order = -1
- 
+                max_order = product.product_image_product.aggregate(
+                    max_order=Max('display_order')
+                )['max_order'] or -1
                 for i, img_file in enumerate(additional_images):
                     ProductImage.objects.create(
                         product=updated,
@@ -411,24 +569,68 @@ def product_edit(request, product_id):
                         display_order=max_order + i + 1,
                         alt_text=updated.name,
                     )
- 
+
+            # ✅ Save variants
+            variants = variant_formset.save(commit=False)
+            for variant in variants:
+                variant.product = updated
+                
+                # ✅ Generate SKU only if blank AND this is a new variant (no pk)
+                if not variant.sku and not variant.pk and updated.sku:
+                    base_sku = updated.sku.replace(' ', '-').upper()
+                    size_part = variant.size_value.replace(' ', '-').upper()
+                    color_part = variant.color.replace(' ', '-').upper() if variant.color else ''
+                    
+                    # Build candidate SKU
+                    candidate_sku = f"{base_sku}-{size_part}"
+                    if color_part:
+                        candidate_sku += f"-{color_part}"
+                    
+                    # ✅ Check for duplicates and add counter if needed
+                    final_sku = candidate_sku
+                    counter = 1
+                    while ProductVariant.objects.filter(
+                        sku=final_sku
+                    ).exclude(pk=variant.pk).exists():
+                        final_sku = f"{candidate_sku}-{counter}"
+                        counter += 1
+                    
+                    variant.sku = final_sku
+                
+                variant.save()
+            
+            # ✅ Handle deleted variants
+            for obj in variant_formset.deleted_objects:
+                obj.delete()
+
             messages.success(request, f'✅ Product "{updated.name}" updated successfully!')
             return redirect('items:admin_dashboard')
         else:
-            for field, errors in form.errors.items():
-                messages.error(request, f"{field}: {errors[0]}")
+            if not form.is_valid():
+                for field, errors in form.errors.items():
+                    messages.error(request, f"{field}: {errors[0]}")
+            if not variant_formset.is_valid():
+                for err in variant_formset.non_form_errors():
+                    messages.error(request, f"Variants: {err}")
+                # Also show field errors for debugging
+                for form_err in variant_formset.forms:
+                    if form_err.errors:
+                        messages.error(request, f"Variant errors: {form_err.errors}")
     else:
         form = ProductForm(
             instance=product,
             is_superuser=request.user.is_superuser,
             request_user=request.user,
         )
+        # ✅ Initialize formset with instance and prefix for GET request
+        variant_formset = ProductVariantFormSet(instance=product, prefix='variants')
  
     return render(request, 'items/product_form.html', {
-        'form':         form,
-        'product':      product,
-        'title':        f'Edit: {product.name}',
-        'action':       'Update',
+        'form': form,
+        'product': product,
+        'variant_formset': variant_formset,
+        'title': f'Edit: {product.name}',
+        'action': 'Update',
         'is_superuser': request.user.is_superuser,
     })
 # ---------------------------------------------------------------------------
@@ -637,11 +839,10 @@ def product_list(request):
 #         'show_category_nav': True,
 #     }
 #     return render(request, 'shop/product_detail.html', context)
-
 def product_detail(request, slug):
     product = get_object_or_404(
         Product.objects.select_related('seller', 'category')
-                       .prefetch_related('product_image_product'),
+                       .prefetch_related('product_image_product','variants',),
         slug=slug,
         status='published',
     )
@@ -682,7 +883,18 @@ def product_detail(request, slug):
         request.user.is_superuser or
         product.seller.user_id == request.user.pk
     )
-
+    variants_data = []
+    for v in product.variants.filter(is_active=True).order_by('size_value'):
+        variants_data.append({
+            'id': v.id,
+            'size_value': v.size_value,
+            'size_type': v.size_type,
+            'color': v.color,
+            'price': str(v.effective_price),
+            'stock': v.stock,
+            'is_in_stock': v.is_in_stock,
+            'attributes': v.attributes,
+        })
     context = {
         'product':           product,
         'images':            images,
@@ -691,6 +903,9 @@ def product_detail(request, slug):
         'cart_count':        cart_count,
         'show_category_nav': True,
         'can_manage':        can_manage,
+        'variants': product.variants.filter(is_active=True).order_by('size_value'),
+        'variants_json': json.dumps(variants_data, cls=DjangoJSONEncoder),  # For JS
+        'has_variants': product.variants.filter(is_active=True, stock__gt=0).exists(),
     }
     return render(request, 'shop/product_detail.html', context)
 @require_POST

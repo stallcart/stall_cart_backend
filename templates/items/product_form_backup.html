@@ -36,13 +36,33 @@
                 <span class="section-badge">Required</span>
             </div>
             
-            <div class="form-group">
+            <div class="form-row two-col">
+                <!-- <div class="form-group">
+                    <label for="{{ form.name.id_for_label }}">Product Name *</label>
+                    {{ form.name }}
+                    {% if form.name.errors %}<div class="field-error">{{ form.name.errors.0 }}</div>{% endif %}
+                    <small class="form-help">Enter a clear, descriptive product name</small>
+                </div> -->
+                
+                <!-- <div class="form-group">
+                    <label for="{{ form.slug.id_for_label }}">URL Slug</label>
+                    <div class="slug-input-group">
+                        <span class="slug-prefix">/items/product/</span>
+                        {{ form.slug }}
+                        <button type="button" class="btn-sm btn-outline" id="generateSlugBtn">
+                            <i class="fa fa-magic"></i> Generate
+                        </button>
+                    </div>
+                    {% if form.slug.errors %}<div class="field-error">{{ form.slug.errors.0 }}</div>{% endif %}
+                    <small class="form-help">Auto-generated from name. Use lowercase, hyphens only.</small>
+                </div> -->
+            </div>
+             <div class="form-group">
                 <label for="{{ form.name.id_for_label }}">Product Name *</label>
                 {{ form.name }}
                 {% if form.name.errors %}<div class="field-error">{{ form.name.errors.0 }}</div>{% endif %}
                 <small class="form-help">Enter a clear, descriptive product name</small>
             </div>
-            
             <div class="form-group">
                 <label for="{{ form.short_description.id_for_label }}">Short Description *</label>
                 {{ form.short_description }}
@@ -115,10 +135,9 @@
             
             <div class="form-row three-col">
                 <div class="form-group">
-                    <label for="{{ form.stock.id_for_label }}">Base Stock Quantity *</label>
+                    <label for="{{ form.stock.id_for_label }}">Stock Quantity *</label>
                     {{ form.stock }}
                     {% if form.stock.errors %}<div class="field-error">{{ form.stock.errors.0 }}</div>{% endif %}
-                    <small class="form-help">Used if NO variants are added below</small>
                 </div>
                 
                 <div class="form-group">
@@ -233,197 +252,6 @@
                         {% endif %}
                     </div>
                 </div>
-            </div>
-        </div>
-
-        <!-- ✅ Section: Variants / Sizes (NEW) -->
-        <!-- ✅ Section: Variants / Sizes (FIXED) -->
-        <div class="form-section" id="variantsSection">
-            <div class="section-header">
-                <h3>📐 Variants / Sizes</h3>
-                <span class="section-badge">Optional</span>
-                <button type="button" class="btn-sm btn-outline" id="addVariantBtn" style="margin-left:auto;">
-                    <i class="fa fa-plus"></i> Add Variant
-                </button>
-            </div>
-            
-            <p class="form-help" style="margin-bottom:15px;">
-                Add different sizes, colors, or configurations. Each variant can have its own price and stock.
-                <strong>Leave empty</strong> if this product has no variants (uses base price/stock above).
-            </p>
-            
-            <!-- ✅ Variant Formset Management Form - ALWAYS render this, even if empty -->
-            {% if variant_formset %}
-                {{ variant_formset.management_form }}
-            {% else %}
-                <!-- Fallback: render empty management form fields manually -->
-                <input type="hidden" name="variants-TOTAL_FORMS" value="0" id="id_variants-TOTAL_FORMS">
-                <input type="hidden" name="variants-INITIAL_FORMS" value="0" id="id_variants-INITIAL_FORMS">
-                <input type="hidden" name="variants-MIN_NUM_FORMS" value="0" id="id_variants-MIN_NUM_FORMS">
-                <input type="hidden" name="variants-MAX_NUM_FORMS" value="10" id="id_variants-MAX_NUM_FORMS">
-            {% endif %}
-            
-            <!-- Variant Rows Container -->
-            <div id="variantsContainer">
-                {% if variant_formset %}
-                    {% for fs in variant_formset %}
-                    <div class="variant-row {% if forloop.last and not fs.instance.pk %}new-variant{% endif %}" 
-                        data-form-index="{{ forloop.counter0 }}">
-                        
-                        <div class="variant-header">
-                            <span class="variant-title">
-                                {% if fs.instance.pk %}
-                                    {{ fs.instance.size_value|default:"Variant" }} 
-                                    {% if fs.instance.color %}/ {{ fs.instance.color }}{% endif %}
-                                    <small style="color:#666;font-weight:400;">(ID: {{ fs.instance.pk }})</small>
-                                {% else %}
-                                    Variant {{ forloop.counter }}
-                                {% endif %}
-                            </span>
-                            {% if not fs.empty_form %}
-                            <button type="button" class="btn-sm btn-danger remove-variant-btn" title="Remove variant">
-                                <i class="fa fa-trash"></i>
-                            </button>
-                            {% endif %}
-                        </div>
-                        
-                        <div class="form-row three-col">
-                            <div class="form-group">
-                                <label>Size/Value *</label>
-                                {{ fs.size_value }}
-                                {% if fs.size_value.errors %}<div class="field-error">{{ fs.size_value.errors.0 }}</div>{% endif %}
-                                <small class="form-help">e.g., S, M, L, 6, 24x36</small>
-                            </div>
-                            <div class="form-group">
-                                <label>Variant Type</label>
-                                {{ fs.size_type }}
-                                {% if fs.size_type.errors %}<div class="field-error">{{ fs.size_type.errors.0 }}</div>{% endif %}
-                            </div>
-                            <div class="form-group">
-                                <label>Color/Finish</label>
-                                {{ fs.color }}
-                                {% if fs.color.errors %}<div class="field-error">{{ fs.color.errors.0 }}</div>{% endif %}
-                            </div>
-                        </div>
-                        
-                        <div class="form-row three-col">
-                            <div class="form-group">
-                                <label>Price Override (₹)</label>
-                                {{ fs.price_override }}
-                                {% if fs.price_override.errors %}<div class="field-error">{{ fs.price_override.errors.0 }}</div>{% endif %}
-                                <small class="form-help">Leave blank to use product price</small>
-                            </div>
-                            <div class="form-group">
-                                <label>Stock *</label>
-                                {{ fs.stock }}
-                                {% if fs.stock.errors %}<div class="field-error">{{ fs.stock.errors.0 }}</div>{% endif %}
-                            </div>
-                            <div class="form-group checkbox-group" style="align-items:center;">
-                                <label class="check-label" style="margin:0;">
-                                    {{ fs.is_active }}
-                                    <span>Active</span>
-                                </label>
-                            </div>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Custom Attributes (JSON)</label>
-                            {{ fs.attributes }}
-                            {% if fs.attributes.errors %}<div class="field-error">{{ fs.attributes.errors.0 }}</div>{% endif %}
-                            <small class="form-help">e.g., {"material": "Cotton", "fit": "Slim"}</small>
-                        </div>
-                        
-                        <!-- Hidden fields for formset -->
-                        {% if fs.DELETE %}<div style="display:none;">{{ fs.DELETE }}</div>{% endif %}
-                        {% if fs.id %}<div style="display:none;">{{ fs.id }}</div>{% endif %}
-                        
-                        <hr style="margin:20px 0; border-color:#eee;">
-                    </div>
-                    {% endfor %}
-                {% endif %}
-            </div>
-            
-            <!-- Empty Form Template (for JavaScript cloning) -->
-            {% if variant_formset %}
-            <template id="variantTemplate">
-                <div class="variant-row new-variant" data-form-index="__prefix__">
-                    <div class="variant-header">
-                        <span class="variant-title">Variant __prefix__</span>
-                        <button type="button" class="btn-sm btn-danger remove-variant-btn">
-                            <i class="fa fa-trash"></i> Remove
-                        </button>
-                    </div>
-                    
-                    <div class="form-row three-col">
-                        <div class="form-group">
-                            <label>Size/Value *</label>
-                            <input type="text" name="variants-__prefix__-size_value" 
-                                class="form-input" placeholder="e.g., M, 6, 24x36" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Variant Type</label>
-                            <select name="variants-__prefix__-size_type" class="form-select">
-                                <option value="standard">Standard / Free Size</option>
-                                <option value="clothing">Clothing (XS-XXL)</option>
-                                <option value="jewelry">Jewelry (Ring Size)</option>
-                                <option value="furniture">Furniture (Dimensions)</option>
-                                <option value="footwear">Footwear (US/UK/EU)</option>
-                                <option value="custom">Custom / Other</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Color/Finish</label>
-                            <input type="text" name="variants-__prefix__-color" 
-                                class="form-input" placeholder="Optional: Red, Gold">
-                        </div>
-                    </div>
-                    
-                    <div class="form-row three-col">
-                        <div class="form-group">
-                            <label>Price Override (₹)</label>
-                            <input type="number" name="variants-__prefix__-price_override" 
-                                class="form-input" step="0.01" placeholder="Leave blank for base price">
-                        </div>
-                        <div class="form-group">
-                            <label>Stock *</label>
-                            <input type="number" name="variants-__prefix__-stock" 
-                                class="form-input" min="0" placeholder="0" required>
-                        </div>
-                        <div class="form-group checkbox-group" style="align-items:center;">
-                            <label class="check-label" style="margin:0;">
-                                <input type="checkbox" name="variants-__prefix__-is_active" 
-                                    class="form-checkbox" checked value="on">
-                                <span>Active</span>
-                            </label>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Custom Attributes (JSON)</label>
-                        <textarea name="variants-__prefix__-attributes" class="form-input" rows="2" 
-                                placeholder='{"material": "Cotton", "fit": "Slim"}'></textarea>
-                    </div>
-                    
-                    <!-- Hidden DELETE and ID fields -->
-                    <input type="hidden" name="variants-__prefix__-DELETE" value="" id="id_variants-__prefix__-DELETE">
-                    <input type="hidden" name="variants-__prefix__-id" value="" id="id_variants-__prefix__-id">
-                    
-                    <hr style="margin:20px 0; border-color:#eee;">
-                </div>
-            </template>
-            {% endif %}
-            
-            <!-- Variant Helper Tips -->
-            <div class="variant-tips" style="background:#f8f9ff;padding:12px;border-radius:8px;margin-top:15px;border-left:3px solid #2874f0;">
-                <small style="color:#666;">
-                    <strong>💡 Usage Tips:</strong><br>
-                    • <strong>Clothing:</strong> Size: S/M/L/XL, Type: clothing, Color: Navy/White/Black<br>
-                    • <strong>Jewelry:</strong> Size: 6/7/8/9, Type: jewelry, Attributes: {"metal": "18K Gold", "stone": "Diamond"}<br>
-                    • <strong>Furniture:</strong> Size: 24x36/King/Queen, Type: furniture, Attributes: {"assembly": "Required", "weight_lbs": 45}<br>
-                    • <strong>Footwear:</strong> Size: 7/8/9/10, Type: footwear, Color: Brown/Black<br>
-                    • Leave <strong>Price Override</strong> blank to use the base product price<br>
-                    • Set <strong>Stock</strong> per variant for accurate inventory tracking
-                </small>
             </div>
         </div>
 
@@ -597,6 +425,7 @@ document.addEventListener('DOMContentLoaded', function() {
     updatePricePreview();
     
     // ── 3. Image Preview ────────────────────────────────────────────
+    // Primary image preview
     const primaryImageInput = document.getElementById('{{ form.primary_image.id_for_label }}');
     const primaryPreview = document.getElementById('primaryImagePreview');
     
@@ -610,14 +439,17 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
+    // Additional images preview
     const additionalImagesInput = document.getElementById('{{ form.additional_images.id_for_label }}');
     const additionalPreview = document.getElementById('additionalImagesPreview');
     
     additionalImagesInput?.addEventListener('change', function(e) {
         if (this.files) {
+            // Clear new previews (keep existing DB images)
             const newThumbs = additionalPreview.querySelectorAll('.preview-thumb.new');
             newThumbs.forEach(thumb => thumb.remove());
             
+            // Limit to 5 total images
             const maxImages = 5;
             const existingCount = additionalPreview.querySelectorAll('.preview-thumb.existing').length;
             const availableSlots = maxImages - existingCount;
@@ -648,17 +480,19 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Remove image thumb
+    // Remove image thumb (new or existing)
     document.addEventListener('click', function(e) {
         if (e.target.classList.contains('remove-thumb')) {
             const thumb = e.target.closest('.preview-thumb');
             const imgId = thumb?.dataset.imgId;
             
             if (!imgId) {
+                // New unsaved image - just remove from preview
                 thumb.remove();
                 return;
             }
             
+            // Existing saved image - confirm and send AJAX delete
             if (confirm('Remove this image permanently?')) {
                 fetch(`/items/api/image/${imgId}/delete/`, {
                     method: 'POST',
@@ -760,6 +594,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return false;
         }
         
+        // Show loading state
         saveBtn.disabled = true;
         saveBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving...';
     });
@@ -798,7 +633,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // ── 7. Client-Side Image Validation ────────────────────────────
     additionalImagesInput?.addEventListener('change', function(e) {
         const files = this.files;
-        const maxSize = 5 * 1024 * 1024;
+        const maxSize = 5 * 1024 * 1024; // 5MB
         const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
         
         for (let file of files) {
@@ -821,146 +656,6 @@ document.addEventListener('DOMContentLoaded', function() {
             return false;
         }
     });
-    
-    // ── 8. Dynamic Variant Management ─────────────────────────────
-    // ── 8. Dynamic Variant Management (FIXED) ─────────────────────────────
-    function setupVariantManager() {
-        const container = document.getElementById('variantsContainer');
-        const addBtn = document.getElementById('addVariantBtn');
-        const template = document.getElementById('variantTemplate');
-        
-        // ✅ Get management form fields safely
-        const totalForms = document.querySelector('#id_variants-TOTAL_FORMS');
-        const initialForms = document.querySelector('#id_variants-INITIAL_FORMS');
-        
-        if (!container || !addBtn || !template) return;
-        
-        // ✅ Initialize formIndex from existing rows OR management form
-        let formIndex = 0;
-        if (totalForms && totalForms.value) {
-            formIndex = parseInt(totalForms.value);
-        } else {
-            formIndex = container.querySelectorAll('.variant-row').length;
-        }
-        
-        // Add new variant row
-        addBtn.addEventListener('click', function() {
-            const templateContent = template.innerHTML;
-            
-            // Create new row with replaced prefix
-            const newRow = document.createElement('div');
-            newRow.className = 'variant-row new-variant';
-            newRow.dataset.formIndex = formIndex;
-            
-            // Replace __prefix__ with actual index
-            newRow.innerHTML = templateContent.replace(/__prefix__/g, formIndex);
-            
-            container.appendChild(newRow);
-            
-            // ✅ Update management form TOTAL_FORMS
-            if (totalForms) {
-                totalForms.value = parseInt(totalForms.value || 0) + 1;
-            }
-            formIndex++;
-            
-            // Initialize the new row
-            initializeVariantRow(newRow);
-            
-            showToast('Variant row added', 'success');
-        });
-        
-        // Remove variant row (event delegation)
-        container.addEventListener('click', function(e) {
-            const removeBtn = e.target.closest('.remove-variant-btn');
-            if (!removeBtn) return;
-            
-            const row = removeBtn.closest('.variant-row');
-            if (!row) return;
-            
-            // Check if this is a saved variant (has hidden id field with value)
-            const idField = row.querySelector('input[id$="-id"]');
-            const deleteField = row.querySelector('input[id$="-DELETE"]');
-            
-            if (idField && idField.value && idField.value.trim() !== '' && deleteField) {
-                // Saved variant: mark for deletion via hidden field
-                deleteField.value = 'on';
-                row.style.opacity = '0.5';
-                row.style.pointerEvents = 'none';
-                row.querySelector('.variant-title').innerHTML += ' <span style="color:#c62828;font-weight:600;">(Marked for deletion)</span>';
-                removeBtn.innerHTML = '<i class="fa fa-undo"></i> Undelete';
-                removeBtn.classList.remove('btn-danger');
-                removeBtn.classList.add('btn-outline');
-                showToast('Variant marked for deletion (will be removed on save)', 'info');
-                
-                // Add undelete handler
-                removeBtn.onclick = function(e) {
-                    e.stopPropagation();
-                    deleteField.value = '';
-                    row.style.opacity = '1';
-                    row.style.pointerEvents = 'all';
-                    const marker = row.querySelector('.variant-title span:last-child');
-                    if (marker) marker.remove();
-                    removeBtn.innerHTML = '<i class="fa fa-trash"></i> Remove';
-                    removeBtn.classList.add('btn-danger');
-                    removeBtn.classList.remove('btn-outline');
-                    showToast('Variant undeleted', 'success');
-                    removeBtn.onclick = null;
-                };
-            } else {
-                // New unsaved variant: just remove from DOM and decrement TOTAL_FORMS
-                row.remove();
-                if (totalForms) {
-                    totalForms.value = Math.max(0, parseInt(totalForms.value || 0) - 1);
-                }
-                showToast('Variant removed', 'success');
-            }
-        });
-        
-        // Initialize a variant row's widgets and event listeners
-        function initializeVariantRow(row) {
-            // Add proper form-group wrappers if missing
-            row.querySelectorAll('input:not([type="hidden"]), select, textarea').forEach(field => {
-                if (!field.closest('.form-group')) {
-                    const wrapper = document.createElement('div');
-                    wrapper.className = 'form-group';
-                    if (field.parentNode) {
-                        field.parentNode.insertBefore(wrapper, field);
-                        wrapper.appendChild(field);
-                    }
-                }
-            });
-            
-            // Price override preview
-            const priceField = row.querySelector('[name$="-price_override"]');
-            const basePrice = parseFloat(document.getElementById('{{ form.price.id_for_label }}')?.value) || 0;
-            
-            priceField?.addEventListener('input', function() {
-                const override = parseFloat(this.value) || 0;
-                // Visual feedback could go here
-            });
-            
-            // Auto-update variant title when size/color changes
-            const sizeField = row.querySelector('[name$="-size_value"]');
-            const colorField = row.querySelector('[name$="-color"]');
-            const titleEl = row.querySelector('.variant-title');
-            
-            function updateTitle() {
-                const size = sizeField?.value?.trim() || '';
-                const color = colorField?.value?.trim() || '';
-                const prefix = row.dataset.formIndex ? `Variant ${parseInt(row.dataset.formIndex) + 1}` : 'Variant';
-                titleEl.textContent = `${prefix}${size ? ': ' + size : ''}${color ? ' / ' + color : ''}`;
-            }
-            
-            sizeField?.addEventListener('input', updateTitle);
-            colorField?.addEventListener('input', updateTitle);
-        }
-        
-        // Initialize all existing rows
-        document.querySelectorAll('.variant-row').forEach(initializeVariantRow);
-    }
-    
-    // Initialize variant manager
-    setupVariantManager();
 });
 </script>
 {% endblock %}
@@ -980,7 +675,6 @@ document.addEventListener('DOMContentLoaded', function() {
     justify-content: space-between;
     align-items: flex-start;
     flex-wrap: wrap;
-    gap: 15px;
 }
 .form-header h2 {
     margin: 0 0 5px;
@@ -1024,8 +718,6 @@ document.addEventListener('DOMContentLoaded', function() {
     margin-bottom: 20px;
     padding-bottom: 12px;
     border-bottom: 2px solid #f0f4ff;
-    flex-wrap: wrap;
-    gap: 10px;
 }
 .section-header h3 {
     margin: 0;
@@ -1088,6 +780,21 @@ document.addEventListener('DOMContentLoaded', function() {
     font-size: 0.85rem;
     margin-top: 4px;
     font-weight: 500;
+}
+
+/* Slug Input Group */
+.slug-input-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.slug-prefix {
+    color: #666;
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+.slug-input-group .form-input {
+    flex: 1;
 }
 
 /* Price Preview */
@@ -1180,62 +887,6 @@ document.addEventListener('DOMContentLoaded', function() {
     background: #c62828;
 }
 
-/* ===== Variant Section Styles ===== */
-.variant-row {
-    background: #fafafa;
-    border: 1px solid #e0e0e0;
-    border-radius: 10px;
-    padding: 15px;
-    margin-bottom: 15px;
-    position: relative;
-    animation: slideIn 0.2s ease;
-}
-@keyframes slideIn {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.variant-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-    padding-bottom: 10px;
-    border-bottom: 1px dashed #ddd;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-.variant-title {
-    font-weight: 600;
-    color: #212121;
-    font-size: 1.05rem;
-}
-.variant-title small {
-    color: #666;
-    font-weight: 400;
-    font-size: 0.85rem;
-}
-
-.remove-variant-btn {
-    padding: 6px 12px;
-    font-size: 0.85rem;
-}
-
-.variant-row.new-variant {
-    background: #e8f4ff;
-    border-color: #2874f0;
-}
-
-/* Hide delete checkbox (we use custom button) */
-input[id$="-DELETE"] {
-    display: none;
-}
-
-/* Variant tips box */
-.variant-tips {
-    border-left: 3px solid #2874f0;
-}
-
 /* Admin-Only Section */
 .admin-only {
     background: #fff8e1;
@@ -1312,9 +963,12 @@ input[id$="-DELETE"] {
     .form-row.three-col {
         grid-template-columns: 1fr;
     }
-    .form-header {
+    .slug-input-group {
         flex-direction: column;
         align-items: flex-start;
+    }
+    .slug-prefix {
+        margin-bottom: 4px;
     }
     .form-actions {
         flex-direction: column;
@@ -1324,13 +978,6 @@ input[id$="-DELETE"] {
     }
     .image-preview-grid {
         grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
-    }
-    .variant-header {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-    .variant-row {
-        padding: 12px;
     }
 }
 </style>

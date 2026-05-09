@@ -4,7 +4,7 @@ from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 import json
-from items.models import Product, Category
+from items.models import *
 from orders.models import Order, OrderItem
 from common.models import SiteSettings
 from django.conf import settings
@@ -58,30 +58,38 @@ def product_detail(request, slug):
     }
     return render(request, 'shop/product_detail.html', context)
 
-@customer_only
-@require_POST
-def add_to_cart(request):
-    """AJAX: Add product to session cart"""
-    try:
-        if request.user.is_authenticated and request.user.role != 'customer':
-            return JsonResponse({'status': 'error', 'message': 'Only customers can add items to cart'}, status=403)
+# @customer_only
+# @require_POST
+# def add_to_cart(request):
+#     """AJAX: Add product to session cart"""
+#     try:
+#         if request.user.is_authenticated and request.user.role != 'customer':
+#             return JsonResponse({'status': 'error', 'message': 'Only customers can add items to cart'}, status=403)
     
-        data = json.loads(request.body)
-        product_id = str(data.get('product_id'))
-        quantity = int(data.get('quantity', 1))
+#         data = json.loads(request.body)
+#         product_id = str(data.get('product_id'))
+#         quantity = int(data.get('quantity', 1))
+#         variant_id = data.get('variant_id')  # ✅ New optional field
+#         if variant_id:
+#             variant = get_object_or_404(ProductVariant, pk=variant_id, product=product, is_active=True)
+#             if variant.stock < quantity:
+#                 return JsonResponse({'status': 'error', 'message': f'Only {variant.stock} available'}, status=400)
+#         else:
+#             if product.stock < quantity:
+#                 return JsonResponse({'status': 'error', 'message': f'Only {product.stock} available'}, status=400)
         
-        cart = request.session.get('cart', {})
-        cart[product_id] = cart.get(product_id, 0) + quantity
-        request.session['cart'] = cart
-        request.session.modified = True
+#         cart = request.session.get('cart', {})
+#         cart[product_id] = cart.get(product_id, 0) + quantity
+#         request.session['cart'] = cart
+#         request.session.modified = True
         
-        return JsonResponse({
-            'status': 'success', 
-            'cart_count': sum(cart.values()),
-            'message': 'Added to cart!'
-        })
-    except Exception as e:
-        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+#         return JsonResponse({
+#             'status': 'success', 
+#             'cart_count': sum(cart.values()),
+#             'message': 'Added to cart!'
+#         })
+#     except Exception as e:
+#         return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
 
 # shop/views.py
 def cart_view(request):
@@ -143,6 +151,16 @@ def add_to_cart(request):
         
         if not product_id or quantity < 1:
             return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
+        variant_id = data.get('variant_id')  # ✅ New optional field
+        if variant_id:
+            variant = get_object_or_404(ProductVariant, pk=variant_id, product_id=product_id, is_active=True)
+            if variant.stock < quantity:
+                return JsonResponse({'status': 'error', 'message': f'Only {variant.stock} available'}, status=400)
+        else:
+            product = get_object_or_404(Product, pk=product_id, is_active=True)
+
+            if product.stock < quantity:
+                return JsonResponse({'status': 'error', 'message': f'Only {product.stock} available'}, status=400)
         
         cart_count = CartService.add_to_cart(request, product_id, quantity)
         

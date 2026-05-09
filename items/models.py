@@ -199,6 +199,52 @@ class Product(BaseModel):
         """Return total savings for given quantity"""
         return self.savings_per_unit * quantity
 
+    @property
+    def total_stock(self):
+        """Returns sum of variant stock if variants exist, else base product stock"""
+        if self.variants.filter(is_active=True).exists():
+            return sum(v.stock for v in self.variants.filter(is_active=True))
+        return self.stock
+
+    @property
+    def available_variants(self):
+        """Returns only active variants with stock > 0"""
+        return self.variants.filter(is_active=True, stock__gt=0).order_by('size_value')
+    @property
+    def commission_rate(self):
+        """Returns category commission as Decimal (e.g., 0.15 for 15%)"""
+        if self.category and self.category.commision_percentage:
+            # Convert to string first to avoid float precision issues
+            return Decimal(str(self.category.commision_percentage)) / Decimal('100')
+        return Decimal('0')
+
+    @property
+    def admin_commission(self):
+        """Platform commission based on final selling price (after discount)"""
+        return self.final_price * self.commission_rate
+
+    @property
+    def seller_profit(self):
+        """Seller's net profit per unit after commission & cost price"""
+        if self.cost_price is None:
+            return None
+        return self.final_price - self.admin_commission - self.cost_price
+
+    @property
+    def seller_profit_margin(self):
+        """Profit margin as a percentage"""
+        profit = self.seller_profit
+        if profit is not None and self.final_price > 0:
+            return (profit / self.final_price) * Decimal('100')
+        return None
+
+    def calculate_profit_for_quantity(self, quantity):
+        """Returns (admin_commission, seller_profit) for a given quantity"""
+        if self.cost_price is None or quantity <= 0:
+            return Decimal('0'), Decimal('0')
+        total_commission = self.admin_commission * quantity
+        total_profit = self.seller_profit * quantity
+        return total_commission, total_profit
     class Meta:
         verbose_name_plural = 'Products'
         ordering = ['-created_at']
@@ -228,3 +274,80 @@ class ProductImage(BaseModel):
     
     class Meta:
         ordering = ['display_order', '-is_primary']
+
+
+class ProductVariant(BaseModel):
+    """
+    Handles size/color/variant-specific stock & pricing.
+    Works for clothing (S/M/L), jewelry (ring size 6/7), furniture (dimensions), etc.
+    """
+    SIZE_TYPE_CHOICES = [
+        ('standard', 'Standard / Free Size'),
+        ('clothing', 'Clothing (XS-XXL, Numeric)'),
+        ('jewelry', 'Jewelry (Ring Size, Chain Length, Carat)'),
+        ('furniture', 'Furniture (Dimensions, Configuration)'),
+        ('footwear', 'Footwear (US/UK/EU)'),
+        ('custom', 'Custom / Other'),
+    ]
+
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='variants')
+    sku = models.CharField(max_length=50, unique=True, blank=True, null=True)
+    size_value = models.CharField(max_length=50, help_text="e.g., 'M', '6', '24x36 inches', '18k'")
+    size_type = models.CharField(max_length=20, choices=SIZE_TYPE_CHOICES, default='standard')
+    color = models.CharField(max_length=50, blank=True, help_text="Optional color/finish")
+    price_override = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True, help_text="Overrides base product price")
+    stock = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    attributes = models.JSONField(default=dict, blank=True, help_text="Custom specs: {'material': 'Gold', 'fit': 'Slim', 'assembly': 'Required'}")
+
+    def __str__(self):
+        return f"{self.product.name} - {self.size_value} {self.color}".strip()
+
+    def get_effective_price(self):
+        return self.price_override if self.price_override else self.product.price
+    
+    @property
+    def effective_price(self):
+        """Returns variant price or falls back to product price"""
+        return self.get_effective_price()
+
+    @property
+    def commission_rate(self):
+        """Inherits commission rate from parent product's category"""
+        return self.product.commission_rate
+
+    @property
+    def admin_commission(self):
+        return self.effective_price * self.commission_rate
+
+    @property
+    def seller_profit(self):
+        """Variant profit uses product's cost_price (unless you add variant-specific cost later)"""
+        if self.product.cost_price is None:
+            return None
+        return self.effective_price - self.admin_commission - self.product.cost_price
+
+    @property
+    def seller_profit_margin(self):
+        profit = self.seller_profit
+        if profit is not None and self.effective_price > 0:
+            return (profit / self.effective_price) * Decimal('100')
+        return None
+
+    def calculate_profit_for_quantity(self, quantity):
+        if self.product.cost_price is None or quantity <= 0:
+            return Decimal('0'), Decimal('0')
+        total_commission = self.admin_commission * quantity
+        total_profit = self.seller_profit * quantity
+        return total_commission, total_profit
+    @property
+    def is_in_stock(self):
+        return self.stock > 0 and self.is_active
+
+    class Meta:
+        verbose_name = 'Product Variant'
+        verbose_name_plural = 'Product Variants'
+        constraints = [
+            models.UniqueConstraint(fields=['product', 'size_value', 'color'], name='unique_variant_per_product')
+        ]
+        ordering = ['size_value']       

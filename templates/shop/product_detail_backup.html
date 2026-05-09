@@ -72,7 +72,7 @@
                 </span>
             {% endif %}
         </div>
-
+        
         <!-- Short Description -->
         {% if product.short_description %}
         <p class="short-desc">{{ product.short_description }}</p>
@@ -95,15 +95,16 @@
             </div>
         </div>
 
-        <!-- Action Buttons -->
+        <!-- Action Buttons
         <div class="action-row">
+            {% if user.role == 'customer' or not user.is_authenticated %}
+
             <div class="qty-selector">
                 <button type="button" class="qty-btn" onclick="changeQty(-1)">−</button>
                 <input type="number" id="qtyInput" class="qty-input" value="1" min="1" max="{{ product.stock }}">
                 <button type="button" class="qty-btn" onclick="changeQty(1)">+</button>
             </div>
             
-            {% if user.role == 'customer' or not user.is_authenticated %}
                 <button class="btn-primary btn-lg" id="addToCartBtn" 
                         data-product-id="{{ product.id }}" 
                         data-stock="{{ product.stock }}">
@@ -112,7 +113,7 @@
                 <button class="btn-outline btn-lg" id="buyNowBtn">
                     <i class="fa fa-bolt"></i> Buy Now
                 </button>
-            {% else %}
+            {% elif user.role == 'seller' or 'user.is_superuser' and created_by_id == 'request.user.id' %}
                 <a href="{% url 'items:admin_dashboard' %}" class="btn-outline btn-lg">
                     <i class="fa fa-cog"></i> Manage Product
                 </a>
@@ -121,8 +122,43 @@
             <button class="btn-icon" title="Add to Wishlist" aria-label="Add to Wishlist">
                 <i class="fa fa-heart"></i>
             </button>
-        </div>
+        </div> -->
+        <!-- Action Buttons -->
+        <div class="action-row">
+            {% if can_manage %}
+                <a href="{% url 'items:product_edit' product.id %}" class="btn-outline btn-lg" style="display:inline-flex;align-items:center;gap:8px;">
+                    <i class="fa fa-pencil"></i> Edit Product
+                </a>
+                <a href="{% url 'items:admin_dashboard' %}" class="btn-outline btn-lg" style="display:inline-flex;align-items:center;gap:8px;">
+                    <i class="fa fa-cog"></i> Manage Product
+                </a>
+            {% else %}
+                <!-- Customers and guests -->
+                <div class="qty-selector">
+                    <button type="button" class="qty-btn" onclick="changeQty(-1)">−</button>
+                    <input type="number" id="qtyInput" class="qty-input"
+                        value="1" min="1" max="{{ product.stock }}">
+                    <button type="button" class="qty-btn" onclick="changeQty(1)">+</button>
+                </div>
 
+                <button class="btn-primary btn-lg" id="addToCartBtn"
+                        data-product-id="{{ product.id }}"
+                        data-stock="{{ product.stock }}"
+                        {% if product.stock == 0 %}disabled{% endif %}>
+                    <i class="fa fa-cart-plus"></i>
+                    {% if product.stock > 0 %}Add to Cart{% else %}Out of Stock{% endif %}
+                </button>
+
+                <button class="btn-outline btn-lg" id="buyNowBtn"
+                        {% if product.stock == 0 %}disabled{% endif %}>
+                    <i class="fa fa-bolt"></i> Buy Now
+                </button>
+            {% endif %}
+
+            <button class="btn-icon" title="Add to Wishlist" aria-label="Add to Wishlist">
+                <i class="fa fa-heart"></i>
+            </button>
+        </div>
         <!-- Trust Badges -->
         <div class="trust-badges">
             <span><i class="fa fa-shield-alt"></i> Secure Payment</span>
@@ -261,7 +297,7 @@
 
                 <div class="share-buttons">
                     <a href="https://wa.me/?text={{ request.build_absolute_uri }}" target="_blank">
-                        <i class="fa fa-whatsapp"></i> Share
+                        <i class="fa fa-share"></i> Share
                     </a>
                 </div>
             </div>
