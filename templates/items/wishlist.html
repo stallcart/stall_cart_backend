@@ -642,50 +642,50 @@ document.querySelectorAll('.wl-remove').forEach(btn => {
 });
 
 // ── Add to cart ──────────────────────────────────────────────────
-document.querySelectorAll('.wl-btn-cart').forEach(btn => {
-    btn.addEventListener('click', async function () {
-        const productId = this.dataset.productId;
-        const variantId = this.dataset.variantId;
-        const viewUrl   = this.dataset.viewUrl;
-        const orig      = this.innerHTML;
+// document.querySelectorAll('.wl-btn-cart').forEach(btn => {
+//     btn.addEventListener('click', async function () {
+//         const productId = this.dataset.productId;
+//         const variantId = this.dataset.variantId;
+//         const viewUrl   = this.dataset.viewUrl;
+//         const orig      = this.innerHTML;
 
-        this.disabled   = true;
-        this.innerHTML  = '<i class="fa fa-spinner fa-spin"></i>';
+//         this.disabled   = true;
+//         this.innerHTML  = '<i class="fa fa-spinner fa-spin"></i>';
 
-        try {
-            const payload = { product_id: productId, quantity: 1 };
-            if (variantId) payload.variant_id = variantId;
+//         try {
+//             const payload = { product_id: productId, quantity: 1 };
+//             if (variantId) payload.variant_id = variantId;
 
-            const res  = await fetch("{% url 'shop:add_to_cart' %}", {
-                method:  'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-                body:    JSON.stringify(payload)
-            });
-            const data = await res.json();
+//             const res  = await fetch("{% url 'shop:add_to_cart' %}", {
+//                 method:  'POST',
+//                 headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+//                 body:    JSON.stringify(payload)
+//             });
+//             const data = await res.json();
 
-            if (data.status === 'success') {
-                if (window.updateCartCount) window.updateCartCount(data.cart_count);
-                this.innerHTML        = '<i class="fa fa-check"></i> Added!';
-                this.style.background = '#16a34a';
-                showToast('Added to cart!', 'success');
-                setTimeout(() => {
-                    this.disabled         = false;
-                    this.innerHTML        = orig;
-                    this.style.background = '';
-                }, 2000);
-            } else {
-                // Needs variant selection — redirect to PDP
-                showToast('Please select a size on the product page', 'info');
-                setTimeout(() => window.location.href = viewUrl, 900);
-                this.disabled  = false;
-                this.innerHTML = orig;
-            }
-        } catch {
-            showToast('Network error. Try again.', 'error');
-            this.disabled  = false;
-            this.innerHTML = orig;
-        }
-    });
-});
+//             if (data.status === 'success') {
+//                 if (window.updateCartCount) window.updateCartCount(data.cart_count);
+//                 this.innerHTML        = '<i class="fa fa-check"></i> Added!';
+//                 this.style.background = '#16a34a';
+//                 showToast('Added to cart!', 'success');
+//                 setTimeout(() => {
+//                     this.disabled         = false;
+//                     this.innerHTML        = orig;
+//                     this.style.background = '';
+//                 }, 2000);
+//             } else {
+//                 // Needs variant selection — redirect to PDP
+//                 showToast('Please select a size on the product page', 'info');
+//                 setTimeout(() => window.location.href = viewUrl, 900);
+//                 this.disabled  = false;
+//                 this.innerHTML = orig;
+//             }
+//         } catch {
+//             showToast('Network error. Try again.', 'error');
+//             this.disabled  = false;
+//             this.innerHTML = orig;
+//         }
+//     });
+// });
 </script>
 {% endblock %}
