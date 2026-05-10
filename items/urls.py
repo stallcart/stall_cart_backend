@@ -48,4 +48,8 @@ urlpatterns = [
          views.product_detail, 
          name='product_detail'),
     path('api/image/<int:image_id>/delete/', views.delete_product_image, name='delete_product_image'),     
+     path('wishlist/status/<int:product_id>/', views.wishlist_status, name='wishlist_status'),
+     path('wishlist/toggle/<int:product_id>/', views.toggle_wishlist, name='toggle_wishlist'),
+     path('wishlist/', views.wishlist_page, name='wishlist'),
+
 ]
