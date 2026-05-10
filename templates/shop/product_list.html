@@ -251,7 +251,7 @@
                        class="btn-view-details {% if product.stock <= 0 %}out-of-stock{% endif %}"
                        aria-label="{% if product.stock > 0 %}View details for {{ product.name }}{% else %}{{ product.name }} is out of stock{% endif %}">
                         <i class="fa fa-eye"></i> 
-                        <span class="btn-text">{% if product.stock > 0 %}View Details{% else %}Out of Stock{% endif %}</span>
+                        <span class="btn-text">{% if product.stock > 0 %}View Product{% else %}Out of Stock{% endif %}</span>
                     </a>
                 </div>
             </article>

@@ -366,6 +366,32 @@
     text-decoration: none;
     transition: background 0.2s;
 }
+.wl-btn-oos {
+    background: #f1f5f9 !important;
+    color: #64748b !important;
+    pointer-events: none;
+}
+.wl-remove-action {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    background: #fff5f5;
+    color: #e53935;
+    border: 1.5px solid #fecaca;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+}
+.wl-remove-action:hover {
+    background: #e53935;
+    color: #fff;
+    border-color: #e53935;
+    transform: scale(1.08);
+}
 .btn-shop-now:hover { background: #1558d6; }
 
 /* Mobile tweaks */
@@ -478,19 +504,34 @@
             </div>
 
             <!-- Actions -->
-            <div class="wl-actions">
+            <!-- <div class="wl-actions">
                 <button class="wl-btn-cart"
                         data-product-id="{{ item.product.id }}"
                         data-variant-id="{{ item.variant.id|default:'' }}"
                         data-view-url="{% url 'items:product_detail' item.product.slug %}"
                         {% if not item.is_available %}disabled{% endif %}>
                     <i class="fa fa-cart-plus"></i>
-                    {% if item.is_available %}Add to Cart{% else %}Unavailable{% endif %}
+                    {% if item.is_available %}Add to Cart{% else %}Out of Stock{% endif %}
                 </button>
                 <a href="{% url 'items:product_detail' item.product.slug %}"
                    class="wl-btn-view" title="View product">
                     <i class="fa fa-eye"></i>
                 </a>
+            </div> -->
+            <!-- Actions -->
+            <div class="wl-actions">
+                <a href="{% url 'items:product_detail' item.product.slug %}"
+                   class="wl-btn-cart {% if not item.is_available %}wl-btn-oos{% endif %}">
+                    <i class="fa fa-{% if item.is_available %}eye{% else %}clock{% endif %}"></i>
+                    {% if item.is_available %}View Product {% else %} Out of Stock{% endif %}
+                </a>
+                <!-- <button class="wl-remove-action"
+                        data-product-id="{{ item.product.id }}"
+                        data-variant-id="{{ item.variant.id|default:'' }}"
+                        data-card-id="{{ item.id }}"
+                        title="Remove from wishlist">
+                    <i class="fa fa-heart-broken"></i>
+                </button> -->
             </div>
 
         </div>
