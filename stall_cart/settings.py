@@ -47,6 +47,8 @@ TEMPLATES = [{
         'django.contrib.messages.context_processors.messages',
         'common.context_processors.site_settings',  # Add this line
         'common.context_processors.cart_count',
+        'common.context_processors.cart_and_wishlist',  # adjust app path
+
 
 
     ]},

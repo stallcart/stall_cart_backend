@@ -125,6 +125,21 @@
                     <span class="cart-badge" id="cart-count">{{ cart_count|default:0 }}</span>
                 </a>
             {% endif %}
+            {% if user.is_authenticated and user.role == 'customer' %}
+                <a href="{% url 'items:wishlist' %}" class="nav-link cart-link"
+                   aria-label="Wishlist" title="My Wishlist">
+                    <i class="fa fa-heart" style="color:#e53935;"></i>
+                    <span class="hide-mobile">Wishlist</span>
+                    {% if wishlist_count > 0 %}
+                        <span class="cart-badge" id="wishlist-count"
+                              style="background:#e53935;">{{ wishlist_count }}</span>
+                    {% else %}
+                        <span class="cart-badge" id="wishlist-count"
+                              style="background:#e53935;display:none;">0</span>
+                    {% endif %}
+                </a>
+            {% endif %}
+
 
         </nav>
 
@@ -215,7 +230,18 @@
                 <span class="mobile-cart-badge" id="cart-count-mobile">{{ cart_count|default:0 }}</span>
             </a>
         {% endif %}
-
+        {% if not user.is_authenticated or user.role == 'customer' %}
+            <a href="{% url 'items:wishlist' %}">
+                <i class="fa fa-heart" style="color:#e53935;"></i> Wishlist
+                {% if wishlist_count > 0 %}
+                    <span class="mobile-cart-badge" id="wishlist-count-mobile"
+                          style="background:#e53935;">{{ wishlist_count }}</span>
+                {% else %}
+                    <span class="mobile-cart-badge" id="wishlist-count-mobile"
+                          style="background:#e53935;display:none;">0</span>
+                {% endif %}
+            </a>
+        {% endif %}    
         <a href="{% url 'blog:blog_list' %}">
             <i class="fa fa-blog"></i> Blog
         </a>
@@ -539,7 +565,22 @@ window.updateCartCount = function(count) {
     }
     if (mobileBadge) mobileBadge.textContent = count;
 };
+window.updateWishlistCount = function(delta) {
+    const badge       = document.getElementById('wishlist-count');
+    const mobileBadge = document.getElementById('wishlist-count-mobile');
 
+    [badge, mobileBadge].forEach(el => {
+        if (!el) return;
+        const current = parseInt(el.textContent) || 0;
+        const next    = Math.max(0, current + delta);
+        el.textContent = next;
+        // Hide badge when zero, show when positive
+        el.style.display = next > 0 ? '' : 'none';
+        // Animate
+        el.style.transform = 'scale(1.4)';
+        setTimeout(() => el.style.transform = '', 200);
+    });
+};
 // ── Global: toast ────────────────────────────────
 window.showToast = function(message, type = 'info') {
     const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';

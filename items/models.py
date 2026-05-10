@@ -245,6 +245,20 @@ class Product(BaseModel):
         total_commission = self.admin_commission * quantity
         total_profit = self.seller_profit * quantity
         return total_commission, total_profit
+    
+    def is_in_user_wishlist(self, user):
+        """Check if this product (any variant) is in user's wishlist"""
+        if not user or not user.is_authenticated:
+            return False
+        try:
+            wishlist = user.wishlist
+            return wishlist.items.filter(
+                models.Q(product=self) | 
+                models.Q(variant__product=self)
+            ).exists()
+        except Wishlist.DoesNotExist:
+            return False
+        
     class Meta:
         verbose_name_plural = 'Products'
         ordering = ['-created_at']
@@ -369,3 +383,97 @@ class ProductVariant(BaseModel):
             models.UniqueConstraint(fields=['product', 'size_value', 'color'], name='unique_variant_per_product')
         ]
         ordering = ['size_value']       
+
+
+class Wishlist(BaseModel):
+    """
+    User's wishlist container.
+    One user can have only one active wishlist (simplifies UI logic).
+    """
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='wishlist'
+    )
+    name = models.CharField(
+        max_length=100,
+        default='My Wishlist',
+        help_text="Custom name for this wishlist (e.g., 'Wedding Gifts')"
+    )
+    is_public = models.BooleanField(
+        default=False,
+        help_text="If True, others can view this wishlist via link"
+    )
+    # Future: share_token = models.UUIDField(unique=True, blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.user.phone}'s {self.name}"
+
+    class Meta:
+        verbose_name = 'Wishlist'
+        verbose_name_plural = 'Wishlists'
+        ordering = ['-updated_at']
+
+
+class WishlistItem(BaseModel):
+    """
+    Individual item in a wishlist.
+    Supports both products AND specific variants.
+    """
+    wishlist = models.ForeignKey(
+        Wishlist,
+        on_delete=models.CASCADE,
+        related_name='items'
+    )
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name='wishlist_items'
+    )
+    # Optional: link to specific variant (size/color)
+    variant = models.ForeignKey(
+        ProductVariant,
+        on_delete=models.SET_NULL,  # Keep wishlist item if variant deleted
+        null=True,
+        blank=True,
+        related_name='wishlist_items'
+    )
+    # Optional: user note (e.g., "For mom's birthday")
+    note = models.TextField(blank=True, max_length=200)
+    # Optional: priority (1=high, 3=low)
+    priority = models.PositiveSmallIntegerField(
+        choices=[(1, '🔥 High'), (2, '⭐ Medium'), (3, '📦 Low')],
+        default=2
+    )
+    # Auto-track when added
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Wishlist Item'
+        verbose_name_plural = 'Wishlist Items'
+        # Prevent duplicate product+variant in same wishlist
+        constraints = [
+            models.UniqueConstraint(
+                fields=['wishlist', 'product', 'variant'],
+                name='unique_wishlist_item'
+            )
+        ]
+        ordering = ['-priority', '-added_at']  # High priority + newest first
+
+    def __str__(self):
+        variant_str = f" ({self.variant.size_value})" if self.variant else ""
+        return f"{self.product.name}{variant_str} in {self.wishlist.name}"
+
+    @property
+    def is_available(self):
+        """Check if product/variant is still in stock & published"""
+        if self.variant:
+            return self.variant.is_in_stock
+        return self.product.is_in_stock
+
+    @property
+    def current_price(self):
+        """Get current price (handles variant override)"""
+        if self.variant:
+            return self.variant.effective_price
+        return self.product.final_price        

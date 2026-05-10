@@ -55,3 +55,31 @@ def get_categories():
         ).prefetch_related('children').order_by('name')
         cache.set('main_categories', categories, 3600)  # Cache for 1 hour
     return categories
+
+def cart_and_wishlist(request):
+    cart_count = 0
+    wishlist_count = 0
+
+    if request.user.is_authenticated and hasattr(request.user, 'role'):
+        if request.user.role == 'customer':
+            # Cart count
+            cart = getattr(request.user, 'cart', None)
+            if cart:
+                cart_count = cart.total_items
+
+            # Wishlist count
+            try:
+                wishlist_count = request.user.wishlist.items.filter(
+                    is_deleted=False
+                ).count()
+            except Exception:
+                wishlist_count = 0
+    else:
+        # Guest cart from session
+        cart = request.session.get('cart', {})
+        cart_count = sum(cart.values())
+
+    return {
+        'cart_count': cart_count,
+        'wishlist_count': wishlist_count,
+    }

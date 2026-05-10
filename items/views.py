@@ -5,13 +5,14 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.db.models import Q, Sum , F
-from .models import Product, Category, SellerProfile, ProductImage
+from .models import *
 from .forms import *
 from common.decorators import *
 from PIL import Image
 import io
 import json
 from django.core.serializers.json import DjangoJSONEncoder
+from .utils import *
 # ---------------------------------------------------------------------------
 # Permission helpers
 # ---------------------------------------------------------------------------
@@ -908,6 +909,7 @@ def product_list(request):
 #         'has_variants': product.variants.filter(is_active=True, stock__gt=0).exists(),
 #     }
 #     return render(request, 'shop/product_detail.html', context)
+@login_required
 def product_detail(request, slug):
 
     product = get_object_or_404(
@@ -1109,3 +1111,76 @@ def compress_image(image_file, max_size=1024):
         output, 'image', f"{image_file.name.rsplit('.', 1)[0]}.jpg",
         'image/jpeg', output.getbuffer().nbytes, None
     )
+
+
+# items/views.py - Example wishlist toggle view
+
+@customer_only 
+@require_POST
+def toggle_wishlist(request, product_id):
+    product = get_object_or_404(Product, pk=product_id, status='published')
+
+    variant_id = request.POST.get('variant_id') or None
+    variant = None
+    if variant_id:
+        variant = get_object_or_404(ProductVariant, pk=variant_id, is_active=True)
+
+    wishlist, _ = Wishlist.objects.get_or_create(
+        user=request.user,
+        defaults={'name': 'My Wishlist'}
+    )
+
+    # Check for existing non-deleted item
+    existing = wishlist.items.filter(
+        product=product, variant=variant, is_deleted=False
+    ).first()
+
+    if existing:
+        existing.is_deleted = True
+        existing.save(update_fields=['is_deleted'])
+        return JsonResponse({'status': 'removed', 'message': 'Removed from wishlist'})
+    else:
+        # Check if a soft-deleted record exists — restore it instead of creating duplicate
+        deleted_item = wishlist.items.filter(
+            product=product, variant=variant, is_deleted=True
+        ).first()
+        if deleted_item:
+            deleted_item.is_deleted = False
+            deleted_item.save(update_fields=['is_deleted'])
+        else:
+            add_to_wishlist(user=request.user, product=product, variant=variant, priority=2)
+        return JsonResponse({'status': 'added', 'message': 'Added to wishlist'})
+    
+@customer_only
+def wishlist_status(request, product_id):
+    """Check if a product is in the user's wishlist (for page load state)."""
+    in_wishlist = False
+    try:
+        wishlist = request.user.wishlist
+        in_wishlist = wishlist.items.filter(
+            product_id=product_id,
+            is_deleted=False
+        ).exists()
+    except Exception:
+        pass
+    return JsonResponse({'in_wishlist': in_wishlist})    
+
+@customer_only
+def wishlist_page(request):
+    if request.user.role != 'customer':
+        messages.error(request, 'Access denied.')
+        return redirect('shop:home')
+    
+    try:
+        wishlist = request.user.wishlist
+        items = wishlist.items.filter(
+            is_deleted=False
+        ).select_related(
+            'product', 'product__seller', 'product__category', 'variant'
+        ).order_by('-created_at')
+    except Wishlist.DoesNotExist:
+        items = []
+    
+    return render(request, 'items/wishlist.html', {
+        'wishlist_items': items,
+    })

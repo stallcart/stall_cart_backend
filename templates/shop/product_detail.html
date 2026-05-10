@@ -746,6 +746,70 @@ function copyToClipboard(text) {
         }
     });
 }
+
+
+// ── Wishlist Button ──────────────────────────────────────────────
+const wishlistBtn = document.querySelector('.btn-icon[aria-label="Add to Wishlist"]');
+
+// On page load, check if already in wishlist
+(async function checkWishlistState() {
+    if (!wishlistBtn || userRole !== 'customer') return;
+    try {
+        const res = await fetch(`/items/wishlist/status/{{ product.id }}/`);
+        const data = await res.json();
+        if (data.in_wishlist) {
+            wishlistBtn.classList.add('active');
+            wishlistBtn.innerHTML = '<i class="fa fa-heart"></i>';
+        }
+    } catch (e) { /* silent fail */ }
+})();
+
+wishlistBtn?.addEventListener('click', async function () {
+    if (userRole !== 'customer') {
+        showToast('Please login to use wishlist', 'error');
+        return;
+    }
+
+    const btn = this;
+    const productId = '{{ product.id }}';
+    const variantId = selectedVariantId || '';
+
+    // Optimistic UI
+    const isNowActive = btn.classList.toggle('active');
+    btn.innerHTML = isNowActive
+        ? '<i class="fa fa-heart"></i>'
+        : '<i class="fa fa-heart-o"></i>';
+
+    try {
+        const res = await fetch(`/items/wishlist/toggle/${productId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({ variant_id: variantId })
+        });
+        const data = await res.json();
+
+        if (data.status === 'added') {
+            if (window.updateWishlistCount) window.updateWishlistCount(+1);
+            showToast('Added to wishlist ❤️', 'success');
+        } else if (data.status === 'removed') {
+            if (window.updateWishlistCount) window.updateWishlistCount(-1);
+            showToast('Removed from wishlist', 'info');
+        } else  {
+            throw new Error(data.error || 'Unexpected response');
+        }
+    } catch (err) {
+        console.error('Wishlist error:', err);
+        showToast('Failed to update wishlist', 'error');
+        // Revert optimistic update
+        const reverted = btn.classList.toggle('active');
+        btn.innerHTML = reverted
+            ? '<i class="fa fa-heart"></i>'
+            : '<i class="fa fa-heart-o"></i>';
+    }
+});
 </script>
 {% endblock %}
 
@@ -1302,6 +1366,16 @@ function copyToClipboard(text) {
         height: 32px;
         font-size: 0.85rem;
     }
+}
+
+/* Wishlist active state */
+.btn-icon.active {
+    color: #e53935;
+    border-color: #e53935;
+    background: #fff5f5;
+}
+.btn-icon.active i {
+    color: #e53935;
 }
 </style>
 {% endblock %}
