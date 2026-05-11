@@ -161,16 +161,20 @@
 
     <div class="mobile-nav-content">
 
-        <!-- Mobile search -->
-        <form method="get" action="{% url 'items:product_list' %}"
-              style="margin-bottom:8px;">
+        <!-- ═══════════════════════════════════════
+            MOBILE DRAWER - SEARCH FORM (FIXED)
+        ═══════════════════════════════════════ -->
+        <form method="get" action="{% url 'items:product_list' %}" 
+            style="margin-bottom:8px;" 
+            onsubmit="closeMobileNav()">
             <div style="display:flex;gap:0;">
-                <input type="text" name="search"
-                       placeholder="Search products…"
-                       value="{{ request.GET.search|default:'' }}"
-                       style="flex:1;padding:10px 14px;border:1.5px solid var(--gray-200);border-right:none;border-radius:var(--radius-md) 0 0 var(--radius-md);font-size:0.9rem;font-family:inherit;">
+                <input type="search" 
+                    name="search"
+                    placeholder="Search products…"
+                    value="{{ request.GET.search|default:'' }}"
+                    style="flex:1;padding:10px 14px;border:1.5px solid var(--gray-200);border-right:none;border-radius:var(--radius-md) 0 0 var(--radius-md);font-size:0.9rem;font-family:inherit;">
                 <button type="submit"
-                        style="padding:10px 14px;background:var(--blue-500);color:#fff;border:none;border-radius:0 var(--radius-md) var(--radius-md) 0;cursor:pointer;">
+                        style="padding:10px 14px;background:var(--blue-500);color:#fff;border:none;border-radius:0 var(--radius-md) var(--radius-md) 0;cursor:pointer;display:flex;align-items:center;justify-content:center;">
                     <i class="fa fa-search"></i>
                 </button>
             </div>
@@ -345,7 +349,7 @@
 </main>
 
 <!-- ═══════════════════════════════════════
-     MOBILE BOTTOM NAV
+     MOBILE BOTTOM NAV (CLEANED)
 ═══════════════════════════════════════ -->
 <nav class="mobile-bottom-nav">
     <a href="{% url 'shop:home' %}" class="mobile-nav-item {% if request.resolver_match.url_name == 'home' %}active{% endif %}">
@@ -356,6 +360,7 @@
         <i class="fa fa-search"></i>
         <span>Search</span>
     </a>
+    
     {% if user.is_authenticated and user.role == 'customer' or not user.is_authenticated %}
     <a href="{% url 'shop:cart' %}" class="mobile-nav-item" style="position:relative;">
         <i class="fa fa-shopping-cart"></i>
@@ -365,6 +370,7 @@
         {% endif %}
     </a>
     {% endif %}
+    
     {% if user.is_authenticated and user.role == 'customer' %}
     <a href="{% url 'items:wishlist' %}" class="mobile-nav-item" style="position:relative;">
         <i class="fa fa-heart"></i>
@@ -374,17 +380,15 @@
         {% endif %}
     </a>
     {% endif %}
+    
+    <!-- ✅ Only show Profile if logged in, otherwise skip Login (it's in header) -->
     {% if user.is_authenticated %}
     <a href="{% url 'accounts:profile' %}" class="mobile-nav-item">
         <i class="fa fa-user"></i>
         <span>Profile</span>
     </a>
-    {% else %}
-    <a href="#" class="mobile-nav-item" onclick="openLoginModal(); return false;">
-        <i class="fa fa-user"></i>
-        <span>Login</span>
-    </a>
     {% endif %}
+    <!-- Login removed from bottom nav since header already has it -->
 </nav>
 
 <!-- ═══════════════════════════════════════
@@ -668,6 +672,20 @@ window.togglePassword = function(inputId, btn) {
     }
     input.focus();
 };
+
+// ── Mobile Search: Close drawer + focus results ───────────────────
+document.querySelectorAll('.mobile-nav-content form').forEach(form => {
+    form.addEventListener('submit', (e) => {
+        const searchInput = form.querySelector('input[name="search"]');
+        if (searchInput && !searchInput.value.trim()) {
+            e.preventDefault();
+            searchInput.focus();
+            showToast('Enter a search term', 'info');
+            return false;
+        }
+        // Drawer will close via onsubmit="closeMobileNav()" in HTML
+    });
+});
 </script>
 
 {% block scripts %}{% endblock %}
