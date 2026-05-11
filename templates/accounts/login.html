@@ -3,82 +3,79 @@
 
 {% block content %}
 <div class="auth-container">
-    <h2>Login to Your Account</h2>
-    
-    <form method="post" id="authForm">
-        {% csrf_token %}
+    <div style="max-width: 420px; margin: 60px auto; padding: 30px; background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+        <h2 style="text-align: center; margin-bottom: 25px; color: #212121;">Login to Your Account</h2>
+        
+        <form method="post" id="authForm">
+            {% csrf_token %}
 
-        <!-- Global Errors -->
-        {% if form.non_field_errors %}
-            <div class="alert error">
-                <i class="fa fa-exclamation-circle"></i> {{ form.non_field_errors }}
-            </div>
-        {% endif %}
-
-        <!-- 📱 Mobile Number Field -->
-        <div class="form-group">
-            <label for="{{ form.username.id_for_label }}">
-                <i class="fa fa-phone"></i> Mobile Number
-            </label>
-            {{ form.username }}  {# This renders the phone field #}
-            {% if form.username.errors %}
-                <div class="error-text">{{ form.username.errors.0 }}</div>
+            <!-- Global Errors -->
+            {% if form.non_field_errors %}
+                <div class="alert alert-error">
+                    <i class="fa fa-exclamation-circle"></i> {{ form.non_field_errors }}
+                </div>
             {% endif %}
-            <small class="form-hint">Enter your 10-digit registered mobile number</small>
-        </div>
 
-        <!-- 🔐 Password Field with Eye Toggle -->
-        <!-- 🔐 Password Field with Eye Toggle - FIXED -->
-        <div class="form-group password-group">
-            <label for="{{ form.password.id_for_label }}">
-                <i class="fa fa-lock"></i> Password
-            </label>
-            <div class="password-wrapper">
-                {{ form.password }}
-                <button type="button" 
-                        class="password-toggle" 
-                        onclick="togglePassword('{{ form.password.id_for_label }}', this)"
-                        aria-label="Toggle password visibility"
-                        type="button">
-                    <i class="fa fa-eye"></i>
-                </button>
+            <!-- 📱 Mobile Number Field -->
+            <div class="form-group">
+                <label for="{{ form.username.id_for_label }}" class="form-label">
+                    <i class="fa fa-phone" style="color:var(--blue-400);margin-right:6px;"></i> Mobile Number
+                </label>
+                {{ form.username }}
+                {% if form.username.errors %}
+                    <div class="error-text">{{ form.username.errors.0 }}</div>
+                {% endif %}
+                <small class="form-hint">Enter your 10-digit registered mobile number</small>
             </div>
-            {% if form.password.errors %}
-                <div class="error-text">{{ form.password.errors.0 }}</div>
-            {% endif %}
-        </div>
 
-        <!-- Submit Button -->
-        <button type="submit" class="btn-primary" id="loginBtn">
-            <i class="fa fa-sign-in-alt"></i> LOGIN
-        </button>
+            <!-- 🔐 Password Field with Eye Toggle -->
+            <div class="form-group password-group">
+                <label for="{{ form.password.id_for_label }}" class="form-label">
+                    <i class="fa fa-lock" style="color:var(--blue-400);margin-right:6px;"></i> Password
+                </label>
+                <div class="password-wrapper">
+                    {{ form.password }}
+                    <button type="button" 
+                            class="password-toggle" 
+                            onclick="togglePassword('{{ form.password.id_for_label }}', this)"
+                            aria-label="Toggle password visibility">
+                        <i class="fa fa-eye"></i>
+                    </button>
+                </div>
+                {% if form.password.errors %}
+                    <div class="error-text">{{ form.password.errors.0 }}</div>
+                {% endif %}
+            </div>
 
-        <!-- Links -->
-        <div class="auth-links">
-            <a href="{% url 'accounts:forgot_password' %}">
-                <i class="fa fa-key"></i> Forgot Password?
-            </a>
-            <span>
-                New here? 
-                <a href="{% url 'accounts:register' %}">Create Account</a>
-            </span>
-        </div>
-    </form>
+            <!-- Submit Button -->
+            <button type="submit" class="btn-primary" id="loginBtn" style="margin-top: 20px;">
+                <i class="fa fa-sign-in-alt"></i> LOGIN
+            </button>
+
+            <!-- Links -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 25px; font-size: 0.9rem; flex-wrap: wrap; gap: 12px;">
+                <a href="{% url 'accounts:forgot_password' %}" style="color: var(--blue-500);">
+                    <i class="fa fa-key"></i> Forgot Password?
+                </a>
+                <span>
+                    New here? 
+                    <a href="{% url 'accounts:register' %}" style="color: var(--blue-500);">Create Account</a>
+                </span>
+            </div>
+        </form>
+    </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-
-
 // 📱 Mobile Number Validation (Real-time)
 document.addEventListener('DOMContentLoaded', () => {
     const phoneInput = document.querySelector('input[name="username"]');
     
     if (phoneInput) {
-        // Format as user types (optional)
+        // Format as user types
         phoneInput.addEventListener('input', (e) => {
-            // Remove non-digit characters
             e.target.value = e.target.value.replace(/[^0-9]/g, '').slice(0, 10);
         });
         
@@ -112,79 +109,61 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+// Password toggle
+window.togglePassword = function(inputId, btn) {
+    const input = document.getElementById(inputId);
+    const icon  = btn.querySelector('i');
+    if (!input || !icon) return;
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.className = 'fa fa-eye-slash';
+        btn.setAttribute('aria-label', 'Hide password');
+    } else {
+        input.type = 'password';
+        icon.className = 'fa fa-eye';
+        btn.setAttribute('aria-label', 'Show password');
+    }
+    input.focus();
+};
 </script>
 {% endblock %}
 
 {% block extra_css %}
 <style>
 .auth-container {
-    max-width: 420px; margin: 60px auto; padding: 30px;
-    background: white; border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    min-height: calc(100vh - 200px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
 }
-.auth-container h2 { 
-    text-align: center; margin-bottom: 25px; color: #212121; 
-}
-.form-group { margin-bottom: 20px; }
-.form-group label { 
-    display: block; margin-bottom: 8px; font-weight: 500; color: #444; 
-}
+
 .form-group input {
-    width: 100%; padding: 12px 15px; border: 1px solid #ddd;
-    border-radius: 8px; font-size: 1rem; transition: border 0.2s;
+    width: 100%; 
+    padding: 12px 15px; 
+    border: 1.5px solid var(--gray-200);
+    border-radius: var(--radius-md); 
+    font-size: 1rem; 
+    transition: all 0.2s;
+    font-family: inherit;
 }
+
 .form-group input:focus {
-    border-color: var(--primary-color, #2874f0); 
+    border-color: var(--blue-400); 
     outline: none; 
-    box-shadow: 0 0 0 3px rgba(40,116,240,0.1);
+    box-shadow: 0 0 0 3px rgba(40,116,240,0.12);
 }
-.form-hint {
-    display: block; color: #888; font-size: 0.8rem; margin-top: 5px;
-}
-.error-text {
-    color: #c62828; font-size: 0.85rem; margin-top: 5px;
-    display: flex; align-items: center; gap: 5px;
-}
-.error-text::before {
-    content: "⚠️";
-}
-.alert.error {
-    background: #ffebee; color: #c62828; padding: 12px 15px;
-    border-radius: 8px; margin-bottom: 20px; display: flex;
-    align-items: center; gap: 8px;
-}
-.btn-primary {
-    width: 100%; padding: 14px; background: var(--primary-color, #2874f0);
-    color: white; border: none; border-radius: 8px; font-weight: 600;
-    font-size: 1rem; cursor: pointer; transition: background 0.2s;
-    display: flex; align-items: center; justify-content: center; gap: 8px;
-}
-.btn-primary:hover { background: var(--secondary-color, #1a56c4); }
-.auth-links {
-    display: flex; justify-content: space-between; align-items: center;
-    margin-top: 25px; font-size: 0.9rem;
-}
-.auth-links a { color: var(--primary-color, #2874f0); }
-.auth-links a:hover { text-decoration: underline; }
 
-/* Password toggle button */
-.password-toggle {
-    z-index: 2;
-}
-.password-toggle:hover { color: var(--primary-color, #2874f0); }
-
-/* Responsive */
-@media (max-width: 480px) {
-    .auth-container { margin: 20px; padding: 25px 20px; }
-    .auth-links { flex-direction: column; gap: 12px; text-align: center; }
-}
 .password-wrapper {
     position: relative;
     width: 100%;
 }
+
 .password-wrapper input {
-    padding-right: 45px !important; /* Space for eye icon */
+    padding-right: 45px !important;
 }
+
 .password-toggle {
     position: absolute;
     right: 12px;
@@ -193,7 +172,7 @@ document.addEventListener('DOMContentLoaded', () => {
     background: none;
     border: none;
     cursor: pointer;
-    color: #888;
+    color: var(--gray-400);
     padding: 6px;
     z-index: 3;
     display: flex;
@@ -204,9 +183,18 @@ document.addEventListener('DOMContentLoaded', () => {
     height: 32px;
     border-radius: 50%;
 }
+
 .password-toggle:hover {
-    color: var(--primary-color, #2874f0);
+    color: var(--blue-500);
     background: rgba(40, 116, 240, 0.08);
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    .auth-container > div { 
+        margin: 20px auto; 
+        padding: 25px 20px; 
+    }
 }
 </style>
 {% endblock %}

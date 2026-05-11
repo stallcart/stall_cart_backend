@@ -67,7 +67,12 @@ class User(AbstractBaseUser, PermissionsMixin):
     @property
     def is_admin(self):
         return self.is_superuser or self.role == 'admin'
+    def get_display_name(self):
+        """Return full_name if available, otherwise phone"""
+        return self.full_name.strip() if self.full_name else self.phone
     
+    def __str__(self):
+        return f"{self.phone} | {self.role}"
 
 class Address(BaseModel):
     """Multiple addresses per user (customers)"""

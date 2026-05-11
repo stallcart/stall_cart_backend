@@ -4,9 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>{% block title %}{{ site_settings.site_name }}{% endblock %}</title>
-    <meta name="description" content="{% block meta_description %}{{ site_settings.meta_description }}{% endblock %}">
+    <title>{% block title %}{{ site_settings.site_name|default:"StallCart" }}{% endblock %}</title>
+    <meta name="description" content="{% block meta_description %}{{ site_settings.meta_description|default:"Shop premium fashion at unbeatable prices" }}{% endblock %}">
 
     {% if site_settings.favicon %}
         <link rel="icon" type="image/png" href="{{ site_settings.favicon.url }}">
@@ -40,7 +39,7 @@
                      alt="{{ site_settings.site_name }}"
                      loading="lazy">
             {% else %}
-                <span class="logo-text">{{ site_settings.site_name }}</span>
+                <span class="logo-text">StallCart</span>
             {% endif %}
         </a>
 
@@ -49,7 +48,7 @@
             <form method="get" action="{% url 'items:product_list' %}">
                 <input type="text" name="search"
                        placeholder="Search products, brands…"
-                       value="{{ filters.search|default:'' }}">
+                       value="{{ request.GET.search|default:'' }}">
                 <button type="submit" aria-label="Search">
                     <i class="fa fa-search"></i>
                 </button>
@@ -113,18 +112,14 @@
             {% endif %}
 
             <!-- Cart (customers only) -->
-            {% if user.is_authenticated and user.role == 'customer' %}
+            {% if user.is_authenticated and user.role == 'customer' or not user.is_authenticated %}
                 <a href="{% url 'shop:cart' %}" class="nav-link cart-link" aria-label="Shopping cart">
                     <i class="fa fa-shopping-cart"></i>
                     <span class="hide-mobile">Cart</span>
                     <span class="cart-badge" id="cart-count">{{ cart_count|default:0 }}</span>
                 </a>
-            {% elif not user.is_authenticated %}
-                <a href="{% url 'shop:cart' %}" class="nav-link cart-link" aria-label="Shopping cart">
-                    <i class="fa fa-shopping-cart"></i>
-                    <span class="cart-badge" id="cart-count">{{ cart_count|default:0 }}</span>
-                </a>
             {% endif %}
+            
             {% if user.is_authenticated and user.role == 'customer' %}
                 <a href="{% url 'items:wishlist' %}" class="nav-link cart-link"
                    aria-label="Wishlist" title="My Wishlist">
@@ -139,7 +134,6 @@
                     {% endif %}
                 </a>
             {% endif %}
-
 
         </nav>
 
@@ -159,7 +153,7 @@
 ═══════════════════════════════════════ -->
 <nav class="mobile-nav" id="mobileNav" aria-label="Mobile navigation" aria-hidden="true">
     <div class="mobile-nav-header">
-        <span>{{ site_settings.site_name }}</span>
+        <span>{{ site_settings.site_name|default:"StallCart" }}</span>
         <button class="mobile-nav-close" id="mobileNavClose" aria-label="Close menu">
             <i class="fa fa-times"></i>
         </button>
@@ -173,7 +167,7 @@
             <div style="display:flex;gap:0;">
                 <input type="text" name="search"
                        placeholder="Search products…"
-                       value="{{ filters.search|default:'' }}"
+                       value="{{ request.GET.search|default:'' }}"
                        style="flex:1;padding:10px 14px;border:1.5px solid var(--gray-200);border-right:none;border-radius:var(--radius-md) 0 0 var(--radius-md);font-size:0.9rem;font-family:inherit;">
                 <button type="submit"
                         style="padding:10px 14px;background:var(--blue-500);color:#fff;border:none;border-radius:0 var(--radius-md) var(--radius-md) 0;cursor:pointer;">
@@ -269,7 +263,7 @@
         <div class="modal-header-bar">
             <h3 id="loginModalTitle">
                 <i class="fa fa-lock" style="color:var(--blue-400);margin-right:8px;"></i>
-                Login to {{ site_settings.site_name }}
+                Login to StallCart
             </h3>
             <button class="modal-close" id="closeLoginModal" aria-label="Close">
                 <i class="fa fa-times"></i>
@@ -351,14 +345,57 @@
 </main>
 
 <!-- ═══════════════════════════════════════
+     MOBILE BOTTOM NAV
+═══════════════════════════════════════ -->
+<nav class="mobile-bottom-nav">
+    <a href="{% url 'shop:home' %}" class="mobile-nav-item {% if request.resolver_match.url_name == 'home' %}active{% endif %}">
+        <i class="fa fa-home"></i>
+        <span>Home</span>
+    </a>
+    <a href="{% url 'items:product_list' %}" class="mobile-nav-item {% if request.resolver_match.url_name == 'product_list' %}active{% endif %}">
+        <i class="fa fa-search"></i>
+        <span>Search</span>
+    </a>
+    {% if user.is_authenticated and user.role == 'customer' or not user.is_authenticated %}
+    <a href="{% url 'shop:cart' %}" class="mobile-nav-item" style="position:relative;">
+        <i class="fa fa-shopping-cart"></i>
+        <span>Cart</span>
+        {% if cart_count > 0 %}
+            <span class="nav-badge">{{ cart_count }}</span>
+        {% endif %}
+    </a>
+    {% endif %}
+    {% if user.is_authenticated and user.role == 'customer' %}
+    <a href="{% url 'items:wishlist' %}" class="mobile-nav-item" style="position:relative;">
+        <i class="fa fa-heart"></i>
+        <span>Wishlist</span>
+        {% if wishlist_count > 0 %}
+            <span class="nav-badge">{{ wishlist_count }}</span>
+        {% endif %}
+    </a>
+    {% endif %}
+    {% if user.is_authenticated %}
+    <a href="{% url 'accounts:profile' %}" class="mobile-nav-item">
+        <i class="fa fa-user"></i>
+        <span>Profile</span>
+    </a>
+    {% else %}
+    <a href="#" class="mobile-nav-item" onclick="openLoginModal(); return false;">
+        <i class="fa fa-user"></i>
+        <span>Login</span>
+    </a>
+    {% endif %}
+</nav>
+
+<!-- ═══════════════════════════════════════
      FOOTER
 ═══════════════════════════════════════ -->
 <footer class="footer">
     <div class="container">
         <div class="footer-grid">
             <div>
-                <h4>{{ site_settings.site_name }}</h4>
-                <p>{{ site_settings.about_us }}</p>
+                <h4>{{ site_settings.site_name|default:"StallCart" }}</h4>
+                <p>{{ site_settings.about_us|default:"Your one-stop destination for premium fashion at unbeatable prices. Quality products, fast delivery, and excellent customer service." }}</p>
             </div>
             <div>
                 <h4>Policies</h4>
@@ -371,18 +408,15 @@
             </div>
             <div>
                 <h4>Contact</h4>
-
                 <ul>
                     <li>
                         <i class="fa fa-phone"></i>
-                        {{ site_settings.contact_phone }}
+                        {{ site_settings.contact_phone|default:"+91 9876543210" }}
                     </li>
-
                     <li>
                         <i class="fa fa-envelope"></i>
-                        {{ site_settings.contact_email }}
+                        {{ site_settings.contact_email|default:"support@stallcart.com" }}
                     </li>
-
                     {% if site_settings.contact_whatsapp %}
                     <li>
                         <a href="{{ site_settings.whatsapp_link }}"
@@ -395,42 +429,6 @@
                     </li>
                     {% endif %}
                 </ul>
-
-                <!-- Social Media -->
-                <div class="footer-social"
-                    style="display:flex;align-items:center;gap:14px;margin-top:16px;flex-wrap:wrap;">
-
-                    {% if site_settings.social_instagram %}
-                    <a href="{{ site_settings.social_instagram }}"
-                    target="_blank"
-                    rel="noopener"
-                    aria-label="Instagram"
-                    style="font-size:1.2rem;color:#E4405F;transition:0.3s;">
-                        <i class="fab fa-instagram"></i>
-                    </a>
-                    {% endif %}
-
-                    {% if site_settings.social_facebook %}
-                    <a href="{{ site_settings.social_facebook }}"
-                    target="_blank"
-                    rel="noopener"
-                    aria-label="Facebook"
-                    style="font-size:1.2rem;color:#1877F2;transition:0.3s;">
-                        <i class="fab fa-facebook"></i>
-                    </a>
-                    {% endif %}
-
-                    {% if site_settings.social_twitter %}
-                    <a href="{{ site_settings.social_twitter }}"
-                    target="_blank"
-                    rel="noopener"
-                    aria-label="Twitter"
-                    style="font-size:1.2rem;color:#1DA1F2;transition:0.3s;">
-                        <i class="fab fa-twitter"></i>
-                    </a>
-                    {% endif %}
-
-                </div>
             </div>
             <div>
                 <h4>Quick Links</h4>
@@ -442,7 +440,7 @@
             </div>
         </div>
         <div class="footer-bottom">
-            © {% now "Y" %} {{ site_settings.site_name }}. All rights reserved.
+            © {% now "Y" %} {{ site_settings.site_name|default:"StallCart" }}. All rights reserved.
         </div>
     </div>
 </footer>
@@ -565,6 +563,7 @@ window.updateCartCount = function(count) {
     }
     if (mobileBadge) mobileBadge.textContent = count;
 };
+
 window.updateWishlistCount = function(delta) {
     const badge       = document.getElementById('wishlist-count');
     const mobileBadge = document.getElementById('wishlist-count-mobile');
@@ -574,13 +573,12 @@ window.updateWishlistCount = function(delta) {
         const current = parseInt(el.textContent) || 0;
         const next    = Math.max(0, current + delta);
         el.textContent = next;
-        // Hide badge when zero, show when positive
         el.style.display = next > 0 ? '' : 'none';
-        // Animate
         el.style.transform = 'scale(1.4)';
         setTimeout(() => el.style.transform = '', 200);
     });
 };
+
 // ── Global: toast ────────────────────────────────
 window.showToast = function(message, type = 'info') {
     const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
