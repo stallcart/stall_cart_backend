@@ -97,6 +97,8 @@ class SiteSettings(models.Model):
     social_instagram = models.URLField(blank=True, help_text='Full Instagram profile URL')
     social_facebook = models.URLField(blank=True)
     social_twitter = models.URLField(blank=True)
+    social_youtube = models.URLField(blank=True, help_text='Full YouTube channel URL')     # ✅ ADD THIS
+
 
     # SEO Defaults
     meta_description = models.TextField(
@@ -204,3 +206,28 @@ class SiteSettings(models.Model):
             except:
                 pass  # Skip validation if PIL not available
         return self.logo_url
+    
+    
+    @property
+    def has_social_links(self):
+        """Check if any social media is configured"""
+        return any([
+            self.social_instagram,
+            self.social_facebook, 
+            self.social_twitter,
+            self.social_youtube
+        ])
+
+    @property
+    def social_links(self):
+        """Return dict of configured social links for easy iteration"""
+        links = {}
+        if self.social_instagram:
+            links['instagram'] = {'url': self.social_instagram, 'icon': 'fab fa-instagram', 'color': '#E4405F', 'label': 'Instagram'}
+        if self.social_facebook:
+            links['facebook'] = {'url': self.social_facebook, 'icon': 'fab fa-facebook', 'color': '#1877F2', 'label': 'Facebook'}
+        if self.social_twitter:
+            links['twitter'] = {'url': self.social_twitter, 'icon': 'fab fa-twitter', 'color': '#1DA1F2', 'label': 'Twitter'}
+        if self.social_youtube:
+            links['youtube'] = {'url': self.social_youtube, 'icon': 'fab fa-youtube', 'color': '#FF0000', 'label': 'YouTube'}
+        return links
