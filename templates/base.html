@@ -438,6 +438,59 @@
                     <li><a href="{% url 'items:product_list' %}">All Products</a></li>
                 </ul>
             </div>
+            <!-- ═══════════════════════════════════════
+                FOOTER - SOCIAL MEDIA SECTION
+            ═══════════════════════════════════════ -->
+            <div>
+                <h4>Follow Us</h4>
+                <div class="footer-social" style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+
+                    <!-- Instagram -->
+                    {% if site_settings.social_instagram %}
+                    <a href="{{ site_settings.social_instagram }}"
+                    target="_blank"
+                    rel="noopener"
+                    aria-label="Instagram"
+                    style="font-size:1.3rem; color:#E4405F; transition:0.3s; display:flex; align-items:center;">
+                        <i class="fab fa-instagram"></i>
+                    </a>
+                    {% endif %}
+
+                    <!-- Facebook -->
+                    {% if site_settings.social_facebook %}
+                    <a href="{{ site_settings.social_facebook }}"
+                    target="_blank"
+                    rel="noopener"
+                    aria-label="Facebook"
+                    style="font-size:1.3rem; color:#1877F2; transition:0.3s; display:flex; align-items:center;">
+                        <i class="fab fa-facebook"></i>
+                    </a>
+                    {% endif %}
+
+                    <!-- Twitter/X -->
+                    {% if site_settings.social_twitter %}
+                    <a href="{{ site_settings.social_twitter }}"
+                    target="_blank"
+                    rel="noopener"
+                    aria-label="Twitter"
+                    style="font-size:1.3rem; color:#1DA1F2; transition:0.3s; display:flex; align-items:center;">
+                        <i class="fab fa-twitter"></i>
+                    </a>
+                    {% endif %}
+
+                    <!-- YouTube ✅ NEW -->
+                    {% if site_settings.social_youtube %}
+                    <a href="{{ site_settings.social_youtube }}"
+                    target="_blank"
+                    rel="noopener"
+                    aria-label="YouTube"
+                    style="font-size:1.3rem; color:#FF0000; transition:0.3s; display:flex; align-items:center;">
+                        <i class="fab fa-youtube"></i>
+                    </a>
+                    {% endif %}
+
+                </div>
+            </div>
         </div>
         <div class="footer-bottom">
             © {% now "Y" %} {{ site_settings.site_name|default:"StallCart" }}. All rights reserved.
