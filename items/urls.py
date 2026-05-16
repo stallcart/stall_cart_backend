@@ -51,5 +51,8 @@ urlpatterns = [
      path('wishlist/status/<int:product_id>/', views.wishlist_status, name='wishlist_status'),
      path('wishlist/toggle/<int:product_id>/', views.toggle_wishlist, name='toggle_wishlist'),
      path('wishlist/', views.wishlist_page, name='wishlist'),
+      path('review/<int:review_id>/update/', views.update_review, name='update_review'),
+    path('review/<int:review_id>/delete/', views.delete_review, name='delete_review'),
+    path('review/<int:review_id>/helpful/', views.mark_helpful, name='mark_helpful'),
 
 ]

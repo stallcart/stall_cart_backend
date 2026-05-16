@@ -1,179 +1,196 @@
-<!-- home.html -->
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}{{ site_settings.site_name|default:"StallCart" }} — India's Premium Fashion Destination{% endblock %}
+{% block title %}{{ site_settings.site_name|default:"StallCart" }} — Premium Fashion at Unbeatable Prices{% endblock %}
 {% block meta_description %}{{ site_settings.meta_description|default:"Shop premium fashion for men & women. Free delivery, easy returns, 100% original products." }}{% endblock %}
 
 {% block extra_css %}
 <style>
-/* ── Page-specific overrides ── */
-.hero { padding-bottom: clamp(60px, 10vw, 100px); }
+/* ── HOME PAGE SPECIFIC ─────────────────────────── */
 
-.deals-header-row {
+/* Section spacing on mobile */
+.section-home { padding: clamp(24px, 4vw, 52px) 0; }
+
+/* Product out-of-stock overlay */
+.oos-overlay {
+    position: absolute; inset: 0;
+    background: rgba(255,255,255,0.82);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.78rem; font-weight: 700; color: var(--text-3);
+    z-index: 2;
+    backdrop-filter: blur(2px);
+}
+
+/* Shimmer animation for loading states */
+@keyframes shimmer {
+    0%   { background-position: -200% 0; }
+    100% { background-position:  200% 0; }
+}
+
+/* Category pills - horizontal scroll on mobile */
+.cat-track {
     display: flex;
-    align-items: center;
     gap: 12px;
-    flex-wrap: wrap;
+    overflow-x: auto;
+    padding: 4px 0 14px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
 }
-.deals-header-row .view-all-link { margin-left: auto; }
-
-/* Feature strip */
-.feature-strip {
-    background: var(--blue-500);
-    color: #fff;
-    padding: 14px 0;
-}
-.feature-strip-inner {
+.cat-track::-webkit-scrollbar { display: none; }
+.cat-pill-item {
     display: flex;
-    justify-content: center;
-    gap: clamp(20px, 5vw, 60px);
-    flex-wrap: wrap;
-}
-.feature-item {
-    display: flex;
+    flex-direction: column;
     align-items: center;
     gap: 8px;
-    font-size: 0.82rem;
+    flex-shrink: 0;
+    text-decoration: none;
+    cursor: pointer;
+    scroll-snap-align: start;
+    transition: transform 0.18s var(--ease);
+    -webkit-tap-highlight-color: transparent;
+}
+.cat-pill-item:hover,
+.cat-pill-item:active { transform: scale(0.96); }
+.cat-pill-circle {
+    width: 62px; height: 62px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.75rem;
+    box-shadow: var(--shadow-card);
+    transition: all 0.22s var(--ease);
+}
+.cat-pill-item:hover .cat-pill-circle,
+.cat-pill-item.active .cat-pill-circle {
+    border-color: var(--primary);
+    background: var(--primary-light);
+    box-shadow: 0 4px 16px var(--primary-glow);
+    transform: translateY(-2px);
+}
+.cat-pill-label {
+    font-size: 0.71rem;
     font-weight: 600;
+    color: var(--text-2);
+    text-align: center;
     white-space: nowrap;
 }
-.feature-item i { font-size: 1rem; opacity: 0.85; }
+.cat-pill-item.active .cat-pill-label { color: var(--primary); }
 
-/* Section wrapper spacing */
-.section-wrap { padding: clamp(28px, 5vw, 52px) 0; }
-
-/* Deals timer */
-@keyframes timerPulse { 0%,100% { opacity:1; } 50% { opacity:0.7; } }
-.deals-timer { animation: timerPulse 2s infinite; }
-
-/* Product card out of stock overlay */
-.out-of-stock-overlay {
-    position: absolute;
-    inset: 0;
-    background: rgba(255,255,255,0.85);
+/* Deals header row */
+.deals-row {
     display: flex;
     align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    color: var(--red);
-    font-size: 0.85rem;
-    border-radius: var(--radius-lg);
-    z-index: 2;
-}
-
-/* Price display enhancements */
-.price-display {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    margin-bottom: 10px;
+    gap: 10px;
+    margin-bottom: 16px;
     flex-wrap: wrap;
 }
-.price-mrp {
-    font-size: 0.8rem;
-    color: var(--gray-400);
-    text-decoration: line-through;
-    font-weight: 400;
-}
-.price-current {
-    font-size: 1.1rem;
-    font-weight: 800;
-    color: var(--gray-900);
-}
-.price-discount {
-    background: var(--red);
-    color: white;
-    font-size: 0.7rem;
-    font-weight: 700;
-    padding: 2px 8px;
-    border-radius: 12px;
-}
+.deals-row .view-all-link { margin-left: auto; }
 
-/* View Details button */
-.btn-view-details {
-    width: 100%;
-    padding: 10px;
-    background: var(--white);
-    color: var(--blue-600);
-    border: 2px solid var(--blue-200);
-    border-radius: var(--radius-md);
-    font-size: 0.85rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all var(--transition);
+/* Why Us grid — 2 cols on mobile, 4 on desktop */
+.why-us-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+@media (min-width: 640px) {
+    .why-us-grid { grid-template-columns: repeat(4, 1fr); gap: 16px; }
+}
+.why-us-card {
+    background: var(--surface);
+    border-radius: var(--r-md);
+    padding: 18px 14px;
+    text-align: center;
+    border: 1px solid var(--border);
+    transition: all var(--dur) var(--ease);
+    -webkit-tap-highlight-color: transparent;
+}
+.why-us-card:hover {
+    border-color: var(--primary);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-3px);
+}
+.why-us-icon {
+    width: 48px; height: 48px;
+    border-radius: var(--r-sm);
+    background: linear-gradient(135deg, var(--primary-light), #F5F3FF);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 10px;
+    font-size: 1.4rem;
+    border: 1px solid var(--border);
+}
+.why-us-title { font-size: 0.82rem; font-weight: 700; color: var(--text-1); margin-bottom: 4px; }
+.why-us-desc  { font-size: 0.72rem; color: var(--text-3); line-height: 1.4; }
+
+/* Newsletter strip */
+.newsletter-strip {
+    background: linear-gradient(135deg, #0D1B3E, #2563EB);
+    border-radius: var(--r-lg);
+    padding: clamp(20px, 4vw, 32px);
+    text-align: center;
+    color: #fff;
+    margin: 0 0 clamp(24px, 4vw, 48px);
+    position: relative;
+    overflow: hidden;
+}
+.newsletter-strip::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image: radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1px);
+    background-size: 20px 20px;
+}
+.newsletter-strip h3 { font-family: 'Syne', sans-serif; margin-bottom: 6px; position: relative; z-index: 1; }
+.newsletter-strip p  { font-size: 0.875rem; color: rgba(255,255,255,0.75); margin-bottom: 16px; position: relative; z-index: 1; }
+.newsletter-form {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    text-decoration: none;
+    gap: 0;
+    max-width: 420px;
+    margin: 0 auto;
+    border-radius: var(--r-sm);
+    overflow: hidden;
+    position: relative; z-index: 1;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
 }
-.btn-view-details:hover {
-    background: var(--blue-500);
-    color: var(--white);
-    border-color: var(--blue-500);
-    transform: translateY(-2px);
+.newsletter-form input {
+    flex: 1; min-width: 0;
+    padding: 12px 16px;
+    border: none;
+    font-size: 0.9rem;
+    font-family: inherit;
+    background: rgba(255,255,255,0.95);
+    color: var(--text-1);
+    outline: none;
 }
-
-/* Quick Add button (for carousel) */
-.btn-quick-add {
-    width: 100%;
-    padding: 8px;
-    background: var(--blue-50);
-    color: var(--blue-600);
-    border: 1.5px solid var(--blue-200);
-    border-radius: var(--radius-sm);
-    font-size: 0.8rem;
+.newsletter-form button {
+    padding: 12px 20px;
+    background: var(--accent);
+    color: var(--text-1);
+    border: none;
+    font-size: 0.9rem;
     font-weight: 700;
-    cursor: pointer;
-    transition: all var(--transition);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
+    white-space: nowrap;
+    font-family: inherit;
+    transition: background 0.18s;
 }
-.btn-quick-add:hover {
-    background: var(--blue-500);
-    color: var(--white);
-    border-color: var(--blue-500);
-}
-.btn-quick-add:disabled {
-    background: var(--gray-100);
-    color: var(--gray-400);
-    border-color: var(--gray-200);
-    cursor: not-allowed;
+.newsletter-form button:hover { background: #D97706; }
+
+/* Product card mobile tap feedback */
+.product-card:active { transform: translateY(-2px) scale(0.99); }
+
+/* Section divider */
+.section-divider {
+    height: 6px;
+    background: linear-gradient(90deg, var(--primary-light), #F5F3FF, var(--primary-light));
+    border-radius: 3px;
+    margin: 0 16px 0;
 }
 
-/* Responsive adjustments */
-@media (max-width: 480px) {
-    .feature-strip { display: none; }
-    .hero { padding-top: 36px; padding-bottom: 56px; }
-    .price-current { font-size: 1rem; }
-    .btn-view-details { padding: 9px; font-size: 0.82rem; }
-}
-.btn-share {
-    width: 100%;
-    padding: 10px;
-    margin-top: 8px;
-    background: var(--white);
-    color: var(--gray-700);
-    border: 2px solid var(--gray-200);
-    border-radius: var(--radius-md);
-    font-size: 0.85rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all var(--transition);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-}
-
-.btn-share:hover {
-    background: var(--blue-500);
-    color: var(--white);
-    border-color: var(--blue-500);
-    transform: translateY(-2px);
+/* Responsive hero text */
+@media (max-width: 400px) {
+    .hero h1 { font-size: 1.55rem; }
+    .hero-sub { font-size: 0.85rem; }
+    .btn-hero-primary, .btn-hero-secondary { padding: 11px 18px; font-size: 0.88rem; }
 }
 </style>
 {% endblock %}
@@ -185,21 +202,25 @@
 ═══════════════════════════════════════ -->
 <section class="hero">
     <div class="hero-content">
-        <div class="hero-eyebrow">
-            <i class="fa fa-bolt"></i>
+        <div class="hero-badge">
+            <span class="badge-dot">⚡</span>
             {{ site_settings.site_tagline|default:"Summer Collection 2026" }}
         </div>
-        <h1>Premium Fashion.<br>Unbeatable Prices.</h1>
-        <h2>Curated for Every Style</h2>
-        <p>{{ site_settings.meta_description|default:"From graceful Sarees to modern Streetwear — discover hand-picked pieces delivered fast across India." }}</p>
+
+        <h1>Premium <span>Fashion.</span><br>Unbeatable Prices.</h1>
+        <p class="hero-sub">
+            {{ site_settings.meta_description|default:"From elegant Sarees to modern Streetwear — hand-picked pieces delivered fast across India." }}
+        </p>
+
         <div class="hero-cta-row">
             <a href="#products" class="btn-hero-primary">
                 <i class="fa fa-shopping-bag"></i> Shop Now
             </a>
             <a href="{% url 'items:product_list' %}" class="btn-hero-secondary">
-                Explore All
+                Explore All <i class="fa fa-arrow-right" style="font-size:0.8rem;"></i>
             </a>
         </div>
+
         <div class="hero-stats">
             <div class="hero-stat">
                 <span class="hero-stat-num">10K+</span>
@@ -207,7 +228,7 @@
             </div>
             <div class="hero-stat">
                 <span class="hero-stat-num">50K+</span>
-                <span class="hero-stat-label">Happy Customers</span>
+                <span class="hero-stat-label">Customers</span>
             </div>
             <div class="hero-stat">
                 <span class="hero-stat-num">Free</span>
@@ -219,88 +240,103 @@
             </div>
         </div>
     </div>
+
+    <!-- Wave shape -->
+    <div class="hero-wave">
+        <svg viewBox="0 0 1440 60" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+            <path d="M0,30 C360,60 1080,0 1440,30 L1440,60 L0,60 Z" fill="var(--bg)"/>
+        </svg>
+    </div>
 </section>
 
 <!-- Feature strip -->
 <div class="feature-strip">
-    <div class="container">
-        <div class="feature-strip-inner">
-            <div class="feature-item"><i class="fa fa-truck"></i> Free Delivery above ₹499</div>
-            <div class="feature-item"><i class="fa fa-undo"></i> 7-Day Easy Returns</div>
-            <div class="feature-item"><i class="fa fa-shield-alt"></i> 100% Genuine Products</div>
-            <div class="feature-item"><i class="fa fa-bolt"></i> Same Day Dispatch</div>
-        </div>
+    <div class="feature-strip-inner">
+        <div class="feature-item"><i class="fa fa-truck"></i> Free Delivery ₹499+</div>
+        <div class="feature-item"><i class="fa fa-undo"></i> 7-Day Returns</div>
+        <div class="feature-item"><i class="fa fa-shield-alt"></i> 100% Genuine</div>
+        <div class="feature-item"><i class="fa fa-bolt"></i> Same Day Dispatch</div>
+        <div class="feature-item"><i class="fa fa-lock"></i> Secure Payments</div>
     </div>
 </div>
 
 <!-- ═══════════════════════════════════════
-     COLLECTIONS
+     CATEGORIES
 ═══════════════════════════════════════ -->
-<section class="section-wrap" style="background:var(--white);">
+<section class="section-home section-bg-white">
     <div class="container">
-        <div class="section-title-row">
-            <h3 class="section-title">Shop by <span>Collection</span></h3>
+        <div class="section-head">
+            <div>
+                <div class="section-title">Shop by <span>Collection</span></div>
+                <div class="section-sub">Find your perfect style</div>
+            </div>
             <a href="{% url 'items:product_list' %}" class="view-all-link">
-                View All <i class="fa fa-arrow-right" style="font-size:0.75rem;"></i>
+                View All <i class="fa fa-arrow-right" style="font-size:0.72rem;"></i>
             </a>
         </div>
-        <div class="collections-grid">
-            {% for cat in categories|slice:":8" %}
-            <a href="{% url 'items:product_list' %}?category={{ cat.slug }}" class="collection-card">
-                <div class="collection-icon-wrap">
+
+        <!-- Mobile: horizontal scroll strip -->
+        <div class="cat-track">
+            {% for cat in categories|slice:":10" %}
+            <a href="{% url 'items:product_list' %}?category={{ cat.slug }}"
+               class="cat-pill-item"
+               data-slug="{{ cat.slug }}">
+                <div class="cat-pill-circle">
                     {% if "women" in cat.name|lower %}👗
                     {% elif "men" in cat.name|lower %}👔
-                    {% elif "furniture" in cat.name|lower or "home" in cat.name|lower %}🪑
-                    {% elif "electronics" in cat.name|lower %}📱
+                    {% elif "footwear" in cat.name|lower or "shoe" in cat.name|lower %}👟
                     {% elif "jewel" in cat.name|lower %}💍
-                    {% elif "beauty" in cat.name|lower %}💄
+                    {% elif "beauty" in cat.name|lower or "cosmetic" in cat.name|lower %}💄
                     {% elif "sport" in cat.name|lower %}⚽
+                    {% elif "kid" in cat.name|lower or "toy" in cat.name|lower %}🧸
                     {% elif "book" in cat.name|lower %}📚
-                    {% elif "toy" in cat.name|lower or "kid" in cat.name|lower %}🧸
-                    {% elif "food" in cat.name|lower or "grocery" in cat.name|lower %}🛒
+                    {% elif "electronic" in cat.name|lower or "gadget" in cat.name|lower %}📱
+                    {% elif "home" in cat.name|lower or "furniture" in cat.name|lower %}🛋️
                     {% else %}🛍️{% endif %}
                 </div>
-                <span class="collection-name">{{ cat.name }}</span>
+                <span class="cat-pill-label">{{ cat.name|truncatechars:10 }}</span>
             </a>
             {% empty %}
-            <div style="grid-column:1/-1;text-align:center;color:var(--gray-400);padding:24px;">
-                No collections available yet.
-            </div>
+            <!-- Defaults -->
+            {% for cat in default_cats %}
+            <a href="{% url 'items:product_list' %}?category={{ cat.0 }}" class="cat-pill-item">
+                <div class="cat-pill-circle">{{ cat.1 }}</div>
+                <span class="cat-pill-label">{{ cat.2 }}</span>
+            </a>
+            {% endfor %}
             {% endfor %}
         </div>
     </div>
 </section>
 
 <!-- ═══════════════════════════════════════
-     PRODUCT GRID – UPDATED WITH PRICE + VIEW DETAILS
+     TRENDING PRODUCTS
 ═══════════════════════════════════════ -->
-<section id="products" class="section-wrap">
+<section id="products" class="section-home">
     <div class="container">
-        <div class="section-header">
+        <div class="section-head">
             <div>
-                <h3 class="section-title">Trending <span>2026</span></h3>
-                <p class="section-subtitle" style="margin-top:4px;">
-                    {{ products|length }} product{{ products|length|pluralize }} found
-                </p>
+                <div class="section-title">Trending <span>2026</span></div>
+                <div class="section-sub">{{ products|length }} product{{ products|length|pluralize }} found</div>
             </div>
-            <div class="filters">
-                <form method="get" class="filter-form" id="filterForm">
+            <div class="filter-bar">
+                <form method="get" id="filterForm">
                     <select name="category" class="form-select-sm"
                             onchange="document.getElementById('filterForm').submit()">
                         <option value="">All Categories</option>
                         {% for cat in categories %}
-                            <option value="{{ cat.slug }}"
-                                {% if filters.category == cat.slug %}selected{% endif %}>
-                                {{ cat.name }}
-                            </option>
+                        <option value="{{ cat.slug }}"
+                            {% if request.GET.category == cat.slug %}selected{% endif %}>
+                            {{ cat.name }}
+                        </option>
                         {% endfor %}
                     </select>
                     <select name="sort" class="form-select-sm"
                             onchange="document.getElementById('filterForm').submit()">
-                        <option value="-created_at"  {% if filters.sort == '-created_at'  %}selected{% endif %}>Newest</option>
-                        <option value="price_asc"    {% if filters.sort == 'price_asc'    %}selected{% endif %}>Price ↑</option>
-                        <option value="price_desc"   {% if filters.sort == 'price_desc'   %}selected{% endif %}>Price ↓</option>
-                        <option value="-views_count" {% if filters.sort == '-views_count' %}selected{% endif %}>Popular</option>
+                        <option value="-created_at"  {% if request.GET.sort == '-created_at'  %}selected{% endif %}>Newest</option>
+                        <option value="price_asc"    {% if request.GET.sort == 'price_asc'    %}selected{% endif %}>Price ↑</option>
+                        <option value="price_desc"   {% if request.GET.sort == 'price_desc'   %}selected{% endif %}>Price ↓</option>
+                        <option value="-views_count" {% if request.GET.sort == '-views_count' %}selected{% endif %}>Popular</option>
                     </select>
                 </form>
             </div>
@@ -308,10 +344,9 @@
 
         <div class="product-grid">
             {% for product in products %}
-            <div class="product-card"
-                 data-category="{{ product.category.slug }}"
-                 data-price="{{ product.price }}">
+            <div class="product-card">
 
+                <!-- Product image -->
                 <a href="{% url 'items:product_detail' product.slug %}" style="display:block;">
                     <div class="image-wrapper">
                         {% if product.primary_image %}
@@ -320,63 +355,70 @@
                                  loading="lazy">
                         {% else %}
                             <div class="no-image">
-                                <i class="fa fa-image" style="font-size:2rem;opacity:0.3;"></i>
+                                <i class="fa fa-image" style="opacity:0.25;"></i>
                             </div>
                         {% endif %}
 
                         {% if product.gender %}
-                            <span class="gender-badge">{{ product.get_gender_display }}</span>
+                            <span class="badge-gender">{{ product.get_gender_display }}</span>
                         {% endif %}
                         {% if product.discount_percent > 0 %}
-                            <span class="discount-badge">-{{ product.discount_percent }}%</span>
+                            <span class="badge-discount">-{{ product.discount_percent }}%</span>
                         {% endif %}
                         {% if product.is_hot_deal %}
-                            <span class="hot-badge">🔥 Hot</span>
+                            <span class="badge-hot">🔥 Hot</span>
                         {% endif %}
                         {% if product.stock == 0 %}
-                            <div class="out-of-stock-overlay">Out of Stock</div>
+                            <div class="oos-overlay">Out of Stock</div>
                         {% endif %}
                     </div>
                 </a>
 
-                <div class="product-info">
-                    <h4>
-                        <a href="{% url 'items:product_detail' product.slug %}">
-                            {{ product.name|truncatechars:40 }}
-                        </a>
-                    </h4>
-                    <p class="seller-name">by {{ product.seller.shop_name|truncatechars:20 }}</p>
+                <!-- Wishlist button -->
+                {% if user.is_authenticated and user.role == 'customer' %}
+                <button class="wish-btn" aria-label="Add to wishlist"
+                        data-product-id="{{ product.id }}"
+                        onclick="toggleWishlist(this, {{ product.id }})">
+                    <i class="fa {% if product.id in wishlist_ids %}fa-heart active{% else %}fa-heart{% endif %}"></i>
+                </button>
+                {% endif %}
 
-                    <!-- ✅ UPDATED: Price Display with MRP + Discount -->
-                    <div class="price-display">
-                        {% if product.discount_percent > 0 and product.mrp %}
-                            <span class="price-mrp">₹{{ product.mrp|floatformat:0 }}</span>
-                            <span class="price-current">₹{{ product.discount_price|floatformat:2 }}</span>
-                            <span class="price-discount">-{{ product.discount_percent }}%</span>
-                        {% elif product.discount_percent > 0 %}
-                            <span class="price-mrp">₹{{ product.price|floatformat:0 }}</span>
-                            <span class="price-current">₹{{ product.discount_price|floatformat:2 }}</span>
-                            <span class="price-discount">-{{ product.discount_percent }}%</span>
+                <!-- Info -->
+                <div class="product-info">
+                    <div class="product-name">
+                        <a href="{% url 'items:product_detail' product.slug %}">
+                            {{ product.name|truncatechars:42 }}
+                        </a>
+                    </div>
+                    <div class="product-seller">by {{ product.seller.shop_name|default:"StallCart"|truncatechars:22 }}</div>
+
+                    <!-- Price -->
+                    <div class="price-row">
+                        {% if product.discount_percent > 0 %}
+                            <span class="price-mrp">₹{{ product.mrp|default:product.price|floatformat:0 }}</span>
+                            <span class="price-current">₹{{ product.discount_price|floatformat:0 }}</span>
+                            <span class="price-off">{{ product.discount_percent }}% off</span>
                         {% else %}
-                            <span class="price-current">₹{{ product.price|floatformat:2 }}</span>
+                            <span class="price-current">₹{{ product.price|floatformat:0 }}</span>
                         {% endif %}
                     </div>
 
                     {% if product.stock <= product.low_stock_threshold and product.stock > 0 %}
-                        <span class="low-stock">
-                            <i class="fa fa-exclamation-triangle"></i>
-                            Only {{ product.stock }} left!
-                        </span>
+                    <div class="low-stock-tag">
+                        <i class="fa fa-exclamation-triangle"></i> Only {{ product.stock }} left!
+                    </div>
                     {% endif %}
 
-                    <!-- ✅ UPDATED: View Details Button (replaces Add to Cart) -->
-                    <a href="{% url 'items:product_detail' product.slug %}" 
-                       class="btn-view-details"
-                       {% if product.stock == 0 %}style="opacity:0.6;cursor:not-allowed;"{% endif %}>
-                        <i class="fa fa-eye"></i> 
+                    <!-- CTA -->
+                    <a href="{% url 'items:product_detail' product.slug %}"
+                       class="btn-view"
+                       {% if product.stock == 0 %}style="opacity:0.55;pointer-events:none;"{% endif %}>
+                        <i class="fa fa-eye"></i>
                         {% if product.stock > 0 %}View Product{% else %}Out of Stock{% endif %}
                     </a>
-                    <button class="btn-share"
+
+                    <!-- Share -->
+                    <button class="btn-share-card btn-share"
                             data-name="{{ product.name }}"
                             data-url="{{ request.scheme }}://{{ request.get_host }}{% url 'items:product_detail' product.slug %}">
                         <i class="fa fa-share-alt"></i> Share
@@ -386,97 +428,93 @@
 
             {% empty %}
             <div class="empty-state">
-                <i class="fa fa-search" style="font-size:3rem;color:var(--gray-200);margin-bottom:16px;"></i>
+                <i class="fa fa-search" style="font-size:3rem;color:var(--border-strong);margin-bottom:16px;display:block;"></i>
                 <h3>No products found</h3>
-                <p style="color:var(--gray-500);margin-bottom:20px;">
-                    Try adjusting your filters or search term.
-                </p>
+                <p>Try adjusting your filters or search term.</p>
                 <a href="{% url 'items:product_list' %}" class="btn-outline"
-                   style="display:inline-flex;width:auto;padding:10px 24px;">
+                   style="display:inline-flex;width:auto;padding:10px 24px;margin-top:16px;">
                     Clear Filters
                 </a>
             </div>
             {% endfor %}
         </div>
+
+        <!-- Load more hint -->
+        {% if products|length >= 10 %}
+        <div style="text-align:center;margin-top:24px;">
+            <a href="{% url 'items:product_list' %}" class="btn-outline"
+               style="display:inline-flex;width:auto;padding:12px 32px;">
+                <i class="fa fa-th-large"></i>&nbsp; View All Products
+            </a>
+        </div>
+        {% endif %}
     </div>
 </section>
 
 <!-- ═══════════════════════════════════════
-     DEALS OF THE DAY – UPDATED
+     DEALS OF THE DAY
 ═══════════════════════════════════════ -->
 {% if hot_products %}
-<section class="section-wrap" style="background:var(--white);">
+<section class="section-home section-bg-white">
     <div class="container">
-        <div class="deals-header-row">
-            <h3 class="section-title">Deals of the Day</h3>
-            <div class="deals-timer" id="countdown">
+        <div class="deals-row">
+            <div class="section-title" style="font-family:'Syne',sans-serif;">🔥 Deals of the Day</div>
+            <span class="deals-timer" id="countdown">
                 <i class="fa fa-clock"></i> 23h : 59m : 55s
-            </div>
+            </span>
             <a href="{% url 'items:product_list' %}?sort=-views_count" class="view-all-link">
-                View All <i class="fa fa-arrow-right" style="font-size:0.75rem;"></i>
+                View All <i class="fa fa-arrow-right" style="font-size:0.72rem;"></i>
             </a>
         </div>
 
-        <div class="products-carousel" style="margin-top:16px;">
+        <div class="products-carousel">
             {% for product in hot_products %}
-            <div class="product-card-interactive">
-                <a href="{% url 'items:product_detail' product.slug %}"
-                   style="display:block;position:relative;">
+            <div class="deal-card">
+                <a href="{% url 'items:product_detail' product.slug %}">
                     {% if product.primary_image %}
                         <img src="{{ product.primary_image.url }}"
-                             alt="{{ product.name }}"
-                             loading="lazy">
+                             alt="{{ product.name }}" loading="lazy">
                     {% else %}
-                        <div style="aspect-ratio:1;background:var(--gray-50);display:flex;align-items:center;justify-content:center;color:var(--gray-300);">
-                            <i class="fa fa-image" style="font-size:1.5rem;"></i>
+                        <div style="aspect-ratio:1;background:var(--surface-2);display:flex;align-items:center;justify-content:center;font-size:2rem;color:var(--border-strong);">
+                            <i class="fa fa-image"></i>
                         </div>
                     {% endif %}
                     {% if product.gender %}
-                        <span class="gender-badge">{{ product.get_gender_display }}</span>
+                        <span class="badge-gender">{{ product.get_gender_display }}</span>
                     {% endif %}
                     {% if product.discount_percent > 0 %}
-                        <span class="discount-badge">-{{ product.discount_percent }}%</span>
+                        <span class="badge-discount">-{{ product.discount_percent }}%</span>
                     {% endif %}
                     {% if product.stock == 0 %}
-                        <div class="out-of-stock-overlay" style="font-size:0.75rem;">Out of Stock</div>
+                        <div class="oos-overlay" style="font-size:0.75rem;">Out of Stock</div>
                     {% endif %}
                 </a>
-                <div class="product-info" style="padding:10px;">
-                    <h4 style="font-size:0.83rem;margin-bottom:6px;">
-                        {{ product.name|truncatechars:28 }}
-                    </h4>
-                    
-                    <!-- ✅ Price Display for Carousel -->
-                    <div class="price-display" style="margin-bottom:8px;">
-                        {% if product.discount_percent > 0 and product.mrp %}
-                            <span class="price-mrp" style="font-size:0.75rem;">₹{{ product.mrp|floatformat:0 }}</span>
-                            <span class="price-current" style="font-size:0.95rem;">₹{{ product.discount_price|floatformat:2 }}</span>
-                        {% elif product.discount_percent > 0 %}
-                            <span class="price-mrp" style="font-size:0.75rem;">₹{{ product.price|floatformat:0 }}</span>
-                            <span class="price-current" style="font-size:0.95rem;">₹{{ product.discount_price|floatformat:2 }}</span>
+                <div class="product-info" style="padding:9px;">
+                    <div class="product-name" style="font-size:0.8rem;margin-bottom:4px;">
+                        {{ product.name|truncatechars:30 }}
+                    </div>
+                    <div class="price-row" style="margin-bottom:7px;">
+                        {% if product.discount_percent > 0 %}
+                            <span class="price-mrp">₹{{ product.mrp|default:product.price|floatformat:0 }}</span>
+                            <span class="price-current" style="font-size:0.92rem;">₹{{ product.discount_price|floatformat:0 }}</span>
                         {% else %}
-                            <span class="price-current" style="font-size:0.95rem;">₹{{ product.price|floatformat:2 }}</span>
+                            <span class="price-current" style="font-size:0.92rem;">₹{{ product.price|floatformat:0 }}</span>
                         {% endif %}
                     </div>
-                    
-                    <!-- ✅ Quick Add Button (for carousel only - optional) -->
                     {% if user.role == 'customer' or not user.is_authenticated %}
-                        <button class="btn-quick-add"
-                                data-product-id="{{ product.id }}"
-                                data-stock="{{ product.stock }}"
-                                {% if product.stock == 0 %}disabled{% endif %}>
-                            {% if product.stock > 0 %}
-                                <i class="fa fa-cart-plus"></i> Quick Add
-                            {% else %}
-                                Out of Stock
-                            {% endif %}
-                        </button>
+                    <button class="btn-quick-add"
+                            data-product-id="{{ product.id }}"
+                            data-stock="{{ product.stock }}"
+                            {% if product.stock == 0 %}disabled{% endif %}>
+                        {% if product.stock > 0 %}
+                            <i class="fa fa-cart-plus"></i> Quick Add
+                        {% else %}
+                            Out of Stock
+                        {% endif %}
+                    </button>
                     {% else %}
-                        <a href="{% url 'items:product_detail' product.slug %}" 
-                           class="btn-view-details" 
-                           style="padding:8px;font-size:0.78rem;">
-                            View
-                        </a>
+                    <a href="{% url 'items:product_detail' product.slug %}"
+                       class="btn-view" style="padding:7px;font-size:0.75rem;">View</a>
                     {% endif %}
                 </div>
             </div>
@@ -489,41 +527,50 @@
 <!-- ═══════════════════════════════════════
      WHY CHOOSE US
 ═══════════════════════════════════════ -->
-<section class="section-wrap" style="background:var(--blue-50);">
+<section class="section-home" style="background:linear-gradient(135deg,#EFF6FF,#F5F3FF);">
     <div class="container">
-        <h3 class="section-title" style="text-align:center;margin-bottom:28px;">
-            Why Shop with <span>{{ site_settings.site_name|default:"Us" }}?</span>
-        </h3>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">
-            {% for feature in perks %}
-            <div style="
-                background:var(--white);
-                border-radius:var(--radius-lg);
-                padding:20px;
-                text-align:center;
-                border:1.5px solid var(--blue-100);
-                transition:all 0.2s ease;
-            " onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='var(--shadow-md)'"
-               onmouseout="this.style.transform='';this.style.boxShadow=''">
-                <div style="font-size:2rem;margin-bottom:10px;">{{ feature.icon }}</div>
-                <h4 style="color:var(--blue-700);margin-bottom:6px;">{{ feature.title }}</h4>
-                <p style="font-size:0.82rem;color:var(--gray-500);line-height:1.5;">{{ feature.desc }}</p>
+        <div class="section-head" style="margin-bottom:18px;">
+            <div class="section-title">Why Shop with <span>{{ site_settings.site_name|default:"Us" }}?</span></div>
+        </div>
+        <div class="why-us-grid">
+            <div class="why-us-card">
+                <div class="why-us-icon">🚚</div>
+                <div class="why-us-title">Free Delivery</div>
+                <div class="why-us-desc">On orders above ₹499 across India</div>
             </div>
-            {% empty %}
-            {% for perk in default_perks %}
-            <div style="
-                background:var(--white);
-                border-radius:var(--radius-lg);
-                padding:20px;
-                text-align:center;
-                border:1.5px solid var(--blue-100);
-            ">
-                <div style="font-size:2rem;margin-bottom:10px;">{{ perk.0 }}</div>
-                <h4 style="color:var(--blue-700);margin-bottom:6px;">{{ perk.1 }}</h4>
-                <p style="font-size:0.82rem;color:var(--gray-500);line-height:1.5;">{{ perk.2 }}</p>
+            <div class="why-us-card">
+                <div class="why-us-icon">↩️</div>
+                <div class="why-us-title">Easy Returns</div>
+                <div class="why-us-desc">7-day hassle-free returns policy</div>
             </div>
-            {% endfor %}
-            {% endfor %}
+            <div class="why-us-card">
+                <div class="why-us-icon">✅</div>
+                <div class="why-us-title">100% Genuine</div>
+                <div class="why-us-desc">Verified sellers, authentic products</div>
+            </div>
+            <div class="why-us-card">
+                <div class="why-us-icon">🔒</div>
+                <div class="why-us-title">Secure Pay</div>
+                <div class="why-us-desc">Razorpay secured checkout</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════
+     NEWSLETTER
+═══════════════════════════════════════ -->
+<section class="section-home section-bg-white">
+    <div class="container">
+        <div class="newsletter-strip">
+            <h3>Get Exclusive Deals First 🎉</h3>
+            <p>Subscribe to our newsletter and never miss a sale, new arrival, or flash deal.</p>
+            <div class="newsletter-form">
+                <input type="email" placeholder="Enter your email address…" autocomplete="email">
+                <button type="button" onclick="showToast('Thanks for subscribing! 🎉', 'success')">
+                    Subscribe
+                </button>
+            </div>
         </div>
     </div>
 </section>
@@ -535,31 +582,42 @@
 const csrfToken = '{{ csrf_token }}';
 const userRole  = '{{ user.role|default:"" }}';
 
-// ── Quick Add to Cart (for carousel only) ─────────────────────────────────
+// ── COUNTDOWN TIMER ──────────────────────────────
+function updateCountdown() {
+    const el = document.getElementById('countdown');
+    if (!el) return;
+    const now = new Date(), end = new Date();
+    end.setHours(23, 59, 59);
+    const diff = end - now;
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    const s = Math.floor((diff % 60000) / 1000);
+    el.innerHTML = `<i class="fa fa-clock"></i> ${String(h).padStart(2,'0')}h : ${String(m).padStart(2,'0')}m : ${String(s).padStart(2,'0')}s`;
+}
+setInterval(updateCountdown, 1000);
+updateCountdown();
+
+// ── CATEGORY ACTIVE STATE ─────────────────────────
+const urlCat = new URLSearchParams(window.location.search).get('category');
+if (urlCat) {
+    document.querySelectorAll('.cat-pill-item').forEach(el => {
+        if (el.dataset.slug === urlCat) el.classList.add('active');
+    });
+}
+
+// ── QUICK ADD TO CART (Deals carousel) ──────────────
 document.querySelectorAll('.btn-quick-add').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
-        e.preventDefault();
-        e.stopPropagation(); // Prevent link click
+    btn.addEventListener('click', async e => {
+        e.preventDefault(); e.stopPropagation();
 
         if (userRole && userRole !== 'customer') {
-            showToast('Sellers cannot add to cart. Use a customer account.', 'error');
-            return;
+            showToast('Sellers cannot add to cart.', 'error'); return;
         }
-
-        const productId = btn.dataset.productId;
-        const stock     = parseInt(btn.dataset.stock);
-
-        if (stock <= 0) {
-            showToast('Sorry, this item is out of stock!', 'error');
-            return;
+        if (parseInt(btn.dataset.stock) <= 0) {
+            showToast('Out of stock!', 'error'); return;
         }
-
         if (!userRole) {
-            // Guest: open login modal or redirect
-            if (window.openLoginModal) {
-                window.openLoginModal();
-                return;
-            }
+            if (window.openLoginModal) { openLoginModal(); return; }
             window.location.href = "{% url 'accounts:login' %}?next={{ request.path }}";
             return;
         }
@@ -571,109 +629,76 @@ document.querySelectorAll('.btn-quick-add').forEach(btn => {
         try {
             const res  = await fetch("{% url 'shop:add_to_cart' %}", {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken':  csrfToken
-                },
-                body: JSON.stringify({ product_id: productId, quantity: 1 })
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ product_id: btn.dataset.productId, quantity: 1 })
             });
             const data = await res.json();
-
             if (data.status === 'success') {
-                if (window.updateCartCount) {
-                    window.updateCartCount(data.cart_count);
-                }
-                showToast('Added to cart!', 'success');
+                if (window.updateCartCount) updateCartCount(data.cart_count);
+                showToast('Added to cart! 🛒', 'success');
                 btn.innerHTML = '<i class="fa fa-check"></i> Added';
-                btn.style.background = 'var(--green)';
-                btn.style.borderColor = 'var(--green)';
-                btn.style.color = '#fff';
+                btn.style.cssText += 'background:var(--success);border-color:var(--success);color:#fff;';
                 setTimeout(() => {
-                    btn.disabled = false;
-                    btn.innerHTML = orig;
-                    btn.style.background = '';
-                    btn.style.borderColor = '';
-                    btn.style.color = '';
+                    btn.disabled = false; btn.innerHTML = orig;
+                    btn.style.background = ''; btn.style.borderColor = ''; btn.style.color = '';
                 }, 1800);
             } else {
-                showToast(data.message || 'Failed to add to cart.', 'error');
-                btn.disabled = false;
-                btn.innerHTML = orig;
+                showToast(data.message || 'Could not add to cart.', 'error');
+                btn.disabled = false; btn.innerHTML = orig;
             }
         } catch {
-            showToast('Network error. Please try again.', 'error');
-            btn.disabled = false;
-            btn.innerHTML = orig;
+            showToast('Network error. Try again.', 'error');
+            btn.disabled = false; btn.innerHTML = orig;
         }
     });
 });
 
-// ── Countdown timer ─────────────────────────────
-function updateCountdown() {
-    const el = document.getElementById('countdown');
-    if (!el) return;
-    const now = new Date();
-    const end = new Date(); end.setHours(23, 59, 59);
-    const diff = end - now;
-    const h = Math.floor(diff / 3600000);
-    const m = Math.floor((diff % 3600000) / 60000);
-    const s = Math.floor((diff % 60000) / 1000);
-    el.innerHTML = `<i class="fa fa-clock"></i> ${String(h).padStart(2,'0')}h : ${String(m).padStart(2,'0')}m : ${String(s).padStart(2,'0')}s`;
-}
-setInterval(updateCountdown, 1000);
-updateCountdown();
-
-// ── Global Toast (if not already defined in base.html) ─────────────────
-if (typeof window.showToast !== 'function') {
-    window.showToast = function(message, type = 'info') {
-        const toast = document.createElement('div');
-        toast.innerHTML = `<i class="fa ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i> ${message}`;
-        toast.style.cssText = `
-            position: fixed; bottom: 24px; right: 24px; z-index: 9999;
-            padding: 12px 20px; border-radius: 8px; font-weight: 600;
-            background: ${type === 'success' ? 'var(--green)' : 'var(--red)'};
-            color: #fff; box-shadow: var(--shadow-lg);
-            display: flex; align-items: center; gap: 8px;
-            animation: toastIn 0.3s ease; max-width: calc(100vw - 48px);
-        `;
-        document.body.appendChild(toast);
-        setTimeout(() => {
-            toast.style.animation = 'toastOut 0.3s ease forwards';
-            setTimeout(() => toast.remove(), 300);
-        }, 2800);
-    };
-}
-
+// ── SHARE BUTTON ─────────────────────────────────
 document.querySelectorAll('.btn-share').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-
+    btn.addEventListener('click', async e => {
+        e.preventDefault(); e.stopPropagation();
         const name = btn.dataset.name;
-        const url = btn.dataset.url;
-
-        // ✅ Mobile Web Share API
+        const url  = btn.dataset.url;
         if (navigator.share) {
             try {
-                await navigator.share({
-                    title: name,
-                    text: `Check out this product: ${name}`,
-                    url: url
-                });
-                showToast('Shared successfully!', 'success');
-            } catch (err) {
-                console.log('Share cancelled');
-            }
+                await navigator.share({ title: name, text: `Check out: ${name}`, url });
+                showToast('Shared! 🎉', 'success');
+            } catch {}
         } else {
-            // ✅ Fallback (copy link)
             try {
                 await navigator.clipboard.writeText(url);
-                showToast('Link copied to clipboard!', 'success');
+                showToast('Link copied! 📋', 'success');
             } catch {
-                showToast('Unable to copy link', 'error');
+                showToast('Unable to copy link.', 'error');
             }
         }
     });
 });
+
+// ── WISHLIST TOGGLE ──────────────────────────────
+window.toggleWishlist = async function(btn, productId) {
+    if (!userRole) { openLoginModal(); return; }
+    try {
+        const res  = await fetch(`/items/wishlist/toggle/${productId}/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        const data = await res.json();
+        const icon = btn.querySelector('i');
+        if (data.status === 'added') {
+            btn.classList.add('active');
+            icon.className = 'fa fa-heart';
+            if (window.updateWishlistCount) updateWishlistCount(1);
+            showToast('Added to wishlist! ❤️', 'success');
+        } else {
+            btn.classList.remove('active');
+            icon.className = 'fa fa-heart';
+            if (window.updateWishlistCount) updateWishlistCount(-1);
+            showToast('Removed from wishlist', 'info');
+        }
+    } catch {
+        showToast('Could not update wishlist.', 'error');
+    }
+};
 </script>
 {% endblock %}

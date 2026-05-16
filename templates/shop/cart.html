@@ -3,6 +3,633 @@
 
 {% block title %}My Cart - {{ site_settings.site_name|default:"StallCart" }}{% endblock %}
 
+{% block extra_css %}
+<style>
+/* ===== Cart Page Specific Styles ===== */
+.cart-grid { display: grid; grid-template-columns: 1fr; gap: 24px; align-items: start; }
+@media (min-width: 900px) {
+    .cart-grid { grid-template-columns: 2fr 1fr !important; }
+}
+
+/* Cart Item Card */
+.cart-item {
+    display: grid;
+    grid-template-columns: 100px 1fr;
+    gap: 16px;
+    background: var(--white);
+    padding: 16px;
+    border-radius: var(--radius-lg);
+    border: 1.5px solid var(--gray-100);
+    transition: all var(--transition);
+}
+.cart-item:hover {
+    box-shadow: var(--shadow-md);
+    border-color: var(--blue-100);
+}
+.cart-item.removing {
+    opacity: 0;
+    transform: translateX(-20px);
+    transition: opacity 0.3s, transform 0.3s;
+}
+
+.item-image {
+    width: 100px;
+    height: 100px;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.item-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.no-image {
+    color: var(--gray-300);
+    font-size: 1.5rem;
+}
+
+.item-details {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.item-details h4 {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.4;
+}
+.item-details h4 a {
+    color: var(--gray-800);
+    text-decoration: none;
+}
+.item-details h4 a:hover {
+    color: var(--blue-500);
+    text-decoration: underline;
+}
+
+.item-variant {
+    font-size: 0.8rem;
+    color: var(--blue-600);
+    margin: 0;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.item-seller {
+    font-size: 0.78rem;
+    color: var(--gray-500);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Price Display */
+.item-price-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 4px 0;
+}
+.item-price {
+    font-weight: 700;
+    color: var(--gray-900);
+    font-size: 1.1rem;
+}
+.item-price-original {
+    font-size: 0.85rem;
+    color: var(--gray-400);
+    text-decoration: line-through;
+}
+.discount-badge {
+    background: var(--red);
+    color: var(--white);
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 20px;
+}
+
+.item-savings {
+    font-size: 0.8rem;
+    color: var(--green);
+    margin: 0;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Quantity Selector */
+.qty-selector {
+    display: inline-flex;
+    align-items: center;
+    border: 1.5px solid var(--gray-200);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: var(--white);
+}
+.qty-btn {
+    background: var(--gray-50);
+    border: none;
+    width: 36px;
+    height: 40px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    color: var(--gray-600);
+    transition: all var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.qty-btn:hover:not(:disabled) {
+    background: var(--blue-50);
+    color: var(--blue-600);
+}
+.qty-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.qty-input {
+    width: 44px;
+    text-align: center;
+    border: none;
+    border-left: 1.5px solid var(--gray-200);
+    border-right: 1.5px solid var(--gray-200);
+    height: 40px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    -moz-appearance: textfield;
+    font-family: inherit;
+    background: var(--white);
+}
+.qty-input::-webkit-outer-spin-button,
+.qty-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.qty-input:focus {
+    outline: 2px solid var(--blue-400);
+    outline-offset: -2px;
+}
+
+/* Action Buttons */
+.item-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 8px 0;
+}
+.remove-btn, .save-btn {
+    background: none;
+    border: none;
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    transition: all var(--transition);
+}
+.remove-btn {
+    color: var(--red);
+}
+.remove-btn:hover {
+    background: var(--red-bg);
+    color: var(--red);
+}
+.save-btn {
+    color: var(--gray-500);
+}
+.save-btn:hover {
+    background: var(--gray-100);
+    color: var(--gray-700);
+}
+
+/* Subtotal & Delivery */
+.item-subtotal {
+    font-size: 0.9rem;
+    color: var(--gray-700);
+    margin: 0;
+}
+.item-subtotal strong {
+    color: var(--gray-900);
+}
+.item-delivery {
+    font-size: 0.78rem;
+    color: var(--gray-500);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Stock Warnings */
+.low-stock-warning, .out-of-stock-warning {
+    font-size: 0.78rem;
+    margin: 4px 0 0;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.low-stock-warning {
+    color: var(--amber);
+}
+.out-of-stock-warning {
+    color: var(--red);
+}
+
+/* Price Details Sidebar */
+.price-details {
+    background: var(--white);
+    padding: 20px;
+    border-radius: var(--radius-lg);
+    border: 1.5px solid var(--gray-100);
+    box-shadow: var(--shadow-sm);
+    position: sticky;
+    top: 80px;
+    align-self: start;
+}
+.price-details h3 {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--gray-600);
+    letter-spacing: 0.06em;
+    margin: 0 0 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--gray-100);
+    text-transform: uppercase;
+}
+.price-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    font-size: 0.9rem;
+    color: var(--gray-700);
+}
+.price-row .discount {
+    color: var(--green);
+    font-weight: 600;
+}
+.price-row .free {
+    color: var(--green);
+    font-weight: 600;
+}
+.price-row.total-row {
+    font-size: 1.1rem;
+    color: var(--gray-900);
+    margin-bottom: 8px;
+}
+.price-divider {
+    border-top: 1px dashed var(--gray-200);
+    margin: 14px 0;
+}
+
+/* Free Delivery Hint */
+.free-delivery-hint {
+    font-size: 0.8rem;
+    color: var(--amber);
+    background: var(--amber-bg);
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    margin: 10px 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Savings Message */
+.savings-msg {
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 10px 14px;
+    border-radius: var(--radius-md);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.savings-msg.success {
+    background: var(--green-bg);
+    color: #065F46;
+}
+.savings-msg.info {
+    background: var(--gray-100);
+    color: var(--gray-600);
+}
+
+/* Order Button */
+#placeOrderBtn, #loginToOrderBtn {
+    width: 100%;
+    padding: 12px 20px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+#placeOrderBtn:disabled, #loginToOrderBtn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+/* Secure Badge */
+.secure-badge {
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--gray-500);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    margin-top: 12px;
+}
+
+/* Address Section */
+.delivery-address-section {
+    margin-top: 24px;
+    background: var(--white);
+    padding: 20px;
+    border-radius: var(--radius-lg);
+    border: 1.5px solid var(--gray-100);
+}
+.address-card {
+    background: var(--blue-50);
+    border: 1.5px solid var(--blue-100);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    border-left: 4px solid var(--blue-400);
+}
+.address-info p {
+    margin: 0;
+    line-height: 1.5;
+}
+.address-info strong {
+    font-size: 0.95rem;
+    color: var(--gray-800);
+}
+.address-tag {
+    display: inline-block;
+    background: var(--blue-500);
+    color: var(--white);
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 3px;
+    margin-left: 8px;
+}
+.badge-success {
+    background: var(--green);
+    color: var(--white);
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+.address-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+}
+.no-address {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--gray-500);
+    font-size: 0.9rem;
+}
+
+/* Payment Options */
+.payment-preview {
+    margin-top: 24px;
+    background: var(--white);
+    padding: 20px;
+    border-radius: var(--radius-lg);
+    border: 1.5px solid var(--gray-100);
+}
+.payment-options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.payment-option {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    border: 2px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: all var(--transition);
+    background: var(--white);
+}
+.payment-option:hover,
+.payment-option:has(input:checked) {
+    border-color: var(--blue-400);
+    background: var(--blue-50);
+}
+.payment-option input[type="radio"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--blue-500);
+}
+.payment-icon {
+    display: flex;
+    align-items: center;
+}
+.payment-text {
+    flex: 1;
+}
+.payment-text span {
+    display: block;
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--gray-800);
+}
+.payment-text small {
+    color: var(--gray-500);
+    font-size: 0.8rem;
+}
+.offer-badge {
+    background: var(--amber-bg);
+    color: var(--amber);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    background: var(--white);
+    border-radius: var(--radius-xl);
+    border: 1.5px solid var(--gray-100);
+}
+.empty-state i {
+    font-size: 4rem;
+    color: var(--gray-200);
+    margin-bottom: 20px;
+}
+.empty-state h3 {
+    color: var(--gray-800);
+    margin-bottom: 10px;
+    font-size: 1.3rem;
+}
+.empty-state p {
+    color: var(--gray-500);
+    max-width: 400px;
+    margin: 0 auto 24px;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+    .cart-item {
+        grid-template-columns: 80px 1fr;
+    }
+    .item-image {
+        width: 80px;
+        height: 80px;
+    }
+    .price-details {
+        position: static;
+    }
+}
+@media (max-width: 600px) {
+    .cart-item {
+        grid-template-columns: 1fr;
+        text-align: center;
+    }
+    .item-image {
+        margin: 0 auto;
+    }
+    .item-actions {
+        justify-content: center;
+    }
+    .item-price-row {
+        justify-content: center;
+    }
+    .price-row {
+        flex-direction: column;
+        gap: 4px;
+        align-items: flex-start;
+    }
+    .payment-option {
+        flex-direction: column;
+        text-align: center;
+    }
+    .offer-badge {
+        margin-top: 8px;
+    }
+}
+
+/* Loading Animation */
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+.cart-item.updating {
+    animation: pulse 1s ease-in-out infinite;
+}
+
+/* Toast Animation */
+@keyframes toastIn {
+    from { opacity: 0; transform: translateY(20px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes toastOut {
+    from { opacity: 1; transform: translateY(0) scale(1); }
+    to { opacity: 0; transform: translateY(20px) scale(0.95); }
+}
+/* Empty State - Enhanced */
+.empty-state {
+    text-align: center;
+    padding: clamp(40px, 8vw, 80px) 20px;
+    background: var(--white);
+    border-radius: var(--radius-xl);
+    border: 1.5px solid var(--gray-100);
+    box-shadow: var(--shadow-sm);
+    animation: fadeIn 0.3s ease;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.empty-state .icon-wrap {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 24px;
+    background: var(--blue-50);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.empty-state .icon-wrap i {
+    font-size: 2rem;
+    color: var(--blue-400);
+}
+.empty-state h3 {
+    color: var(--gray-800);
+    margin-bottom: 8px;
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+.empty-state p {
+    color: var(--gray-500);
+    max-width: 360px;
+    margin: 0 auto 24px;
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+.empty-state .btn-primary {
+    width: auto;
+    padding: 12px 32px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: var(--shadow-blue);
+}
+.empty-state .helpful-links {
+    margin-top: 32px;
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    flex-wrap: wrap;
+}
+.empty-state .helpful-links a {
+    font-size: 0.875rem;
+    color: var(--blue-500);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.empty-state .helpful-links a:hover {
+    color: var(--blue-700);
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <section class="product-section" style="background:var(--white);">
     <div class="container">
@@ -22,98 +649,93 @@
         </div>
 
         {% if cart_items %}
-        <div class="cart-grid" style="display:grid;grid-template-columns:1fr;gap:24px;align-items:start;">
-            {% if cart_items|length > 0 %}
-            <style>
-                @media (min-width: 900px) {
-                    .cart-grid {
-                        grid-template-columns: 2fr 1fr !important;
-                    }
-                }
-            </style>
-            {% endif %}
-
+        <div class="cart-grid">
             <!-- ── Left: Cart Items ──────────────────────── -->
             <div class="cart-items" style="display:flex;flex-direction:column;gap:16px;">
                 {% for item in cart_items %}
-                <article class="cart-item" data-product-id="{{ item.product.id }}" 
-                         style="display:grid;grid-template-columns:100px 1fr;gap:16px;background:var(--white);padding:16px;border-radius:var(--radius-lg);border:1.5px solid var(--gray-100);transition:all var(--transition);">
+                <article class="cart-item" 
+                         data-product-id="{{ item.product.id }}"
+                         data-variant-id="{{ item.variant.id|default:'null' }}"
+                         data-stock="{{ item.available_stock }}"
+                         data-unit-price="{{ item.unit_price }}">
                     
                     <!-- Product Image -->
-                    <div class="item-image" style="width:100px;height:100px;border-radius:var(--radius-md);overflow:hidden;background:var(--gray-50);border:1px solid var(--gray-200);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <div class="item-image">
                         {% if item.product.primary_image %}
                             <img src="{{ item.product.primary_image.url }}" 
                                  alt="{{ item.product.name }}" 
-                                 loading="lazy"
-                                 style="width:100%;height:100%;object-fit:cover;">
+                                 loading="lazy">
                         {% else %}
-                            <div class="no-image" style="color:var(--gray-300);font-size:1.5rem;">
+                            <div class="no-image">
                                 <i class="fa fa-image"></i>
                             </div>
                         {% endif %}
                     </div>
                     
                     <!-- Product Details -->
-                    <div class="item-details" style="display:flex;flex-direction:column;gap:8px;">
-                        <h4 style="margin:0;font-size:0.95rem;font-weight:600;line-height:1.4;">
-                            <a href="{% url 'items:product_detail' item.product.slug %}" style="color:var(--gray-800);text-decoration:none;">
+                    <div class="item-details">
+                        <h4>
+                            <a href="{% url 'items:product_detail' item.product.slug %}">
                                 {{ item.product.name|truncatechars:50 }}
                             </a>
                         </h4>
-                        <p class="item-seller" style="font-size:0.78rem;color:var(--gray-500);margin:0;">
+                        
+                        <!-- Variant Display -->
+                        {% if item.variant_display %}
+                        <p class="item-variant">
+                            <i class="fa fa-tag"></i> {{ item.variant_display }}
+                        </p>
+                        {% endif %}
+                        
+                        <p class="item-seller">
                             <i class="fa fa-store" style="color:var(--blue-400);margin-right:4px;"></i>
                             Sold by: {{ item.product.seller.shop_name|truncatechars:25 }}
                         </p>
                         
                         <!-- Price Row -->
-                        <div class="item-price-row" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:4px 0;">
+                        <div class="item-price-row">
                             {% if item.product.discount_percent > 0 %}
-                                <span class="item-price" style="font-weight:700;color:var(--gray-900);font-size:1.1rem;">₹{{ item.unit_price|floatformat:2 }}</span>
-                                <span class="item-price-original" style="font-size:0.85rem;color:var(--gray-400);text-decoration:line-through;">₹{{ item.original_price|floatformat:2 }}</span>
-                                <span class="discount-badge" style="background:var(--red);color:var(--white);font-size:0.7rem;font-weight:700;padding:2px 8px;border-radius:20px;">{{ item.product.discount_percent }}% OFF</span>
+                                <span class="item-price">₹{{ item.unit_price|floatformat:2 }}</span>
+                                <span class="item-price-original">₹{{ item.original_price|floatformat:2 }}</span>
+                                <span class="discount-badge">{{ item.product.discount_percent }}% OFF</span>
                             {% else %}
-                                <span class="item-price" style="font-weight:700;color:var(--gray-900);font-size:1.1rem;">₹{{ item.product.price }}</span>
+                                <span class="item-price">₹{{ item.unit_price|floatformat:2 }}</span>
                             {% endif %}
                         </div>
                         
-                        {% if item.savings_per_item > 0 %}
-                        <p class="item-savings" style="font-size:0.8rem;color:var(--green);margin:0;font-weight:600;">
-                            <i class="fa fa-check-circle"></i> You save ₹{{ item.item_total_savings|floatformat:2 }}
+                        {% if item.savings > 0 %}
+                        <p class="item-savings">
+                            <i class="fa fa-check-circle"></i> You save ₹{{ item.savings|floatformat:2 }}
                         </p>
                         {% endif %}
                         
                         <!-- Actions Row -->
-                        <div class="item-actions" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:8px 0;">
+                        <div class="item-actions">
                             <!-- Quantity Selector -->
-                            <div class="qty-selector" style="display:inline-flex;align-items:center;border:1.5px solid var(--gray-200);border-radius:var(--radius-md);overflow:hidden;background:var(--white);">
-                                <button type="button" class="qty-btn minus" data-action="decrease" 
-                                        style="background:var(--gray-50);border:none;width:36px;height:40px;font-size:1.1rem;cursor:pointer;color:var(--gray-600);transition:all var(--transition);">−</button>
+                            <div class="qty-selector">
+                                <button type="button" class="qty-btn minus" data-action="decrease">−</button>
                                 <input type="number" class="qty-input" value="{{ item.quantity }}" min="1" 
-                                       max="{{ item.product.stock }}" data-stock="{{ item.product.stock }}"
-                                       style="width:44px;text-align:center;border:none;border-left:1.5px solid var(--gray-200);border-right:1.5px solid var(--gray-200);height:40px;font-size:0.9rem;font-weight:600;-moz-appearance:textfield;font-family:inherit;">
-                                <button type="button" class="qty-btn plus" data-action="increase"
-                                        style="background:var(--gray-50);border:none;width:36px;height:40px;font-size:1.1rem;cursor:pointer;color:var(--gray-600);transition:all var(--transition);">+</button>
+                                       max="{{ item.available_stock }}">
+                                <button type="button" class="qty-btn plus" data-action="increase">+</button>
                             </div>
                             
                             <!-- Remove Button -->
-                            <button class="remove-btn" data-action="remove" 
-                                    style="background:none;border:none;color:var(--red);font-size:0.85rem;cursor:pointer;display:flex;align-items:center;gap:4px;padding:6px 10px;border-radius:var(--radius-sm);transition:all var(--transition);">
+                            <button class="remove-btn" data-action="remove">
                                 <i class="fa fa-trash"></i> Remove
                             </button>
                             
-                            <!-- Wishlist Button -->
-                            <button class="wishlist-btn" 
-                                    style="background:none;border:none;color:var(--gray-500);font-size:0.85rem;cursor:pointer;display:flex;align-items:center;gap:4px;padding:6px 10px;border-radius:var(--radius-sm);transition:all var(--transition);">
-                                <i class="fa fa-heart"></i> Save
-                            </button>
+                            <!-- Save for Later -->
+                            <!-- <button class="save-btn">
+                                <i class="fa fa-bookmark"></i> Save
+                            </button> -->
                         </div>
                         
                         <!-- Subtotal & Delivery -->
                         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-top:4px;">
-                            <p class="item-subtotal" style="font-size:0.9rem;color:var(--gray-700);margin:0;">
-                                Subtotal: <strong class="subtotal-value" style="color:var(--gray-900);">₹{{ item.subtotal|floatformat:2}}</strong>
+                            <p class="item-subtotal">
+                                Subtotal: <strong class="subtotal-value">₹{{ item.subtotal|floatformat:2}}</strong>
                             </p>
-                            <p class="item-delivery" style="font-size:0.78rem;color:var(--gray-500);margin:0;display:flex;align-items:center;gap:4px;">
+                            <p class="item-delivery">
                                 <i class="fa fa-truck" style="color:var(--blue-400);"></i>
                                 {% if item.subtotal >= 499 %}
                                     <span style="color:var(--green);font-weight:600;">Free Delivery</span>
@@ -124,10 +746,14 @@
                             </p>
                         </div>
                         
-                        <!-- Low Stock Warning -->
-                        {% if item.product.stock < item.quantity %}
-                            <p class="low-stock-warning" style="font-size:0.78rem;color:var(--red);margin:4px 0 0;font-weight:600;">
-                                <i class="fa fa-exclamation-triangle"></i> Only {{ item.product.stock }} left!
+                        <!-- Stock Warnings -->
+                        {% if item.available_stock <= 5 and item.available_stock > 0 %}
+                            <p class="low-stock-warning">
+                                <i class="fa fa-exclamation-triangle"></i> Only {{ item.available_stock }} left!
+                            </p>
+                        {% elif not item.is_in_stock %}
+                            <p class="out-of-stock-warning">
+                                <i class="fa fa-times-circle"></i> Currently out of stock
                             </p>
                         {% endif %}
                     </div>
@@ -136,23 +762,20 @@
             </div>
 
             <!-- ── Right: Price Details (Sticky) ──────────────────── -->
-            <aside class="price-details" style="background:var(--white);padding:20px;border-radius:var(--radius-lg);border:1.5px solid var(--gray-100);box-shadow:var(--shadow-sm);position:sticky;top:80px;align-self:start;">
-                <h3 style="font-size:0.85rem;font-weight:700;color:var(--gray-600);letter-spacing:0.06em;margin:0 0 16px;padding-bottom:12px;border-bottom:1px solid var(--gray-100);text-transform:uppercase;">
-                    Price Details
-                </h3>
+            <aside class="price-details">
+                <h3>Price Details</h3>
                 
-                <div class="price-row" style="display:flex;justify-content:space-between;margin-bottom:10px;font-size:0.9rem;color:var(--gray-700);">
+                <div class="price-row">
                     <span>Price ({{ cart_items|length }} item{{ cart_items|length|pluralize }})</span>
-                    <span>₹{{ total|floatformat:2 }}</span>
+                    <span>₹{{ subtotal|floatformat:2 }}</span>
                 </div>
-                <div class="price-row" style="display:flex;justify-content:space-between;margin-bottom:10px;font-size:0.9rem;">
+                <div class="price-row">
                     <span>Discount</span>
-                    <span class="discount" style="color:var(--green);font-weight:600;">−₹{{ total_savings|floatformat:2 }}</span>
+                    <span class="discount">−₹{{ total_savings|floatformat:2 }}</span>
                 </div>
-                <div class="price-row" style="display:flex;justify-content:space-between;margin-bottom:10px;font-size:0.9rem;">
+                <div class="price-row">
                     <span>Delivery Charges</span>
-                    <span class="{% if delivery_charge == 0 %}free{% endif %}" 
-                          style="{% if delivery_charge == 0 %}color:var(--green);font-weight:600;{% else %}color:var(--gray-700);{% endif %}">
+                    <span class="{% if delivery_charge == 0 %}free{% endif %}">
                         {% if delivery_charge == 0 %}
                             <i class="fa fa-check-circle"></i> FREE
                         {% else %}
@@ -161,36 +784,36 @@
                     </span>
                 </div>
                 
-                {% if total < 499 %}
-                <div class="free-delivery-hint" style="font-size:0.8rem;color:var(--amber);background:var(--amber-bg);padding:8px 12px;border-radius:var(--radius-sm);margin:10px 0;display:flex;align-items:center;gap:6px;">
+                {% if subtotal < 499 %}
+                <div class="free-delivery-hint">
                     <i class="fa fa-info-circle"></i> 
-                    Add ₹{{ remaining_amount_for_free_delivery|floatformat:0 }} more for FREE delivery
+                    Add ₹{{ remaining_for_free_delivery|floatformat:0 }} more for FREE delivery
                 </div>
                 {% endif %}
                 
-                <div class="price-divider" style="border-top:1px dashed var(--gray-200);margin:14px 0;"></div>
+                <div class="price-divider"></div>
                 
-                <div class="price-row total-row" style="display:flex;justify-content:space-between;font-size:1.1rem;color:var(--gray-900);margin-bottom:8px;">
+                <div class="price-row total-row">
                     <strong>Total Amount</strong>
-                    <strong id="grandTotal">₹{{ total|add:delivery_charge|floatformat:2 }}</strong>
+                    <strong id="grandTotal">₹{{ grand_total|floatformat:2 }}</strong>
                 </div>
                 
                 {% if total_savings > 0 %}
-                <div class="savings-msg" style="background:var(--green-bg);color:#065F46;font-size:0.85rem;font-weight:600;padding:10px 14px;border-radius:var(--radius-md);margin-bottom:16px;display:flex;align-items:center;gap:6px;">
+                <div class="savings-msg success">
                     <i class="fa fa-tag"></i> You saved <strong>₹{{ total_savings|floatformat:2 }}</strong>! 🎉
                 </div>
                 {% else %}
-                <div class="savings-msg" style="background:var(--gray-100);color:var(--gray-600);font-size:0.85rem;padding:10px 14px;border-radius:var(--radius-md);margin-bottom:16px;display:flex;align-items:center;gap:6px;">
+                <div class="savings-msg info">
                     <i class="fa fa-info-circle"></i> No discounts applied
                 </div>
                 {% endif %}
                 
                 {% if user.is_authenticated %}
-                    <button id="placeOrderBtn" class="btn-primary btn-lg" style="width:100%;padding:12px 20px;font-size:0.95rem;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;">
+                    <button id="placeOrderBtn" class="btn-primary btn-lg">
                         <i class="fa fa-lock"></i> PLACE ORDER
                     </button>
                 {% else %}
-                    <button id="loginToOrderBtn" class="btn-primary btn-lg" style="width:100%;padding:12px 20px;font-size:0.95rem;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;">
+                    <button id="loginToOrderBtn" class="btn-primary btn-lg">
                         <i class="fa fa-sign-in-alt"></i> LOGIN TO ORDER
                     </button>
                     <p class="login-hint" style="font-size:0.8rem;color:var(--gray-500);text-align:center;margin:10px 0 0;">
@@ -198,7 +821,7 @@
                     </p>
                 {% endif %}
                 
-                <div class="secure-badge" style="text-align:center;font-size:0.75rem;color:var(--gray-500);display:flex;align-items:center;justify-content:center;gap:5px;margin-top:12px;">
+                <div class="secure-badge">
                     <i class="fa fa-shield-alt" style="color:var(--green);"></i> 100% Secure Transaction
                 </div>
             </aside>
@@ -206,7 +829,7 @@
 
         <!-- ── Delivery Address (Customer Only) ─────────── -->
         {% if user.is_authenticated and user.role == 'customer' %}
-        <div class="delivery-address-section" style="margin-top:24px;background:var(--white);padding:20px;border-radius:var(--radius-lg);border:1.5px solid var(--gray-100);">
+        <div class="delivery-address-section">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px;">
                 <h3 style="margin:0;font-size:1.1rem;color:var(--gray-800);display:flex;align-items:center;gap:8px;">
                     <i class="fa fa-map-marker-alt" style="color:var(--blue-400);"></i> Delivery Address
@@ -222,30 +845,28 @@
                 {% endif %}
             </div>
             
-            <div class="address-card" style="background:var(--blue-50);border:1.5px solid var(--blue-100);border-radius:var(--radius-lg);padding:16px;border-left:4px solid var(--blue-400);">
+            <div class="address-card">
                 {% if default_address %}
                     <div class="address-info" id="selectedAddressInfo">
                         <p style="margin:0 0 8px;font-size:0.95rem;color:var(--gray-800);">
-                            <strong>{{ default_address.name }}</strong>
-                            <span class="address-tag" style="display:inline-block;background:var(--blue-500);color:var(--white);font-size:0.68rem;font-weight:700;padding:2px 8px;border-radius:3px;margin-left:8px;">
-                                {{ default_address.get_address_type_display|slice:":8" }}
-                            </span>
+                            <strong id="addrName">{{ default_address.name }}</strong>
+                            <span class="address-tag" id="addrType">{{ default_address.get_address_type_display|slice:":8" }}</span>
                             {% if default_address.is_default %}
-                                <span class="badge badge-success" style="margin-left:8px;background:var(--green);color:var(--white);font-size:0.65rem;font-weight:700;padding:2px 6px;border-radius:3px;">✓ Default</span>
+                                <span class="badge badge-success">✓ Default</span>
                             {% endif %}
                         </p>
-                        <p style="margin:4px 0;font-size:0.9rem;color:var(--gray-700);line-height:1.5;">
+                        <p style="margin:4px 0;font-size:0.9rem;color:var(--gray-700);line-height:1.5;" id="addrLine1">
                             {{ default_address.address_line1 }}{% if default_address.address_line2 %}, {{ default_address.address_line2 }}{% endif %}
                         </p>
-                        <p style="margin:4px 0;font-size:0.9rem;color:var(--gray-700);">
+                        <p style="margin:4px 0;font-size:0.9rem;color:var(--gray-700);" id="addrCity">
                             {{ default_address.city }}, {{ default_address.state }} – {{ default_address.postal_code }}
                         </p>
                         <p style="margin:8px 0 0;font-size:0.85rem;color:var(--gray-600);">
                             <i class="fa fa-phone" style="color:var(--blue-400);margin-right:4px;"></i> 
-                            {{ default_address.phone }} • {{ default_address.country }}
+                            <span id="addrPhone">{{ default_address.phone }}</span> • <span id="addrCountry">{{ default_address.country }}</span>
                         </p>
                     </div>
-                    <div class="address-actions" style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+                    <div class="address-actions">
                         <button class="btn-outline" onclick="openAddressModal('edit', {{ default_address.id }})" 
                                 style="width:auto;padding:7px 14px;font-size:0.8rem;">
                             <i class="fa fa-pencil"></i> Edit
@@ -262,7 +883,7 @@
                         </button>
                     </div>
                 {% else %}
-                    <div class="no-address" style="display:flex;align-items:center;gap:10px;color:var(--gray-500);font-size:0.9rem;">
+                    <div class="no-address">
                         <i class="fa fa-map-marker-alt" style="font-size:1.2rem;color:var(--gray-300);"></i>
                         <p style="margin:0;">No delivery address saved.</p>
                     </div>
@@ -276,37 +897,33 @@
         {% endif %}
 
         <!-- ── Payment Method ─────────────────────────────── -->
-        <div class="payment-preview" style="margin-top:24px;background:var(--white);padding:20px;border-radius:var(--radius-lg);border:1.5px solid var(--gray-100);">
+        <div class="payment-preview">
             <h3 style="margin:0 0 16px;font-size:1.1rem;color:var(--gray-800);display:flex;align-items:center;gap:8px;">
                 <i class="fa fa-credit-card" style="color:var(--blue-400);"></i> Select Payment Method
             </h3>
-            <div class="payment-options" style="display:flex;flex-direction:column;gap:12px;">
+            <div class="payment-options">
                 
                 <!-- UPI / Online Payment -->
-                <label class="payment-option" style="display:flex;align-items:center;gap:14px;padding:14px 16px;border:2px solid var(--gray-200);border-radius:var(--radius-lg);cursor:pointer;transition:all var(--transition);background:var(--white);">
-                    <input type="radio" name="payment" value="UPI" checked 
-                           style="width:18px;height:18px;cursor:pointer;accent-color:var(--blue-500);">
-                    <div class="payment-icon" style="display:flex;align-items:center;">
+                <label class="payment-option">
+                    <input type="radio" name="payment" value="UPI" checked>
+                    <div class="payment-icon">
                         <img src="https://upload.wikimedia.org/wikipedia/commons/e/e1/Google_Pay_Logo.svg" 
-                             alt="GPay" width="36" style="filter:drop-shadow(0 1px 2px rgba(0,0,0,0.1));">
+                             alt="GPay" width="36">
                     </div>
-                    <div class="payment-text" style="flex:1;">
-                        <span style="display:block;font-weight:600;font-size:0.95rem;color:var(--gray-800);">Online Payment / UPI</span>
-                        <small style="color:var(--gray-500);font-size:0.8rem;">GPay, PhonePe, Cards, NetBanking</small>
+                    <div class="payment-text">
+                        <span>Online Payment / UPI</span>
+                        <small>GPay, PhonePe, Cards, NetBanking</small>
                     </div>
-                    <span class="offer-badge" style="background:var(--amber-bg);color:var(--amber);padding:4px 10px;border-radius:20px;font-size:0.75rem;font-weight:700;white-space:nowrap;">
-                        FLAT ₹50 OFF
-                    </span>
+                    <span class="offer-badge">FLAT ₹50 OFF</span>
                 </label>
                 
                 <!-- COD -->
-                <label class="payment-option" style="display:flex;align-items:center;gap:14px;padding:14px 16px;border:2px solid var(--gray-200);border-radius:var(--radius-lg);cursor:pointer;transition:all var(--transition);background:var(--white);">
-                    <input type="radio" name="payment" value="COD" 
-                           style="width:18px;height:18px;cursor:pointer;accent-color:var(--blue-500);">
-                    <div class="payment-icon" style="display:flex;align-items:center;font-size:1.4rem;">💵</div>
-                    <div class="payment-text" style="flex:1;">
-                        <span style="display:block;font-weight:600;font-size:0.95rem;color:var(--gray-800);">Cash on Delivery (COD)</span>
-                        <small style="color:var(--gray-500);font-size:0.8rem;">Safe & Reliable • No extra charges</small>
+                <label class="payment-option">
+                    <input type="radio" name="payment" value="COD">
+                    <div class="payment-icon" style="font-size:1.4rem;">💵</div>
+                    <div class="payment-text">
+                        <span>Cash on Delivery (COD)</span>
+                        <small>Safe & Reliable • No extra charges</small>
                     </div>
                 </label>
                 
@@ -314,25 +931,47 @@
         </div>
 
         {% else %}
-        <!-- ── Empty Cart ─────────────────────────────────── -->
-        <div class="empty-state" style="text-align:center;padding:60px 20px;background:var(--white);border-radius:var(--radius-xl);border:1.5px solid var(--gray-100);">
-            <div style="font-size:4rem;color:var(--gray-200);margin-bottom:20px;">
-                <i class="fa fa-shopping-cart"></i>
+        <!-- ── Empty Cart (Design System Aligned) ─────────────────── -->
+        <div class="empty-state" style="text-align:center;padding:clamp(40px,8vw,80px) 20px;background:var(--white);border-radius:var(--radius-xl);border:1.5px solid var(--gray-100);box-shadow:var(--shadow-sm);">
+            
+            <!-- Icon -->
+            <div style="width:80px;height:80px;margin:0 auto 24px;background:var(--blue-50);border-radius:50%;display:flex;align-items:center;justify-content:center;">
+                <i class="fa fa-shopping-cart" style="font-size:2rem;color:var(--blue-400);"></i>
             </div>
-            <h3 style="color:var(--gray-800);margin-bottom:10px;font-size:1.3rem;">Your cart is empty!</h3>
-            <p style="color:var(--gray-500);max-width:400px;margin:0 auto 24px;">
-                Looks like you haven't added anything yet. Start exploring our amazing products!
+            
+            <!-- Heading -->
+            <h3 style="color:var(--gray-800);margin-bottom:8px;font-size:1.25rem;font-weight:700;">
+                Your cart is empty
+            </h3>
+            
+            <!-- Description -->
+            <p style="color:var(--gray-500);max-width:360px;margin:0 auto 24px;font-size:0.95rem;line-height:1.6;">
+                Looks like you haven't added anything yet. Start exploring our amazing products and fill your cart!
             </p>
-            <a href="{% url 'shop:home' %}" class="btn-primary" style="width:auto;padding:12px 32px;font-size:0.95rem;">
+            
+            <!-- CTA Button -->
+            <!-- <a href="{% url 'shop:home' %}" class="btn-primary" 
+            style="width:auto;padding:12px 32px;font-size:0.95rem;font-weight:700;display:inline-flex;align-items:center;gap:8px;box-shadow:var(--shadow-blue);text-decoration:none;">
                 <i class="fa fa-arrow-right"></i> Start Shopping
-            </a>
+            </a> -->
+            
+            <!-- Helpful Links -->
+            <div style="margin-top:32px;display:flex;justify-content:center;gap:24px;flex-wrap:wrap;">
+                <a href="{% url 'items:product_list' %}" style="font-size:0.875rem;color:var(--blue-500);font-weight:600;display:flex;align-items:center;gap:6px;">
+                    <i class="fa fa-th-large"></i> Browse All Products
+                </a>
+                <a href="{% url 'shop:home' %}" style="font-size:0.875rem;color:var(--blue-500);font-weight:600;display:flex;align-items:center;gap:6px;">
+                    <i class="fa fa-percent"></i> View Trending Products
+                </a>
+            </div>
+            
         </div>
         {% endif %}
         
     </div>
 </section>
 
-<!-- ✅ ADDRESS MODAL (Matches base.html login modal styling) -->
+<!-- ✅ ADDRESS MODAL -->
 <div id="addressModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="addressModalTitle" style="z-index:1600;">
     <div class="modal-content" style="max-width:520px;">
         <div class="modal-header-bar">
@@ -396,8 +1035,6 @@
                         <label class="form-label" for="modalAddrCountry">Country</label>
                         <select id="modalAddrCountry" name="country" class="form-select-sm" style="width:100%;">
                             <option value="India" selected>India</option>
-                            <!-- <option value="Nepal">Nepal</option>
-                            <option value="Bangladesh">Bangladesh</option> -->
                         </select>
                     </div>
                 </div>
@@ -436,7 +1073,6 @@
     </div>
 </div>
 
-<!-- Razorpay Script (loaded in base.html, but ensure it's available) -->
 {% endblock %}
 
 {% block scripts %}
@@ -446,341 +1082,301 @@ document.addEventListener('DOMContentLoaded', function() {
     const UPDATE_CART_URL = "{% url 'shop:update_cart' %}";
     const CREATE_ORDER_URL = "{% url 'shop:create_order' %}";
     const SAVE_ADDRESS_URL = "{% url 'accounts:profile' %}";
-    const IS_AUTH = {{ user.is_authenticated|lower }};
+    const GET_ADDRESS_BASE = "{% url 'accounts:api_address_detail' 1 %}".replace('/1/', '/');        
     
-    // ── Toast Helper (uses base.html global if available) ──
+    // ── Toast Helper ──
     function toast(msg, type = 'info') {
         if (typeof window.showToast === 'function') {
             window.showToast(msg, type);
-        } else {
-            // Fallback toast
-            const t = document.createElement('div');
-            t.innerHTML = `<i class="fa ${type==='success'?'fa-check-circle':'fa-exclamation-circle'}"></i> ${msg}`;
-            t.style.cssText = `position:fixed;bottom:24px;right:16px;z-index:9999;padding:12px 20px;border-radius:var(--radius-lg);font-weight:600;background:${type==='success'?'var(--green)':'var(--red)'};color:#fff;box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:8px;font-size:0.9rem;animation:toastIn 0.3s ease;`;
-            document.body.appendChild(t);
-            setTimeout(() => {
-                t.style.animation = 'toastOut 0.3s ease forwards';
-                setTimeout(() => t.remove(), 300);
-            }, 2800);
+            return;
         }
+        const t = document.createElement('div');
+        t.className = 'toast-notification';
+        t.innerHTML = `<i class="fa ${type==='success'?'fa-check-circle':'fa-exclamation-circle'}"></i> ${msg}`;
+        t.style.cssText = `position:fixed;bottom:24px;right:16px;z-index:9999;padding:12px 20px;border-radius:var(--radius-lg);font-weight:600;background:${type==='success'?'var(--green)':'var(--red)'};color:#fff;box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:8px;font-size:0.9rem;animation:toastIn 0.3s ease;`;
+        document.body.appendChild(t);
+        setTimeout(() => {
+            t.style.animation = 'toastOut 0.3s ease forwards';
+            setTimeout(() => t.remove(), 300);
+        }, 2800);
     }
     
-    // ── Quantity Controls ─────────────────────────────────
-    document.querySelectorAll('.qty-btn').forEach(btn => {
-        btn.addEventListener('click', async () => {
-            const row = btn.closest('.cart-item');
-            const input = row.querySelector('.qty-input');
-            const pid = row.dataset.productId;
-            const stock = parseInt(input.dataset.stock);
-            let qty = parseInt(input.value);
-            
-            if (btn.dataset.action === 'increase') {
-                if (qty >= stock) { toast(`Only ${stock} in stock`, 'error'); return; }
-                qty++;
-            } else { 
-                if (qty <= 1) return; 
-                qty--; 
-            }
-            input.value = qty;
-            await updateCartItem(pid, qty);
-        });
-    });
+    // ── Get Cart Item Data Helper ──
+    function getCartItemData(itemEl) {
+        const variantId = itemEl.dataset.variantId;
+        return {
+            product_id: itemEl.dataset.productId,
+            variant_id: variantId === 'null' || variantId === '' ? null : parseInt(variantId),
+            stock: parseInt(itemEl.dataset.stock),
+            unitPrice: parseFloat(itemEl.dataset.unitPrice),
+            quantityInput: itemEl.querySelector('.qty-input'),
+            subtotalEl: itemEl.querySelector('.subtotal-value'),
+        };
+    }
     
-    document.querySelectorAll('.qty-input').forEach(input => {
-        input.addEventListener('change', async () => {
-            const row = input.closest('.cart-item');
-            const pid = row.dataset.productId;
-            const stock = parseInt(input.dataset.stock);
-            let qty = parseInt(input.value);
-            
-            if (isNaN(qty) || qty < 1) qty = 1;
-            if (qty > stock) { qty = stock; toast(`Only ${stock} available`, 'error'); }
-            input.value = qty;
-            await updateCartItem(pid, qty);
-        });
-    });
-    
-    document.querySelectorAll('.remove-btn').forEach(btn => {
-        btn.addEventListener('click', async () => {
-            if (!confirm('Remove this item from cart?')) return;
-            const pid = btn.closest('.cart-item').dataset.productId;
-            await updateCartItem(pid, 0, 'remove');
-        });
-    });
-    
-    // ── Update Cart Item (AJAX) ───────────────────────────
-    async function updateCartItem(productId, quantity, action = 'update') {
-        const itemEl = document.querySelector(`.cart-item[data-product-id="${productId}"]`);
-        if (itemEl) {
-            itemEl.style.opacity = '0.7';
-            itemEl.style.pointerEvents = 'none';
-        }
+    // ── Update Cart Item (AJAX) - FIXED with variant support ──
+    async function updateCartItem(itemEl, quantity, action = 'update') {
+        const data = getCartItemData(itemEl);
+        const { product_id, variant_id, stock, unitPrice, quantityInput, subtotalEl } = data;
+        
+        // Visual feedback
+        itemEl.classList.add('updating');
+        itemEl.style.pointerEvents = 'none';
         
         try {
+            const payload = { 
+                product_id: product_id, 
+                quantity: quantity,
+                action: action
+            };
+            // ✅ CRITICAL: Send variant_id for variant-aware updates
+            if (variant_id !== null && variant_id !== undefined) {
+                payload.variant_id = variant_id;
+            }
+            
             const res = await fetch(UPDATE_CART_URL, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
-                body: JSON.stringify({ product_id: productId, quantity, action })
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'X-CSRFToken': CSRF,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify(payload)
             });
-            const data = await res.json();
             
-            if (data.status === 'success') {
-                // Update cart badges
+            const result = await res.json();
+            
+            if (result.status === 'success') {
+                // Update global cart count
                 if (typeof window.updateCartCount === 'function') {
-                    window.updateCartCount(data.cart_count);
+                    window.updateCartCount(result.cart_count);
                 }
                 
                 if (action === 'remove' || quantity === 0) {
-                    // Remove item with animation
-                    if (itemEl) {
-                        itemEl.style.transition = 'opacity 0.3s, transform 0.3s';
-                        itemEl.style.opacity = '0'; 
-                        itemEl.style.transform = 'translateX(-20px)';
-                        setTimeout(() => { 
-                            itemEl.remove(); 
-                            if (!document.querySelector('.cart-item')) {
-                                location.reload(); 
-                            }
-                        }, 320);
-                    }
-                } else {
-                    // Update subtotal
-                    const priceEl = itemEl?.querySelector('.item-price');
-                    if (priceEl) {
-                        const price = parseFloat(priceEl.textContent.replace('₹','').replace(',',''));
-                        const subtotalEl = itemEl.querySelector('.subtotal-value');
-                        if (subtotalEl) {
-                            subtotalEl.textContent = `₹${(price * quantity).toFixed(2)}`;
+                    // Remove with animation
+                    itemEl.classList.add('removing');
+                    setTimeout(() => { 
+                        itemEl.remove(); 
+                        // Reload if cart is now empty
+                        if (!document.querySelector('.cart-item')) {
+                            location.reload(); 
                         }
+                    }, 320);
+                    toast('Item removed', 'success');
+                } else {
+                    // Update subtotal display
+                    if (subtotalEl && quantityInput) {
+                        subtotalEl.textContent = `₹${(unitPrice * quantity).toFixed(2)}`;
+                    }
+                    // Update quantity input max based on stock
+                    if (quantityInput && stock >= quantity) {
+                        quantityInput.max = stock;
                     }
                     // Refresh price summary
                     setTimeout(() => location.reload(), 300);
+                    toast('Cart updated', 'success');
                 }
-                toast('Cart updated!', 'success');
             } else {
-                toast(data.message || 'Failed to update cart', 'error');
-                if (itemEl) {
-                    itemEl.style.opacity = '1';
-                    itemEl.style.pointerEvents = 'auto';
+                // Show error from backend
+                toast(result.message || 'Failed to update cart', 'error');
+                // Reset input to previous value
+                if (quantityInput) {
+                    quantityInput.value = quantityInput.dataset.prevValue || quantityInput.value;
                 }
             }
         } catch (err) {
             console.error('Cart update error:', err);
             toast('Network error. Please try again.', 'error');
-            if (itemEl) {
-                itemEl.style.opacity = '1';
-                itemEl.style.pointerEvents = 'auto';
-            }
+        } finally {
+            // Restore interactivity
+            itemEl.classList.remove('updating');
+            itemEl.style.pointerEvents = 'auto';
         }
     }
     
-    // ── Place Order with Razorpay ─────────────────────────
-    const placeOrderBtn = document.getElementById('placeOrderBtn');
-    if (placeOrderBtn) {
-        placeOrderBtn.addEventListener('click', async () => {
-            // Validate address
-            if (!document.querySelector('.address-info')) { 
-                toast('Please add a delivery address first', 'error');
-                if (typeof openAddressModal === 'function') openAddressModal();
-                return; 
+    // ── Quantity Button Handlers ──
+    document.querySelectorAll('.qty-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const itemEl = btn.closest('.cart-item');
+            const data = getCartItemData(itemEl);
+            const { quantityInput, stock } = data;
+            
+            // Save previous value for rollback on error
+            quantityInput.dataset.prevValue = quantityInput.value;
+            
+            let qty = parseInt(quantityInput.value) || 1;
+            const action = btn.dataset.action;
+            
+            if (action === 'increase') {
+                if (qty >= stock) { 
+                    toast(`Only ${stock} available`, 'error'); 
+                    return; 
+                }
+                qty++;
+            } else { // decrease
+                if (qty <= 1) return; 
+                qty--;
             }
             
-            const paymentMethod = document.querySelector('input[name="payment"]:checked')?.value || 'COD';
-            const addrInfo = document.querySelector('#selectedAddressInfo');
+            quantityInput.value = qty;
+            await updateCartItem(itemEl, qty, 'update');
+        });
+    });
+    
+    // ── Quantity Input Change Handler ──
+    document.querySelectorAll('.qty-input').forEach(input => {
+        input.addEventListener('change', async (e) => {
+            const itemEl = input.closest('.cart-item');
+            const data = getCartItemData(itemEl);
+            const { stock } = data;
             
-            // Extract address details
-            const address = {
-                name: addrInfo?.querySelector('strong')?.textContent?.trim() || '{{ user.full_name|escapejs }}',
-                phone: addrInfo?.querySelector('.fa-phone')?.parentElement?.textContent?.trim().replace('📞','').trim() || '{{ user.phone|escapejs }}',
-                address_line1: addrInfo?.querySelectorAll('p')[1]?.textContent?.trim() || '',
-                address_line2: addrInfo?.querySelectorAll('p')[2]?.textContent?.trim() || '',
-                city: '', state: '', postal_code: '', country: 'India'
-            };
+            input.dataset.prevValue = input.value;
+            let qty = parseInt(input.value);
             
-            // Disable button & show loading
-            const originalHTML = placeOrderBtn.innerHTML;
-            placeOrderBtn.disabled = true; 
-            placeOrderBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Processing...';
+            // Validate input
+            if (isNaN(qty) || qty < 1) {
+                qty = 1;
+                toast('Minimum quantity is 1', 'error');
+            }
+            if (qty > stock) {
+                qty = stock;
+                toast(`Only ${stock} available`, 'error');
+            }
+            
+            input.value = qty;
+            await updateCartItem(itemEl, qty, 'update');
+        });
+        
+        // Prevent invalid characters
+        input.addEventListener('keypress', (e) => {
+            if (!/[0-9]/.test(e.key)) {
+                e.preventDefault();
+            }
+        });
+        
+        // Handle Enter key
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                input.blur(); // triggers change event
+            }
+        });
+    });
+    
+    // ── Remove Button Handler ──
+    document.querySelectorAll('.remove-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            if (!confirm('Remove this item from your cart?')) return;
+            
+            const itemEl = btn.closest('.cart-item');
+            await updateCartItem(itemEl, 0, 'remove');
+        });
+    });
+    
+    // ── Save for Later Button (Placeholder) ──
+    document.querySelectorAll('.save-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            toast('Save for Later coming soon!', 'info');
+        });
+    });
+    
+    // ── Address Dropdown Change Handler (FIXED) ──
+    const addressSelector = document.getElementById('addressSelector');
+    if (addressSelector) {
+        // ✅ Build URL properly using Django's url template tag
+        const GET_ADDRESS_BASE = "{% url 'accounts:api_address_detail' 1 %}".replace('/1/', '/');        
+        addressSelector.addEventListener('change', async (e) => {
+            const addressId = e.target.value;
+            if (!addressId) return;
+            
+            // Show loading state
+            const addrInfo = document.getElementById('selectedAddressInfo');
+            if (addrInfo) {
+                addrInfo.style.opacity = '0.6';
+                addrInfo.style.pointerEvents = 'none';
+            }
             
             try {
-                const res = await fetch(CREATE_ORDER_URL, {
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
-                    body: JSON.stringify({ 
-                        address: address, 
-                        payment_method: paymentMethod,
-                        cart_items: Array.from(document.querySelectorAll('.cart-item')).map(item => ({
-                            product_id: item.dataset.productId,
-                            quantity: parseInt(item.querySelector('.qty-input').value)
-                        }))
-                    })
+                // ✅ Build clean URL: /accounts/api/address/5/
+                const url = `${GET_ADDRESS_BASE}${addressId}/`;
+                console.log('Fetching address:', url);
+                
+                const res = await fetch(url, {
+                    headers: { 
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
                 });
+                        
+                // Handle non-JSON responses
+                const contentType = res.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    throw new Error(`Server returned ${res.status} ${res.statusText}`);
+                }
+                
                 const data = await res.json();
                 
-                if (data.status === 'success') {
-                    if (paymentMethod === 'COD') {
-                        // COD: Redirect to success page
-                        toast('Order placed successfully! 🎉', 'success');
-                        setTimeout(() => {
-                            window.location.href = `/orders/success/${data.order_id}/`;
-                        }, 1000);
-                    } else {
-                        // Razorpay Payment
-                        if (typeof Razorpay === 'undefined') {
-                            toast('Payment gateway not loaded. Please refresh.', 'error');
-                            placeOrderBtn.disabled = false;
-                            placeOrderBtn.innerHTML = originalHTML;
-                            return;
-                        }
-                        
-                        const options = {
-                            key: data.key,
-                            amount: data.amount,
-                            currency: data.currency,
-                            name: '{{ site_settings.site_name|escapejs }}',
-                            description: 'Order #' + data.order_id,
-                            order_id: data.razorpay_order_id,
-                            payment_capture: 1,
-                            theme: { 
-                                color: '#2874F0',
-                                hide_topbar: false,
-                                backdrop_color: '#ffffff'
-                            },
-                            modal: {
-                                ondismiss: function() { 
-                                    toast('Payment cancelled', 'error'); 
-                                    placeOrderBtn.disabled = false; 
-                                    placeOrderBtn.innerHTML = originalHTML; 
-                                }
-                            },
-                            handler: function(response) { 
-                                toast('Payment successful! 🎉', 'success');
-                                window.location.href = `/orders/success/${data.order_id}/?payment_id=${response.razorpay_payment_id}`;
-                            },
-                            prefill: {
-                                name: address.name,
-                                contact: address.phone,
-                                email: '{{ user.email|escapejs }}'
-                            },
-                            notes: {
-                                address: address.address_line1
+                if (data.status === 'success' && data.address) {
+                    const addr = data.address;
+                    
+                    // Update address display elements
+                    const addrName = document.getElementById('addrName');
+                    const addrType = document.getElementById('addrType');
+                    const addrLine1 = document.getElementById('addrLine1');
+                    const addrCity = document.getElementById('addrCity');
+                    const addrPhone = document.getElementById('addrPhone');
+                    const addrCountry = document.getElementById('addrCountry');
+                    
+                    if (addrName) addrName.textContent = addr.name;
+                    if (addrType) addrType.textContent = addr.address_type?.slice(0, 8) || '';
+                    if (addrLine1) addrLine1.textContent = 
+                        `${addr.address_line1}${addr.address_line2 ? ', ' + addr.address_line2 : ''}`;
+                    if (addrCity) addrCity.textContent = 
+                        `${addr.city}, ${addr.state} – ${addr.postal_code}`;
+                    if (addrPhone) addrPhone.textContent = addr.phone;
+                    if (addrCountry) addrCountry.textContent = addr.country;
+                    
+                    // Update default badge if applicable
+                    if (addrInfo) {
+                        const defaultBadge = addrInfo.querySelector('.badge-success');
+                        if (addr.is_default) {
+                            if (!defaultBadge) {
+                                const badge = document.createElement('span');
+                                badge.className = 'badge badge-success';
+                                badge.textContent = '✓ Default';
+                                badge.style.marginLeft = '8px';
+                                addrName?.parentNode?.appendChild(badge);
                             }
-                        };
-                        
-                        const rzp = new Razorpay(options);
-                        rzp.open();
+                        } else if (defaultBadge) {
+                            defaultBadge.remove();
+                        }
                     }
+                    
+                    toast('Address updated', 'success');
                 } else {
-                    toast(data.error || 'Order failed. Please try again.', 'error');
-                    placeOrderBtn.disabled = false;
-                    placeOrderBtn.innerHTML = originalHTML;
+                    console.error('Address API error:', data);
+                    toast(data.message || 'Failed to load address', 'error');
+                    // Revert selector to previous value
+                    addressSelector.value = '{{ default_address.id|default:"" }}';
                 }
             } catch (err) {
-                console.error('Order error:', err);
-                toast('Network error. Please try again.', 'error');
-                placeOrderBtn.disabled = false;
-                placeOrderBtn.innerHTML = originalHTML;
+                console.error('Address fetch error:', err);
+                toast('Network error loading address. Please refresh the page.', 'error');
+                addressSelector.value = '{{ default_address.id|default:"" }}';
+            } finally {
+                // Restore interactivity
+                if (addrInfo) {
+                    addrInfo.style.opacity = '1';
+                    addrInfo.style.pointerEvents = 'auto';
+                }
             }
         });
     }
-    
-    // ── Login to Order ───────────────────────────────────
-    const loginToOrderBtn = document.getElementById('loginToOrderBtn');
-    if (loginToOrderBtn) {
-        loginToOrderBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (typeof window.openLoginModal === 'function') {
-                window.openLoginModal();
-            } else {
-                const modal = document.getElementById('loginModal');
-                if (modal) {
-                    modal.classList.add('show');
-                    document.body.style.overflow = 'hidden';
-                }
-            }
-            sessionStorage.setItem('cartReturn', window.location.pathname);
-        });
-    }
-    
-    // ── Address Modal Functions ──────────────────────────
-    {% if user.is_authenticated and user.role == 'customer' %}
-    const addressModal = document.getElementById('addressModal');
-    const addressModalForm = document.getElementById('addressModalForm');
-    const addAddressBtn = document.getElementById('addAddressBtn');
-    const addressSelector = document.getElementById('addressSelector');
-    
-    // Global openAddressModal function
-    window.openAddressModal = async function(mode = 'add', addressId = null) {
-        if (!addressModal) return;
         
-        // Reset form
-        addressModalForm.reset();
-        document.getElementById('addressAction').value = mode === 'edit' ? 'update_address' : 'add_address';
-        document.getElementById('addressId').value = addressId || '';
-        document.getElementById('addressModalError').style.display = 'none';
-        document.getElementById('modalTitleText').textContent = mode === 'edit' ? 'Edit Address' : 'Add Address';
-        
-        // Fetch address data for edit mode
-        if (mode === 'edit' && addressId) {
-            try {
-                const res = await fetch(`/accounts/api/address/${addressId}/`);
-                if (!res.ok) throw new Error('HTTP ' + res.status);
-                const addr = await res.json();
-                document.getElementById('modalAddrName').value = addr.name || '';
-                document.getElementById('modalAddrPhone').value = addr.phone || '';
-                document.getElementById('modalAddrLine1').value = addr.address_line1 || '';
-                document.getElementById('modalAddrLine2').value = addr.address_line2 || '';
-                document.getElementById('modalAddrCity').value = addr.city || '';
-                document.getElementById('modalAddrState').value = addr.state || '';
-                document.getElementById('modalAddrPostal').value = addr.postal_code || '';
-                document.getElementById('modalAddrCountry').value = addr.country || 'India';
-                document.getElementById('modalAddrType').value = addr.address_type || 'both';
-                document.getElementById('modalAddrDefault').checked = addr.is_default || false;
-            } catch (err) {
-                console.error('Fetch address error:', err);
-                toast('Could not load address', 'error');
-            }
-        }
-        
-        // Show modal using base.html modal system
-        if (addressModal) {
-            addressModal.classList.add('show');
-            document.body.style.overflow = 'hidden';
-            setTimeout(() => document.getElementById('modalAddrName')?.focus(), 300);
-        }
-    };
-    
-    function closeAddressModal() {
-        if (addressModal) {
-            addressModal.classList.remove('show');
-            document.body.style.overflow = '';
-            addressModalForm.reset();
-        }
-    }
-    
-    // Event listeners
-    addAddressBtn?.addEventListener('click', (e) => { 
-        e.preventDefault(); 
-        openAddressModal('add'); 
-    });
-    document.getElementById('closeAddressModal')?.addEventListener('click', closeAddressModal);
-    document.getElementById('cancelAddressModalBtn')?.addEventListener('click', closeAddressModal);
-    addressModal?.addEventListener('click', (e) => { 
-        if (e.target === addressModal) closeAddressModal(); 
-    });
-    document.addEventListener('keydown', (e) => { 
-        if (e.key === 'Escape' && addressModal?.classList.contains('show')) closeAddressModal(); 
-    });
-    
-    // ── Address selector change (FIXED) ─────────────────
-    addressSelector?.addEventListener('change', (e) => {
-        const addrId = e.target.value;
-        // ✅ Use full URL reload with query param
-        const url = new URL(window.location);
-        url.searchParams.set('address', addrId);
-        window.location.href = url.toString();
-    });
-    // Set default address
+    // ── Set Default Address ──
     window.setDefaultAddress = async (addressId) => {
         if (!confirm('Set this as your default address?')) return;
         try {
@@ -800,6 +1396,85 @@ document.addEventListener('DOMContentLoaded', function() {
             toast('Network error', 'error'); 
         }
     };
+    
+    // ── Address Modal Functions ──
+    const addressModal = document.getElementById('addressModal');
+    const addressModalForm = document.getElementById('addressModalForm');
+    const addAddressBtn = document.getElementById('addAddressBtn');
+
+    window.openAddressModal = async function(mode = 'add', addressId = null) {
+        if (!addressModal) return;
+        
+        // Reset form
+        addressModalForm.reset();
+        document.getElementById('addressAction').value = mode === 'edit' ? 'update_address' : 'add_address';
+        document.getElementById('addressId').value = addressId || '';
+        document.getElementById('addressModalError').style.display = 'none';
+        document.getElementById('modalTitleText').textContent = mode === 'edit' ? 'Edit Address' : 'Add Address';
+        
+        // Fetch address data for edit mode
+        if (mode === 'edit' && addressId) {
+            try {
+                // ✅ FIXED: Use GET_ADDRESS_BASE (same as dropdown handler) - no double slash!
+                const url = `${GET_ADDRESS_BASE}${addressId}/`;
+                console.log('Fetching address for modal:', url);
+                
+                const res = await fetch(url);
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                
+                const response = await res.json();
+                
+                // ✅ Check for wrapped response format: {status: 'success', address: {...}}
+                if (response.status === 'success' && response.address) {
+                    const a = response.address;  // Extract from 'address' key
+                    document.getElementById('modalAddrName').value = a.name || '';
+                    document.getElementById('modalAddrPhone').value = a.phone || '';
+                    document.getElementById('modalAddrLine1').value = a.address_line1 || '';
+                    document.getElementById('modalAddrLine2').value = a.address_line2 || '';
+                    document.getElementById('modalAddrCity').value = a.city || '';
+                    document.getElementById('modalAddrState').value = a.state || '';
+                    document.getElementById('modalAddrPostal').value = a.postal_code || '';
+                    document.getElementById('modalAddrCountry').value = a.country || 'India';
+                    document.getElementById('modalAddrType').value = a.address_type || 'both';
+                    document.getElementById('modalAddrDefault').checked = a.is_default || false;
+                } else {
+                    throw new Error(response.message || 'Invalid response format');
+                }
+            } catch (err) {
+                console.error('Fetch address error:', err);
+                toast('Could not load address', 'error');
+            }
+        }
+        
+        // Show modal
+        if (addressModal) {
+            addressModal.classList.add('show');
+            document.body.style.overflow = 'hidden';
+            setTimeout(() => document.getElementById('modalAddrName')?.focus(), 300);
+        }
+    };
+    
+    function closeAddressModal() {
+        if (addressModal) {
+            addressModal.classList.remove('show');
+            document.body.style.overflow = '';
+            addressModalForm.reset();
+        }
+    }
+    
+    // Event listeners for modal
+    addAddressBtn?.addEventListener('click', (e) => { 
+        e.preventDefault(); 
+        openAddressModal('add'); 
+    });
+    document.getElementById('closeAddressModal')?.addEventListener('click', closeAddressModal);
+    document.getElementById('cancelAddressModalBtn')?.addEventListener('click', closeAddressModal);
+    addressModal?.addEventListener('click', (e) => { 
+        if (e.target === addressModal) closeAddressModal(); 
+    });
+    document.addEventListener('keydown', (e) => { 
+        if (e.key === 'Escape' && addressModal?.classList.contains('show')) closeAddressModal(); 
+    });
     
     // Save address form (AJAX)
     if (addressModalForm) {
@@ -858,36 +1533,143 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-    {% endif %}
     
-    // ── Auto-open login if redirected after session ─────
-    const cartReturn = sessionStorage.getItem('cartReturn');
-    if (cartReturn && window.location.pathname === cartReturn && !IS_AUTH) {
-        if (typeof window.openLoginModal === 'function') {
-            window.openLoginModal();
-        }
-        sessionStorage.removeItem('cartReturn');
-    }
-    
-    // ── Wishlist Button (Simple Toggle) ──────────────────
-    document.querySelectorAll('.wishlist-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const icon = this.querySelector('i');
-            if (icon.classList.contains('fa-heart')) {
-                icon.classList.remove('fa-heart');
-                icon.classList.add('fa-solid', 'fa-heart');
-                icon.style.color = 'var(--red)';
-                toast('Added to Wishlist!', 'success');
-            } else {
-                icon.classList.remove('fa-solid');
-                icon.classList.add('fa-heart');
-                icon.style.color = '';
-                toast('Removed from Wishlist', 'info');
+    // ── Place Order Handler ──
+    const placeOrderBtn = document.getElementById('placeOrderBtn');
+    if (placeOrderBtn) {
+        placeOrderBtn.addEventListener('click', async () => {
+            // Validate address exists
+            if (!document.querySelector('.address-info')) { 
+                toast('Please add a delivery address first', 'error');
+                if (typeof openAddressModal === 'function') openAddressModal();
+                return; 
+            }
+            
+            const paymentMethod = document.querySelector('input[name="payment"]:checked')?.value || 'COD';
+            const addrInfo = document.querySelector('#selectedAddressInfo');
+            
+            // Extract address from displayed elements
+            const address = {
+                name: document.getElementById('addrName')?.textContent?.trim() || '{{ user.full_name|escapejs }}',
+                phone: document.getElementById('addrPhone')?.textContent?.trim() || '{{ user.phone|escapejs }}',
+                address_line1: document.getElementById('addrLine1')?.textContent?.trim() || '',
+                city: document.getElementById('addrCity')?.textContent?.trim().split(',')[0] || '',
+                state: document.getElementById('addrCity')?.textContent?.trim().split(',')[1]?.trim() || '',
+                postal_code: document.getElementById('addrCity')?.textContent?.trim().split('–')[1]?.trim() || '',
+                country: document.getElementById('addrCountry')?.textContent?.trim() || 'India'
+            };
+            
+            // Disable button
+            const originalHTML = placeOrderBtn.innerHTML;
+            placeOrderBtn.disabled = true; 
+            placeOrderBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Processing...';
+            
+            try {
+                const cartItems = Array.from(document.querySelectorAll('.cart-item')).map(item => {
+                    const data = getCartItemData(item);
+                    return {
+                        product_id: data.product_id,
+                        variant_id: data.variant_id,
+                        quantity: parseInt(item.querySelector('.qty-input').value)
+                    };
+                });
+                
+                const res = await fetch(CREATE_ORDER_URL, {
+                    method: 'POST', 
+                    headers: { 
+                        'Content-Type': 'application/json', 
+                        'X-CSRFToken': CSRF,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({ 
+                        address: address, 
+                        payment_method: paymentMethod,
+                        cart_items: cartItems
+                    })
+                });
+                const result = await res.json();
+                
+                if (result.status === 'success') {
+                    if (paymentMethod === 'COD') {
+                        toast('Order placed successfully! 🎉', 'success');
+                        setTimeout(() => {
+                            window.location.href = `/orders/success/${result.order_id}/`;
+                        }, 1000);
+                    } else {
+                        // Razorpay flow
+                        if (typeof Razorpay === 'undefined') {
+                            toast('Payment gateway loading...', 'info');
+                            setTimeout(() => {
+                                placeOrderBtn.disabled = false;
+                                placeOrderBtn.innerHTML = originalHTML;
+                                placeOrderBtn.click();
+                            }, 1000);
+                            return;
+                        }
+                        
+                        const options = {
+                            key: result.key,
+                            amount: result.amount,
+                            currency: result.currency,
+                            name: '{{ site_settings.site_name|escapejs }}',
+                            description: 'Order #' + result.order_id,
+                            order_id: result.razorpay_order_id,
+                            payment_capture: 1,
+                            theme: { color: '#2874F0' },
+                            modal: {
+                                ondismiss: function() { 
+                                    toast('Payment cancelled', 'error'); 
+                                    placeOrderBtn.disabled = false; 
+                                    placeOrderBtn.innerHTML = originalHTML; 
+                                }
+                            },
+                            handler: function(response) { 
+                                toast('Payment successful! 🎉', 'success');
+                                window.location.href = `/orders/success/${result.order_id}/?payment_id=${response.razorpay_payment_id}`;
+                            },
+                            prefill: {
+                                name: address.name,
+                                contact: address.phone,
+                                email: '{{ user.email|escapejs }}'
+                            }
+                        };
+                        
+                        const rzp = new Razorpay(options);
+                        rzp.open();
+                    }
+                } else {
+                    toast(result.message || result.error || 'Order failed. Please try again.', 'error');
+                    placeOrderBtn.disabled = false;
+                    placeOrderBtn.innerHTML = originalHTML;
+                }
+            } catch (err) {
+                console.error('Order error:', err);
+                toast('Network error. Please try again.', 'error');
+                placeOrderBtn.disabled = false;
+                placeOrderBtn.innerHTML = originalHTML;
             }
         });
-    });
+    }
     
-    // ── Payment Option Visual Feedback ───────────────────
+    // ── Login to Order ──
+    const loginToOrderBtn = document.getElementById('loginToOrderBtn');
+    if (loginToOrderBtn) {
+        loginToOrderBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (typeof window.openLoginModal === 'function') {
+                window.openLoginModal();
+            } else {
+                const modal = document.getElementById('loginModal');
+                if (modal) {
+                    modal.classList.add('show');
+                    document.body.style.overflow = 'hidden';
+                }
+            }
+            sessionStorage.setItem('cartReturn', window.location.pathname);
+        });
+    }
+    
+    // ── Payment Option Visual Feedback ──
     document.querySelectorAll('.payment-option').forEach(option => {
         option.addEventListener('click', function() {
             document.querySelectorAll('.payment-option').forEach(o => {

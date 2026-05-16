@@ -1,7 +1,7 @@
 # items/forms.py
 from django import forms
 from django.core.validators import FileExtensionValidator
-from .models import Product, Category, SellerProfile, ProductImage,ProductVariant
+from .models import *
 from django.forms import inlineformset_factory, BaseInlineFormSet
 # Custom widget for multiple file uploads
 # class MultiFileInput(forms.ClearableFileInput):
@@ -416,3 +416,38 @@ ProductVariantFormSet = inlineformset_factory(
     extra=1,
     can_delete=True,
 )
+
+class ProductReviewForm(forms.ModelForm):
+    class Meta:
+        model = ProductReview
+        fields = ['rating', 'title', 'review', 'images']
+        widgets = {
+            'rating': forms.RadioSelect(attrs={'class': 'rating-input'}),
+            'title': forms.TextInput(attrs={
+                'class': 'form-input',
+                'placeholder': 'Summarize your experience (optional)',
+                'maxlength': '200'
+            }),
+            'review': forms.Textarea(attrs={
+                'class': 'form-input',
+                'placeholder': 'Share details about quality, fit, value...',
+                'rows': '4',
+                'maxlength': '2000'
+            }),
+            'images': forms.ClearableFileInput(attrs={
+                'class': 'form-input',
+                'accept': 'image/*'
+            }),
+        }
+    
+    def clean_rating(self):
+        rating = self.cleaned_data.get('rating')
+        if rating and not (1 <= rating <= 5):
+            raise forms.ValidationError('Rating must be between 1 and 5 stars')
+        return rating
+    
+    def clean_review(self):
+        review = self.cleaned_data.get('review')
+        if review and len(review.strip()) < 20:
+            raise forms.ValidationError('Review must be at least 20 characters')
+        return review.strip()

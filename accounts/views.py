@@ -817,7 +817,7 @@ def profile_view(request):
         'seller_stats': seller_stats,
         'seller_profile': request.user.seller_profile if is_seller else None,
         'seller_orders': seller_orders,
-        'shop_address': shop_address,
+        'shop_address': shop_address or None,
     }
     return render(request, 'accounts/profile.html', context)
 
@@ -832,21 +832,30 @@ def redirect_by_role(user):
 # accounts/views.py
 @login_required
 @require_http_methods(["GET"])
-def get_address_json(request, address_id):
+def api_address_detail(request, address_id):
     """Return address details as JSON for edit modal"""
-    from accounts.models import Address
-    address = get_object_or_404(Address, id=address_id, user=request.user)
-    print('address',address)
-    return JsonResponse({
-        'id': address.id,
-        'name': address.name,
-        'phone': address.phone,
-        'address_line1': address.address_line1,
-        'address_line2': address.address_line2,
-        'city': address.city,
-        'state': address.state,
-        'postal_code': address.postal_code,
-        'country': address.country,
-        'address_type': address.address_type,
-        'is_default': address.is_default,
-    })
+    try:
+
+        address = get_object_or_404(Address, id=address_id, user=request.user)
+        print('address',address)
+        return JsonResponse({
+            'status': 'success',  # ✅ ADD THIS
+            'address': {          # ✅ WRAP ADDRESS DATA IN 'address' KEY
+                'id': address.id,
+                'name': address.name,
+                'phone': address.phone,
+                'address_line1': address.address_line1,
+                'address_line2': address.address_line2,
+                'city': address.city,
+                'state': address.state,
+                'postal_code': address.postal_code,
+                'country': address.country,
+                'address_type': address.address_type,
+                'is_default': address.is_default,
+                'full_address': f"{address.address_line1}{', ' + address.address_line2 if address.address_line2 else ''}, {address.city}, {address.state} – {address.postal_code}, {address.country}"
+            }
+        })
+    except Address.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Address not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)

@@ -10,6 +10,7 @@ from .models import (
     Product,
     ProductImage,
     ProductVariant,
+    ProductReview
 )
 
 # ─────────────────────────────────────────────
@@ -708,3 +709,24 @@ class ProductVariantAdmin(admin.ModelAdmin):
         )
 
     seller_profit_display.short_description = "Seller Profit"
+
+
+ 
+@admin.register(ProductReview)
+class ProductReviewAdmin(admin.ModelAdmin):
+    list_display = ['product', 'user', 'rating', 'title', 'is_verified_purchase', 'is_approved', 'created_at']
+    list_filter = ['rating', 'is_verified_purchase', 'is_approved', 'created_at']
+    search_fields = ['product__name', 'user__phone', 'review', 'title']
+    readonly_fields = ['created_at', 'updated_at', 'helpful_count']
+    
+    actions = ['approve_reviews', 'reject_reviews']
+    
+    def approve_reviews(self, request, queryset):
+        queryset.update(is_approved=True)
+        self.message_user(request, f"{queryset.count()} review(s) approved.")
+    approve_reviews.short_description = "Approve selected reviews"
+    
+    def reject_reviews(self, request, queryset):
+        queryset.update(is_approved=False)
+        self.message_user(request, f"{queryset.count()} review(s) rejected.")
+    reject_reviews.short_description = "Reject selected reviews"   

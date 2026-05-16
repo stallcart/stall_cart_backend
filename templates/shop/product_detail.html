@@ -77,7 +77,23 @@
                 <span class="savings" id="displaySavings">You save: ₹{{ product.savings }}</span>
             {% endif %}
         </div>
-
+        {% if reorder_context %}
+            <div class="reorder-banner" style="background:#e8f5e9;border:1px solid #c8e6c9;border-left:4px solid #2e7d32;padding:12px 16px;border-radius:8px;margin:16px 0;display:flex;align-items:flex-start;gap:10px;">
+                <i class="fa fa-redo" style="color:#2e7d32;font-size:1.1rem;margin-top:2px;"></i>
+                <div>
+                    <strong style="color:#1b5e20;">Reordering from Order #{{ reorder_context.order_id }}</strong>
+                    <p style="margin:4px 0 0;font-size:0.875rem;color:#444;">
+                        You previously ordered <strong>{{ reorder_context.original_qty }}x</strong> at 
+                        <strong>₹{{ reorder_context.original_price|floatformat:2 }}</strong> each.
+                    </p>
+                    {% if has_variants %}
+                    <small style="color:#666;display:block;margin-top:6px;">
+                        💡 Select your preferred variant above to continue.
+                    </small>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
         <!-- Short Description -->
         {% if product.short_description %}
         <p class="short-desc">{{ product.short_description }}</p>
@@ -280,25 +296,187 @@
         </div>
     </div>
 
+    <!-- ═══════════════════════════════════════
+     REVIEWS TAB (Customer-Only)
+═══════════════════════════════════════ -->
     <div class="tab-content" id="tab-reviews">
-        {% if product.review_count > 0 %}
+        {% if is_customer %}
+            <!-- Rating Summary -->
+            {% if rating_stats.count > 0 %}
             <div class="reviews-summary">
                 <div class="rating-overview">
-                    <span class="avg-rating">{{ product.rating_avg|floatformat:1 }}</span>
+                    <span class="avg-rating">{{ rating_stats.average|floatformat:1 }}</span>
                     <div class="stars">
                         {% for i in "12345"|make_list %}
-                            <i class="fa fa-star{% if forloop.counter <= product.rating_avg|floatformat:0 %} filled{% endif %}"></i>
+                            <i class="fa fa-star{% if forloop.counter <= rating_stats.average|floatformat:0 %} filled{% endif %}"></i>
                         {% endfor %}
                     </div>
-                    <span class="review-count">({{ product.review_count }} reviews)</span>
+                    <span class="review-count">({{ rating_stats.count }} review{{ rating_stats.count|pluralize }})</span>
+                </div>
+                
+                <!-- Rating Distribution -->
+                <div class="rating-distribution" style="margin-top:16px;">
+                    {% for star in "54321" %}
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                        <span style="width:30px;font-size:0.85rem;color:var(--gray-600);">{{ star }}★</span>
+                        <div style="flex:1;height:6px;background:var(--gray-200);border-radius:3px;overflow:hidden;">
+                            {% with count_key=star|add:"_star" %}
+                            {% with count=rating_stats|default:0|add:count_key %}
+                            {% with total=rating_stats.count|default:1 %}
+                            {% with width=count|multiply:100|divide:total|floatformat:0 %}
+                            <div style="width:{{ width }}%;height:100%;background:var(--blue-500);border-radius:3px;"></div>
+                            {% endwith %}{% endwith %}{% endwith %}{% endwith %}
+                        </div>
+                        <span style="width:25px;font-size:0.75rem;color:var(--gray-500);text-align:right;">
+                            {{ rating_stats|default:0|add:star|add:"_star" }}
+                        </span>
+                    </div>
+                    {% endfor %}
                 </div>
             </div>
-            <p class="text-center text-muted">Reviews coming soon!</p>
-        {% else %}
-            <p class="empty-state">No reviews yet. Be the first to review this product!</p>
-            {% if user.is_authenticated %}
-                <button class="btn-outline">Write a Review</button>
             {% endif %}
+            
+            <!-- Write Review Button -->
+            {% if can_review and not user_review %}
+            <div style="text-align:center;margin:20px 0;">
+                <button class="btn-primary" onclick="openReviewModal()" style="width:auto;padding:10px 24px;">
+                    <i class="fa fa-star"></i> Write a Review
+                </button>
+                <p style="font-size:0.85rem;color:var(--gray-500);margin-top:8px;">
+                    Share your experience to help other customers
+                </p>
+            </div>
+            {% elif user_review %}
+            <div style="background:var(--blue-50);border:1px solid var(--blue-200);border-radius:var(--radius-lg);padding:16px;margin:20px 0;">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+                    <div>
+                        <strong style="color:var(--blue-800);">Your Review</strong>
+                        <span style="margin-left:8px;color:var(--amber);">
+                            {% for i in "12345"|make_list %}
+                                {% if forloop.counter <= user_review.rating %}★{% else %}☆{% endif %}
+                            {% endfor %}
+                        </span>
+                    </div>
+                    <div style="display:flex;gap:8px;">
+                        <button class="btn-outline" onclick="editReview({{ user_review.id }})" style="width:auto;padding:6px 14px;font-size:0.85rem;">
+                            <i class="fa fa-pencil"></i> Edit
+                        </button>
+                        <button class="btn-outline" onclick="deleteReview({{ user_review.id }})" style="width:auto;padding:6px 14px;font-size:0.85rem;color:var(--red);border-color:var(--red);">
+                            <i class="fa fa-trash"></i> Delete
+                        </button>
+                    </div>
+                </div>
+                {% if user_review.title %}
+                <p style="margin:8px 0 0;font-weight:600;color:var(--gray-800);">"{{ user_review.title }}"</p>
+                {% endif %}
+                <p style="margin:4px 0 0;color:var(--gray-600);">{{ user_review.review|truncatechars:150 }}</p>
+            </div>
+            {% endif %}
+            
+            <!-- Reviews List -->
+            <div id="reviewsList">
+                {% if reviews %}
+                    {% for review in reviews %}
+                    <article class="review-card" data-review-id="{{ review.id }}" style="background:var(--white);border:1.5px solid var(--gray-100);border-radius:var(--radius-lg);padding:16px;margin-bottom:12px;">
+                        <div style="display:flex;gap:12px;align-items:flex-start;">
+                            <!-- Avatar -->
+                            <div style="width:40px;height:40px;border-radius:50%;background:var(--blue-100);display:flex;align-items:center;justify-content:center;color:var(--blue-600);font-weight:600;font-size:0.9rem;flex-shrink:0;">
+                                {{ review.user.full_name|default:review.user.phone|slice:":2"|upper }}
+                            </div>
+                            
+                            <!-- Content -->
+                            <div style="flex:1;min-width:0;">
+                                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;">
+                                    <div>
+                                        <strong style="font-size:0.95rem;color:var(--gray-800);">
+                                            {{ review.user.full_name|default:review.user.phone }}
+                                            {% if review.is_verified_purchase %}
+                                            <span style="margin-left:6px;color:var(--green);font-size:0.75rem;font-weight:600;">
+                                                <i class="fa fa-check-circle"></i> Verified
+                                            </span>
+                                            {% endif %}
+                                        </strong>
+                                        {% if review.title %}
+                                        <p style="margin:2px 0 0;font-size:0.9rem;color:var(--gray-700);font-weight:500;">"{{ review.title }}"</p>
+                                        {% endif %}
+                                    </div>
+                                    <div style="text-align:right;">
+                                        <div style="color:var(--amber);font-size:1rem;">
+                                            {% for i in "12345"|make_list %}
+                                                {% if forloop.counter <= review.rating %}★{% else %}☆{% endif %}
+                                            {% endfor %}
+                                        </div>
+                                        <time style="display:block;font-size:0.7rem;color:var(--gray-400);margin-top:2px;">
+                                            {{ review.created_at|date:"M d, Y" }}
+                                        </time>
+                                    </div>
+                                </div>
+                                
+                                <p style="margin:10px 0 0;font-size:0.9rem;color:var(--gray-700);line-height:1.5;">
+                                    {{ review.review|linebreaksbr }}
+                                </p>
+                                
+                                {% if review.images %}
+                                <div style="margin-top:10px;">
+                                    <img src="{{ review.images.url }}" alt="Review photo" 
+                                        style="max-width:150px;max-height:100px;border-radius:var(--radius-sm);border:1px solid var(--gray-200);">
+                                </div>
+                                {% endif %}
+                                
+                                <!-- Actions -->
+                                <div style="display:flex;gap:12px;margin-top:10px;">
+                                    <button class="helpful-btn" data-review-id="{{ review.id }}" 
+                                            style="background:none;border:none;color:var(--gray-500);font-size:0.8rem;cursor:pointer;display:flex;align-items:center;gap:4px;"
+                                            onclick="markHelpful(this, {{ review.id }})">
+                                        <i class="fa fa-thumbs-up"></i>
+                                        <span>Helpful</span>
+                                        <span class="helpful-count" style="margin-left:4px;font-weight:600;">{{ review.helpful_count }}</span>
+                                    </button>
+                                    
+                                    {% if review.user == user %}
+                                    <button onclick="editReview({{ review.id }})" 
+                                            style="background:none;border:none;color:var(--blue-500);font-size:0.8rem;cursor:pointer;">
+                                        <i class="fa fa-pencil"></i> Edit
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+                    {% endfor %}
+                    
+                    {% if reviews|length >= 10 %}
+                    <div style="text-align:center;margin-top:16px;">
+                        <button class="btn-outline" style="width:auto;padding:8px 20px;" onclick="loadMoreReviews()">
+                            Load More Reviews
+                        </button>
+                    </div>
+                    {% endif %}
+                {% else %}
+                <div style="text-align:center;padding:32px 20px;color:var(--gray-500);">
+                    <i class="fa fa-comment-alt" style="font-size:1.8rem;margin-bottom:10px;opacity:0.5;"></i>
+                    <p>No reviews yet. {% if can_review %}<strong>Be the first to share your experience!</strong>{% else %}Purchase this product to write a review.{% endif %}</p>
+                    {% if can_review and not user_review %}
+                    <button class="btn-primary" onclick="openReviewModal()" style="margin-top:12px;width:auto;padding:8px 20px;font-size:0.9rem;">
+                        <i class="fa fa-star"></i> Write a Review
+                    </button>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        {% else %}
+            <!-- Non-customers see this message -->
+            <div style="text-align:center;padding:40px 20px;color:var(--gray-500);">
+                <i class="fa fa-lock" style="font-size:2rem;margin-bottom:12px;opacity:0.5;"></i>
+                <p><strong>Reviews are only visible to customers.</strong></p>
+                <p style="margin-top:8px;font-size:0.9rem;">
+                    {% if user.is_authenticated %}
+                        Switch to a customer account to read and write reviews.
+                    {% else %}
+                        <a href="{% url 'accounts:login' %}?next={{ request.path }}" style="color:var(--blue-500);font-weight:600;">Login as a customer</a> to see reviews.
+                    {% endif %}
+                </p>
+            </div>
         {% endif %}
     </div>
 </div>
@@ -390,6 +568,72 @@
     </div>
 </section>
 {% endif %}
+<!-- ═══════════════════════════════════════
+     REVIEW MODAL
+═══════════════════════════════════════ -->
+<div id="reviewModal" class="modal" role="dialog" aria-modal="true" style="z-index:1600;">
+    <div class="modal-content" style="max-width:520px;">
+        <div class="modal-header-bar">
+            <h3 id="reviewModalTitle" style="font-size:1.1rem;font-weight:700;color:var(--blue-800);margin:0;">
+                <i class="fa fa-star" style="color:var(--amber);margin-right:8px;"></i>
+                <span id="modalTitleText">Write a Review</span>
+            </h3>
+            <button class="modal-close" id="closeReviewModal" aria-label="Close">
+                <i class="fa fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="modal-body">
+            <form id="reviewForm">
+                {% csrf_token %}
+                <input type="hidden" id="reviewId" value="">
+                <input type="hidden" id="productSlug" value="{{ product.slug }}">
+                
+                <!-- Rating -->
+                <div class="form-group">
+                    <label class="form-label">Your Rating *</label>
+                    <div id="starRating" class="star-rating" style="display:flex;gap:4px;font-size:1.8rem;cursor:pointer;">
+                        {% for i in "12345" %}
+                        <span data-value="{{ i }}" style="color:var(--gray-300);transition:color 0.2s;">☆</span>
+                        {% endfor %}
+                    </div>
+                    <input type="hidden" id="ratingInput" name="rating" required>
+                    <div id="ratingError" class="error-text" style="display:none;"></div>
+                </div>
+                
+                <!-- Title -->
+                <div class="form-group">
+                    <label class="form-label" for="reviewTitle">Review Title (Optional)</label>
+                    <input type="text" id="reviewTitle" name="title" class="form-input" 
+                           placeholder="Summarize your experience" maxlength="200">
+                </div>
+                
+                <!-- Review -->
+                <div class="form-group">
+                    <label class="form-label" for="reviewText">Your Review *</label>
+                    <textarea id="reviewText" name="review" class="form-input" 
+                              placeholder="Share details about quality, fit, value..." 
+                              rows="4" maxlength="2000" required></textarea>
+                    <div class="form-hint"><span id="charCount">0</span>/2000 characters</div>
+                    <div id="reviewError" class="error-text" style="display:none;"></div>
+                </div>
+                
+                <div id="formError" class="form-error-box" style="display:none;"></div>
+                
+                <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+                    <button type="button" class="btn-outline" id="cancelReviewBtn" 
+                            style="width:auto;padding:10px 20px;font-size:0.9rem;">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn-primary" id="submitReviewBtn" 
+                            style="width:auto;padding:10px 20px;font-size:0.9rem;">
+                        <i class="fa fa-paper-plane"></i> Submit Review
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -810,7 +1054,222 @@ wishlistBtn?.addEventListener('click', async function () {
             : '<i class="fa fa-heart-o"></i>';
     }
 });
+
+// ── Star Rating Interaction ──────────────────────────────────
+const starRating = document.getElementById('starRating');
+const ratingInput = document.getElementById('ratingInput');
+
+if (starRating && ratingInput) {
+    const stars = starRating.querySelectorAll('span');
+    
+    stars.forEach(star => {
+        star.addEventListener('click', function() {
+            const value = parseInt(this.dataset.value);
+            ratingInput.value = value;
+            updateStars(value);
+        });
+        star.addEventListener('mouseenter', function() {
+            const value = parseInt(this.dataset.value);
+            highlightStars(value);
+        });
+        star.addEventListener('mouseleave', function() {
+            const currentValue = parseInt(ratingInput.value) || 0;
+            updateStars(currentValue);
+        });
+    });
+    
+    function updateStars(value) {
+        stars.forEach((star, index) => {
+            star.textContent = index < value ? '★' : '☆';
+            star.classList.toggle('active', index < value);
+        });
+    }
+    function highlightStars(value) {
+        stars.forEach((star, index) => {
+            star.textContent = index < value ? '★' : '☆';
+        });
+    }
+}
+
+// ── Character Counter ────────────────────────────────────────
+const reviewText = document.getElementById('reviewText');
+const charCount = document.getElementById('charCount');
+if (reviewText && charCount) {
+    reviewText.addEventListener('input', function() {
+        const count = this.value.length;
+        charCount.textContent = count;
+        charCount.className = count >= 1900 ? 'char-counter error' : count >= 1800 ? 'char-counter warning' : 'char-counter';
+    });
+}
+
+// ── Review Modal Functions ───────────────────────────────────
+const reviewModal = document.getElementById('reviewModal');
+const reviewForm = document.getElementById('reviewForm');
+
+function openReviewModal(editMode = false, reviewData = null) {
+    if (!reviewModal) return;
+    reviewForm.reset();
+    document.getElementById('reviewId').value = '';
+    document.getElementById('modalTitleText').textContent = editMode ? 'Edit Your Review' : 'Write a Review';
+    document.getElementById('formError').style.display = 'none';
+    
+    if (editMode && reviewData?.rating) {
+        ratingInput.value = reviewData.rating;
+        updateStars(reviewData.rating);
+        document.getElementById('reviewTitle').value = reviewData.title || '';
+        document.getElementById('reviewText').value = reviewData.review || '';
+        if (charCount) charCount.textContent = reviewData.review?.length || 0;
+    } else {
+        updateStars(0);
+    }
+    
+    reviewModal.classList.add('show');
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => document.getElementById('reviewTitle')?.focus(), 300);
+}
+
+function closeReviewModal() {
+    if (reviewModal) {
+        reviewModal.classList.remove('show');
+        document.body.style.overflow = '';
+        reviewForm.reset();
+        updateStars(0);
+    }
+}
+
+document.getElementById('closeReviewModal')?.addEventListener('click', closeReviewModal);
+document.getElementById('cancelReviewBtn')?.addEventListener('click', closeReviewModal);
+reviewModal?.addEventListener('click', (e) => { if (e.target === reviewModal) closeReviewModal(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && reviewModal?.classList.contains('show')) closeReviewModal(); });
+
+// ── Submit Review (AJAX) ─────────────────────────────────────
+if (reviewForm) {
+    reviewForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const submitBtn = document.getElementById('submitReviewBtn');
+        const originalText = submitBtn.innerHTML;
+        const formError = document.getElementById('formError');
+        
+        const rating = ratingInput.value;
+        if (!rating || rating < 1) {
+            document.getElementById('ratingError').textContent = 'Please select a rating';
+            document.getElementById('ratingError').style.display = 'flex';
+            return;
+        }
+        document.getElementById('ratingError').style.display = 'none';
+        
+        const review = document.getElementById('reviewText').value.trim();
+        if (review.length < 20) {
+            document.getElementById('reviewError').textContent = 'Review must be at least 20 characters';
+            document.getElementById('reviewError').style.display = 'flex';
+            return;
+        }
+        document.getElementById('reviewError').style.display = 'none';
+        
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Submitting...';
+        formError.style.display = 'none';
+        
+        try {
+            const formData = new FormData(reviewForm);
+            const isEdit = document.getElementById('reviewId').value;
+            const url = isEdit 
+                ? `/items/review/${document.getElementById('reviewId').value}/update/`
+                : `/items/product/${document.getElementById('productSlug').value}/review/submit/`;
+            
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': formData.get('csrfmiddlewaretoken'),
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: formData
+            });
+            const data = await res.json();
+            
+            if (data.status === 'success') {
+                showToast(data.message, 'success');
+                closeReviewModal();
+                setTimeout(() => location.reload(), 800);
+            } else {
+                formError.textContent = data.message || Object.values(data.errors || {}).flat().join(', ');
+                formError.style.display = 'block';
+            }
+        } catch (err) {
+            console.error('Review submit error:', err);
+            formError.textContent = 'Network error. Please try again.';
+            formError.style.display = 'block';
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        }
+    });
+}
+
+// ── Edit/Delete Review ───────────────────────────────────────
+async function editReview(reviewId) {
+    // For simplicity, reload with review data in context
+    openReviewModal(true, {
+        rating: {{ user_review.rating|default:0 }},
+        title: '{{ user_review.title|escapejs }}',
+        review: '{{ user_review.review|escapejs }}'
+    });
+    document.getElementById('reviewId').value = reviewId;
+}
+
+async function deleteReview(reviewId) {
+    if (!confirm('Are you sure you want to delete this review?')) return;
+    try {
+        const res = await fetch(`/items/review/${reviewId}/delete/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            showToast('Review deleted', 'success');
+            document.querySelector(`[data-review-id="${reviewId}"]`)?.remove();
+            setTimeout(() => location.reload(), 500);
+        } else {
+            showToast(data.message || 'Delete failed', 'error');
+        }
+    } catch (err) {
+        console.error('Delete review error:', err);
+        showToast('Network error', 'error');
+    }
+}
+
+// ── Mark Helpful ─────────────────────────────────────────────
+async function markHelpful(btn, reviewId) {
+    if (btn.dataset.voted) return;
+    try {
+        const res = await fetch(`/items/review/${reviewId}/helpful/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            btn.classList.add('active');
+            btn.dataset.voted = 'true';
+            btn.querySelector('.helpful-count').textContent = data.helpful_count;
+            showToast('Thanks for your feedback!', 'success');
+        }
+    } catch (err) { console.error('Helpful vote error:', err); }
+}
+
+// ── Load More Reviews ────────────────────────────────────────
+async function loadMoreReviews() {
+    showToast('Loading more reviews...', 'info');
+    // Implement pagination: fetch(`/items/product/{{ product.slug }}/reviews/?page=2`)
+}
 </script>
+
+
 {% endblock %}
 
 {% block extra_css %}
@@ -1376,6 +1835,110 @@ wishlistBtn?.addEventListener('click', async function () {
 }
 .btn-icon.active i {
     color: #e53935;
+}
+/* Reorder Banner */
+.reorder-banner {
+    animation: slideDown 0.3s ease;
+}
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+@media (max-width: 768px) {
+    .reorder-banner {
+        flex-direction: column;
+        text-align: center;
+        align-items: center;
+    }
+    .reorder-banner i {
+        margin-top: 0;
+        margin-bottom: 8px;
+    }
+}
+
+/* ════════════════════════════════════════
+   REVIEWS & RATINGS
+════════════════════════════════════════ */
+.review-card {
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    border: 1.5px solid var(--gray-100);
+    margin-bottom: 12px;
+    transition: box-shadow var(--transition);
+}
+.review-card:hover { box-shadow: var(--shadow-sm); }
+
+.star-rating span {
+    color: var(--gray-300);
+    transition: color 0.15s ease, transform 0.15s ease;
+}
+.star-rating span.active,
+.star-rating span:hover,
+.star-rating span:hover ~ span {
+    color: var(--amber);
+}
+.star-rating span.active { transform: scale(1.1); }
+
+.verified-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--green-bg);
+    color: #065F46;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+.helpful-btn:hover { color: var(--blue-500); }
+.helpful-btn.active { color: var(--blue-600); }
+.helpful-btn.active i { animation: bounce 0.3s ease; }
+@keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+
+#reviewForm .form-group { margin-bottom: 18px; }
+#reviewForm .form-label {
+    display: block; margin-bottom: 6px; font-weight: 600;
+    color: var(--gray-700); font-size: 0.9rem;
+}
+#reviewForm .form-input {
+    width: 100%; padding: 10px 14px; border: 1.5px solid var(--gray-200);
+    border-radius: var(--radius-md); font-size: 0.95rem;
+    transition: border-color var(--transition);
+}
+#reviewForm .form-input:focus {
+    outline: none; border-color: var(--blue-400);
+    box-shadow: 0 0 0 3px rgba(40,116,240,0.12);
+}
+#reviewForm textarea.form-input { resize: vertical; min-height: 100px; }
+
+.char-counter {
+    font-size: 0.75rem; color: var(--gray-400);
+    text-align: right; margin-top: 4px;
+}
+.char-counter.warning { color: var(--amber); }
+.char-counter.error { color: var(--red); }
+
+.reviews-summary {
+    text-align: center; padding: 20px;
+    background: var(--gray-50); border-radius: var(--radius-lg);
+    margin-bottom: 20px;
+}
+.avg-rating {
+    font-size: 2.5rem; font-weight: 700;
+    color: var(--gray-900); display: block; margin-bottom: 5px;
+}
+.stars { color: var(--amber); font-size: 1.2rem; margin-bottom: 5px; }
+.review-count { color: var(--gray-500); }
+
+.rating-distribution {
+    margin-top: 16px;
+}
+
+@media (max-width: 600px) {
+    .review-card { padding: 12px; }
+    .star-rating { font-size: 1.5rem; }
 }
 </style>
 {% endblock %}

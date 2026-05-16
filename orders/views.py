@@ -156,6 +156,55 @@ def return_detail(request, return_id):
     context = {'return_request': return_req}
     return render(request, 'orders/return_detail.html', context)
 
+# Add this view in orders/views.py under CUSTOMER VIEWS section
+
+# Add this under CUSTOMER VIEWS section in orders/views.py
+
+@require_POST
+@customer_only
+def reorder_order(request, order_id):
+    """
+    Customer: Reorder by redirecting to first available product's detail page.
+    No session manipulation - pure DB lookup + redirect.
+    """
+    # Fetch order - ensure it belongs to logged-in user
+    order = get_object_or_404(
+        Order.objects.select_related('user'),
+        unique_order_id=order_id,
+        user=request.user
+    )
+    
+    # Only allow reorder for delivered or cancelled orders
+    if order.status not in ['delivered', 'cancelled']:
+        messages.warning(request, "Only delivered or cancelled orders can be reordered.")
+        return redirect('orders:order_detail', order_id=order_id)
+    
+    # Find first available, active product from this order
+    first_available_item = order.items.filter(
+        product__is_active=True,
+        product__status='published'  # assuming you have this field
+    ).select_related('product').first()
+    
+    if first_available_item and first_available_item.product:
+        product = first_available_item.product
+        
+        # Build redirect URL with reorder context
+        redirect_url = f"{product.get_absolute_url()}?reorder_from={order.unique_order_id}"
+        
+        return JsonResponse({
+            'status': 'success',
+            'redirect_url': redirect_url,
+            'message': f'Redirecting to "{product.name}"',
+            'product_name': product.name,
+            'order_id': order.unique_order_id,
+            'total_items': order.items.count()
+        })
+    
+    # Fallback: no available items
+    return JsonResponse({
+        'status': 'error',
+        'message': 'No available items to reorder. Products may be out of stock or unpublished.'
+    }, status=400)
 @login_required
 def download_invoice(request, order_id):
     """

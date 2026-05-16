@@ -52,7 +52,9 @@ urlpatterns = [
         views.debug_invoice,
         name='invoice_debug'
     ),
-    
+    path('order/<str:order_id>/reorder/', 
+         customer_only(views.reorder_order), 
+         name='reorder_order'),
     # ==================== ✅ SELLER URLS (Restricted to sellers only) ====================
     
     # Seller's Orders (items from their products)
