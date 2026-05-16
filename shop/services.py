@@ -1,367 +1,444 @@
 # shop/services.py
-from django.db import transaction
+from django.db import transaction, IntegrityError
+from django.db.models import F, Q
 from .models import Cart, CartItem
-from items.models import Product,ProductVariant
+from items.models import Product, ProductVariant
+from decimal import Decimal
+import logging
 
-# class CartService:
-#     """Centralized cart logic for session + DB carts"""
-    
-#     @staticmethod
-#     def get_cart(request):
-#         """Get cart object (DB for users, session for guests)"""
-#         if request.user.is_authenticated and request.user.role == 'customer':
-#             cart, _ = Cart.objects.get_or_create(user=request.user)
-#             return cart
-#         return None  # Guest uses session
-    
-#     @staticmethod
-#     def add_to_cart(request, product_id, quantity=1):
-#         """Add product to cart (DB or session)"""
-#         product = Product.objects.get(id=product_id, status='published', stock__gt=0)
-        
-#         if request.user.is_authenticated and request.user.role == 'customer':
-#             # Database cart
-#             cart, _ = Cart.objects.get_or_create(user=request.user)
-#             cart_item, created = CartItem.objects.get_or_create(
-#                 cart=cart,
-#                 product=product,
-#                 defaults={'quantity': quantity}
-#             )
-#             if not created:
-#                 cart_item.quantity += quantity
-#                 cart_item.save()
-#             return cart.total_items
-#         else:
-#             # Session cart
-#             cart = request.session.get('cart', {})
-#             product_id_str = str(product_id)
-#             cart[product_id_str] = cart.get(product_id_str, 0) + quantity
-#             request.session['cart'] = cart
-#             return sum(cart.values())
-    
-#     @staticmethod
-#     def update_cart_item(request, product_id, quantity):
-#         """Update quantity of a cart item"""
-#         if request.user.is_authenticated and request.user.role == 'customer':
-#             cart = Cart.objects.get(user=request.user)
-#             cart_item = CartItem.objects.get(cart=cart, product_id=product_id)
-#             if quantity <= 0:
-#                 cart_item.delete()
-#             else:
-#                 cart_item.quantity = quantity
-#                 cart_item.save()
-#             return cart.total_items
-#         else:
-#             # Session cart
-#             cart = request.session.get('cart', {})
-#             product_id_str = str(product_id)
-#             if quantity <= 0:
-#                 cart.pop(product_id_str, None)
-#             else:
-#                 cart[product_id_str] = quantity
-#             request.session['cart'] = cart
-#             return sum(cart.values())
-    
-#     @staticmethod
-#     def remove_from_cart(request, product_id):
-#         """Remove item from cart"""
-#         return CartService.update_cart_item(request, product_id, 0)
-    
-#     @staticmethod
-#     def get_cart_items(request):
-#         """Get cart items with product details for template"""
-#         if request.user.is_authenticated and request.user.role == 'customer':
-#             cart = getattr(request.user, 'cart', None)
-#             if not cart:
-#                 return []
-#             items = []
-#             for cart_item in cart.items.select_related('product__seller').all():
-#                 items.append({
-#                     'product': cart_item.product,
-#                     'quantity': cart_item.quantity,
-#                     'subtotal': cart_item.subtotal,
-#                     'unit_price': cart_item.unit_price,
-#                     'savings': cart_item.savings,
-#                     'in_stock': cart_item.product.stock >= cart_item.quantity
-#                 })
-#             return items
-#         else:
-#             # Session cart - build list from session
-#             cart = request.session.get('cart', {})
-#             if not cart:
-#                 return []
-#             product_ids = list(cart.keys())
-#             products = Product.objects.filter(
-#                 id__in=product_ids,
-#                 status='published',
-#                 stock__gt=0
-#             ).select_related('seller')
-            
-#             items = []
-#             for p in products:
-#                 qty = cart.get(str(p.id), 0)
-#                 if qty > 0 and p.stock >= qty:
-#                     unit_price = p.discount_price if p.discount_percent > 0 else p.price
-#                     items.append({
-#                         'product': p,
-#                         'quantity': qty,
-#                         'subtotal': unit_price * qty,
-#                         'unit_price': unit_price,
-#                         'savings': (p.mrp - unit_price) * qty if p.mrp else 0,
-#                         'in_stock': True
-#                     })
-#             return items
-    
-#     @staticmethod
-#     def merge_guest_cart(request, user):
-#         """Merge guest session cart into user's DB cart on login"""
-#         session_cart = request.session.get('cart', {})
-#         if not session_cart or not user.is_authenticated:
-#             return
-        
-#         cart, _ = Cart.objects.get_or_create(user=user)
-        
-#         for product_id_str, qty in session_cart.items():
-#             try:
-#                 product = Product.objects.get(
-#                     id=int(product_id_str),
-#                     status='published',
-#                     stock__gt=0
-#                 )
-#                 cart_item, created = CartItem.objects.get_or_create(
-#                     cart=cart,
-#                     product=product,
-#                     defaults={'quantity': qty}
-#                 )
-#                 if not created:
-#                     cart_item.quantity += qty
-#                     cart_item.save()
-#             except Product.DoesNotExist:
-#                 continue
-        
-#         # Clear session cart after merge
-#         request.session['cart'] = {}
-#         return cart.total_items
-
-# shop/services.py
+logger = logging.getLogger(__name__)
 
 
- 
 class CartService:
-    """Centralized cart logic for session + DB carts"""
- 
+    """
+    Centralized cart logic - DATABASE ONLY (no session fallback).
+    Fully variant-aware with stock validation and race-condition protection.
+    """
+    
+    # ─────────────────────────────────────────────────────────────
+    # CORE CART ACCESS
+    # ─────────────────────────────────────────────────────────────
+    
     @staticmethod
     def get_cart(request):
-        """Get cart object (DB for customers, None for guests)"""
+        """Get cart object for authenticated customer only"""
         if request.user.is_authenticated and request.user.role == 'customer':
             cart, _ = Cart.objects.get_or_create(user=request.user)
             return cart
         return None
- 
-    # ------------------------------------------------------------------ #
-    #  ADD TO CART                                                         #
-    # ------------------------------------------------------------------ #
+    
+    # ─────────────────────────────────────────────────────────────
+    # INTERNAL HELPERS
+    # ─────────────────────────────────────────────────────────────
+    
+    @staticmethod
+    def _check_stock(product, quantity, variant=None):
+        """
+        Internal: Validate stock availability.
+        Returns: (is_available: bool, error_message: str or None)
+        """
+        if variant:
+            if variant.stock < quantity:
+                variant_info = f"{variant.size_value}{f' / {variant.color}' if variant.color else ''}".strip()
+                return False, f"Only {variant.stock} {'available' if not variant_info else variant_info + ' available'}"
+        else:
+            if product.stock < quantity:
+                return False, f"Only {product.stock} available"
+        return True, None
+    
+    @staticmethod
+    def _get_unit_price(product):
+        """Get the effective unit price (with discount applied)"""
+        if product.discount_percent > 0 and product.discount_price:
+            return product.discount_price
+        return product.price
+    
+    @staticmethod
+    def _calculate_savings(product, quantity):
+        """Calculate total savings for a cart item"""
+        if product.mrp and product.discount_percent > 0:
+            original = product.mrp
+            discounted = product.discount_price if product.discount_price else product.price
+            return (original - discounted) * quantity
+        return Decimal('0')
+    
+    # ─────────────────────────────────────────────────────────────
+    # ADD TO CART
+    # ─────────────────────────────────────────────────────────────
+    
     @staticmethod
     def add_to_cart(request, product_id, quantity=1, variant_id=None):
         """
-        Add a product (with optional variant) to cart.
-        - Authenticated customers  → DB cart  (CartItem)
-        - Guests                   → session cart
+        Add product to cart (DB only, variant-aware).
+        
+        Args:
+            request: Django request object
+            product_id: Product primary key
+            quantity: Quantity to add (default: 1)
+            variant_id: Optional ProductVariant primary key
+        
+        Returns:
+            tuple: (success: bool, message: str, cart_count: int)
         """
- 
-        # ── Stock validation ────────────────────────────────────────────
+        # Auth check
+        if not request.user.is_authenticated or request.user.role != 'customer':
+            return False, "Please login to add items to cart", 0
+        
+        # Validate quantity
+        if quantity < 1:
+            return False, "Quantity must be at least 1", 0
+        
+        # Fetch product
+        try:
+            product = Product.objects.select_related('seller').get(
+                id=product_id, 
+                status='published',
+                is_active=True
+            )
+        except Product.DoesNotExist:
+            return False, "Product not found or unavailable", 0
+        
+        # Fetch variant if specified
+        variant = None
         if variant_id:
             try:
                 variant = ProductVariant.objects.get(
-                    id=variant_id,
-                    product_id=product_id,
-                    is_active=True,
+                    id=variant_id, 
+                    product=product, 
+                    is_active=True
                 )
             except ProductVariant.DoesNotExist:
-                raise ValueError('Selected variant not found or inactive.')
- 
-            if variant.stock < quantity:
-                raise ValueError(f'Only {variant.stock} available for this variant.')
- 
-        else:
-            try:
-                product = Product.objects.get(id=product_id, status='published')
-            except Product.DoesNotExist:
-                raise ValueError('Product not found.')
- 
-            if product.stock < quantity:
-                raise ValueError(f'Only {product.stock} available.')
- 
-        # ── DB cart (authenticated customers) ───────────────────────────
-        if request.user.is_authenticated and request.user.role == 'customer':
-            product = Product.objects.get(id=product_id)
-            cart, _ = Cart.objects.get_or_create(user=request.user)
- 
-            # Use variant_id=None for non-variant products so each
-            # product+variant combination is a separate CartItem row.
-            cart_item, created = CartItem.objects.get_or_create(
+                return False, "Selected variant not available", 0
+        
+        # Stock validation BEFORE database operations
+        is_available, error_msg = CartService._check_stock(product, quantity, variant)
+        if not is_available:
+            return False, error_msg, 0
+        
+        # Get or create cart
+        cart, _ = Cart.objects.get_or_create(user=request.user)
+        
+        # ✅ CRITICAL: Wrap select_for_update in transaction.atomic()
+        with transaction.atomic():
+            # Lock the cart item row to prevent race conditions
+            cart_item, created = CartItem.objects.select_for_update().get_or_create(
                 cart=cart,
                 product=product,
-                variant_id=variant_id,          # None when no variant
-                defaults={'quantity': quantity},
+                variant=variant,  # None for non-variant products
+                defaults={'quantity': quantity}
             )
+            
             if not created:
-                cart_item.quantity += quantity
+                # Item exists - update quantity
+                new_qty = cart_item.quantity + quantity
+                
+                # Re-validate stock for the NEW total quantity
+                is_available, error_msg = CartService._check_stock(product, new_qty, variant)
+                if not is_available:
+                    return False, error_msg, cart.total_items
+                
+                cart_item.quantity = new_qty
                 cart_item.save()
- 
-            return cart.total_items
- 
-        # ── Session cart (guests) ───────────────────────────────────────
-        else:
-            cart = request.session.get('cart', {})
-            # Key format: "pid" or "pid_vid" so different variants are stored separately
-            key = f"{product_id}_{variant_id}" if variant_id else str(product_id)
-            cart[key] = cart.get(key, 0) + quantity
-            request.session['cart'] = cart
-            request.session.modified = True
-            return sum(cart.values())
- 
-    # ------------------------------------------------------------------ #
-    #  UPDATE CART ITEM                                                    #
-    # ------------------------------------------------------------------ #
+        
+        return True, "Added to cart!", cart.total_items
+    
+    # ─────────────────────────────────────────────────────────────
+    # UPDATE CART ITEM (Quantity Change or Remove)
+    # ─────────────────────────────────────────────────────────────
+    
     @staticmethod
     def update_cart_item(request, product_id, quantity, variant_id=None):
-        if request.user.is_authenticated and request.user.role == 'customer':
-            try:
-                cart = Cart.objects.get(user=request.user)
-                qs = CartItem.objects.filter(cart=cart, product_id=product_id)
-                if variant_id:
-                    qs = qs.filter(variant_id=variant_id)
-                else:
-                    qs = qs.filter(variant_id__isnull=True)
- 
-                cart_item = qs.first()
-                if cart_item:
-                    if quantity <= 0:
-                        cart_item.delete()
-                    else:
-                        cart_item.quantity = quantity
-                        cart_item.save()
-            except Cart.DoesNotExist:
-                pass
-            return Cart.objects.get(user=request.user).total_items
- 
+        """
+        Update cart item quantity or remove item (DB only, variant-aware).
+        
+        Args:
+            request: Django request object
+            product_id: Product primary key
+            quantity: New quantity (0 or negative = remove item)
+            variant_id: Optional ProductVariant primary key
+        
+        Returns:
+            tuple: (success: bool, message: str, cart_count: int)
+        """
+        # Auth check
+        if not request.user.is_authenticated or request.user.role != 'customer':
+            return False, "Login required", 0
+        
+        # Fetch cart
+        try:
+            cart = Cart.objects.select_related('user').get(user=request.user)
+        except Cart.DoesNotExist:
+            return False, "Cart not found", 0
+        
+        # Build filters for the specific cart item
+        filters = {'cart': cart, 'product_id': product_id}
+        if variant_id:
+            filters['variant_id'] = variant_id
         else:
-            cart = request.session.get('cart', {})
-            key = f"{product_id}_{variant_id}" if variant_id else str(product_id)
+            # For non-variant items, variant must be NULL
+            filters['variant__isnull'] = True
+        
+        # ✅ CRITICAL: Wrap select_for_update in transaction.atomic()
+        with transaction.atomic():
+            try:
+                # Lock the row for update
+                cart_item = CartItem.objects.select_for_update().get(**filters)
+            except CartItem.DoesNotExist:
+                return False, "Item not in cart", cart.total_items
+            
+            # Handle removal
             if quantity <= 0:
-                cart.pop(key, None)
-            else:
-                cart[key] = quantity
-            request.session['cart'] = cart
-            request.session.modified = True
-            return sum(cart.values())
- 
-    # ------------------------------------------------------------------ #
-    #  REMOVE FROM CART                                                    #
-    # ------------------------------------------------------------------ #
+                cart_item.delete()
+                return True, "Item removed", cart.total_items
+            
+            # Validate new quantity against stock
+            product = cart_item.product
+            variant = cart_item.variant
+            
+            is_available, error_msg = CartService._check_stock(product, quantity, variant)
+            if not is_available:
+                return False, error_msg, cart.total_items
+            
+            # Update quantity
+            cart_item.quantity = quantity
+            cart_item.save()
+        
+        return True, "Cart updated", cart.total_items
+    
+    # ─────────────────────────────────────────────────────────────
+    # REMOVE FROM CART (Convenience Wrapper)
+    # ─────────────────────────────────────────────────────────────
+    
     @staticmethod
     def remove_from_cart(request, product_id, variant_id=None):
+        """
+        Remove item from cart (convenience wrapper).
+        
+        Returns:
+            tuple: (success: bool, message: str, cart_count: int)
+        """
         return CartService.update_cart_item(request, product_id, 0, variant_id)
- 
-    # ------------------------------------------------------------------ #
-    #  GET CART ITEMS (for templates)                                      #
-    # ------------------------------------------------------------------ #
+    
+    # ─────────────────────────────────────────────────────────────
+    # GET CART ITEMS FOR TEMPLATE
+    # ─────────────────────────────────────────────────────────────
+    
     @staticmethod
     def get_cart_items(request):
-        if request.user.is_authenticated and request.user.role == 'customer':
-            cart = getattr(request.user, 'cart', None)
-            if not cart:
-                return []
- 
-            items = []
-            for cart_item in cart.items.select_related(
-                'product__seller', 'variant'
-            ).all():
-                items.append({
-                    'product':    cart_item.product,
-                    'variant':    getattr(cart_item, 'variant', None),
-                    'quantity':   cart_item.quantity,
-                    'subtotal':   cart_item.subtotal,
-                    'unit_price': cart_item.unit_price,
-                    'savings':    cart_item.savings,
-                    'in_stock':   cart_item.product.stock >= cart_item.quantity,
-                })
-            return items
- 
-        else:
-            # Session cart — keys may be "pid" or "pid_vid"
-            cart = request.session.get('cart', {})
-            if not cart:
-                return []
- 
-            # Collect all product IDs
-            product_ids = set()
-            for key in cart.keys():
-                product_ids.add(int(key.split('_')[0]))
- 
-            products = {
-                p.id: p
-                for p in Product.objects.filter(
-                    id__in=product_ids, status='published'
-                ).select_related('seller')
+        """
+        Get cart items with full details for template rendering.
+        
+        Returns:
+            list: List of dicts with product, variant, pricing, stock info.
+        """
+        if not request.user.is_authenticated or request.user.role != 'customer':
+            return []
+        
+        # Fetch cart with related data (prevent N+1 queries)
+        try:
+            cart = Cart.objects.prefetch_related(
+                'items__product__seller',
+                'items__product__category',
+                'items__product__product_image_product',
+                'items__variant'
+            ).get(user=request.user)
+        except Cart.DoesNotExist:
+            return []
+        
+        items = []
+        for cart_item in cart.items.all():
+            product = cart_item.product
+            variant = cart_item.variant
+            
+            # Calculate pricing
+            unit_price = CartService._get_unit_price(product)
+            original_price = product.mrp or product.price
+            savings = CartService._calculate_savings(product, cart_item.quantity)
+            
+            # Stock availability for this specific variant/product
+            available_stock = variant.stock if variant else product.stock
+            is_in_stock = available_stock >= cart_item.quantity
+            
+            # Build variant display string
+            variant_display = None
+            if variant:
+                parts = []
+                if variant.size_value:
+                    parts.append(variant.size_value)
+                if variant.color:
+                    parts.append(variant.color)
+                variant_display = ' / '.join(parts) if parts else None
+            
+            items.append({
+                # Identifiers
+                'id': cart_item.id,
+                'product': product,
+                'variant': variant,
+                
+                # Quantities
+                'quantity': cart_item.quantity,
+                'available_stock': available_stock,
+                'is_in_stock': is_in_stock,
+                
+                # Pricing
+                'unit_price': unit_price,
+                'original_price': original_price,
+                'subtotal': unit_price * cart_item.quantity,
+                'savings': savings,
+                
+                # Display helpers
+                'variant_display': variant_display,
+            })
+        
+        return items
+    
+    # ─────────────────────────────────────────────────────────────
+    # CLEAR ENTIRE CART
+    # ─────────────────────────────────────────────────────────────
+    
+    @staticmethod
+    def clear_cart(request):
+        """
+        Empty the entire cart.
+        
+        Returns:
+            bool: True if successful, False otherwise.
+        """
+        if not request.user.is_authenticated or request.user.role != 'customer':
+            return False
+        
+        try:
+            cart = Cart.objects.get(user=request.user)
+            # Use delete() for efficiency (single query)
+            cart.items.all().delete()
+            return True
+        except Cart.DoesNotExist:
+            return False
+    
+    # ─────────────────────────────────────────────────────────────
+    # GET CART SUMMARY FOR CHECKOUT
+    # ─────────────────────────────────────────────────────────────
+    
+    @staticmethod
+    def get_cart_summary(request):
+        """
+        Get cart totals for checkout page.
+        
+        Returns:
+            dict: Summary with subtotal, savings, delivery, grand total.
+        """
+        items = CartService.get_cart_items(request)
+        
+        if not items:
+            return {
+                'subtotal': Decimal('0'),
+                'total_savings': Decimal('0'),
+                'delivery_charge': Decimal('0'),
+                'grand_total': Decimal('0'),
+                'item_count': 0,
+                'free_delivery_eligible': False,
+                'remaining_for_free': Decimal('500'),
             }
- 
-            items = []
-            for key, qty in cart.items():
-                if qty <= 0:
-                    continue
-                pid = int(key.split('_')[0])
-                product = products.get(pid)
-                if not product:
-                    continue
-                unit_price = (
-                    product.discount_price
-                    if product.discount_percent > 0
-                    else product.price
-                )
-                items.append({
-                    'product':    product,
-                    'variant':    None,
-                    'quantity':   qty,
-                    'subtotal':   unit_price * qty,
-                    'unit_price': unit_price,
-                    'savings':    (product.mrp - unit_price) * qty if product.mrp else 0,
-                    'in_stock':   True,
-                })
-            return items
- 
-    # ------------------------------------------------------------------ #
-    #  MERGE GUEST CART ON LOGIN                                           #
-    # ------------------------------------------------------------------ #
+        
+        # Calculate aggregates
+        subtotal = sum(item['subtotal'] for item in items)
+        total_savings = sum(item['savings'] for item in items)
+        item_count = sum(item['quantity'] for item in items)
+        
+        # Free delivery threshold
+        FREE_DELIVERY_THRESHOLD = Decimal('499')
+        delivery_charge = Decimal('0') if subtotal >= FREE_DELIVERY_THRESHOLD else Decimal('40')
+        grand_total = subtotal + delivery_charge
+        
+        return {
+            'subtotal': subtotal,
+            'total_savings': total_savings,
+            'delivery_charge': delivery_charge,
+            'grand_total': grand_total,
+            'item_count': item_count,
+            'free_delivery_eligible': subtotal >= FREE_DELIVERY_THRESHOLD,
+            'remaining_for_free': max(Decimal('0'), FREE_DELIVERY_THRESHOLD - subtotal),
+        }
+    
+    # ─────────────────────────────────────────────────────────────
+    # MERGE GUEST CART ON LOGIN (Optional - if you add session support later)
+    # ─────────────────────────────────────────────────────────────
+    
     @staticmethod
     def merge_guest_cart(request, user):
+        """
+        Merge guest session cart into user's DB cart on login.
+        Only used if you implement session-based guest carts.
+        
+        Returns:
+            int: New total cart item count, or None if not applicable.
+        """
+        # Skip if not authenticated or not a customer
+        if not user.is_authenticated or user.role != 'customer':
+            return None
+        
+        # Skip if no session cart
         session_cart = request.session.get('cart', {})
-        if not session_cart or not user.is_authenticated:
-            return
- 
+        if not session_cart:
+            return None
+        
+        # Get user's DB cart
         cart, _ = Cart.objects.get_or_create(user=user)
- 
+        
+        merged_count = 0
+        
         for key, qty in session_cart.items():
+            # Parse key: "pid" or "pid_vid"
             parts = key.split('_')
             pid = int(parts[0])
             vid = int(parts[1]) if len(parts) > 1 else None
- 
+            
             try:
+                # Fetch product
                 product = Product.objects.get(
-                    id=pid, status='published', stock__gt=0
+                    id=pid, 
+                    status='published', 
+                    is_active=True,
+                    stock__gt=0
                 )
-                cart_item, created = CartItem.objects.get_or_create(
-                    cart=cart,
-                    product=product,
-                    variant_id=vid,
-                    defaults={'quantity': qty},
-                )
-                if not created:
-                    cart_item.quantity += qty
-                    cart_item.save()
-            except Product.DoesNotExist:
-                continue
- 
-        request.session['cart'] = {}
-        return cart.total_items
+                
+                # Fetch variant if specified
+                variant = None
+                if vid:
+                    variant = ProductVariant.objects.get(
+                        id=vid,
+                        product=product,
+                        is_active=True
+                    )
+                
+                # Stock check
+                is_available, _ = CartService._check_stock(product, qty, variant)
+                if not is_available:
+                    continue  # Skip unavailable items
+                
+                # Add to DB cart (with transaction for safety)
+                with transaction.atomic():
+                    cart_item, created = CartItem.objects.select_for_update().get_or_create(
+                        cart=cart,
+                        product=product,
+                        variant=variant,
+                        defaults={'quantity': qty}
+                    )
+                    if not created:
+                        new_qty = cart_item.quantity + qty
+                        is_available, _ = CartService._check_stock(product, new_qty, variant)
+                        if is_available:
+                            cart_item.quantity = new_qty
+                            cart_item.save()
+                
+                merged_count += qty
+                
+            except (Product.DoesNotExist, ProductVariant.DoesNotExist):
+                continue  # Skip invalid items
+        
+        # Clear session cart after successful merge
+        if merged_count > 0:
+            request.session['cart'] = {}
+            request.session.modified = True
+        
+        return cart.total_items if merged_count > 0 else None

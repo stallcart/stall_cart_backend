@@ -11,6 +11,15 @@ from django.conf import settings
 from shop.models import *
 from .services import CartService
 from common.decorators import *
+import logging
+import razorpay
+from decimal import Decimal
+from django.db import transaction, models
+from django.http import JsonResponse
+from django.conf import settings
+from items.models import Product, ProductVariant
+
+logger = logging.getLogger(__name__)
 
 def home(request):
     """Main shop page - matches index.html"""
@@ -91,29 +100,15 @@ def product_detail(request, slug):
 #     except Exception as e:
 #         return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
 
-# shop/views.py
+@customer_only
 def cart_view(request):
-    """Cart page - works for both guests and authenticated users"""
+    """Cart page - DB only, variant-aware"""
     cart_items = CartService.get_cart_items(request)
+    summary = CartService.get_cart_summary(request)
     
-    if not cart_items:
-        return render(request, 'shop/cart.html', {
-            'cart_items': [],
-            'total': 0,
-            'delivery_charge': 0,
-            'total_savings': 0,
-            'default_address': None,
-            'user_addresses': [],
-        })
-    
-    # Calculate totals
-    total = sum(item['subtotal'] for item in cart_items)
-    total_savings = sum(item['savings'] for item in cart_items)
-    delivery_charge = 0 if total >= 499 else 40
-    
-    # Get addresses for authenticated customers
-    default_address = None
+    # Get user addresses for checkout
     user_addresses = []
+    default_address = None
     if request.user.is_authenticated and request.user.role == 'customer':
         from accounts.models import Address
         user_addresses = Address.objects.filter(
@@ -123,130 +118,130 @@ def cart_view(request):
         default_address = user_addresses.filter(is_default=True).first()
         if not default_address and user_addresses:
             default_address = user_addresses[0]
-    remaining_amount_for_free_delivery = 0        
-    if total <500 :
-        remaining_amount_for_free_delivery = 500 - total
+    
     context = {
         'cart_items': cart_items,
-        'total': total,
-        'delivery_charge': delivery_charge,
-        'total_savings': total_savings,
+        'cart_count': summary['item_count'],
+        'subtotal': summary['subtotal'],
+        'total_savings': summary['total_savings'],
+        'delivery_charge': summary['delivery_charge'],
+        'grand_total': summary['grand_total'],
+        'free_delivery_eligible': summary['free_delivery_eligible'],
+        'remaining_for_free_delivery': summary['remaining_for_free'],
         'default_address': default_address,
         'user_addresses': user_addresses,
-        'cart_count': sum(item['quantity'] for item in cart_items),
-        'remaining_amount_for_free_delivery':remaining_amount_for_free_delivery 
     }
-    
     return render(request, 'shop/cart.html', context)
 
-# @customer_only
-# @require_POST
-# def add_to_cart(request):
-#     """AJAX: Add product to cart"""
-#     import json
-#     try:
-#         data = json.loads(request.body)
-#         product_id = data.get('product_id')
-#         quantity = int(data.get('quantity', 1))
-        
-#         if not product_id or quantity < 1:
-#             return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
-#         variant_id = data.get('variant_id')  # ✅ New optional field
-#         # AFTER (fixed)
-#         if variant_id:
-#             variant = get_object_or_404(ProductVariant, pk=variant_id, product_id=product_id, is_active=True)
-#             if variant.stock < quantity:
-#                 return JsonResponse({'status': 'error', 'message': f'Only {variant.stock} available'}, status=400)
-#             cart_count = CartService.add_to_cart(request, product_id, quantity, variant_id=variant_id)
-#         else:
-#             product = get_object_or_404(Product, pk=product_id, is_active=True)
-#             if product.stock < quantity:
-#                 return JsonResponse({'status': 'error', 'message': f'Only {product.stock} available'}, status=400)
-#             cart_count = CartService.add_to_cart(request, product_id, quantity)
-        
-#         return JsonResponse({
-#             'status': 'success',
-#             'message': 'Added to cart!',
-#             'cart_count': cart_count
-#         })
-#     except Exception as e:
-#         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 @customer_only
 @require_POST
 def add_to_cart(request):
-    import json
+    """AJAX: Add product to cart (DB only, with variant support)"""
     try:
         data = json.loads(request.body)
         product_id = data.get('product_id')
         quantity = int(data.get('quantity', 1))
-        variant_id = data.get('variant_id')  # may be None
-
+        variant_id = data.get('variant_id')  # Optional
+        
         if not product_id or quantity < 1:
             return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
-
-        try:
-            cart_count = CartService.add_to_cart(
-                request, product_id, quantity, variant_id=variant_id
-            )
-        except ValueError as e:
-            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
-
-        return JsonResponse({
-            'status': 'success',
-            'message': 'Added to cart!',
-            'cart_count': cart_count
-        })
+        
+        success, message, cart_count = CartService.add_to_cart(
+            request, product_id, quantity, variant_id
+        )
+        
+        if success:
+            return JsonResponse({
+                'status': 'success',
+                'message': message,
+                'cart_count': cart_count
+            })
+        else:
+            return JsonResponse({'status': 'error', 'message': message}, status=400)
+            
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
     except Exception as e:
-        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+        logger.error(f"Add to cart error: {e}", exc_info=True)
+        return JsonResponse({'status': 'error', 'message': 'Server error'}, status=500)
 
 @customer_only
 @require_POST
 def update_cart(request):
-    """AJAX: Update cart item quantity or remove"""
-    import json
+    """AJAX: Update cart item quantity or remove (DB only, variant-aware)"""
     try:
         data = json.loads(request.body)
         product_id = data.get('product_id')
         quantity = int(data.get('quantity', 0))
+        variant_id = data.get('variant_id')  # Optional - crucial for variants
         action = data.get('action', 'update')
         
         if not product_id:
             return JsonResponse({'status': 'error', 'message': 'Product ID required'}, status=400)
         
+        # Remove action overrides quantity
         if action == 'remove':
             quantity = 0
         
-        cart_count = CartService.update_cart_item(request, product_id, quantity)
+        success, message, cart_count = CartService.update_cart_item(
+            request, product_id, quantity, variant_id
+        )
         
-        return JsonResponse({
-            'status': 'success',
-            'message': 'Cart updated',
-            'cart_count': cart_count
-        })
+        if success:
+            return JsonResponse({
+                'status': 'success',
+                'message': message,
+                'cart_count': cart_count
+            })
+        else:
+            return JsonResponse({'status': 'error', 'message': message}, status=400)
+            
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
     except Exception as e:
-        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+        logger.error(f"Update cart error: {e}", exc_info=True)
+        return JsonResponse({'status': 'error', 'message': 'Server error'}, status=500)
 
-
-@customer_only    
+@customer_only
 def checkout(request):
-    """Checkout page - address + payment selection"""
-    if request.user.role != 'customer':
-        messages.error(request, "Only customers can proceed to checkout.")
-        return redirect('shop:home')
-    cart = request.session.get('cart', {})
-    if not cart:
+    """Checkout page"""
+    cart_items = CartService.get_cart_items(request)
+    
+    if not cart_items:
+        messages.warning(request, "Your cart is empty.")
         return redirect('shop:cart')
     
-    # Calculate order total
-    from items.models import Product
-    products = Product.objects.filter(id__in=cart.keys(), is_active=True)
-    total = sum(p.price * cart[str(p.id)] for p in products if p.stock >= cart[str(p.id)])
+    summary = CartService.get_cart_summary(request)
     
+    # Get addresses
+    from accounts.models import Address
+    user_addresses = Address.objects.filter(
+        user=request.user, is_active=True
+    ).order_by('-is_default', '-created_at')
+    
+    selected_addr_id = request.GET.get('address')
+    selected_address = None
+    if selected_addr_id:
+        selected_address = user_addresses.filter(id=selected_addr_id).first()
+    if not selected_address:
+        selected_address = user_addresses.filter(is_default=True).first()
+    if not selected_address and user_addresses:
+        selected_address = user_addresses.first()
+    
+    from django.conf import settings
     context = {
-        'total': total,
-        'user_address': request.user.address if hasattr(request.user, 'address') else {},
+        'cart_items': cart_items,
+        'user_addresses': user_addresses,
+        'selected_address': selected_address,
+        'subtotal': summary['subtotal'],
+        'total_savings': summary['total_savings'],
+        'delivery_charge': summary['delivery_charge'],
+        'grand_total': summary['grand_total'],
+        'remaining_for_free_delivery': summary['remaining_for_free'],
+        'razorpay_key': getattr(settings, 'RAZORPAY_KEY_ID', ''),
     }
     return render(request, 'shop/checkout.html', context)
+
 
 # shop/views.py
 
@@ -322,335 +317,249 @@ def checkout(request):
 #         import traceback
 #         traceback.print_exc()
 #         return JsonResponse({'error': str(e)}, status=500)
+# shop/views.py
+
 @customer_only
 @require_POST
 def create_order(request):
-    """
-    Correct Production Flow
-
-    COD:
-        Validate -> Create Order -> Create Items -> Reduce Stock
-
-    Razorpay:
-        Validate -> Create Razorpay Order ->
-        Create DB Order ->
-        Create Items ->
-        Return Razorpay Data
-
-    NOTE:
-    Stock should ideally reduce AFTER payment verification.
-    """
-
-    import json
-    import logging
-    import traceback
-    import razorpay
-
-    from decimal import Decimal
-    from django.db import transaction
-    from django.http import JsonResponse
-    from django.conf import settings
-
+    """Create order from cart with comprehensive stock validation"""
+   
+    
     try:
-        # =====================================
-        # REQUEST DATA
-        # =====================================
+        # ── Parse Request ──────────────────────────────────
         data = json.loads(request.body)
-
         address = data.get('address', {})
         payment_method = data.get('payment_method', 'cod').lower()
-
-        # =====================================
-        # GET CART
-        # =====================================
+        
+        # ── Get Cart ───────────────────────────────────────
         try:
-            cart = Cart.objects.get(user=request.user)
-
+            cart = Cart.objects.select_related('user').get(user=request.user)
         except Cart.DoesNotExist:
             return JsonResponse({
                 'status': 'error',
                 'message': 'Cart not found'
             }, status=400)
-
+        
         if not cart.items.exists():
             return JsonResponse({
                 'status': 'error',
                 'message': 'Cart is empty'
             }, status=400)
-
+        
+        # Prefetch related data for stock checks
         cart_items = cart.items.select_related(
             'product',
-            'product__seller'
-        )
-
-        # =====================================
-        # STOCK VALIDATION
-        # =====================================
+            'product__seller',
+            'product__category',
+            'variant'
+        ).all()
+        
+        # ── ✅ STOCK VALIDATION (CRITICAL) ─────────────────
+        unavailable_items = []
+        
         for item in cart_items:
-
-            if item.quantity > item.product.stock:
-
-                return JsonResponse({
-                    'status': 'error',
-                    'message': f'Only {item.product.stock} left for {item.product.name}'
-                }, status=400)
-
-        # =====================================
-        # CALCULATE TOTALS
-        # =====================================
-        subtotal = sum(
-            Decimal(str(item.subtotal))
-            for item in cart_items
-        )
-
-        delivery_charge = Decimal('0')
-
-        if subtotal < Decimal('499'):
-            delivery_charge = Decimal('40')
-
+            product = item.product
+            variant = item.variant
+            
+            # Check if product is published and active
+            if product.status != 'published' or not product.is_active:
+                unavailable_items.append({
+                    'name': product.name,
+                    'variant': f"{variant.size_value} / {variant.color}".strip(" / ") if variant else None,
+                    'reason': 'Product is no longer available',
+                    'requested': item.quantity,
+                    'available': 0
+                })
+                continue
+            
+            # Determine available stock (variant or product level)
+            available_stock = variant.stock if variant else product.stock
+            
+            # Check stock availability
+            if available_stock < item.quantity:
+                unavailable_items.append({
+                    'name': product.name,
+                    'variant': f"{variant.size_value} / {variant.color}".strip(" / ") if variant else None,
+                    'reason': 'Insufficient stock',
+                    'requested': item.quantity,
+                    'available': available_stock
+                })
+        
+        # If any items are unavailable, return detailed error
+        if unavailable_items:
+            # Build user-friendly message
+            if len(unavailable_items) == 1:
+                item = unavailable_items[0]
+                msg = f"'{item['name']}'"
+                if item.get('variant'):
+                    msg += f" ({item['variant']})"
+                msg += f" - Only {item['available']} available (you requested {item['requested']})"
+            else:
+                msg = f"{len(unavailable_items)} items are no longer available. Please review your cart."
+            
+            return JsonResponse({
+                'status': 'error',
+                'message': msg,
+                'unavailable_items': unavailable_items  # For frontend highlighting
+            }, status=400)
+        
+        # ── Calculate Totals ───────────────────────────────
+        subtotal = sum(Decimal(str(item.subtotal)) for item in cart_items)
+        delivery_charge = Decimal('0') if subtotal >= Decimal('499') else Decimal('40')
         total_amount = subtotal + delivery_charge
-
-        # =====================================
-        # CREATE RAZORPAY ORDER FIRST
-        # =====================================
+        
+        # ── Create Razorpay Order (if online payment) ──────
         razorpay_order = None
-
         if payment_method != 'cod':
-
             try:
-                client = razorpay.Client(
-                    auth=(
-                        settings.RAZORPAY_KEY_ID,
-                        settings.RAZORPAY_KEY_SECRET
-                    )
-                )
-
+                client = razorpay.Client(auth=(
+                    settings.RAZORPAY_KEY_ID,
+                    settings.RAZORPAY_KEY_SECRET
+                ))
                 razorpay_order = client.order.create({
-
                     'amount': int(total_amount * 100),
-
                     'currency': 'INR',
-
                     'payment_capture': 1,
-
                     'notes': {
                         'user_id': str(request.user.id),
                         'email': request.user.email or ''
                     }
                 })
-
             except Exception as e:
-
-                print("\n========== RAZORPAY ERROR ==========")
-                print("ERROR:", str(e))
-                print("====================================\n")
-
+                logger.error(f"Razorpay order creation failed: {e}", exc_info=True)
                 return JsonResponse({
                     'status': 'error',
-                    'message': 'Unable to initialize payment gateway',
-                    'actual_error': str(e)
+                    'message': 'Unable to initialize payment gateway'
                 }, status=500)
-
-        # =====================================
-        # CREATE DATABASE ORDER
-        # =====================================
+        
+        # ── ✅ CREATE ORDER (Atomic Transaction) ───────────
         with transaction.atomic():
-
+            # 🔒 Re-check stock WITHIN transaction to prevent race conditions
+            for item in cart_items:
+                product = item.product
+                variant = item.variant
+                available_stock = variant.stock if variant else product.stock
+                
+                if available_stock < item.quantity:
+                    raise ValueError(
+                        f"Stock changed for {product.name}. Only {available_stock} available."
+                    )
+            
+            # Create the order
             order = Order.objects.create(
-
                 user=request.user,
-
                 total_amount=total_amount,
-
                 delivery_charge=delivery_charge,
-
                 shipping_address=address,
-
-                payment_method='razorpay'
-                if payment_method != 'cod'
-                else 'cod',
-
+                payment_method='razorpay' if payment_method != 'cod' else 'cod',
                 payment_status='pending',
-
                 status='pending',
-
-                razorpay_order_id=
-                razorpay_order['id']
-                if razorpay_order
-                else None,
-
+                razorpay_order_id=razorpay_order['id'] if razorpay_order else None,
                 notes=json.dumps({
-
                     'cart_items': [
                         {
                             'product': item.product.name,
                             'qty': item.quantity,
-                            'price': float(
-                                item.price
-                                if hasattr(item, 'price')
-                                else item.unit_price
-                            ),
+                            'price': float(item.price if hasattr(item, 'price') else item.unit_price),
                             'subtotal': float(item.subtotal)
                         }
                         for item in cart_items
                     ],
-
                     'subtotal': float(subtotal),
-
                     'delivery_charge': float(delivery_charge),
-
                     'total_amount': float(total_amount)
-
                 })
-
             )
-
-            print("ORDER CREATED:", order.unique_order_id)
-
-            # =====================================
-            # CREATE ORDER ITEMS
-            # =====================================
+            
+            # Create order items
             for item in cart_items:
-
-                item_price = (
-                    item.price
-                    if hasattr(item, 'price')
-                    else item.unit_price
-                )
-
+                item_price = item.price if hasattr(item, 'price') else item.unit_price
                 OrderItem.objects.create(
-
                     order=order,
-
                     product=item.product,
-
                     seller=item.product.seller,
-
                     quantity=item.quantity,
-
                     price=item_price,
-
-                    total=item.subtotal
+                    total=item.subtotal,
+                    variant=item.variant  # ✅ Save variant reference
                 )
-
-            # =====================================
-            # COD ONLY:
-            # REDUCE STOCK + CLEAR CART
-            # =====================================
+            
+            # ✅ FOR COD: Reduce stock immediately
             if payment_method == 'cod':
-
                 for item in cart_items:
-
-                    item.product.stock -= item.quantity
-
-                    item.product.save(
-                        update_fields=['stock']
-                    )
-
+                    product = item.product
+                    variant = item.variant
+                    
+                    if variant:
+                        # Update variant stock
+                        variant.stock -= item.quantity
+                        variant.save(update_fields=['stock'])
+                        # Recalculate product stock from variants
+                        product.stock = product.variants.filter(
+                            is_active=True
+                        ).aggregate(total=models.Sum('stock'))['total'] or 0
+                        product.save(update_fields=['stock'])
+                    else:
+                        # Update product stock directly
+                        product.stock -= item.quantity
+                        product.save(update_fields=['stock'])
+                
+                # Clear cart after successful order
                 cart.items.all().delete()
-
+                
+                # Update order status for COD
                 order.payment_status = 'pending'
                 order.status = 'confirmed'
-                order.save(
-                    update_fields=[
-                        'payment_status',
-                        'status'
-                    ]
-                )
-
-        # =====================================
-        # ONLINE PAYMENT RESPONSE
-        # =====================================
+                order.save(update_fields=['payment_status', 'status'])
+        
+        # ── Return Response ────────────────────────────────
         if payment_method != 'cod':
-
+            # Online payment: return Razorpay config
             return JsonResponse({
-
                 'status': 'success',
-
                 'payment_method': 'razorpay',
-
                 'order_id': order.unique_order_id,
-
                 'razorpay_order_id': razorpay_order['id'],
-
                 'key': settings.RAZORPAY_KEY_ID,
-
                 'amount': int(total_amount * 100),
-
                 'currency': 'INR',
-
-                'name': getattr(
-                    settings,
-                    'SITE_NAME',
-                    'StallCart'
-                ),
-
-                'description':
-                f'Order #{order.unique_order_id}',
-
+                'name': getattr(settings, 'SITE_NAME', 'StallCart'),
+                'description': f'Order #{order.unique_order_id}',
                 'prefill': {
-
-                    'name': getattr(
-                        request.user,
-                        'full_name',
-                        ''
-                    ) or '',
-
+                    'name': getattr(request.user, 'full_name', '') or '',
                     'email': request.user.email or '',
-
-                    'contact': getattr(
-                        request.user,
-                        'phone',
-                        ''
-                    ) or ''
+                    'contact': getattr(request.user, 'phone', '') or ''
                 },
-
-                'theme': {
-                    'color': '#2874F0'
-                }
-
+                'theme': {'color': '#2874F0'}
             })
-
-        # =====================================
-        # COD SUCCESS RESPONSE
-        # =====================================
+        
+        # COD: Order confirmed
         return JsonResponse({
-
             'status': 'success',
-
             'payment_method': 'cod',
-
             'order_id': order.unique_order_id,
-
-            'message':
-            'Order placed successfully.'
-
+            'message': 'Order placed successfully.'
         })
-
+        
+    except ValueError as e:
+        # Stock changed during transaction
+        logger.warning(f"Stock validation failed during order creation: {e}")
+        return JsonResponse({
+            'status': 'error',
+            'message': str(e)
+        }, status=400)
+        
     except json.JSONDecodeError:
-
         return JsonResponse({
             'status': 'error',
             'message': 'Invalid JSON data'
         }, status=400)
-
+        
     except Exception as e:
-
-        print("\n========== ORDER ERROR ==========")
-        print("ERROR TYPE:", type(e).__name__)
-        print("ERROR MESSAGE:", str(e))
-        print("=================================\n")
-
-        traceback.print_exc()
-
-        logging.exception(
-            "Full order creation error"
-        )
-
+        logger.error(f"Order creation failed: {e}", exc_info=True)
         return JsonResponse({
             'status': 'error',
-            'message': str(e),
-            'error_type': type(e).__name__
+            'message': 'Order creation failed. Please try again.'
         }, status=500)
 # @login_required
 # def order_success(request, order_id):

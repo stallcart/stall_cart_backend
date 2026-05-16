@@ -4,13 +4,14 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
-from django.db.models import Q, Sum , F
+from django.db.models import F, Avg, Count, Q , Sum
 from .models import *
 from .forms import *
 from common.decorators import *
 from PIL import Image
 import io
 import json
+from orders.models import *
 from django.core.serializers.json import DjangoJSONEncoder
 from .utils import *
 # ---------------------------------------------------------------------------
@@ -909,90 +910,55 @@ def product_list(request):
 #         'has_variants': product.variants.filter(is_active=True, stock__gt=0).exists(),
 #     }
 #     return render(request, 'shop/product_detail.html', context)
+
 @login_required
 def product_detail(request, slug):
-
+    """Product detail page with reviews (customer-only visibility)"""
+    
     product = get_object_or_404(
-        Product.objects.select_related(
-            'seller',
-            'category'
-        ).prefetch_related(
-            'product_image_product',
-            'variants',
-        ),
+        Product.objects.select_related('seller', 'category')
+        .prefetch_related('product_image_product', 'variants'),
         slug=slug,
         status='published',
     )
-    print(product)
+    
     # Increment views
-    Product.objects.filter(pk=product.pk).update(
-        views_count=F('views_count') + 1
-    )
-
+    Product.objects.filter(pk=product.pk).update(views_count=F('views_count') + 1)
     product.refresh_from_db()
 
     # ─────────────────────────────────────────────
     # Images
     # ─────────────────────────────────────────────
-    images = list(
-        product.product_image_product.all().order_by(
-            'display_order',
-            '-is_primary'
-        )
-    )
-
-    # Add primary image if missing
+    images = list(product.product_image_product.all().order_by('display_order', '-is_primary'))
     if product.primary_image:
-        primary_exists = any(
-            img.image.name == product.primary_image.name
-            for img in images
-        )
-
+        primary_exists = any(img.image.name == product.primary_image.name for img in images)
         if not primary_exists:
-
             class PrimaryImage:
                 def __init__(self, image):
                     self.image = image
                     self.is_primary = True
                     self.alt_text = product.name
-
             images.insert(0, PrimaryImage(product.primary_image))
 
     # ─────────────────────────────────────────────
     # Variants
     # ─────────────────────────────────────────────
-    variants_queryset = product.variants.filter(
-        is_active=True
-    ).order_by('size_value')
-    print(variants_queryset)
+    variants_queryset = product.variants.filter(is_active=True).order_by('size_value')
     has_variants = variants_queryset.exists()
-
     variants_data = []
-
     total_variant_stock = 0
-
+    
     for v in variants_queryset:
-
         total_variant_stock += v.stock
-        print(v.is_in_stock)
         variants_data.append({
-            'id': v.id,
-            'size_value': v.size_value,
-            'size_type': v.size_type,
-            'color': v.color,
-            'price': str(v.effective_price),
-            'stock': v.stock,
-            'is_in_stock': v.is_in_stock,
-            'attributes': v.attributes,
+            'id': v.id, 'size_value': v.size_value, 'size_type': v.size_type,
+            'color': v.color, 'price': str(v.effective_price), 'stock': v.stock,
+            'is_in_stock': v.is_in_stock, 'attributes': v.attributes,
         })
 
     # ─────────────────────────────────────────────
     # Stock Logic
     # ─────────────────────────────────────────────
-
-    # If product has variants → use variant stock
-    # Else use product stock
-
     if has_variants:
         total_stock = total_variant_stock
         is_in_stock = total_variant_stock > 0
@@ -1001,15 +967,54 @@ def product_detail(request, slug):
         is_in_stock = product.stock > 0
 
     # ─────────────────────────────────────────────
+    # ✅ REVIEWS & RATINGS (Customer-Only)
+    # ─────────────────────────────────────────────
+    
+    # Check if user is a customer (reviews only visible to customers)
+    is_customer = request.user.is_authenticated and request.user.role == 'customer'
+    
+    if is_customer:
+        # Get approved reviews for this product
+        reviews = product.reviews.filter(
+            is_approved=True
+        ).select_related('user').order_by('-created_at')[:10]  # Latest 10
+        
+        # Rating statistics
+        rating_stats = product.reviews.filter(is_approved=True).aggregate(
+            average=Avg('rating'),
+            count=Count('id'),
+            five_star=Count('id', filter=Q(rating=5)),
+            four_star=Count('id', filter=Q(rating=4)),
+            three_star=Count('id', filter=Q(rating=3)),
+            two_star=Count('id', filter=Q(rating=2)),
+            one_star=Count('id', filter=Q(rating=1)),
+        )
+        
+        # User's existing review (if any)
+        user_review = product.reviews.filter(user=request.user).first()
+        
+        # Check if user can review (purchased & not already reviewed)
+        can_review = False
+        if not user_review:
+            has_purchased = OrderItem.objects.filter(
+                product=product,
+                order__user=request.user,
+                order__status='delivered'
+            ).exists()
+            can_review = has_purchased
+    else:
+        # Non-customers see placeholder data
+        reviews = []
+        rating_stats = {'average': None, 'count': 0}
+        user_review = None
+        can_review = False
+
+    # ─────────────────────────────────────────────
     # Related Products
     # ─────────────────────────────────────────────
-
     related = (
         Product.objects
-        .filter(
-            category=product.category,
-            status='published'
-        )
+        .filter(category=product.category, status='published')
         .exclude(pk=product.pk)
         .select_related('seller')
         .prefetch_related('product_image_product')[:4]
@@ -1018,16 +1023,11 @@ def product_detail(request, slug):
     # ─────────────────────────────────────────────
     # Cart Count
     # ─────────────────────────────────────────────
-
     cart_count = 0
-
     if request.user.is_authenticated and request.user.role == 'customer':
-
         cart = getattr(request.user, 'cart', None)
-
         if cart:
             cart_count = cart.total_items
-
     else:
         cart = request.session.get('cart', {})
         cart_count = sum(cart.values())
@@ -1035,44 +1035,55 @@ def product_detail(request, slug):
     # ─────────────────────────────────────────────
     # Permissions
     # ─────────────────────────────────────────────
-
     can_manage = request.user.is_authenticated and (
-        request.user.is_superuser or
-        product.seller.user_id == request.user.pk
+        request.user.is_superuser or product.seller.user_id == request.user.pk
     )
+
+    # ─────────────────────────────────────────────
+    # Reorder Context
+    # ─────────────────────────────────────────────
+    reorder_context = None
+    if request.user.is_authenticated:
+        reorder_from_order = request.GET.get('reorder_from')
+        if reorder_from_order:
+            order_item = OrderItem.objects.filter(
+                order__unique_order_id=reorder_from_order,
+                order__user=request.user,
+                product=product
+            ).first()
+            if order_item:
+                reorder_context = {
+                    'order_id': reorder_from_order,
+                    'original_qty': order_item.quantity,
+                    'original_price': order_item.price
+                }
 
     # ─────────────────────────────────────────────
     # Context
     # ─────────────────────────────────────────────
-    print(is_in_stock)
-    print(total_stock)
     context = {
         'product': product,
         'images': images,
         'related_products': related,
-
         'is_in_stock': is_in_stock,
         'total_stock': total_stock,
-
         'cart_count': cart_count,
         'show_category_nav': True,
         'can_manage': can_manage,
-
         'variants': variants_queryset,
-        'variants_json': json.dumps(
-            variants_data,
-            cls=DjangoJSONEncoder
-        ),
-
-        # IMPORTANT
+        'variants_json': json.dumps(variants_data, cls=DjangoJSONEncoder),
         'has_variants': has_variants,
+        
+        # ✅ Review Context
+        'is_customer': is_customer,
+        'reviews': reviews if is_customer else [],
+        'rating_stats': rating_stats if is_customer else {'average': None, 'count': 0},
+        'user_review': user_review if is_customer else None,
+        'can_review': can_review if is_customer else False,
+        'reorder_context': reorder_context,
     }
 
-    return render(
-        request,
-        'shop/product_detail.html',
-        context
-    )
+    return render(request, 'shop/product_detail.html', context)
 @require_POST
 @seller_or_admin_only
 def delete_product_image(request, image_id):
@@ -1184,3 +1195,132 @@ def wishlist_page(request):
     return render(request, 'items/wishlist.html', {
         'wishlist_items': items,
     })
+
+
+
+@login_required
+@require_POST
+def submit_review(request, product_slug):
+    """Handle review submission via AJAX or form"""
+    product = get_object_or_404(Product, slug=product_slug)
+    
+    # Check if user can review
+    from orders.models import OrderItem
+    has_purchased = OrderItem.objects.filter(
+        product=product,
+        order__user=request.user,
+        order__status='delivered'
+    ).exists()
+    
+    if not has_purchased:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'status': 'error', 'message': 'Only verified purchasers can review'}, status=403)
+        messages.error(request, 'Only verified purchasers can review this product')
+        return redirect('items:product_detail', slug=product_slug)
+    
+    # Check if already reviewed
+    existing_review = product.reviews.filter(user=request.user).first()
+    if existing_review:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'status': 'error', 'message': 'You have already reviewed this product'}, status=400)
+        messages.warning(request, 'You have already reviewed this product')
+        return redirect('items:product_detail', slug=product_slug)
+    
+    # Process form
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        # AJAX submission
+        try:
+            import json
+            data = json.loads(request.body)
+            form = ProductReviewForm(data)
+            if form.is_valid():
+                review = form.save(commit=False)
+                review.product = product
+                review.user = request.user
+                review.is_verified_purchase = True
+                review.save()
+                
+                # Update product rating cache
+                product._update_rating_cache()
+                
+                return JsonResponse({
+                    'status': 'success',
+                    'message': 'Review submitted! Thank you for your feedback.',
+                    'review': {
+                        'id': review.id,
+                        'rating': review.rating,
+                        'title': review.title,
+                        'review': review.review,
+                        'user_name': request.user.full_name or request.user.phone,
+                        'created_at': review.created_at.strftime('%b %d, %Y'),
+                        'is_verified_purchase': review.is_verified_purchase,
+                    }
+                })
+            return JsonResponse({'status': 'error', 'errors': form.errors}, status=400)
+        except json.JSONDecodeError:
+            return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
+    
+    else:
+        # Regular form submission
+        form = ProductReviewForm(request.POST, request.FILES)
+        if form.is_valid():
+            review = form.save(commit=False)
+            review.product = product
+            review.user = request.user
+            review.is_verified_purchase = True
+            review.save()
+            product._update_rating_cache()
+            messages.success(request, 'Review submitted! Thank you for your feedback.')
+        else:
+            messages.error(request, 'Please correct the errors below')
+        return redirect('items:product_detail', slug=product_slug)
+
+@login_required
+@require_POST
+def update_review(request, review_id):
+    """Update an existing review"""
+    review = get_object_or_404(ProductReview, id=review_id, user=request.user)
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        try:
+            import json
+            data = json.loads(request.body)
+            form = ProductReviewForm(data, instance=review)
+            if form.is_valid():
+                form.save()
+                review.product._update_rating_cache()
+                return JsonResponse({'status': 'success', 'message': 'Review updated'})
+            return JsonResponse({'status': 'error', 'errors': form.errors}, status=400)
+        except json.JSONDecodeError:
+            return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
+    
+    return redirect('items:product_detail', slug=review.product.slug)
+
+@login_required
+@require_POST
+def delete_review(request, review_id):
+    """Delete a review"""
+    review = get_object_or_404(ProductReview, id=review_id, user=request.user)
+    product_slug = review.product.slug
+    review.delete()
+    review.product._update_rating_cache()
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'status': 'success', 'message': 'Review deleted'})
+    
+    messages.success(request, 'Review deleted')
+    return redirect('items:product_detail', slug=product_slug)
+
+@login_required
+@require_POST
+def mark_helpful(request, review_id):
+    """Mark a review as helpful"""
+    review = get_object_or_404(ProductReview, id=review_id)
+    # Prevent self-voting & duplicate votes (simplified - use session/DB for production)
+    review.helpful_count = models.F('helpful_count') + 1
+    review.save(update_fields=['helpful_count'])
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'status': 'success', 'helpful_count': review.helpful_count})
+    
+    return redirect('items:product_detail', slug=review.product.slug)

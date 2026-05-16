@@ -4,6 +4,9 @@ from django.conf import settings
 from django.utils.text import slugify
 from common.models import BaseModel  # Your existing BaseModel
 from decimal import Decimal
+from django.urls import reverse
+from django.core.validators import MinValueValidator, MaxValueValidator
+
 class SellerProfile(BaseModel):
     """Extended profile for sellers"""
     user = models.OneToOneField(
@@ -258,7 +261,8 @@ class Product(BaseModel):
             ).exists()
         except Wishlist.DoesNotExist:
             return False
-        
+    def get_absolute_url(self):
+        return reverse('items:product_detail', kwargs={'slug': self.slug})
     class Meta:
         verbose_name_plural = 'Products'
         ordering = ['-created_at']
@@ -477,3 +481,72 @@ class WishlistItem(BaseModel):
         if self.variant:
             return self.variant.effective_price
         return self.product.final_price        
+
+
+
+class ProductReview(BaseModel):
+    """User reviews and ratings for products"""
+    
+    RATING_CHOICES = [(i, f'{i} Star{"s" if i > 1 else ""}') for i in range(1, 6)]
+    
+    product = models.ForeignKey(
+        'Product',
+        on_delete=models.CASCADE,
+        related_name='reviews'
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='reviews'
+    )
+    
+    # Rating & Content
+    rating = models.IntegerField(
+        choices=RATING_CHOICES,
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+        help_text="Rating from 1 to 5 stars"
+    )
+    title = models.CharField(max_length=200, blank=True, help_text="Optional review title")
+    review = models.TextField(max_length=2000, help_text="Your detailed review")
+    
+    # Media (optional)
+    images = models.ImageField(
+        upload_to='reviews/',
+        blank=True, null=True,
+        help_text="Optional: Upload photos of the product"
+    )
+    
+    # Moderation
+    is_verified_purchase = models.BooleanField(default=False, help_text="Auto-set if user bought this product")
+    is_approved = models.BooleanField(default=True, help_text="Set to False for moderation queue")
+    helpful_count = models.PositiveIntegerField(default=0)
+    
+    class Meta:
+        verbose_name = 'Product Review'
+        verbose_name_plural = 'Product Reviews'
+        ordering = ['-created_at']
+        unique_together = ['product', 'user']  # One review per user per product
+        indexes = [
+            models.Index(fields=['product', '-rating']),
+            models.Index(fields=['product', '-created_at']),
+            models.Index(fields=['is_approved', '-created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.user.phone} rated {self.product.name} ⭐{self.rating}"
+    
+    def save(self, *args, **kwargs):
+        # Auto-set verified purchase if user ordered this product
+        if not self.is_verified_purchase and self.pk is None:
+            from orders.models import OrderItem
+            self.is_verified_purchase = OrderItem.objects.filter(
+                product=self.product,
+                order__user=self.user,
+                order__status='delivered'
+            ).exists()
+        super().save(*args, **kwargs)
+    
+    @property
+    def rating_display(self):
+        """Return star string for templates: ★★★★☆"""
+        return '★' * self.rating + '☆' * (5 - self.rating)        

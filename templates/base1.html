@@ -3,10 +3,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>{% block title %}{{ site_settings.site_name }}{% endblock %}</title>
-    <meta name="description" content="{% block meta_description %}{{ site_settings.meta_description }}{% endblock %}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#2563EB">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>{% block title %}{{ site_settings.site_name|default:"StallCart" }}{% endblock %}</title>
+    <meta name="description" content="{% block meta_description %}{{ site_settings.meta_description|default:"Shop premium fashion at unbeatable prices" }}{% endblock %}">
 
     {% if site_settings.favicon %}
         <link rel="icon" type="image/png" href="{{ site_settings.favicon.url }}">
@@ -14,10 +16,10 @@
         <link rel="icon" href="{% static 'images/favicon.png' %}">
     {% endif %}
 
-    <!-- Fonts -->
+    <!-- Fonts: Syne (display) + DM Sans (body) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
     <link href="{% static 'css/style.css' %}" rel="stylesheet">
 
@@ -33,23 +35,29 @@
 <header class="navbar" id="mainNavbar">
     <div class="nav-container">
 
+        <!-- Hamburger (mobile) -->
+        <button class="mobile-menu-btn" id="mobileMenuBtn"
+                aria-label="Open navigation menu" aria-expanded="false"
+                aria-controls="mobileNav">
+            <i class="fa fa-bars"></i>
+        </button>
+
         <!-- Logo -->
         <a href="{% url 'shop:home' %}" class="logo">
             {% if site_settings.logo_url %}
                 <img src="{{ site_settings.logo_url }}"
-                     alt="{{ site_settings.site_name }}"
-                     loading="lazy">
+                     alt="{{ site_settings.site_name }}" loading="lazy">
             {% else %}
-                <span class="logo-text">{{ site_settings.site_name }}</span>
+                <span class="logo-text">StallCart</span>
             {% endif %}
         </a>
 
-        <!-- Search (desktop) -->
-        <div class="nav-search">
+        <!-- Desktop Search -->
+        <div class="nav-search hide-mobile" style="display:none;">
             <form method="get" action="{% url 'items:product_list' %}">
                 <input type="text" name="search"
                        placeholder="Search products, brands…"
-                       value="{{ filters.search|default:'' }}">
+                       value="{{ request.GET.search|default:'' }}">
                 <button type="submit" aria-label="Search">
                     <i class="fa fa-search"></i>
                 </button>
@@ -59,9 +67,9 @@
         <!-- Desktop Nav Actions -->
         <nav class="nav-actions" aria-label="Primary navigation">
 
-            <a href="{% url 'shop:home' %}" class="nav-link" title="Home">
+            <a href="{% url 'shop:home' %}" class="nav-link hide-mobile" style="display:none;" title="Home">
                 <i class="fa fa-home"></i>
-                <span class="hide-mobile">Home</span>
+                <span>Home</span>
             </a>
 
             <!-- User dropdown -->
@@ -69,19 +77,19 @@
                 {% if user.is_authenticated %}
                     <button class="dropdown-toggle" aria-haspopup="true" aria-expanded="false">
                         <i class="fa fa-user-circle"></i>
-                        <span class="hide-mobile">{{ user.full_name|default:user.phone|truncatechars:14 }}</span>
-                        <i class="fa fa-chevron-down" style="font-size:0.7rem;"></i>
+                        <span class="hide-mobile" style="display:none;">{{ user.full_name|default:user.phone|truncatechars:14 }}</span>
+                        <i class="fa fa-chevron-down" style="font-size:0.65rem;"></i>
                     </button>
                     <div class="dropdown-menu" role="menu">
                         <a href="{% url 'accounts:profile' %}" role="menuitem">
                             <i class="fa fa-user-circle"></i> My Profile
                         </a>
                         {% if user.role == 'customer' %}
-                            <a href="{% url 'orders:my_orders' %}" role="menuitem">
-                                <i class="fa fa-box"></i> My Orders
-                            </a>
+                        <a href="{% url 'orders:my_orders' %}" role="menuitem">
+                            <i class="fa fa-box"></i> My Orders
+                        </a>
                         {% endif %}
-                        <hr style="margin:4px 12px;border:none;border-top:1px solid var(--gray-100);">
+                        <hr style="margin:4px 12px;border:none;border-top:1px solid var(--border);">
                         <form action="{% url 'accounts:logout' %}" method="post">
                             {% csrf_token %}
                             <button type="submit" role="menuitem">
@@ -97,167 +105,206 @@
                 {% endif %}
             </div>
 
-            <!-- Role-based nav link -->
+            <!-- Seller Panel / Products link -->
             {% if user.is_authenticated and user.is_seller or user.is_superuser %}
                 <a href="{% url 'items:admin_dashboard' %}"
-                   class="nav-link {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}">
+                   class="nav-link hide-mobile" style="display:none;"
+                   title="Seller Panel">
                     <i class="fa fa-store"></i>
-                    <span class="hide-mobile">Seller Panel</span>
+                    <span>Seller</span>
                 </a>
             {% else %}
                 <a href="{% url 'items:product_list' %}"
-                   class="nav-link {% if request.resolver_match.url_name == 'product_list' %}active{% endif %}">
+                   class="nav-link hide-mobile" style="display:none;"
+                   title="Products">
                     <i class="fa fa-box-open"></i>
-                    <span class="hide-mobile">Products</span>
+                    <span>Products</span>
                 </a>
             {% endif %}
 
-            <!-- Cart (customers only) -->
-            {% if user.is_authenticated and user.role == 'customer' %}
-                <a href="{% url 'shop:cart' %}" class="nav-link cart-link" aria-label="Shopping cart">
-                    <i class="fa fa-shopping-cart"></i>
-                    <span class="hide-mobile">Cart</span>
-                    <span class="cart-badge" id="cart-count">{{ cart_count|default:0 }}</span>
-                </a>
-            {% elif not user.is_authenticated %}
-                <a href="{% url 'shop:cart' %}" class="nav-link cart-link" aria-label="Shopping cart">
-                    <i class="fa fa-shopping-cart"></i>
-                    <span class="cart-badge" id="cart-count">{{ cart_count|default:0 }}</span>
-                </a>
-            {% endif %}
-            {% if user.is_authenticated and user.role == 'customer' %}
-                <a href="{% url 'items:wishlist' %}" class="nav-link cart-link"
-                   aria-label="Wishlist" title="My Wishlist">
-                    <i class="fa fa-heart" style="color:#e53935;"></i>
-                    <span class="hide-mobile">Wishlist</span>
-                    {% if wishlist_count > 0 %}
-                        <span class="cart-badge" id="wishlist-count"
-                              style="background:#e53935;">{{ wishlist_count }}</span>
-                    {% else %}
-                        <span class="cart-badge" id="wishlist-count"
-                              style="background:#e53935;display:none;">0</span>
-                    {% endif %}
-                </a>
+            <!-- Cart -->
+            {% if user.is_authenticated and user.role == 'customer' or not user.is_authenticated %}
+            <a href="{% url 'shop:cart' %}" class="nav-link cart-link" aria-label="Cart">
+                <i class="fa fa-shopping-cart"></i>
+                <span class="hide-mobile" style="display:none;">Cart</span>
+                <span class="cart-badge" id="cart-count">{{ cart_count|default:0 }}</span>
+            </a>
             {% endif %}
 
+            <!-- Wishlist (desktop) -->
+            {% if user.is_authenticated and user.role == 'customer' %}
+            <a href="{% url 'items:wishlist' %}" class="nav-link cart-link hide-mobile"
+               style="display:none;" aria-label="Wishlist">
+                <i class="fa fa-heart" style="color:#EF4444;"></i>
+                <span>Wishlist</span>
+                <span class="cart-badge" id="wishlist-count"
+                      style="background:#EF4444;{% if not wishlist_count or wishlist_count == 0 %}display:none;{% endif %}">
+                    {{ wishlist_count|default:0 }}
+                </span>
+            </a>
+            {% endif %}
 
         </nav>
-
-        <!-- Mobile menu toggle -->
-        <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open menu" aria-expanded="false">
-            <i class="fa fa-bars"></i>
-        </button>
 
     </div>
 </header>
 
-<!-- Mobile overlay -->
-<div class="mobile-overlay" id="mobileOverlay"></div>
+<!-- ═══════════════════════════════════════
+     MOBILE SEARCH BAR (below navbar)
+═══════════════════════════════════════ -->
+<div class="mobile-search-bar">
+    <form method="get" action="{% url 'items:product_list' %}">
+        <div class="mobile-search-inner">
+            <i class="fa fa-search" aria-hidden="true"></i>
+            <input type="text" name="search"
+                   placeholder="Search products, brands, categories…"
+                   value="{{ request.GET.search|default:'' }}"
+                   autocomplete="off">
+            <button type="submit" aria-label="Search">
+                <i class="fa fa-search"></i>
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- ═══════════════════════════════════════
+     MOBILE OVERLAY
+═══════════════════════════════════════ -->
+<div class="mobile-overlay" id="mobileOverlay" role="presentation"></div>
 
 <!-- ═══════════════════════════════════════
      MOBILE DRAWER
 ═══════════════════════════════════════ -->
-<nav class="mobile-nav" id="mobileNav" aria-label="Mobile navigation" aria-hidden="true">
+<nav class="mobile-nav" id="mobileNav"
+     aria-label="Mobile navigation"
+     aria-hidden="true"
+     role="dialog">
+
+    <!-- Drawer header -->
     <div class="mobile-nav-header">
-        <span>{{ site_settings.site_name }}</span>
+        <span class="mobile-nav-logo">
+            <i class="fa fa-shopping-bag" style="margin-right:6px;"></i>
+            {{ site_settings.site_name|default:"StallCart" }}
+        </span>
         <button class="mobile-nav-close" id="mobileNavClose" aria-label="Close menu">
             <i class="fa fa-times"></i>
         </button>
     </div>
 
-    <div class="mobile-nav-content">
-
-        <!-- Mobile search -->
-        <form method="get" action="{% url 'items:product_list' %}"
-              style="margin-bottom:8px;">
-            <div style="display:flex;gap:0;">
-                <input type="text" name="search"
-                       placeholder="Search products…"
-                       value="{{ filters.search|default:'' }}"
-                       style="flex:1;padding:10px 14px;border:1.5px solid var(--gray-200);border-right:none;border-radius:var(--radius-md) 0 0 var(--radius-md);font-size:0.9rem;font-family:inherit;">
-                <button type="submit"
-                        style="padding:10px 14px;background:var(--blue-500);color:#fff;border:none;border-radius:0 var(--radius-md) var(--radius-md) 0;cursor:pointer;">
-                    <i class="fa fa-search"></i>
-                </button>
+    <!-- User card -->
+    {% if user.is_authenticated %}
+    <div class="mobile-user-card">
+        <div class="mobile-user-avatar">
+            {{ user.full_name|default:user.phone|first|upper }}
+        </div>
+        <div>
+            <div class="mobile-user-name">{{ user.full_name|default:user.phone }}</div>
+            <div class="mobile-user-role">
+                <i class="fa fa-circle" style="font-size:6px;color:var(--success);margin-right:4px;"></i>
+                {{ user.get_role_display|default:"Customer" }}
             </div>
+        </div>
+    </div>
+    {% else %}
+    <div style="padding:12px;">
+        <button class="mobile-nav-register" id="mobileLoginBtn" type="button">
+            <i class="fa fa-sign-in-alt"></i> Login / Sign Up
+        </button>
+    </div>
+    {% endif %}
+
+    <!-- Search in drawer -->
+    <div class="mobile-nav-search">
+        <form method="get" action="{% url 'items:product_list' %}">
+            <input type="text" name="search"
+                   placeholder="Search…"
+                   value="{{ request.GET.search|default:'' }}">
+            <button type="submit" aria-label="Search"><i class="fa fa-search"></i></button>
         </form>
+    </div>
 
-        <div class="mobile-nav-divider"></div>
+    <!-- Nav body -->
+    <div class="mobile-nav-body">
+
+        <div class="mobile-nav-section-label">Explore</div>
+
+        <a href="{% url 'shop:home' %}" class="mobile-nav-item {% if request.resolver_match.url_name == 'home' %}active{% endif %}">
+            <span class="nav-icon"><i class="fa fa-home"></i></span>
+            Home
+            <i class="fa fa-chevron-right nav-arrow"></i>
+        </a>
+        <a href="{% url 'items:product_list' %}" class="mobile-nav-item">
+            <span class="nav-icon"><i class="fa fa-box-open"></i></span>
+            All Products
+            <i class="fa fa-chevron-right nav-arrow"></i>
+        </a>
+        {% if not user.is_authenticated or user.role == 'customer' %}
+        <a href="{% url 'shop:cart' %}" class="mobile-nav-item">
+            <span class="nav-icon"><i class="fa fa-shopping-cart"></i></span>
+            Cart
+            <span class="mobile-nav-badge" id="cart-count-mobile" {% if not cart_count or cart_count == 0 %}style="display:none;"{% endif %}>{{ cart_count|default:0 }}</span>
+        </a>
+        <a href="{% url 'items:wishlist' %}" class="mobile-nav-item">
+            <span class="nav-icon"><i class="fa fa-heart" style="color:#EF4444;"></i></span>
+            Wishlist
+            <span class="mobile-nav-badge" id="wishlist-count-mobile" style="background:#EF4444;{% if not wishlist_count or wishlist_count == 0 %}display:none;{% endif %}">{{ wishlist_count|default:0 }}</span>
+        </a>
+        {% endif %}
 
         {% if user.is_authenticated %}
-            <div class="mobile-user-header">
-                <div class="mobile-user-avatar">
-                    <i class="fa fa-user"></i>
-                </div>
-                <div>
-                    <div class="user-name">{{ user.full_name|default:user.phone }}</div>
-                    <div class="user-role">{{ user.get_role_display|default:"Customer" }}</div>
-                </div>
-            </div>
-        {% else %}
-            <button class="btn-primary" id="mobileLoginBtn" type="button"
-                    style="margin-bottom:12px;">
-                <i class="fa fa-sign-in-alt"></i> Login / Sign Up
+        <div class="mobile-nav-divider"></div>
+        <div class="mobile-nav-section-label">Account</div>
+        <a href="{% url 'accounts:profile' %}" class="mobile-nav-item">
+            <span class="nav-icon"><i class="fa fa-user-circle"></i></span>
+            My Profile
+            <i class="fa fa-chevron-right nav-arrow"></i>
+        </a>
+        {% if user.role == 'customer' %}
+        <a href="{% url 'orders:my_orders' %}" class="mobile-nav-item">
+            <span class="nav-icon"><i class="fa fa-box"></i></span>
+            My Orders
+            <i class="fa fa-chevron-right nav-arrow"></i>
+        </a>
+        {% endif %}
+        {% if user.is_seller or user.is_superuser %}
+        <a href="{% url 'items:admin_dashboard' %}" class="mobile-nav-item">
+            <span class="nav-icon"><i class="fa fa-store"></i></span>
+            Seller Panel
+            <i class="fa fa-chevron-right nav-arrow"></i>
+        </a>
+        {% endif %}
+        {% endif %}
+
+        <div class="mobile-nav-divider"></div>
+        <div class="mobile-nav-section-label">More</div>
+        <a href="{% url 'blog:blog_list' %}" class="mobile-nav-item">
+            <span class="nav-icon"><i class="fa fa-newspaper"></i></span>
+            Blog
+            <i class="fa fa-chevron-right nav-arrow"></i>
+        </a>
+
+        {% if user.is_authenticated %}
+        <div class="mobile-nav-divider"></div>
+        <form action="{% url 'accounts:logout' %}" method="post" style="padding:0 4px;">
+            {% csrf_token %}
+            <button type="submit" class="mobile-nav-logout">
+                <span class="nav-icon"><i class="fa fa-sign-out-alt"></i></span>
+                Logout
             </button>
-        {% endif %}
-
-        <a href="{% url 'shop:home' %}">
-            <i class="fa fa-home"></i> Home
-        </a>
-        <a href="{% url 'items:product_list' %}">
-            <i class="fa fa-box-open"></i> All Products
-        </a>
-
-        {% if user.is_authenticated %}
-            <a href="{% url 'accounts:profile' %}">
-                <i class="fa fa-user-circle"></i> My Profile
-            </a>
-            {% if user.role == 'customer' %}
-                <a href="{% url 'orders:my_orders' %}">
-                    <i class="fa fa-box"></i> My Orders
-                </a>
-            {% endif %}
-            {% if user.is_seller or user.is_superuser %}
-                <a href="{% url 'items:admin_dashboard' %}">
-                    <i class="fa fa-store"></i> Seller Panel
-                </a>
-            {% endif %}
-        {% endif %}
-
-        {% if not user.is_authenticated or user.role == 'customer' %}
-            <a href="{% url 'shop:cart' %}">
-                <i class="fa fa-shopping-cart"></i> Cart
-                <span class="mobile-cart-badge" id="cart-count-mobile">{{ cart_count|default:0 }}</span>
-            </a>
-        {% endif %}
-        {% if not user.is_authenticated or user.role == 'customer' %}
-            <a href="{% url 'items:wishlist' %}">
-                <i class="fa fa-heart" style="color:#e53935;"></i> Wishlist
-                {% if wishlist_count > 0 %}
-                    <span class="mobile-cart-badge" id="wishlist-count-mobile"
-                          style="background:#e53935;">{{ wishlist_count }}</span>
-                {% else %}
-                    <span class="mobile-cart-badge" id="wishlist-count-mobile"
-                          style="background:#e53935;display:none;">0</span>
-                {% endif %}
-            </a>
-        {% endif %}    
-        <a href="{% url 'blog:blog_list' %}">
-            <i class="fa fa-blog"></i> Blog
-        </a>
-
-        <div class="mobile-nav-divider"></div>
-
-        {% if user.is_authenticated %}
-            <form action="{% url 'accounts:logout' %}" method="post">
-                {% csrf_token %}
-                <button type="submit" style="color:var(--red)!important;">
-                    <i class="fa fa-sign-out-alt" style="color:var(--red);"></i> Logout
-                </button>
-            </form>
+        </form>
         {% endif %}
 
     </div>
+
+    {% if not user.is_authenticated %}
+    <div class="mobile-nav-footer">
+        <button class="mobile-nav-register" id="mobileRegisterBtn" type="button"
+                onclick="window.location.href='{% url 'accounts:register' %}'">
+            <i class="fa fa-user-plus"></i> Create Account
+        </button>
+    </div>
+    {% endif %}
+
 </nav>
 
 <!-- ═══════════════════════════════════════
@@ -265,70 +312,57 @@
 ═══════════════════════════════════════ -->
 <div id="loginModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
     <div class="modal-content">
-
         <div class="modal-header-bar">
             <h3 id="loginModalTitle">
-                <i class="fa fa-lock" style="color:var(--blue-400);margin-right:8px;"></i>
-                Login to {{ site_settings.site_name }}
+                <i class="fa fa-lock" style="color:var(--primary);margin-right:8px;"></i>
+                Login to StallCart
             </h3>
             <button class="modal-close" id="closeLoginModal" aria-label="Close">
                 <i class="fa fa-times"></i>
             </button>
         </div>
-
         <div class="modal-body">
             <form id="ajaxLoginForm">
                 {% csrf_token %}
                 <input type="hidden" name="next" value="{{ request.path }}">
-
                 <div class="form-group">
                     <label class="form-label" for="loginUsername">
-                        <i class="fa fa-mobile-alt" style="color:var(--blue-400);margin-right:6px;"></i>
+                        <i class="fa fa-mobile-alt" style="color:var(--primary);margin-right:6px;"></i>
                         Mobile Number
                     </label>
                     <input type="tel" id="loginUsername" name="username"
-                           class="form-input"
-                           required pattern="[0-9]{10}"
+                           class="form-input" required pattern="[0-9]{10}"
                            placeholder="10-digit mobile number"
-                           autocomplete="tel">
+                           autocomplete="tel" inputmode="numeric">
                     <div class="error-text" id="usernameError" style="display:none;"></div>
                 </div>
-
                 <div class="form-group">
                     <label class="form-label" for="loginPassword">
-                        <i class="fa fa-key" style="color:var(--blue-400);margin-right:6px;"></i>
+                        <i class="fa fa-key" style="color:var(--primary);margin-right:6px;"></i>
                         Password
                     </label>
                     <div class="password-wrapper">
                         <input type="password" id="loginPassword" name="password"
-                               class="form-input"
-                               required placeholder="Enter your password"
-                               autocomplete="current-password"
-                               style="padding-right:42px;">
-                        <button type="button"
-                                class="password-toggle"
+                               class="form-input" required placeholder="Enter your password"
+                               autocomplete="current-password" style="padding-right:42px;">
+                        <button type="button" class="password-toggle"
                                 aria-label="Toggle password visibility"
                                 onclick="togglePassword('loginPassword', this)">
-                            <i class="fa fa-eye" id="loginPasswordIcon"></i>
+                            <i class="fa fa-eye"></i>
                         </button>
                     </div>
                     <div class="error-text" id="passwordError" style="display:none;"></div>
                     <a href="{% url 'accounts:forgot_password' %}" class="forgot-link">Forgot password?</a>
                 </div>
-
                 <div class="form-error-box" id="formError"></div>
-
                 <button type="submit" class="btn-primary" id="loginSubmitBtn">
                     <i class="fa fa-sign-in-alt"></i> LOGIN
                 </button>
             </form>
         </div>
-
         <div class="modal-footer-bar">
-            New here?
-            <a href="{% url 'accounts:register' %}">Create an account →</a>
+            New here? <a href="{% url 'accounts:register' %}">Create an account →</a>
         </div>
-
     </div>
 </div>
 
@@ -337,15 +371,16 @@
 ═══════════════════════════════════════ -->
 <main style="min-height:70vh;">
     {% if messages %}
-        <div class="container" style="padding-top:16px;">
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags }}">
-                    {% if message.tags == 'success' %}<i class="fa fa-check-circle"></i>{% endif %}
-                    {% if message.tags == 'error' or message.tags == 'danger' %}<i class="fa fa-exclamation-circle"></i>{% endif %}
-                    {{ message }}
-                </div>
-            {% endfor %}
+    <div class="container" style="padding-top:14px;">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">
+            {% if message.tags == 'success' %}<i class="fa fa-check-circle"></i>{% endif %}
+            {% if message.tags == 'error' or message.tags == 'danger' %}<i class="fa fa-exclamation-circle"></i>{% endif %}
+            {% if message.tags == 'info' %}<i class="fa fa-info-circle"></i>{% endif %}
+            {{ message }}
         </div>
+        {% endfor %}
+    </div>
     {% endif %}
     {% block content %}{% endblock %}
 </main>
@@ -357,8 +392,38 @@
     <div class="container">
         <div class="footer-grid">
             <div>
-                <h4>{{ site_settings.site_name }}</h4>
-                <p>{{ site_settings.about_us }}</p>
+                <div class="footer-brand-name">
+                    <i class="fa fa-shopping-bag" style="color:var(--primary);"></i>
+                    {{ site_settings.site_name|default:"StallCart" }}
+                </div>
+                <p>{{ site_settings.about_us|default:"Your one-stop destination for premium fashion at unbeatable prices." }}</p>
+                <div class="footer-social">
+                    {% if site_settings.social_instagram %}
+                    <a href="{{ site_settings.social_instagram }}" target="_blank" rel="noopener" aria-label="Instagram">
+                        <i class="fab fa-instagram" style="color:#E4405F;"></i>
+                    </a>
+                    {% endif %}
+                    {% if site_settings.social_facebook %}
+                    <a href="{{ site_settings.social_facebook }}" target="_blank" rel="noopener" aria-label="Facebook">
+                        <i class="fab fa-facebook" style="color:#1877F2;"></i>
+                    </a>
+                    {% endif %}
+                    {% if site_settings.social_twitter %}
+                    <a href="{{ site_settings.social_twitter }}" target="_blank" rel="noopener" aria-label="Twitter">
+                        <i class="fab fa-twitter" style="color:#1DA1F2;"></i>
+                    </a>
+                    {% endif %}
+                    {% if site_settings.social_youtube %}
+                    <a href="{{ site_settings.social_youtube }}" target="_blank" rel="noopener" aria-label="YouTube">
+                        <i class="fab fa-youtube" style="color:#FF0000;"></i>
+                    </a>
+                    {% endif %}
+                    {% if site_settings.contact_whatsapp %}
+                    <a href="{{ site_settings.whatsapp_link }}" target="_blank" rel="noopener" aria-label="WhatsApp">
+                        <i class="fab fa-whatsapp" style="color:#25D366;"></i>
+                    </a>
+                    {% endif %}
+                </div>
             </div>
             <div>
                 <h4>Policies</h4>
@@ -371,81 +436,86 @@
             </div>
             <div>
                 <h4>Contact</h4>
-
                 <ul>
-                    <li>
-                        <i class="fa fa-phone"></i>
-                        {{ site_settings.contact_phone }}
-                    </li>
-
-                    <li>
-                        <i class="fa fa-envelope"></i>
-                        {{ site_settings.contact_email }}
-                    </li>
-
-                    {% if site_settings.contact_whatsapp %}
-                    <li>
-                        <a href="{{ site_settings.whatsapp_link }}"
-                        target="_blank"
-                        rel="noopener"
-                        style="display:flex;align-items:center;gap:8px;color:inherit;text-decoration:none;">
-                            <i class="fab fa-whatsapp" style="color:#25D366;"></i>
-                            WhatsApp
-                        </a>
-                    </li>
-                    {% endif %}
+                    <li><i class="fa fa-phone"></i>{{ site_settings.contact_phone|default:"+91 9876543210" }}</li>
+                    <li><i class="fa fa-envelope"></i>{{ site_settings.contact_email|default:"support@stallcart.com" }}</li>
                 </ul>
-
-                <!-- Social Media -->
-                <div class="footer-social"
-                    style="display:flex;align-items:center;gap:14px;margin-top:16px;flex-wrap:wrap;">
-
-                    {% if site_settings.social_instagram %}
-                    <a href="{{ site_settings.social_instagram }}"
-                    target="_blank"
-                    rel="noopener"
-                    aria-label="Instagram"
-                    style="font-size:1.2rem;color:#E4405F;transition:0.3s;">
-                        <i class="fab fa-instagram"></i>
-                    </a>
-                    {% endif %}
-
-                    {% if site_settings.social_facebook %}
-                    <a href="{{ site_settings.social_facebook }}"
-                    target="_blank"
-                    rel="noopener"
-                    aria-label="Facebook"
-                    style="font-size:1.2rem;color:#1877F2;transition:0.3s;">
-                        <i class="fab fa-facebook"></i>
-                    </a>
-                    {% endif %}
-
-                    {% if site_settings.social_twitter %}
-                    <a href="{{ site_settings.social_twitter }}"
-                    target="_blank"
-                    rel="noopener"
-                    aria-label="Twitter"
-                    style="font-size:1.2rem;color:#1DA1F2;transition:0.3s;">
-                        <i class="fab fa-twitter"></i>
-                    </a>
-                    {% endif %}
-
-                </div>
             </div>
             <div>
                 <h4>Quick Links</h4>
                 <ul>
                     <li><a href="{% url 'shop:home' %}">Shop</a></li>
-                    <li><a href="{% url 'blog:blog_list' %}">Blog</a></li>
                     <li><a href="{% url 'items:product_list' %}">All Products</a></li>
+                    <li><a href="{% url 'blog:blog_list' %}">Blog</a></li>
+                    <li><a href="{% url 'accounts:register' %}">Become a Seller</a></li>
                 </ul>
             </div>
         </div>
         <div class="footer-bottom">
-            © {% now "Y" %} {{ site_settings.site_name }}. All rights reserved.
+            © {% now "Y" %} {{ site_settings.site_name|default:"StallCart" }}. All rights reserved.
+            Made with ❤️ in India.
         </div>
     </div>
 </footer>
+
+<!-- ═══════════════════════════════════════
+     MOBILE BOTTOM NAV
+═══════════════════════════════════════ -->
+<nav class="bottom-nav" aria-label="Mobile bottom navigation">
+    <a href="{% url 'shop:home' %}"
+       class="bnav-item {% if request.resolver_match.url_name == 'home' %}active{% endif %}">
+        <i class="fa fa-home"></i>
+        <span>Home</span>
+    </a>
+    <a href="{% url 'items:product_list' %}" class="bnav-item">
+        <i class="fa fa-search"></i>
+        <span>Search</span>
+    </a>
+
+    {% if user.is_authenticated and user.role == 'customer' or not user.is_authenticated %}
+    <a href="{% url 'shop:cart' %}" class="bnav-item bnav-center">
+        <div class="bnav-center-btn">
+            <i class="fa fa-shopping-cart" style="font-size:1.1rem;"></i>
+        </div>
+        {% if cart_count and cart_count > 0 %}
+        <span class="bnav-badge" id="cart-badge-bottom">{{ cart_count }}</span>
+        {% endif %}
+    </a>
+    {% else %}
+    <div class="bnav-item bnav-center">
+        <div class="bnav-center-btn">
+            <i class="fa fa-shopping-bag" style="font-size:1.1rem;"></i>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if user.is_authenticated and user.role == 'customer' %}
+    <a href="{% url 'items:wishlist' %}" class="bnav-item" style="position:relative;">
+        <i class="fa fa-heart" style="color:#EF4444;"></i>
+        <span>Wishlist</span>
+        {% if wishlist_count and wishlist_count > 0 %}
+        <span class="bnav-badge" id="wishlist-badge-bottom">{{ wishlist_count }}</span>
+        {% endif %}
+    </a>
+    {% else %}
+    <a href="{% url 'items:product_list' %}" class="bnav-item">
+        <i class="fa fa-th-large"></i>
+        <span>Browse</span>
+    </a>
+    {% endif %}
+
+    {% if user.is_authenticated %}
+    <a href="{% url 'accounts:profile' %}" class="bnav-item">
+        <i class="fa fa-user-circle"></i>
+        <span>Profile</span>
+    </a>
+    {% else %}
+    <button class="bnav-item" id="loginBtnBottom" type="button" onclick="openLoginModal()">
+        <i class="fa fa-sign-in-alt"></i>
+        <span>Login</span>
+    </button>
+    {% endif %}
+</nav>
 
 <!-- ═══════════════════════════════════════
      SCRIPTS
@@ -453,80 +523,116 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
 
-    // ── Mobile Nav ──────────────────────────────────
-    const mobileBtn     = document.getElementById('mobileMenuBtn');
-    const mobileNav     = document.getElementById('mobileNav');
-    const mobileClose   = document.getElementById('mobileNavClose');
-    const overlay       = document.getElementById('mobileOverlay');
+    // ── HIDE MOBILE UTIL ────────────────────────────
+    // Properly apply hide-mobile using CSS class, not inline
+    // The CSS handles this. Override display for .hide-mobile on desktop.
+    function applyResponsiveClasses() {
+        const isDesktop = window.innerWidth >= 768;
+        document.querySelectorAll('.hide-mobile').forEach(el => {
+            el.style.display = isDesktop ? '' : 'none';
+        });
+        document.querySelectorAll('.show-mobile').forEach(el => {
+            el.style.display = isDesktop ? 'none' : '';
+        });
+    }
+    applyResponsiveClasses();
+    window.addEventListener('resize', applyResponsiveClasses, { passive: true });
 
-    function openMobileNav() {
+    // ── MOBILE DRAWER ────────────────────────────────
+    const mobileBtn   = document.getElementById('mobileMenuBtn');
+    const mobileNav   = document.getElementById('mobileNav');
+    const mobileClose = document.getElementById('mobileNavClose');
+    const overlay     = document.getElementById('mobileOverlay');
+
+    function openDrawer() {
         mobileNav?.classList.add('open');
         overlay?.classList.add('show');
         mobileNav?.setAttribute('aria-hidden', 'false');
         mobileBtn?.setAttribute('aria-expanded', 'true');
         document.body.style.overflow = 'hidden';
+        // iOS Safari scroll fix
+        document.body.style.position = 'fixed';
+        document.body.style.width = '100%';
     }
-    function closeMobileNav() {
+    function closeDrawer() {
         mobileNav?.classList.remove('open');
         overlay?.classList.remove('show');
         mobileNav?.setAttribute('aria-hidden', 'true');
         mobileBtn?.setAttribute('aria-expanded', 'false');
         document.body.style.overflow = '';
+        document.body.style.position = '';
+        document.body.style.width = '';
     }
 
-    mobileBtn?.addEventListener('click', openMobileNav);
-    mobileClose?.addEventListener('click', closeMobileNav);
-    overlay?.addEventListener('click', closeMobileNav);
-    mobileNav?.querySelectorAll('a, button[type="submit"]').forEach(el => {
-        el.addEventListener('click', () => { if (el.tagName === 'A') closeMobileNav(); });
+    mobileBtn?.addEventListener('click', openDrawer);
+    mobileClose?.addEventListener('click', closeDrawer);
+    overlay?.addEventListener('click', closeDrawer);
+
+    // Close drawer when a nav link is tapped
+    mobileNav?.querySelectorAll('a').forEach(el => {
+        el.addEventListener('click', closeDrawer);
+    });
+    // Close on Escape
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') closeDrawer();
     });
 
-    // ── Login Modal ─────────────────────────────────
-    const loginModal      = document.getElementById('loginModal');
-    const loginBtn        = document.getElementById('loginBtn');
-    const mobileLoginBtn  = document.getElementById('mobileLoginBtn');
-    const closeLoginBtn   = document.getElementById('closeLoginModal');
+    // ── LOGIN MODAL ──────────────────────────────────
+    const loginModal     = document.getElementById('loginModal');
+    const loginBtn       = document.getElementById('loginBtn');
+    const mobileLoginBtn = document.getElementById('mobileLoginBtn');
+    const closeLoginBtn  = document.getElementById('closeLoginModal');
 
     function openLoginModal() {
+        closeDrawer();
         loginModal?.classList.add('show');
         document.body.style.overflow = 'hidden';
-        closeMobileNav();
         setTimeout(() => document.getElementById('loginUsername')?.focus(), 300);
     }
     function closeLoginModal() {
         loginModal?.classList.remove('show');
         document.body.style.overflow = '';
+        document.body.style.position = '';
+        document.body.style.width = '';
     }
 
-    loginBtn?.addEventListener('click', (e) => { e.preventDefault(); openLoginModal(); });
-    mobileLoginBtn?.addEventListener('click', (e) => { e.preventDefault(); openLoginModal(); });
+    loginBtn?.addEventListener('click', e => { e.preventDefault(); openLoginModal(); });
+    mobileLoginBtn?.addEventListener('click', e => { e.preventDefault(); openLoginModal(); });
     closeLoginBtn?.addEventListener('click', closeLoginModal);
-    loginModal?.addEventListener('click', (e) => { if (e.target === loginModal) closeLoginModal(); });
-    document.addEventListener('keydown', (e) => {
+    loginModal?.addEventListener('click', e => { if (e.target === loginModal) closeLoginModal(); });
+    document.addEventListener('keydown', e => {
         if (e.key === 'Escape' && loginModal?.classList.contains('show')) closeLoginModal();
     });
 
     window.openLoginModal  = openLoginModal;
     window.closeLoginModal = closeLoginModal;
 
-    // ── Sticky shadow ───────────────────────────────
+    // ── STICKY NAV SHADOW ────────────────────────────
     const navbar = document.getElementById('mainNavbar');
-    const onScroll = () => navbar?.classList.toggle('scrolled', window.scrollY > 8);
-    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('scroll', () => {
+        navbar?.classList.toggle('scrolled', window.scrollY > 8);
+    }, { passive: true });
 
-    // ── AJAX Login ──────────────────────────────────
+    // ── ACTIVE BOTTOM NAV ────────────────────────────
+    const path = window.location.pathname;
+    document.querySelectorAll('.bnav-item').forEach(item => {
+        const href = item.getAttribute('href') || '';
+        if (href && path.startsWith(href) && href !== '/') {
+            item.classList.add('active');
+        }
+    });
+
+    // ── AJAX LOGIN ───────────────────────────────────
     const ajaxForm = document.getElementById('ajaxLoginForm');
-    ajaxForm?.addEventListener('submit', async (e) => {
+    ajaxForm?.addEventListener('submit', async e => {
         e.preventDefault();
-        const btn = document.getElementById('loginSubmitBtn');
+        const btn  = document.getElementById('loginSubmitBtn');
         const orig = btn.innerHTML;
         btn.disabled = true;
         btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Logging in…';
-
         document.querySelectorAll('.error-text').forEach(el => el.style.display = 'none');
         const formErr = document.getElementById('formError');
         if (formErr) formErr.style.display = 'none';
-
         try {
             const res  = await fetch("{% url 'accounts:login' %}", {
                 method: 'POST',
@@ -534,9 +640,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: new FormData(e.target)
             });
             const data = await res.json();
-
             if (data.status === 'success') {
-                window.showToast('Login successful! Redirecting…', 'success');
+                showToast('Login successful! Redirecting…', 'success');
                 setTimeout(() => { window.location.href = data.redirect || '/'; }, 800);
             } else {
                 const uErr = document.getElementById('usernameError');
@@ -544,55 +649,58 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (data.errors?.username && uErr) { uErr.textContent = data.errors.username[0]; uErr.style.display = 'flex'; }
                 if (data.errors?.password  && pErr) { pErr.textContent = data.errors.password[0];  pErr.style.display = 'flex'; }
                 if (formErr && data.message) { formErr.textContent = data.message; formErr.style.display = 'block'; }
-                btn.disabled = false;
-                btn.innerHTML = orig;
+                btn.disabled = false; btn.innerHTML = orig;
             }
         } catch {
             e.target.submit();
         }
     });
-
 });
 
-// ── Global: update cart count ────────────────────
+// ── GLOBAL: updateCartCount ──────────────────────
 window.updateCartCount = function(count) {
-    const badge = document.getElementById('cart-count');
-    const mobileBadge = document.getElementById('cart-count-mobile');
-    if (badge) {
-        badge.textContent = count;
-        badge.style.transform = 'scale(1.4)';
-        setTimeout(() => badge.style.transform = '', 200);
-    }
-    if (mobileBadge) mobileBadge.textContent = count;
-};
-window.updateWishlistCount = function(delta) {
-    const badge       = document.getElementById('wishlist-count');
-    const mobileBadge = document.getElementById('wishlist-count-mobile');
-
-    [badge, mobileBadge].forEach(el => {
+    ['cart-count', 'cart-count-mobile', 'cart-badge-bottom'].forEach(id => {
+        const el = document.getElementById(id);
         if (!el) return;
-        const current = parseInt(el.textContent) || 0;
-        const next    = Math.max(0, current + delta);
-        el.textContent = next;
-        // Hide badge when zero, show when positive
-        el.style.display = next > 0 ? '' : 'none';
-        // Animate
-        el.style.transform = 'scale(1.4)';
+        el.textContent = count;
+        el.style.display = count > 0 ? '' : 'none';
+        el.style.transform = 'scale(1.5)';
         setTimeout(() => el.style.transform = '', 200);
     });
 };
-// ── Global: toast ────────────────────────────────
+
+// ── GLOBAL: updateWishlistCount ──────────────────
+window.updateWishlistCount = function(delta) {
+    ['wishlist-count', 'wishlist-count-mobile', 'wishlist-badge-bottom'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const next = Math.max(0, (parseInt(el.textContent) || 0) + delta);
+        el.textContent = next;
+        el.style.display = next > 0 ? '' : 'none';
+        el.style.transform = 'scale(1.5)';
+        setTimeout(() => el.style.transform = '', 200);
+    });
+};
+
+// ── GLOBAL: showToast ────────────────────────────
 window.showToast = function(message, type = 'info') {
-    const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
-    const bg   = type === 'success' ? 'var(--green)' : 'var(--red)';
+    document.querySelectorAll('.sc-toast').forEach(t => t.remove());
+    const isMobile = window.innerWidth < 768;
+    const bg = type === 'success' ? '#10B981' : type === 'error' ? '#EF4444' : '#2563EB';
+    const icon = type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle';
     const toast = document.createElement('div');
+    toast.className = 'sc-toast';
     toast.innerHTML = `<i class="fa ${icon}"></i> ${message}`;
+    const bottomPx = isMobile ? 'calc(var(--bnav-h, 62px) + 12px)' : '24px';
     toast.style.cssText = `
-        position:fixed; bottom:24px; right:16px; z-index:9999;
-        padding:12px 20px; border-radius:var(--radius-lg); font-weight:600;
-        background:${bg}; color:#fff; box-shadow:var(--shadow-lg);
+        position:fixed; bottom:${bottomPx}; right:16px; left:16px;
+        max-width:360px; margin:0 auto;
+        z-index:9999; padding:12px 18px;
+        border-radius:12px; font-weight:600;
+        background:${bg}; color:#fff;
+        box-shadow:0 6px 24px rgba(0,0,0,0.18);
         display:flex; align-items:center; gap:8px; font-size:0.9rem;
-        animation:toastIn 0.3s ease; max-width:calc(100vw - 32px);
+        animation:toastIn 0.3s ease;
     `;
     document.body.appendChild(toast);
     setTimeout(() => {
@@ -601,20 +709,15 @@ window.showToast = function(message, type = 'info') {
     }, 2800);
 };
 
-// ── Password toggle ──────────────────────────────
+// ── GLOBAL: togglePassword ───────────────────────
 window.togglePassword = function(inputId, btn) {
     const input = document.getElementById(inputId);
     const icon  = btn.querySelector('i');
     if (!input || !icon) return;
-    if (input.type === 'password') {
-        input.type = 'text';
-        icon.className = 'fa fa-eye-slash';
-        btn.setAttribute('aria-label', 'Hide password');
-    } else {
-        input.type = 'password';
-        icon.className = 'fa fa-eye';
-        btn.setAttribute('aria-label', 'Show password');
-    }
+    const isHidden = input.type === 'password';
+    input.type = isHidden ? 'text' : 'password';
+    icon.className = isHidden ? 'fa fa-eye-slash' : 'fa fa-eye';
+    btn.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
     input.focus();
 };
 </script>

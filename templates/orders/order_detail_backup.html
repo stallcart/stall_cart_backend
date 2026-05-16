@@ -1,0 +1,261 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Order {{ order.order_id }} | StallCart{% endblock %}
+
+{% block content %}
+<div class="order-tracking-container">
+    <!-- Order Header -->
+    <div class="order-header">
+        <h1>Order {{ order.order_id }}</h1>
+        <span class="status-badge status-{{ order.status }}">
+            {{ order.get_status_display }}
+        </span>
+        <p class="order-date">Placed on {{ order.created_at|date:"d M Y, h:i A" }}</p>
+    </div>
+
+    <!-- Tracking Timeline (Flipkart Style) -->
+    <div class="tracking-timeline">
+        {% for step in timeline %}
+        <div class="timeline-step {% if forloop.last and order.status != 'delivered' %}active{% elif order.status == step.status %}active completed{% elif forloop.prev and order.status != step.status %}completed{% endif %}">
+            <div class="step-icon">
+                {% if step.status == 'pending' %}📦{% elif step.status == 'confirmed' %}✅{% elif step.status == 'processing' %}⚙️{% elif step.status == 'shipped' %}🚚{% elif step.status == 'out_for_delivery' %}🛵{% elif step.status == 'delivered' %}🎉{% endif %}
+            </div>
+            <div class="step-content">
+                <strong>{{ step.label }}</strong>
+                <small>{{ step.timestamp|date:"d M, h:i A" }}</small>
+                {% if step.remarks %}<p class="remarks">{{ step.remarks }}</p>{% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Delivery Info -->
+    {% if delivery and delivery.delivery_partner %}
+    <div class="delivery-info">
+        <h3>🚚 Delivery Partner</h3>
+        <p><strong>{{ delivery.delivery_partner.full_name }}</strong></p>
+        <p>📞 {{ delivery.delivery_partner.phone }}</p>
+        {% if delivery.tracking_number %}
+            <p>🔢 Tracking: {{ delivery.tracking_number }}</p>
+            {% if order.tracking_url %}
+                <a href="{{ order.tracking_url }}" target="_blank" class="btn-outline">Track Live</a>
+            {% endif %}
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Order Items -->
+    <div class="order-items">
+        <h3>Items ({{ order.items.count }})</h3>
+        {% for item in order.items.all %}
+        <div class="order-item">
+            <img src="{{ item.product.primary_image.url|default:'/static/images/placeholder.png' }}" alt="{{ item.product.name }}" width="80">
+            <div>
+                <h4>{{ item.product.name }}</h4>
+                <p>Qty: {{ item.quantity }} × ₹{{ item.price|floatformat:2 }}</p>
+                <p class="item-total">₹{{ item.total|floatformat:2 }}</p>
+                
+                <!-- Return Button -->
+                {% if order.is_returnable and not item.is_returned %}
+                <button class="btn-outline btn-sm" onclick="openReturnModal({{ item.id }})">
+                    🔄 Return Item
+                </button>
+                {% elif item.is_returned %}
+                <span class="badge badge-warning">Returned</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Order Summary -->
+    <div class="order-summary">
+        <h3>Price Details</h3>
+        <div class="summary-row">
+            <span>Items Total</span>
+            <span>₹{{ order.total_amount|add:order.discount_amount|floatformat:2 }}</span>
+        </div>
+        <div class="summary-row">
+            <span>Discount</span>
+            <span class="text-success">-₹{{ order.discount_amount|floatformat:2 }}</span>
+        </div>
+        <div class="summary-row">
+            <span>Delivery</span>
+            <span>₹{{ order.delivery_charge|floatformat:2 }}</span>
+        </div>
+        <div class="summary-row total">
+            <strong>Grand Total</strong>
+            <strong>₹{{ order.total_amount|floatformat:2 }}</strong>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="order-actions">
+            {% if order.is_cancellable %}
+            <button class="btn-outline" onclick="openCancelModal('{{ order.order_id }}')">
+                ❌ Cancel Order
+            </button>
+            {% endif %}
+            {% if order.status == 'delivered' %}
+            <button class="btn-primary">📝 Rate & Review</button>
+            {% endif %}
+            {% if order.unique_order_id %}
+
+                <a href="{% url 'orders:invoice_download' order.unique_order_id %}" class="btn-outline" target="_blank">
+                    🧾 Download Invoice
+                </a>
+            {% else %}
+                <span class="text-danger">Order ID missing</span>
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+
+<!-- Cancel Modal -->
+<div id="cancelModal" class="modal" style="display:none;">
+    <div class="modal-content">
+        <span class="modal-close" onclick="closeModal('cancelModal')">&times;</span>
+        <h3>Cancel Order {{ order.order_id }}</h3>
+        <form id="cancelForm">
+            {% csrf_token %}
+            <div class="form-group">
+                <label>Reason for cancellation</label>
+                <select name="reason" class="form-input" required>
+                    {% for value, label in order.CANCELLATION_REASONS %}
+                    <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Additional remarks (optional)</label>
+                <textarea name="remarks" class="form-input" rows="3"></textarea>
+            </div>
+            <button type="submit" class="btn-primary">Confirm Cancellation</button>
+        </form>
+    </div>
+</div>
+
+<!-- Return Modal (Similar structure) -->
+{% endblock %}
+
+{% block scripts %}
+<script>
+const csrfToken = '{{ csrf_token }}';
+
+// Cancel Order
+document.getElementById('cancelForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData.entries());
+    
+    try {
+        const res = await fetch(`/orders/{{ order.order_id }}/cancel/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        
+        if (result.status === 'success') {
+            window.location.href = result.redirect;
+        } else {
+            alert(result.error || 'Cancellation failed');
+        }
+    } catch (err) {
+        alert('Network error');
+    }
+});
+
+// Modal helpers
+window.openCancelModal = (orderId) => {
+    document.getElementById('cancelModal').style.display = 'flex';
+};
+window.closeModal = (modalId) => {
+    document.getElementById(modalId).style.display = 'none';
+};
+window.onclick = (e) => {
+    if (e.target.classList.contains('modal')) {
+        e.target.style.display = 'none';
+    }
+};
+
+async function cancelOrder(orderId) {
+  const reason = document.getElementById('cancelReason')?.value || 'other';
+  const remarks = document.getElementById('cancelRemarks')?.value || '';
+ 
+  if (!confirm('Are you sure you want to cancel this order?')) return;
+ 
+  const btn = document.getElementById('cancelBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Cancelling…'; }
+ 
+  try {
+    const res = await fetch(`/orders/cancel/${orderId}/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+      },
+      body: JSON.stringify({ reason, remarks })
+    });
+    const data = await res.json();
+    if (data.status === 'success') {
+      alert('Order cancelled successfully.');
+      window.location.href = data.redirect || '/orders/';
+    } else {
+      alert(data.error || 'Could not cancel order.');
+      if (btn) { btn.disabled = false; btn.textContent = 'Cancel Order'; }
+    }
+  } catch(e) {
+    alert('Network error. Please try again.');
+    if (btn) { btn.disabled = false; btn.textContent = 'Cancel Order'; }
+  }
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.order-tracking-container { max-width: 900px; margin: 20px auto; padding: 0 20px; }
+.order-header { text-align: center; padding: 20px; background: white; border-radius: 12px; margin-bottom: 20px; }
+.status-badge { display: inline-block; padding: 6px 16px; border-radius: 20px; font-weight: 600; font-size: 0.9rem; margin: 10px 0; }
+.status-pending { background: #fff8e1; color: #f57f17; }
+.status-confirmed, .status-processing { background: #e3f2fd; color: #1976d2; }
+.status-shipped, .status-out_for_delivery { background: #e8f5e9; color: #2e7d32; }
+.status-delivered { background: #c8e6c9; color: #1b5e20; }
+.status-cancelled { background: #ffebee; color: #c62828; }
+
+/* Timeline */
+.tracking-timeline { background: white; padding: 25px; border-radius: 12px; margin-bottom: 20px; }
+.timeline-step { display: flex; gap: 15px; padding: 15px 0; border-left: 3px solid #eee; padding-left: 25px; position: relative; }
+.timeline-step::before { content: ''; position: absolute; left: -4px; top: 20px; width: 8px; height: 8px; border-radius: 50%; background: #ccc; }
+.timeline-step.completed::before { background: #2874f0; }
+.timeline-step.active::before { background: #2874f0; box-shadow: 0 0 0 4px rgba(40,116,240,0.2); }
+.step-icon { font-size: 1.5rem; }
+.step-content strong { display: block; color: #212121; }
+.step-content small { color: #666; }
+.step-content .remarks { color: #555; margin: 5px 0 0; font-size: 0.9rem; }
+
+/* Order Items */
+.order-item { display: flex; gap: 15px; padding: 15px; border-bottom: 1px solid #eee; align-items: center; }
+.order-item img { border-radius: 8px; }
+.order-item h4 { margin: 0 0 5px; font-size: 1rem; }
+.item-total { font-weight: 700; color: #2874f0; margin: 5px 0; }
+
+/* Summary */
+.order-summary { background: white; padding: 20px; border-radius: 12px; }
+.summary-row { display: flex; justify-content: space-between; padding: 8px 0; }
+.summary-row.total { border-top: 2px solid #eee; padding-top: 15px; font-size: 1.1rem; }
+.text-success { color: #2e7d32; }
+.order-actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+
+/* Responsive */
+@media (max-width: 768px) {
+    .timeline-step { flex-direction: column; padding-left: 15px; }
+    .timeline-step::before { left: 3px; }
+    .order-item { flex-direction: column; text-align: center; }
+    .order-actions { flex-direction: column; }
+    .btn-outline, .btn-primary { width: 100%; }
+}
+</style>
+{% endblock %}

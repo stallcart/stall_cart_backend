@@ -51,8 +51,12 @@ TEMPLATES = [{
         # 'common.context_processors.get_categories'
 
 
+
     ]},
 }]
+TEMPLATES[0]['OPTIONS']['builtins'] = [
+    'common.templatetags.custom_filters',
+]
 WSGI_APPLICATION = 'stall_cart.wsgi.application'
 
 env = environ.Env(
@@ -154,3 +158,5 @@ ADMINS = [
 ]
 MANAGERS = ADMINS
 
+SHIPROCKET_EMAIL = ""
+SHIPROCKET_PASSWORD =""
