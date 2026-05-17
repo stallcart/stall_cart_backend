@@ -5,40 +5,129 @@
 
 {% block extra_css %}
 <style>
-/* ===== Cart Page Specific Styles ===== */
-.cart-grid { display: grid; grid-template-columns: 1fr; gap: 24px; align-items: start; }
-@media (min-width: 900px) {
-    .cart-grid { grid-template-columns: 2fr 1fr !important; }
+/* ===== Cart Page - Premium Design System ===== */
+.cart-page {
+    padding: 32px 0 48px;
+    background: var(--gray-50);
+}
+@media (min-width: 768px) {
+    .cart-page { padding: 48px 0 64px; }
+}
+
+/* Cart Header */
+.cart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1.5px solid var(--gray-100);
+    flex-wrap: wrap;
+}
+.cart-header h2 {
+    margin: 0;
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--gray-900);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Syne', sans-serif;
+}
+.cart-header h2 i {
+    color: var(--blue-500);
+}
+.cart-count-badge {
+    font-size: 0.9rem;
+    color: var(--gray-500);
+    font-weight: 400;
+    font-family: 'DM Sans', sans-serif;
+}
+.continue-shopping-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: var(--white);
+    color: var(--blue-500);
+    border: 1.5px solid var(--blue-200);
+    border-radius: var(--r-md);
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all var(--tr);
+}
+.continue-shopping-btn:hover {
+    background: var(--blue-500);
+    color: var(--white);
+    border-color: var(--blue-500);
+}
+
+/* Cart Grid Layout */
+.cart-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+    align-items: start;
+}
+@media (min-width: 992px) {
+    .cart-grid {
+        grid-template-columns: 2fr 1fr;
+        gap: 32px;
+    }
 }
 
 /* Cart Item Card */
 .cart-item {
     display: grid;
-    grid-template-columns: 100px 1fr;
+    grid-template-columns: 96px 1fr;
     gap: 16px;
     background: var(--white);
     padding: 16px;
-    border-radius: var(--radius-lg);
+    border-radius: var(--r-xl);
     border: 1.5px solid var(--gray-100);
-    transition: all var(--transition);
+    transition: all var(--tr);
 }
 .cart-item:hover {
-    box-shadow: var(--shadow-md);
-    border-color: var(--blue-100);
+    border-color: var(--blue-200);
+    box-shadow: var(--sh-lg);
+    transform: translateY(-2px);
 }
 .cart-item.removing {
     opacity: 0;
     transform: translateX(-20px);
     transition: opacity 0.3s, transform 0.3s;
 }
+.cart-item.updating {
+    animation: pulse 1s ease-in-out infinite;
+}
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
 
+@media (max-width: 600px) {
+    .cart-item {
+        grid-template-columns: 1fr;
+        text-align: center;
+    }
+    .cart-item .item-image {
+        margin: 0 auto;
+    }
+    .cart-item .item-actions {
+        justify-content: center;
+    }
+}
+
+/* Item Image */
 .item-image {
-    width: 100px;
-    height: 100px;
-    border-radius: var(--radius-md);
+    width: 96px;
+    height: 96px;
+    border-radius: var(--r-md);
     overflow: hidden;
     background: var(--gray-50);
-    border: 1px solid var(--gray-200);
+    border: 1.5px solid var(--gray-200);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -48,12 +137,14 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
+    display: block;
 }
 .no-image {
     color: var(--gray-300);
     font-size: 1.5rem;
 }
 
+/* Item Details */
 .item-details {
     display: flex;
     flex-direction: column;
@@ -64,14 +155,15 @@
     font-size: 0.95rem;
     font-weight: 600;
     line-height: 1.4;
+    color: var(--gray-800);
 }
 .item-details h4 a {
-    color: var(--gray-800);
+    color: inherit;
     text-decoration: none;
+    transition: color var(--tr);
 }
 .item-details h4 a:hover {
     color: var(--blue-500);
-    text-decoration: underline;
 }
 
 .item-variant {
@@ -91,6 +183,9 @@
     align-items: center;
     gap: 4px;
 }
+.item-seller i {
+    color: var(--blue-400);
+}
 
 /* Price Display */
 .item-price-row {
@@ -101,7 +196,7 @@
     margin: 4px 0;
 }
 .item-price {
-    font-weight: 700;
+    font-weight: 800;
     color: var(--gray-900);
     font-size: 1.1rem;
 }
@@ -134,7 +229,7 @@
     display: inline-flex;
     align-items: center;
     border: 1.5px solid var(--gray-200);
-    border-radius: var(--radius-md);
+    border-radius: var(--r-md);
     overflow: hidden;
     background: var(--white);
 }
@@ -146,10 +241,11 @@
     font-size: 1.1rem;
     cursor: pointer;
     color: var(--gray-600);
-    transition: all var(--transition);
+    transition: all var(--tr);
     display: flex;
     align-items: center;
     justify-content: center;
+    font-weight: 600;
 }
 .qty-btn:hover:not(:disabled) {
     background: var(--blue-50);
@@ -171,6 +267,7 @@
     -moz-appearance: textfield;
     font-family: inherit;
     background: var(--white);
+    color: var(--gray-800);
 }
 .qty-input::-webkit-outer-spin-button,
 .qty-input::-webkit-inner-spin-button {
@@ -199,14 +296,15 @@
     align-items: center;
     gap: 4px;
     padding: 6px 10px;
-    border-radius: var(--radius-sm);
-    transition: all var(--transition);
+    border-radius: var(--r-sm);
+    transition: all var(--tr);
+    font-weight: 500;
 }
 .remove-btn {
     color: var(--red);
 }
 .remove-btn:hover {
-    background: var(--red-bg);
+    background: var(--red-light);
     color: var(--red);
 }
 .save-btn {
@@ -225,6 +323,7 @@
 }
 .item-subtotal strong {
     color: var(--gray-900);
+    font-weight: 700;
 }
 .item-delivery {
     font-size: 0.78rem;
@@ -233,6 +332,9 @@
     display: flex;
     align-items: center;
     gap: 4px;
+}
+.item-delivery i {
+    color: var(--blue-400);
 }
 
 /* Stock Warnings */
@@ -254,23 +356,24 @@
 /* Price Details Sidebar */
 .price-details {
     background: var(--white);
-    padding: 20px;
-    border-radius: var(--radius-lg);
+    padding: 24px;
+    border-radius: var(--r-xl);
     border: 1.5px solid var(--gray-100);
-    box-shadow: var(--shadow-sm);
+    box-shadow: var(--sh-sm);
     position: sticky;
     top: 80px;
     align-self: start;
 }
 .price-details h3 {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     font-weight: 700;
     color: var(--gray-600);
-    letter-spacing: 0.06em;
+    letter-spacing: 0.08em;
     margin: 0 0 16px;
     padding-bottom: 12px;
     border-bottom: 1px solid var(--gray-100);
     text-transform: uppercase;
+    font-family: 'DM Sans', sans-serif;
 }
 .price-row {
     display: flex;
@@ -291,6 +394,8 @@
     font-size: 1.1rem;
     color: var(--gray-900);
     margin-bottom: 8px;
+    padding-top: 12px;
+    border-top: 1.5px solid var(--gray-200);
 }
 .price-divider {
     border-top: 1px dashed var(--gray-200);
@@ -301,13 +406,14 @@
 .free-delivery-hint {
     font-size: 0.8rem;
     color: var(--amber);
-    background: var(--amber-bg);
+    background: var(--amber-light);
     padding: 8px 12px;
-    border-radius: var(--radius-sm);
+    border-radius: var(--r-sm);
     margin: 10px 0;
     display: flex;
     align-items: center;
     gap: 6px;
+    border: 1px solid var(--amber);
 }
 
 /* Savings Message */
@@ -315,35 +421,51 @@
     font-size: 0.85rem;
     font-weight: 600;
     padding: 10px 14px;
-    border-radius: var(--radius-md);
+    border-radius: var(--r-md);
     margin-bottom: 16px;
     display: flex;
     align-items: center;
     gap: 6px;
 }
 .savings-msg.success {
-    background: var(--green-bg);
+    background: var(--green-light);
     color: #065F46;
+    border: 1px solid var(--green);
 }
 .savings-msg.info {
     background: var(--gray-100);
     color: var(--gray-600);
+    border: 1px solid var(--gray-200);
 }
 
 /* Order Button */
 #placeOrderBtn, #loginToOrderBtn {
     width: 100%;
-    padding: 12px 20px;
+    padding: 14px 20px;
     font-size: 0.95rem;
     font-weight: 700;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
+    background: var(--blue-500);
+    color: var(--white);
+    border: none;
+    border-radius: var(--r-lg);
+    transition: all var(--tr);
+    cursor: pointer;
+    font-family: inherit;
+}
+#placeOrderBtn:hover:not(:disabled),
+#loginToOrderBtn:hover:not(:disabled) {
+    background: var(--blue-600);
+    box-shadow: var(--sh-blue);
+    transform: translateY(-1px);
 }
 #placeOrderBtn:disabled, #loginToOrderBtn:disabled {
     opacity: 0.7;
     cursor: not-allowed;
+    transform: none;
 }
 
 /* Secure Badge */
@@ -357,25 +479,41 @@
     gap: 5px;
     margin-top: 12px;
 }
+.secure-badge i {
+    color: var(--green);
+}
 
 /* Address Section */
 .delivery-address-section {
     margin-top: 24px;
     background: var(--white);
-    padding: 20px;
-    border-radius: var(--radius-lg);
+    padding: 24px;
+    border-radius: var(--r-xl);
     border: 1.5px solid var(--gray-100);
+}
+.delivery-address-section h3 {
+    margin: 0 0 16px;
+    font-size: 1.1rem;
+    color: var(--gray-800);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Syne', sans-serif;
+}
+.delivery-address-section h3 i {
+    color: var(--blue-400);
 }
 .address-card {
     background: var(--blue-50);
-    border: 1.5px solid var(--blue-100);
-    border-radius: var(--radius-lg);
+    border: 1.5px solid var(--blue-200);
+    border-radius: var(--r-lg);
     padding: 16px;
-    border-left: 4px solid var(--blue-400);
+    border-left: 4px solid var(--blue-500);
 }
 .address-info p {
     margin: 0;
     line-height: 1.5;
+    color: var(--gray-700);
 }
 .address-info strong {
     font-size: 0.95rem;
@@ -405,6 +543,10 @@
     margin-top: 12px;
     flex-wrap: wrap;
 }
+.address-actions .btn-outline {
+    padding: 7px 14px;
+    font-size: 0.8rem;
+}
 .no-address {
     display: flex;
     align-items: center;
@@ -412,14 +554,30 @@
     color: var(--gray-500);
     font-size: 0.9rem;
 }
+.no-address i {
+    font-size: 1.2rem;
+    color: var(--gray-300);
+}
 
 /* Payment Options */
 .payment-preview {
     margin-top: 24px;
     background: var(--white);
-    padding: 20px;
-    border-radius: var(--radius-lg);
+    padding: 24px;
+    border-radius: var(--r-xl);
     border: 1.5px solid var(--gray-100);
+}
+.payment-preview h3 {
+    margin: 0 0 16px;
+    font-size: 1.1rem;
+    color: var(--gray-800);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Syne', sans-serif;
+}
+.payment-preview h3 i {
+    color: var(--blue-400);
 }
 .payment-options {
     display: flex;
@@ -432,9 +590,9 @@
     gap: 14px;
     padding: 14px 16px;
     border: 2px solid var(--gray-200);
-    border-radius: var(--radius-lg);
+    border-radius: var(--r-lg);
     cursor: pointer;
-    transition: all var(--transition);
+    transition: all var(--tr);
     background: var(--white);
 }
 .payment-option:hover,
@@ -466,106 +624,24 @@
     font-size: 0.8rem;
 }
 .offer-badge {
-    background: var(--amber-bg);
+    background: var(--amber-light);
     color: var(--amber);
     padding: 4px 10px;
     border-radius: 20px;
     font-size: 0.75rem;
     font-weight: 700;
     white-space: nowrap;
+    border: 1px solid var(--amber);
 }
 
 /* Empty State */
 .empty-state {
     text-align: center;
-    padding: 60px 20px;
-    background: var(--white);
-    border-radius: var(--radius-xl);
-    border: 1.5px solid var(--gray-100);
-}
-.empty-state i {
-    font-size: 4rem;
-    color: var(--gray-200);
-    margin-bottom: 20px;
-}
-.empty-state h3 {
-    color: var(--gray-800);
-    margin-bottom: 10px;
-    font-size: 1.3rem;
-}
-.empty-state p {
-    color: var(--gray-500);
-    max-width: 400px;
-    margin: 0 auto 24px;
-}
-
-/* Responsive */
-@media (max-width: 900px) {
-    .cart-item {
-        grid-template-columns: 80px 1fr;
-    }
-    .item-image {
-        width: 80px;
-        height: 80px;
-    }
-    .price-details {
-        position: static;
-    }
-}
-@media (max-width: 600px) {
-    .cart-item {
-        grid-template-columns: 1fr;
-        text-align: center;
-    }
-    .item-image {
-        margin: 0 auto;
-    }
-    .item-actions {
-        justify-content: center;
-    }
-    .item-price-row {
-        justify-content: center;
-    }
-    .price-row {
-        flex-direction: column;
-        gap: 4px;
-        align-items: flex-start;
-    }
-    .payment-option {
-        flex-direction: column;
-        text-align: center;
-    }
-    .offer-badge {
-        margin-top: 8px;
-    }
-}
-
-/* Loading Animation */
-@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.6; }
-}
-.cart-item.updating {
-    animation: pulse 1s ease-in-out infinite;
-}
-
-/* Toast Animation */
-@keyframes toastIn {
-    from { opacity: 0; transform: translateY(20px) scale(0.95); }
-    to { opacity: 1; transform: translateY(0) scale(1); }
-}
-@keyframes toastOut {
-    from { opacity: 1; transform: translateY(0) scale(1); }
-    to { opacity: 0; transform: translateY(20px) scale(0.95); }
-}
-/* Empty State - Enhanced */
-.empty-state {
-    text-align: center;
     padding: clamp(40px, 8vw, 80px) 20px;
     background: var(--white);
-    border-radius: var(--radius-xl);
+    border-radius: var(--r-xl);
     border: 1.5px solid var(--gray-100);
-    box-shadow: var(--shadow-sm);
+    box-shadow: var(--sh-sm);
     animation: fadeIn 0.3s ease;
 }
 @keyframes fadeIn {
@@ -591,6 +667,7 @@
     margin-bottom: 8px;
     font-size: 1.25rem;
     font-weight: 700;
+    font-family: 'Syne', sans-serif;
 }
 .empty-state p {
     color: var(--gray-500);
@@ -607,7 +684,7 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    box-shadow: var(--shadow-blue);
+    box-shadow: var(--sh-blue);
 }
 .empty-state .helpful-links {
     margin-top: 32px;
@@ -623,27 +700,200 @@
     display: flex;
     align-items: center;
     gap: 6px;
+    text-decoration: none;
+    transition: color var(--tr);
 }
 .empty-state .helpful-links a:hover {
     color: var(--blue-700);
+}
+
+/* Address Modal - Premium Style */
+#addressModal.modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(10,20,50,0.65);
+    backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1600;
+    padding: 16px;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.25s ease;
+}
+#addressModal.modal.show {
+    opacity: 1;
+    visibility: visible;
+}
+#addressModal .modal-content {
+    background: var(--white);
+    border-radius: var(--r-2xl);
+    width: 100%;
+    max-width: 520px;
+    max-height: 92vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--sh-xl);
+    transform: scale(0.93) translateY(16px);
+    transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+}
+#addressModal.modal.show .modal-content {
+    transform: scale(1) translateY(0);
+}
+#addressModal .modal-header-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--gray-100);
+}
+#addressModal .modal-header-bar h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--gray-800);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Syne', sans-serif;
+}
+#addressModal .modal-header-bar h3 i {
+    color: var(--blue-400);
+}
+#addressModal .modal-close {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid var(--gray-200);
+    border-radius: var(--r-sm);
+    background: none;
+    color: var(--gray-500);
+    font-size: 0.875rem;
+    transition: all var(--tr);
+}
+#addressModal .modal-close:hover {
+    background: var(--red-light);
+    border-color: var(--red);
+    color: var(--red);
+}
+#addressModal .modal-body {
+    padding: 24px;
+}
+#addressModal .form-group {
+    margin-bottom: 16px;
+}
+#addressModal .form-label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--gray-700);
+    margin-bottom: 6px;
+}
+#addressModal .form-input,
+#addressModal .form-select-sm {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1.5px solid var(--gray-200);
+    border-radius: var(--r-md);
+    font-size: 0.9rem;
+    color: var(--gray-800);
+    background: var(--white);
+    transition: all var(--tr);
+    font-family: inherit;
+}
+#addressModal .form-input:focus,
+#addressModal .form-select-sm:focus {
+    outline: none;
+    border-color: var(--blue-400);
+    box-shadow: 0 0 0 3px rgba(40,116,240,0.1);
+}
+#addressModal .form-error-box {
+    background: var(--red-light);
+    border: 1px solid rgba(239,68,68,0.2);
+    color: var(--red);
+    padding: 10px 14px;
+    border-radius: var(--r-md);
+    font-size: 0.875rem;
+    margin-bottom: 14px;
+    display: none;
+}
+#addressModal .modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 20px;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+    .price-details {
+        position: static;
+    }
+}
+@media (max-width: 600px) {
+    .cart-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    .item-price-row {
+        justify-content: center;
+    }
+    .price-row {
+        flex-direction: column;
+        gap: 4px;
+        align-items: flex-start;
+    }
+    .payment-option {
+        flex-direction: column;
+        text-align: center;
+    }
+    .offer-badge {
+        margin-top: 8px;
+    }
+    /* Modal on mobile */
+    #addressModal.modal {
+        padding: 0;
+        align-items: flex-end;
+    }
+    #addressModal .modal-content {
+        max-width: 100%;
+        border-radius: var(--r-2xl) var(--r-2xl) 0 0;
+        max-height: 95dvh;
+    }
+}
+
+/* Toast Animation */
+@keyframes toastIn {
+    from { opacity: 0; transform: translateY(20px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes toastOut {
+    from { opacity: 1; transform: translateY(0) scale(1); }
+    to { opacity: 0; transform: translateY(20px) scale(0.95); }
 }
 </style>
 {% endblock %}
 
 {% block content %}
-<section class="product-section" style="background:var(--white);">
+<section class="cart-page">
     <div class="container">
         
         <!-- Cart Header -->
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid var(--gray-100);flex-wrap:wrap;gap:12px;">
-            <h2 class="section-title" style="margin:0;display:flex;align-items:center;gap:10px;">
-                <i class="fa fa-shopping-cart" style="color:var(--blue-500);"></i> 
+        <div class="cart-header">
+            <h2>
+                <i class="fa fa-shopping-cart"></i> 
                 My Cart
-                <span style="font-size:0.9rem;color:var(--gray-500);font-weight:400;">
+                <span class="cart-count-badge">
                     ({{ cart_items|length }} item{{ cart_items|length|pluralize }})
                 </span>
             </h2>
-            <a href="{% url 'shop:home' %}" class="btn-outline" style="width:auto;padding:8px 16px;font-size:0.875rem;">
+            <a href="{% url 'shop:home' %}" class="continue-shopping-btn">
                 <i class="fa fa-arrow-left"></i> Continue Shopping
             </a>
         </div>
@@ -688,7 +938,7 @@
                         {% endif %}
                         
                         <p class="item-seller">
-                            <i class="fa fa-store" style="color:var(--blue-400);margin-right:4px;"></i>
+                            <i class="fa fa-store"></i>
                             Sold by: {{ item.product.seller.shop_name|truncatechars:25 }}
                         </p>
                         
@@ -713,21 +963,16 @@
                         <div class="item-actions">
                             <!-- Quantity Selector -->
                             <div class="qty-selector">
-                                <button type="button" class="qty-btn minus" data-action="decrease">−</button>
+                                <button type="button" class="qty-btn minus" data-action="decrease" aria-label="Decrease quantity">−</button>
                                 <input type="number" class="qty-input" value="{{ item.quantity }}" min="1" 
-                                       max="{{ item.available_stock }}">
-                                <button type="button" class="qty-btn plus" data-action="increase">+</button>
+                                       max="{{ item.available_stock }}" aria-label="Quantity">
+                                <button type="button" class="qty-btn plus" data-action="increase" aria-label="Increase quantity">+</button>
                             </div>
                             
                             <!-- Remove Button -->
                             <button class="remove-btn" data-action="remove">
                                 <i class="fa fa-trash"></i> Remove
                             </button>
-                            
-                            <!-- Save for Later -->
-                            <!-- <button class="save-btn">
-                                <i class="fa fa-bookmark"></i> Save
-                            </button> -->
                         </div>
                         
                         <!-- Subtotal & Delivery -->
@@ -736,7 +981,7 @@
                                 Subtotal: <strong class="subtotal-value">₹{{ item.subtotal|floatformat:2}}</strong>
                             </p>
                             <p class="item-delivery">
-                                <i class="fa fa-truck" style="color:var(--blue-400);"></i>
+                                <i class="fa fa-truck"></i>
                                 {% if item.subtotal >= 499 %}
                                     <span style="color:var(--green);font-weight:600;">Free Delivery</span>
                                 {% else %}
@@ -822,7 +1067,7 @@
                 {% endif %}
                 
                 <div class="secure-badge">
-                    <i class="fa fa-shield-alt" style="color:var(--green);"></i> 100% Secure Transaction
+                    <i class="fa fa-shield-alt"></i> 100% Secure Transaction
                 </div>
             </aside>
         </div>
@@ -830,20 +1075,9 @@
         <!-- ── Delivery Address (Customer Only) ─────────── -->
         {% if user.is_authenticated and user.role == 'customer' %}
         <div class="delivery-address-section">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px;">
-                <h3 style="margin:0;font-size:1.1rem;color:var(--gray-800);display:flex;align-items:center;gap:8px;">
-                    <i class="fa fa-map-marker-alt" style="color:var(--blue-400);"></i> Delivery Address
-                </h3>
-                {% if user_addresses|length > 1 %}
-                    <select id="addressSelector" class="form-select-sm" style="max-width:220px;padding:8px 12px;border:1.5px solid var(--gray-200);border-radius:var(--radius-md);font-size:0.875rem;background:var(--white);color:var(--gray-700);">
-                        {% for addr in user_addresses %}
-                            <option value="{{ addr.id }}" {% if addr.id == default_address.id %}selected{% endif %}>
-                                {{ addr.name }} - {{ addr.city }}{% if addr.is_default %} (Default){% endif %}
-                            </option>
-                        {% endfor %}
-                    </select>
-                {% endif %}
-            </div>
+            <h3>
+                <i class="fa fa-map-marker-alt"></i> Delivery Address
+            </h3>
             
             <div class="address-card">
                 {% if default_address %}
@@ -852,7 +1086,7 @@
                             <strong id="addrName">{{ default_address.name }}</strong>
                             <span class="address-tag" id="addrType">{{ default_address.get_address_type_display|slice:":8" }}</span>
                             {% if default_address.is_default %}
-                                <span class="badge badge-success">✓ Default</span>
+                                <span class="badge-success">✓ Default</span>
                             {% endif %}
                         </p>
                         <p style="margin:4px 0;font-size:0.9rem;color:var(--gray-700);line-height:1.5;" id="addrLine1">
@@ -862,29 +1096,26 @@
                             {{ default_address.city }}, {{ default_address.state }} – {{ default_address.postal_code }}
                         </p>
                         <p style="margin:8px 0 0;font-size:0.85rem;color:var(--gray-600);">
-                            <i class="fa fa-phone" style="color:var(--blue-400);margin-right:4px;"></i> 
+                            <i class="fa fa-phone"></i> 
                             <span id="addrPhone">{{ default_address.phone }}</span> • <span id="addrCountry">{{ default_address.country }}</span>
                         </p>
                     </div>
                     <div class="address-actions">
-                        <button class="btn-outline" onclick="openAddressModal('edit', {{ default_address.id }})" 
-                                style="width:auto;padding:7px 14px;font-size:0.8rem;">
+                        <button class="btn-outline" onclick="openAddressModal('edit', {{ default_address.id }})">
                             <i class="fa fa-pencil"></i> Edit
                         </button>
                         {% if not default_address.is_default %}
-                        <button class="btn-outline" onclick="setDefaultAddress({{ default_address.id }})" 
-                                style="width:auto;padding:7px 14px;font-size:0.8rem;">
+                        <button class="btn-outline" onclick="setDefaultAddress({{ default_address.id }})">
                             <i class="fa fa-star"></i> Set Default
                         </button>
                         {% endif %}
-                        <button class="btn-outline" id="addAddressBtn" 
-                                style="width:auto;padding:7px 14px;font-size:0.8rem;">
+                        <button class="btn-outline" id="addAddressBtn">
                             <i class="fa fa-plus"></i> Add New
                         </button>
                     </div>
                 {% else %}
                     <div class="no-address">
-                        <i class="fa fa-map-marker-alt" style="font-size:1.2rem;color:var(--gray-300);"></i>
+                        <i class="fa fa-map-marker-alt"></i>
                         <p style="margin:0;">No delivery address saved.</p>
                     </div>
                     <button class="btn-primary" id="addAddressBtn" 
@@ -898,8 +1129,8 @@
 
         <!-- ── Payment Method ─────────────────────────────── -->
         <div class="payment-preview">
-            <h3 style="margin:0 0 16px;font-size:1.1rem;color:var(--gray-800);display:flex;align-items:center;gap:8px;">
-                <i class="fa fa-credit-card" style="color:var(--blue-400);"></i> Select Payment Method
+            <h3>
+                <i class="fa fa-credit-card"></i> Select Payment Method
             </h3>
             <div class="payment-options">
                 
@@ -932,35 +1163,32 @@
 
         {% else %}
         <!-- ── Empty Cart (Design System Aligned) ─────────────────── -->
-        <div class="empty-state" style="text-align:center;padding:clamp(40px,8vw,80px) 20px;background:var(--white);border-radius:var(--radius-xl);border:1.5px solid var(--gray-100);box-shadow:var(--shadow-sm);">
+        <div class="empty-state">
             
             <!-- Icon -->
-            <div style="width:80px;height:80px;margin:0 auto 24px;background:var(--blue-50);border-radius:50%;display:flex;align-items:center;justify-content:center;">
-                <i class="fa fa-shopping-cart" style="font-size:2rem;color:var(--blue-400);"></i>
+            <div class="icon-wrap">
+                <i class="fa fa-shopping-cart"></i>
             </div>
             
             <!-- Heading -->
-            <h3 style="color:var(--gray-800);margin-bottom:8px;font-size:1.25rem;font-weight:700;">
-                Your cart is empty
-            </h3>
+            <h3>Your cart is empty</h3>
             
             <!-- Description -->
-            <p style="color:var(--gray-500);max-width:360px;margin:0 auto 24px;font-size:0.95rem;line-height:1.6;">
+            <p>
                 Looks like you haven't added anything yet. Start exploring our amazing products and fill your cart!
             </p>
             
             <!-- CTA Button -->
-            <!-- <a href="{% url 'shop:home' %}" class="btn-primary" 
-            style="width:auto;padding:12px 32px;font-size:0.95rem;font-weight:700;display:inline-flex;align-items:center;gap:8px;box-shadow:var(--shadow-blue);text-decoration:none;">
+            <a href="{% url 'shop:home' %}" class="btn-primary">
                 <i class="fa fa-arrow-right"></i> Start Shopping
-            </a> -->
+            </a>
             
             <!-- Helpful Links -->
-            <div style="margin-top:32px;display:flex;justify-content:center;gap:24px;flex-wrap:wrap;">
-                <a href="{% url 'items:product_list' %}" style="font-size:0.875rem;color:var(--blue-500);font-weight:600;display:flex;align-items:center;gap:6px;">
+            <div class="helpful-links">
+                <a href="{% url 'items:product_list' %}">
                     <i class="fa fa-th-large"></i> Browse All Products
                 </a>
-                <a href="{% url 'shop:home' %}" style="font-size:0.875rem;color:var(--blue-500);font-weight:600;display:flex;align-items:center;gap:6px;">
+                <a href="{% url 'shop:home' %}">
                     <i class="fa fa-percent"></i> View Trending Products
                 </a>
             </div>
@@ -972,11 +1200,11 @@
 </section>
 
 <!-- ✅ ADDRESS MODAL -->
-<div id="addressModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="addressModalTitle" style="z-index:1600;">
-    <div class="modal-content" style="max-width:520px;">
+<div id="addressModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="addressModalTitle">
+    <div class="modal-content">
         <div class="modal-header-bar">
-            <h3 id="addressModalTitle" style="font-size:1.1rem;font-weight:700;color:var(--blue-800);margin:0;display:flex;align-items:center;gap:8px;">
-                <i class="fa fa-map-marker-alt" style="color:var(--blue-400);"></i> 
+            <h3 id="addressModalTitle">
+                <i class="fa fa-map-marker-alt"></i> 
                 <span id="modalTitleText">Add Address</span>
             </h3>
             <button class="modal-close" id="closeAddressModal" aria-label="Close">
@@ -1033,7 +1261,7 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label" for="modalAddrCountry">Country</label>
-                        <select id="modalAddrCountry" name="country" class="form-select-sm" style="width:100%;">
+                        <select id="modalAddrCountry" name="country" class="form-select-sm">
                             <option value="India" selected>India</option>
                         </select>
                     </div>
@@ -1042,7 +1270,7 @@
                 <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end;">
                     <div class="form-group">
                         <label class="form-label" for="modalAddrType">Address Type</label>
-                        <select id="modalAddrType" name="address_type" class="form-select-sm" style="width:100%;">
+                        <select id="modalAddrType" name="address_type" class="form-select-sm">
                             <option value="shipping">Shipping</option>
                             <option value="billing">Billing</option>
                             <option value="both" selected>Both</option>
@@ -1056,15 +1284,13 @@
                     </div>
                 </div>
                 
-                <div id="addressModalError" class="form-error-box" style="display:none;"></div>
+                <div id="addressModalError" class="form-error-box"></div>
                 
-                <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
-                    <button type="button" class="btn-outline" id="cancelAddressModalBtn" 
-                            style="width:auto;padding:10px 20px;font-size:0.9rem;">
+                <div class="modal-actions">
+                    <button type="button" class="btn-outline" id="cancelAddressModalBtn">
                         Cancel
                     </button>
-                    <button type="submit" class="btn-primary" id="saveAddressModalBtn" 
-                            style="width:auto;padding:10px 20px;font-size:0.9rem;">
+                    <button type="submit" class="btn-primary" id="saveAddressModalBtn">
                         Save Address
                     </button>
                 </div>
@@ -1093,7 +1319,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const t = document.createElement('div');
         t.className = 'toast-notification';
         t.innerHTML = `<i class="fa ${type==='success'?'fa-check-circle':'fa-exclamation-circle'}"></i> ${msg}`;
-        t.style.cssText = `position:fixed;bottom:24px;right:16px;z-index:9999;padding:12px 20px;border-radius:var(--radius-lg);font-weight:600;background:${type==='success'?'var(--green)':'var(--red)'};color:#fff;box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:8px;font-size:0.9rem;animation:toastIn 0.3s ease;`;
+        t.style.cssText = `position:fixed;bottom:24px;right:16px;z-index:9999;padding:12px 20px;border-radius:var(--r-lg);font-weight:600;background:${type==='success'?'var(--green)':'var(--red)'};color:#fff;box-shadow:var(--sh-lg);display:flex;align-items:center;gap:8px;font-size:0.9rem;animation:toastIn 0.3s ease;`;
         document.body.appendChild(t);
         setTimeout(() => {
             t.style.animation = 'toastOut 0.3s ease forwards';
@@ -1286,8 +1512,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // ── Address Dropdown Change Handler (FIXED) ──
     const addressSelector = document.getElementById('addressSelector');
     if (addressSelector) {
-        // ✅ Build URL properly using Django's url template tag
-        const GET_ADDRESS_BASE = "{% url 'accounts:api_address_detail' 1 %}".replace('/1/', '/');        
         addressSelector.addEventListener('change', async (e) => {
             const addressId = e.target.value;
             if (!addressId) return;
@@ -1300,9 +1524,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             try {
-                // ✅ Build clean URL: /accounts/api/address/5/
                 const url = `${GET_ADDRESS_BASE}${addressId}/`;
-                console.log('Fetching address:', url);
                 
                 const res = await fetch(url, {
                     headers: { 
@@ -1311,7 +1533,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 });
                         
-                // Handle non-JSON responses
                 const contentType = res.headers.get('content-type');
                 if (!contentType || !contentType.includes('application/json')) {
                     throw new Error(`Server returned ${res.status} ${res.statusText}`);
@@ -1359,7 +1580,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else {
                     console.error('Address API error:', data);
                     toast(data.message || 'Failed to load address', 'error');
-                    // Revert selector to previous value
                     addressSelector.value = '{{ default_address.id|default:"" }}';
                 }
             } catch (err) {
@@ -1367,7 +1587,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 toast('Network error loading address. Please refresh the page.', 'error');
                 addressSelector.value = '{{ default_address.id|default:"" }}';
             } finally {
-                // Restore interactivity
                 if (addrInfo) {
                     addrInfo.style.opacity = '1';
                     addrInfo.style.pointerEvents = 'auto';
@@ -1415,18 +1634,15 @@ document.addEventListener('DOMContentLoaded', function() {
         // Fetch address data for edit mode
         if (mode === 'edit' && addressId) {
             try {
-                // ✅ FIXED: Use GET_ADDRESS_BASE (same as dropdown handler) - no double slash!
                 const url = `${GET_ADDRESS_BASE}${addressId}/`;
-                console.log('Fetching address for modal:', url);
                 
                 const res = await fetch(url);
                 if (!res.ok) throw new Error('HTTP ' + res.status);
                 
                 const response = await res.json();
                 
-                // ✅ Check for wrapped response format: {status: 'success', address: {...}}
                 if (response.status === 'success' && response.address) {
-                    const a = response.address;  // Extract from 'address' key
+                    const a = response.address;
                     document.getElementById('modalAddrName').value = a.name || '';
                     document.getElementById('modalAddrPhone').value = a.phone || '';
                     document.getElementById('modalAddrLine1').value = a.address_line1 || '';
@@ -1538,7 +1754,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const placeOrderBtn = document.getElementById('placeOrderBtn');
     if (placeOrderBtn) {
         placeOrderBtn.addEventListener('click', async () => {
-            // Validate address exists
             if (!document.querySelector('.address-info')) { 
                 toast('Please add a delivery address first', 'error');
                 if (typeof openAddressModal === 'function') openAddressModal();
@@ -1546,9 +1761,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             const paymentMethod = document.querySelector('input[name="payment"]:checked')?.value || 'COD';
-            const addrInfo = document.querySelector('#selectedAddressInfo');
             
-            // Extract address from displayed elements
             const address = {
                 name: document.getElementById('addrName')?.textContent?.trim() || '{{ user.full_name|escapejs }}',
                 phone: document.getElementById('addrPhone')?.textContent?.trim() || '{{ user.phone|escapejs }}',
@@ -1559,7 +1772,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 country: document.getElementById('addrCountry')?.textContent?.trim() || 'India'
             };
             
-            // Disable button
             const originalHTML = placeOrderBtn.innerHTML;
             placeOrderBtn.disabled = true; 
             placeOrderBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Processing...';
@@ -1596,7 +1808,6 @@ document.addEventListener('DOMContentLoaded', function() {
                             window.location.href = `/orders/success/${result.order_id}/`;
                         }, 1000);
                     } else {
-                        // Razorpay flow
                         if (typeof Razorpay === 'undefined') {
                             toast('Payment gateway loading...', 'info');
                             setTimeout(() => {

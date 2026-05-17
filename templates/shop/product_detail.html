@@ -6,484 +6,510 @@
 
 {% block content %}
 <!-- Breadcrumb -->
-<nav class="breadcrumb" aria-label="Breadcrumb">
-    <a href="{% url 'shop:home' %}">Home</a> /
-    <a href="{% url 'items:product_list' %}">Shop</a> /
+<nav class="breadcrumb container" aria-label="Breadcrumb" style="padding-top: 24px;">
+    <a href="{% url 'shop:home' %}" class="breadcrumb-link">Home</a>
+    <span class="breadcrumb-separator">/</span>
+    <a href="{% url 'items:product_list' %}" class="breadcrumb-link">Shop</a>
     {% if product.category %}
-        <a href="{% url 'items:product_list' %}?category={{ product.category.slug }}">{{ product.category.name }}</a> /
+        <span class="breadcrumb-separator">/</span>
+        <a href="{% url 'items:product_list' %}?category={{ product.category.slug }}" class="breadcrumb-link">{{ product.category.name }}</a>
     {% endif %}
-    <span aria-current="page">{{ product.name }}</span>
+    <span class="breadcrumb-separator">/</span>
+    <span class="breadcrumb-current" aria-current="page">{{ product.name }}</span>
 </nav>
 
-<div class="product-detail-container">
-    <!-- Left: Image Gallery -->
-    <div class="product-gallery">
-        <div class="main-image">
-            <img id="mainImg"
-                src="{% if images and images.0.image %}{{ images.0.image.url }}{% elif product.primary_image %}{{ product.primary_image.url }}{% else %}{% static 'images/placeholder.png' %}{% endif %}"
-                alt="{{ product.name }}"
-                loading="lazy">
-            {% if product.is_hot_deal %}
-                <span class="badge-hot">🔥 Hot Deal</span>
-            {% endif %}
-            {% if product.discount_percent > 0 %}
-                <span class="badge-discount">-{{ product.discount_percent }}%</span>
-            {% endif %}
-        </div>
-
-        <!-- Thumbnails -->
-        {% if images|length > 1 %}
-        <div class="thumb-list">
-            {% for img in images %}
-            <div class="thumb {% if forloop.first %}active{% endif %}"
-                 onclick="changeImage(this, '{{ img.image.url }}')"
-                 role="button" tabindex="0"
-                 aria-label="View {{ img.alt_text|default:product.name }}">
-                <img src="{{ img.image.url }}" alt="{{ img.alt_text|default:product.name }}" loading="lazy">
-            </div>
-            {% endfor %}
-        </div>
-        {% endif %}
-    </div>
-
-    <!-- Right: Product Info -->
-    <div class="product-info-panel">
-
-        <!-- Title & Meta -->
-        <div class="info-header">
-            <h1>{{ product.name }}</h1>
-            <div class="meta-tags">
-                <span class="seller-tag">
-                    <i class="fa fa-store"></i>
-                    <a href="{% url 'items:product_list' %}?seller={{ product.seller.id }}">{{ product.seller.shop_name }}</a>
-                </span>
-                {% if product.gender %}
-                    <span class="gender-badge">{{ product.get_gender_display }}</span>
-                {% endif %}
-                {% if product.is_featured %}<span class="badge-featured">★ Featured</span>{% endif %}
-            </div>
-        </div>
-
-        <!-- Price Box -->
-        <div class="price-box">
-            {% if product.discount_percent > 0 %}
-                <span class="mrp">MRP: <del>₹{{ product.mrp|default:product.price }}</del></span>
-                <span class="final-price" id="displayPrice">₹{{ product.final_price|floatformat:2 }}</span>
-                <span class="discount-label">({{ product.discount_percent }}% OFF)</span>
-            {% else %}
-                <span class="final-price" id="displayPrice">₹{{ product.price }}</span>
-            {% endif %}
-            {% if product.savings > 0 %}
-                <span class="savings" id="displaySavings">You save: ₹{{ product.savings }}</span>
-            {% endif %}
-        </div>
-        {% if reorder_context %}
-            <div class="reorder-banner" style="background:#e8f5e9;border:1px solid #c8e6c9;border-left:4px solid #2e7d32;padding:12px 16px;border-radius:8px;margin:16px 0;display:flex;align-items:flex-start;gap:10px;">
-                <i class="fa fa-redo" style="color:#2e7d32;font-size:1.1rem;margin-top:2px;"></i>
-                <div>
-                    <strong style="color:#1b5e20;">Reordering from Order #{{ reorder_context.order_id }}</strong>
-                    <p style="margin:4px 0 0;font-size:0.875rem;color:#444;">
-                        You previously ordered <strong>{{ reorder_context.original_qty }}x</strong> at 
-                        <strong>₹{{ reorder_context.original_price|floatformat:2 }}</strong> each.
-                    </p>
-                    {% if has_variants %}
-                    <small style="color:#666;display:block;margin-top:6px;">
-                        💡 Select your preferred variant above to continue.
-                    </small>
+<div class="container" style="padding-top: 24px; padding-bottom: 48px;">
+    <div class="product-detail-grid">
+        <!-- Left: Image Gallery -->
+        <div class="product-gallery">
+            <div class="main-image-wrapper">
+                <img id="mainImg"
+                    src="{% if images and images.0.image %}{{ images.0.image.url }}{% elif product.primary_image %}{{ product.primary_image.url }}{% else %}{% static 'images/placeholder.png' %}{% endif %}"
+                    alt="{{ product.name }}"
+                    class="main-image"
+                    loading="lazy">
+                
+                <!-- Badges -->
+                <div class="image-badges">
+                    {% if product.is_hot_deal %}
+                        <span class="badge badge-hot">🔥 Hot Deal</span>
                     {% endif %}
-                </div>
-            </div>
-        {% endif %}
-        <!-- Short Description -->
-        {% if product.short_description %}
-        <p class="short-desc">{{ product.short_description }}</p>
-        {% endif %}
-
-        <!-- Variant Selector -->
-        {% if has_variants %}
-        <div class="variant-selector" id="variantSelector" data-variants='{{ variants_json|escapejs }}'>
-            <label class="variant-label">
-                <i class="fa fa-ruler-combined"></i> Select {{ product.category.name|default:"Variant" }}:
-                <span class="required">*</span>
-            </label>
-
-            <div class="variant-options" id="variantOptions">
-                {% for variant in variants %}
-                <button type="button"
-                        class="variant-btn {% if not variant.is_in_stock %}disabled{% endif %}"
-                        data-variant-id="{{ variant.id }}"
-                        data-size="{{ variant.size_value }}"
-                        data-color="{{ variant.color }}"
-                        data-price="{{ variant.effective_price }}"
-                        data-stock="{{ variant.stock }}"
-                        {% if not variant.is_in_stock %}disabled title="Out of stock"{% endif %}>
-                    {{ variant.size_value }}
-                    {% if variant.color %}<span class="variant-color">/ {{ variant.color }}</span>{% endif %}
-                    {% if variant.is_in_stock %}
-                        <span class="variant-stock-count">{{ variant.stock }} left</span>
-                    {% else %}
-                        <span class="out-of-stock-badge">Sold Out</span>
+                    {% if product.discount_percent > 0 %}
+                        <span class="badge badge-discount">-{{ product.discount_percent }}%</span>
                     {% endif %}
-                </button>
-                {% endfor %}
-            </div>
-
-            <!-- Selected variant info -->
-            <div class="variant-info" id="variantInfo" style="display:none;">
-                <span class="selected-size" id="selectedSize"></span>
-                <span class="variant-price" id="variantPrice"></span>
-                <span class="variant-stock" id="variantStock"></span>
-            </div>
-
-            <!-- Error message -->
-            <div class="variant-error" id="variantError" style="display:none;">
-                <i class="fa fa-exclamation-circle"></i> Please select a {{ product.category.name|default:"variant" }} before adding to cart.
-            </div>
-        </div>
-        {% endif %}
-
-        <!-- Stock & Delivery -->
-        <div class="stock-delivery">
-            {% if has_variants %}
-                <span class="stock-status" id="stockStatus">
-                    <i class="fa fa-hand-pointer"></i> Select a variant to check availability
-                </span>
-            {% elif is_in_stock %}
-                <span class="in-stock"><i class="fa fa-check-circle"></i> In Stock ({{ total_stock }} available)</span>
-            {% else %}
-                <span class="out-of-stock"><i class="fa fa-times-circle"></i> Out of Stock</span>
-            {% endif %}
-
-            <div class="delivery-info">
-                <i class="fa fa-truck"></i>
-                <span>
-                    <strong>Free Delivery</strong> on orders above ₹499<br>
-                    <small>Estimated delivery: 3–5 business days</small>
-                </span>
-            </div>
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="action-row">
-            {% if can_manage %}
-                <a href="{% url 'items:product_edit' product.id %}" class="btn-outline btn-lg" style="display:inline-flex;align-items:center;gap:8px;">
-                    <i class="fa fa-pencil"></i> Edit Product
-                </a>
-                <a href="{% url 'items:admin_dashboard' %}" class="btn-outline btn-lg" style="display:inline-flex;align-items:center;gap:8px;">
-                    <i class="fa fa-cog"></i> Manage Product
-                </a>
-            {% else %}
-                <div class="qty-selector">
-                    <button type="button" class="qty-btn" onclick="changeQty(-1)">−</button>
-                    <input type="number" id="qtyInput" class="qty-input" value="1" min="1" max="{{ total_stock }}">
-                    <button type="button" class="qty-btn" onclick="changeQty(1)">+</button>
-                </div>
-
-                <button class="btn-primary btn-lg" id="addToCartBtn"
-                        data-product-id="{{ product.id }}"
-                        data-stock="{{ total_stock }}"
-                        {% if has_variants %}disabled{% elif not is_in_stock %}disabled{% endif %}>
-                    <i class="fa fa-cart-plus"></i>
-                    {% if has_variants %}
-                        Select {{ product.category.name|default:"Variant" }}
-                    {% elif is_in_stock %}
-                        Add to Cart
-                    {% else %}
-                        Out of Stock
+                    {% if product.gender %}
+                        <span class="badge badge-gender">{{ product.get_gender_display }}</span>
                     {% endif %}
-                </button>
-
-                <button class="btn-outline btn-lg" id="buyNowBtn"
-                        {% if not is_in_stock and not has_variants %}disabled{% endif %}>
-                    <i class="fa fa-bolt"></i> Buy Now
-                </button>
-            {% endif %}
-
-            <!-- <button class="btn-icon" title="Add to Wishlist" aria-label="Add to Wishlist">
-                <i class="fa fa-heart"></i>
-            </button> -->
-            <div class="action-icons">
-                <!-- Wishlist -->
-                <button class="btn-icon"
-                        title="Add to Wishlist"
-                        aria-label="Add to Wishlist">
-                    <i class="fa fa-heart"></i>
-                </button>
-
-                <!-- Share -->
-                <button class="btn-icon"
-                        title="Share Product"
-                        aria-label="Share Product"
-                        onclick="shareProduct(
-                            '{{ product.name|escapejs }}',
-                            '{{ request.build_absolute_uri|escapejs }}'
-                        )">
-                    <i class="fa fa-share-alt"></i>
-                </button>
-            </div>
-        </div>
-
-        <!-- Trust Badges -->
-        <div class="trust-badges">
-            <span><i class="fa fa-shield-alt"></i> Secure Payment</span>
-            <span><i class="fa fa-undo"></i> 7 Days Return</span>
-            <span><i class="fa fa-medal"></i> 100% Original</span>
-        </div>
-
-        <!-- Profit Info (Seller / Admin only) -->
-        {% if can_manage and product.cost_price %}
-        <div class="profit-info">
-            <small>💰 Profit Breakdown (per unit)</small>
-            <div class="profit-row"><span>Selling Price:</span><strong>₹{{ product.final_price|floatformat:2 }}</strong></div>
-            <div class="profit-row muted"><span>− Commission ({{ product.category.commision_percentage|default:0 }}%):</span><span>₹{{ product.admin_commission|floatformat:2 }}</span></div>
-            <div class="profit-row muted"><span>− Cost Price:</span><span>₹{{ product.cost_price|floatformat:2 }}</span></div>
-            <div class="profit-row total"><span>Your Profit:</span><span>₹{{ product.seller_profit|floatformat:2 }} ({{ product.seller_profit_margin|floatformat:1 }}%)</span></div>
-        </div>
-        {% endif %}
-    </div>
-</div>
-
-<!-- Tabs -->
-<div class="product-tabs">
-    <div class="tab-headers">
-        <button class="tab-btn active" data-tab="desc">Description</button>
-        <button class="tab-btn" data-tab="specs">Specifications</button>
-        <button class="tab-btn" data-tab="seller">Seller Info</button>
-        <button class="tab-btn" data-tab="reviews">Reviews ({{ product.review_count }})</button>
-    </div>
-
-    <div class="tab-content active" id="tab-desc">
-        <div class="content-body">{{ product.description|linebreaks }}</div>
-    </div>
-
-    <div class="tab-content" id="tab-specs">
-        <table class="specs-table">
-            <tr><th>Brand</th><td>{{ product.brand|default:"—" }}</td></tr>
-            <tr><th>SKU</th><td>{{ product.sku|default:"—" }}</td></tr>
-            <tr><th>Weight</th><td>{{ product.weight|default:"—" }} g</td></tr>
-            <tr><th>Dimensions</th><td>{{ product.dimensions|default:"—" }} cm</td></tr>
-            {% if product.gender %}
-            <tr><th>Target Audience</th><td>{{ product.get_gender_display }}</td></tr>
-            {% endif %}
-            <tr><th>Material</th><td>{% if "material" in product.description|lower %}As described{% else %}—{% endif %}</td></tr>
-            <tr><th>Warranty</th><td>1 Year Manufacturer Warranty</td></tr>
-            <tr><th>Country of Origin</th><td>India</td></tr>
-            {% if has_variants and variants.0.attributes %}
-                {% for key, value in variants.0.attributes.items %}
-                <tr><th>{{ key|title }}</th><td>{{ value }}</td></tr>
-                {% endfor %}
-            {% endif %}
-        </table>
-    </div>
-
-    <div class="tab-content" id="tab-seller">
-        <div class="seller-card">
-            <div class="seller-header">
-                <h3>{{ product.seller.shop_name }}</h3>
-                <span class="seller-rating"><i class="fa fa-star"></i> {{ product.seller.rating }}/5.0</span>
-            </div>
-            <p>{{ product.seller.shop_description|default:"Premium quality products delivered with care." }}</p>
-            <div class="seller-meta">
-                <span><i class="fa fa-map-marker-alt"></i> {{ product.seller.address.city|default:"India" }}</span>
-            </div>
-            <div class="seller-stats">
-                <span><strong>{{ product.seller.products.count }}</strong> Products</span>
-                <span><strong>98%</strong> Positive Ratings</span>
-            </div>
-            <a href="{% url 'items:product_list' %}?seller={{ product.seller.id }}" class="btn-outline">
-                View All Products from this Seller
-            </a>
-        </div>
-    </div>
-
-    <!-- ═══════════════════════════════════════
-     REVIEWS TAB (Customer-Only)
-═══════════════════════════════════════ -->
-    <div class="tab-content" id="tab-reviews">
-        {% if is_customer %}
-            <!-- Rating Summary -->
-            {% if rating_stats.count > 0 %}
-            <div class="reviews-summary">
-                <div class="rating-overview">
-                    <span class="avg-rating">{{ rating_stats.average|floatformat:1 }}</span>
-                    <div class="stars">
-                        {% for i in "12345"|make_list %}
-                            <i class="fa fa-star{% if forloop.counter <= rating_stats.average|floatformat:0 %} filled{% endif %}"></i>
-                        {% endfor %}
-                    </div>
-                    <span class="review-count">({{ rating_stats.count }} review{{ rating_stats.count|pluralize }})</span>
                 </div>
                 
-                <!-- Rating Distribution -->
-                <div class="rating-distribution" style="margin-top:16px;">
-                    {% for star in "54321" %}
-                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-                        <span style="width:30px;font-size:0.85rem;color:var(--gray-600);">{{ star }}★</span>
-                        <div style="flex:1;height:6px;background:var(--gray-200);border-radius:3px;overflow:hidden;">
-                            {% with count_key=star|add:"_star" %}
-                            {% with count=rating_stats|default:0|add:count_key %}
-                            {% with total=rating_stats.count|default:1 %}
-                            {% with width=count|multiply:100|divide:total|floatformat:0 %}
-                            <div style="width:{{ width }}%;height:100%;background:var(--blue-500);border-radius:3px;"></div>
-                            {% endwith %}{% endwith %}{% endwith %}{% endwith %}
-                        </div>
-                        <span style="width:25px;font-size:0.75rem;color:var(--gray-500);text-align:right;">
-                            {{ rating_stats|default:0|add:star|add:"_star" }}
-                        </span>
+                {% if not is_in_stock %}
+                    <div class="out-of-stock-overlay">
+                        <span><i class="fa fa-times-circle"></i> Out of Stock</span>
                     </div>
-                    {% endfor %}
-                </div>
+                {% endif %}
             </div>
-            {% endif %}
-            
-            <!-- Write Review Button -->
-            {% if can_review and not user_review %}
-            <div style="text-align:center;margin:20px 0;">
-                <button class="btn-primary" onclick="openReviewModal()" style="width:auto;padding:10px 24px;">
-                    <i class="fa fa-star"></i> Write a Review
+
+            <!-- Thumbnails -->
+            {% if images|length > 1 %}
+            <div class="thumb-list">
+                {% for img in images %}
+                <button type="button"
+                     class="thumb {% if forloop.first %}active{% endif %}"
+                     onclick="changeImage(this, '{{ img.image.url }}')"
+                     aria-label="View {{ img.alt_text|default:product.name }}">
+                    <img src="{{ img.image.url }}" alt="{{ img.alt_text|default:product.name }}" loading="lazy" class="thumb-img">
                 </button>
-                <p style="font-size:0.85rem;color:var(--gray-500);margin-top:8px;">
-                    Share your experience to help other customers
-                </p>
-            </div>
-            {% elif user_review %}
-            <div style="background:var(--blue-50);border:1px solid var(--blue-200);border-radius:var(--radius-lg);padding:16px;margin:20px 0;">
-                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
-                    <div>
-                        <strong style="color:var(--blue-800);">Your Review</strong>
-                        <span style="margin-left:8px;color:var(--amber);">
-                            {% for i in "12345"|make_list %}
-                                {% if forloop.counter <= user_review.rating %}★{% else %}☆{% endif %}
-                            {% endfor %}
-                        </span>
-                    </div>
-                    <div style="display:flex;gap:8px;">
-                        <button class="btn-outline" onclick="editReview({{ user_review.id }})" style="width:auto;padding:6px 14px;font-size:0.85rem;">
-                            <i class="fa fa-pencil"></i> Edit
-                        </button>
-                        <button class="btn-outline" onclick="deleteReview({{ user_review.id }})" style="width:auto;padding:6px 14px;font-size:0.85rem;color:var(--red);border-color:var(--red);">
-                            <i class="fa fa-trash"></i> Delete
-                        </button>
-                    </div>
-                </div>
-                {% if user_review.title %}
-                <p style="margin:8px 0 0;font-weight:600;color:var(--gray-800);">"{{ user_review.title }}"</p>
-                {% endif %}
-                <p style="margin:4px 0 0;color:var(--gray-600);">{{ user_review.review|truncatechars:150 }}</p>
+                {% endfor %}
             </div>
             {% endif %}
-            
-            <!-- Reviews List -->
-            <div id="reviewsList">
-                {% if reviews %}
-                    {% for review in reviews %}
-                    <article class="review-card" data-review-id="{{ review.id }}" style="background:var(--white);border:1.5px solid var(--gray-100);border-radius:var(--radius-lg);padding:16px;margin-bottom:12px;">
-                        <div style="display:flex;gap:12px;align-items:flex-start;">
-                            <!-- Avatar -->
-                            <div style="width:40px;height:40px;border-radius:50%;background:var(--blue-100);display:flex;align-items:center;justify-content:center;color:var(--blue-600);font-weight:600;font-size:0.9rem;flex-shrink:0;">
-                                {{ review.user.full_name|default:review.user.phone|slice:":2"|upper }}
-                            </div>
-                            
-                            <!-- Content -->
-                            <div style="flex:1;min-width:0;">
-                                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;">
-                                    <div>
-                                        <strong style="font-size:0.95rem;color:var(--gray-800);">
-                                            {{ review.user.full_name|default:review.user.phone }}
-                                            {% if review.is_verified_purchase %}
-                                            <span style="margin-left:6px;color:var(--green);font-size:0.75rem;font-weight:600;">
-                                                <i class="fa fa-check-circle"></i> Verified
-                                            </span>
-                                            {% endif %}
-                                        </strong>
-                                        {% if review.title %}
-                                        <p style="margin:2px 0 0;font-size:0.9rem;color:var(--gray-700);font-weight:500;">"{{ review.title }}"</p>
-                                        {% endif %}
-                                    </div>
-                                    <div style="text-align:right;">
-                                        <div style="color:var(--amber);font-size:1rem;">
-                                            {% for i in "12345"|make_list %}
-                                                {% if forloop.counter <= review.rating %}★{% else %}☆{% endif %}
-                                            {% endfor %}
-                                        </div>
-                                        <time style="display:block;font-size:0.7rem;color:var(--gray-400);margin-top:2px;">
-                                            {{ review.created_at|date:"M d, Y" }}
-                                        </time>
-                                    </div>
-                                </div>
-                                
-                                <p style="margin:10px 0 0;font-size:0.9rem;color:var(--gray-700);line-height:1.5;">
-                                    {{ review.review|linebreaksbr }}
-                                </p>
-                                
-                                {% if review.images %}
-                                <div style="margin-top:10px;">
-                                    <img src="{{ review.images.url }}" alt="Review photo" 
-                                        style="max-width:150px;max-height:100px;border-radius:var(--radius-sm);border:1px solid var(--gray-200);">
-                                </div>
-                                {% endif %}
-                                
-                                <!-- Actions -->
-                                <div style="display:flex;gap:12px;margin-top:10px;">
-                                    <button class="helpful-btn" data-review-id="{{ review.id }}" 
-                                            style="background:none;border:none;color:var(--gray-500);font-size:0.8rem;cursor:pointer;display:flex;align-items:center;gap:4px;"
-                                            onclick="markHelpful(this, {{ review.id }})">
-                                        <i class="fa fa-thumbs-up"></i>
-                                        <span>Helpful</span>
-                                        <span class="helpful-count" style="margin-left:4px;font-weight:600;">{{ review.helpful_count }}</span>
-                                    </button>
-                                    
-                                    {% if review.user == user %}
-                                    <button onclick="editReview({{ review.id }})" 
-                                            style="background:none;border:none;color:var(--blue-500);font-size:0.8rem;cursor:pointer;">
-                                        <i class="fa fa-pencil"></i> Edit
-                                    </button>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </div>
-                    </article>
-                    {% endfor %}
-                    
-                    {% if reviews|length >= 10 %}
-                    <div style="text-align:center;margin-top:16px;">
-                        <button class="btn-outline" style="width:auto;padding:8px 20px;" onclick="loadMoreReviews()">
-                            Load More Reviews
-                        </button>
-                    </div>
-                    {% endif %}
-                {% else %}
-                <div style="text-align:center;padding:32px 20px;color:var(--gray-500);">
-                    <i class="fa fa-comment-alt" style="font-size:1.8rem;margin-bottom:10px;opacity:0.5;"></i>
-                    <p>No reviews yet. {% if can_review %}<strong>Be the first to share your experience!</strong>{% else %}Purchase this product to write a review.{% endif %}</p>
-                    {% if can_review and not user_review %}
-                    <button class="btn-primary" onclick="openReviewModal()" style="margin-top:12px;width:auto;padding:8px 20px;font-size:0.9rem;">
-                        <i class="fa fa-star"></i> Write a Review
-                    </button>
+        </div>
+
+        <!-- Right: Product Info -->
+        <div class="product-info-panel">
+            <!-- Title & Meta -->
+            <div class="info-header">
+                <h1 class="product-title">{{ product.name }}</h1>
+                <div class="meta-tags">
+                    <span class="seller-tag">
+                        <i class="fa fa-store"></i>
+                        <a href="{% url 'items:product_list' %}?seller={{ product.seller.id }}">{{ product.seller.shop_name }}</a>
+                    </span>
+                    {% if product.is_featured %}
+                        <span class="badge badge-featured">★ Featured</span>
                     {% endif %}
                 </div>
+            </div>
+
+            <!-- Price Box -->
+            <div class="price-box">
+                {% if product.discount_percent > 0 %}
+                    <div class="price-row">
+                        <span class="price-mrp">MRP: <del>₹{{ product.mrp|default:product.price }}</del></span>
+                        <span class="price-off">{{ product.discount_percent }}% OFF</span>
+                    </div>
+                    <div class="price-current-wrapper">
+                        <span class="price-current" id="displayPrice">₹{{ product.final_price|floatformat:2 }}</span>
+                    </div>
+                {% else %}
+                    <span class="price-current" id="displayPrice">₹{{ product.price }}</span>
+                {% endif %}
+                
+                {% if product.discount_percent > 0 and product.mrp %}
+                    <span class="savings-text" id="displaySavings">
+                        You save: <strong>₹{{ product.savings_per_unit|floatformat:2 }}</strong>
+                    </span>
+                {% elif product.discount_percent > 0 %}
+                    <span class="savings-text" id="displaySavings">
+                        You save: <strong>₹{{ product.savings|floatformat:2 }}</strong>
+                    </span>
                 {% endif %}
             </div>
-        {% else %}
-            <!-- Non-customers see this message -->
-            <div style="text-align:center;padding:40px 20px;color:var(--gray-500);">
-                <i class="fa fa-lock" style="font-size:2rem;margin-bottom:12px;opacity:0.5;"></i>
-                <p><strong>Reviews are only visible to customers.</strong></p>
-                <p style="margin-top:8px;font-size:0.9rem;">
-                    {% if user.is_authenticated %}
-                        Switch to a customer account to read and write reviews.
-                    {% else %}
-                        <a href="{% url 'accounts:login' %}?next={{ request.path }}" style="color:var(--blue-500);font-weight:600;">Login as a customer</a> to see reviews.
-                    {% endif %}
-                </p>
+            
+            {% if reorder_context %}
+                <div class="reorder-banner">
+                    <i class="fa fa-redo"></i>
+                    <div>
+                        <strong>Reordering from Order #{{ reorder_context.order_id }}</strong>
+                        <p style="margin:4px 0 0;font-size:0.875rem;color:var(--gray-600);">
+                            You previously ordered <strong>{{ reorder_context.original_qty }}x</strong> at 
+                            <strong>₹{{ reorder_context.original_price|floatformat:2 }}</strong> each.
+                        </p>
+                        {% if has_variants %}
+                        <small style="color:var(--gray-500);display:block;margin-top:6px;">
+                            💡 Select your preferred variant above to continue.
+                        </small>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+            
+            <!-- Short Description -->
+            {% if product.short_description %}
+            <p class="short-desc">{{ product.short_description }}</p>
+            {% endif %}
+
+            <!-- Variant Selector -->
+            {% if has_variants %}
+            <div class="variant-selector" id="variantSelector" data-variants='{{ variants_json|escapejs }}'>
+                <label class="variant-label">
+                    <i class="fa fa-ruler-combined"></i> Select {{ product.category.name|default:"Variant" }}:
+                    <span class="required">*</span>
+                </label>
+
+                <div class="variant-options" id="variantOptions">
+                    {% for variant in variants %}
+                    <button type="button"
+                            class="variant-btn {% if not variant.is_in_stock %}disabled{% endif %}"
+                            data-variant-id="{{ variant.id }}"
+                            data-size="{{ variant.size_value }}"
+                            data-color="{{ variant.color }}"
+                            data-price="{{ variant.effective_price }}"
+                            data-stock="{{ variant.stock }}"
+                            {% if not variant.is_in_stock %}disabled title="Out of stock"{% endif %}>
+                        {{ variant.size_value }}
+                        {% if variant.color %}<span class="variant-color">/ {{ variant.color }}</span>{% endif %}
+                        {% if variant.is_in_stock %}
+                            <span class="variant-stock-count">{{ variant.stock }} left</span>
+                        {% else %}
+                            <span class="out-of-stock-badge">Sold Out</span>
+                        {% endif %}
+                    </button>
+                    {% endfor %}
+                </div>
+
+                <!-- Selected variant info -->
+                <div class="variant-info" id="variantInfo" style="display:none;">
+                    <span class="selected-size" id="selectedSize"></span>
+                    <span class="variant-price" id="variantPrice"></span>
+                    <span class="variant-stock" id="variantStock"></span>
+                </div>
+
+                <!-- Error message -->
+                <div class="variant-error" id="variantError" style="display:none;">
+                    <i class="fa fa-exclamation-circle"></i> Please select a {{ product.category.name|default:"variant" }} before adding to cart.
+                </div>
             </div>
-        {% endif %}
+            {% endif %}
+
+            <!-- Stock & Delivery -->
+            <div class="stock-delivery">
+                {% if has_variants %}
+                    <span class="stock-status" id="stockStatus">
+                        <i class="fa fa-hand-pointer"></i> Select a variant to check availability
+                    </span>
+                {% elif is_in_stock %}
+                    <span class="stock-badge in-stock"><i class="fa fa-check-circle"></i> In Stock ({{ total_stock }} available)</span>
+                {% else %}
+                    <span class="stock-badge out-of-stock"><i class="fa fa-times-circle"></i> Out of Stock</span>
+                {% endif %}
+
+                <div class="delivery-info">
+                    <i class="fa fa-truck"></i>
+                    <span>
+                        <strong>Free Delivery</strong> on orders above ₹499<br>
+                        <small>Estimated delivery: 3–5 business days</small>
+                    </span>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="action-row">
+                {% if can_manage %}
+                    <a href="{% url 'items:product_edit' product.id %}" class="btn-outline btn-lg" style="display:inline-flex;align-items:center;gap:8px;">
+                        <i class="fa fa-pencil"></i> Edit Product
+                    </a>
+                    <a href="{% url 'items:admin_dashboard' %}" class="btn-outline btn-lg" style="display:inline-flex;align-items:center;gap:8px;">
+                        <i class="fa fa-cog"></i> Manage Product
+                    </a>
+                {% else %}
+                    <div class="qty-selector">
+                        <button type="button" class="qty-btn" onclick="changeQty(-1)" aria-label="Decrease quantity">−</button>
+                        <input type="number" id="qtyInput" class="qty-input" value="1" min="1" max="{{ total_stock }}" aria-label="Quantity">
+                        <button type="button" class="qty-btn" onclick="changeQty(1)" aria-label="Increase quantity">+</button>
+                    </div>
+
+                    <button class="btn-primary btn-lg" id="addToCartBtn"
+                            data-product-id="{{ product.id }}"
+                            data-stock="{{ total_stock }}"
+                            {% if has_variants %}disabled{% elif not is_in_stock %}disabled{% endif %}>
+                        <i class="fa fa-cart-plus"></i>
+                        {% if has_variants %}
+                            Select {{ product.category.name|default:"Variant" }}
+                        {% elif is_in_stock %}
+                            Add to Cart
+                        {% else %}
+                            Out of Stock
+                        {% endif %}
+                    </button>
+
+                    <button class="btn-outline btn-lg" id="buyNowBtn"
+                            {% if not is_in_stock and not has_variants %}disabled{% endif %}>
+                        <i class="fa fa-bolt"></i> Buy Now
+                    </button>
+                {% endif %}
+
+                <!-- Action Icons -->
+                <div class="action-icons">
+                    <!-- Wishlist -->
+                    <button class="btn-icon wishlist-btn"
+                            title="Add to Wishlist"
+                            aria-label="Add to Wishlist">
+                        <i class="fa fa-heart"></i>
+                    </button>
+
+                    <!-- Share -->
+                    <button class="btn-icon share-btn"
+                            title="Share Product"
+                            aria-label="Share Product"
+                            onclick="shareProduct(
+                                '{{ product.name|escapejs }}',
+                                '{{ request.build_absolute_uri|escapejs }}'
+                            )">
+                        <i class="fa fa-share-alt"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Trust Badges -->
+            <div class="trust-badges">
+                <span><i class="fa fa-shield-alt"></i> Secure Payment</span>
+                <span><i class="fa fa-undo"></i> 7 Days Return</span>
+                <span><i class="fa fa-medal"></i> 100% Original</span>
+            </div>
+
+            <!-- Profit Info (Seller / Admin only) -->
+            {% if can_manage and product.cost_price %}
+            <div class="profit-info">
+                <small>💰 Profit Breakdown (per unit)</small>
+                <div class="profit-row"><span>Selling Price:</span><strong>₹{{ product.final_price|floatformat:2 }}</strong></div>
+                <div class="profit-row muted"><span>− Commission ({{ product.category.commision_percentage|default:0 }}%):</span><span>₹{{ product.admin_commission|floatformat:2 }}</span></div>
+                <div class="profit-row muted"><span>− Cost Price:</span><span>₹{{ product.cost_price|floatformat:2 }}</span></div>
+                <div class="profit-row total"><span>Your Profit:</span><span>₹{{ product.seller_profit|floatformat:2 }} ({{ product.seller_profit_margin|floatformat:1 }}%)</span></div>
+            </div>
+            {% endif %}
+        </div>
     </div>
 </div>
 
-<!-- ✅ FIXED: Related Products Section -->
+<!-- Tabs Section -->
+<div class="container" style="padding-bottom: 48px;">
+    <div class="product-tabs">
+        <div class="tab-headers">
+            <button class="tab-btn active" data-tab="desc">Description</button>
+            <button class="tab-btn" data-tab="specs">Specifications</button>
+            <button class="tab-btn" data-tab="seller">Seller Info</button>
+            <button class="tab-btn" data-tab="reviews">Reviews ({{ product.review_count }})</button>
+        </div>
+
+        <div class="tab-content active" id="tab-desc">
+            <div class="content-body">{{ product.description|linebreaks }}</div>
+        </div>
+
+        <div class="tab-content" id="tab-specs">
+            <table class="specs-table">
+                <tr><th>Brand</th><td>{{ product.brand|default:"—" }}</td></tr>
+                <tr><th>SKU</th><td>{{ product.sku|default:"—" }}</td></tr>
+                <tr><th>Weight</th><td>{{ product.weight|default:"—" }} g</td></tr>
+                <tr><th>Dimensions</th><td>{{ product.dimensions|default:"—" }} cm</td></tr>
+                {% if product.gender %}
+                <tr><th>Target Audience</th><td>{{ product.get_gender_display }}</td></tr>
+                {% endif %}
+                <tr><th>Material</th><td>{% if "material" in product.description|lower %}As described{% else %}—{% endif %}</td></tr>
+                <tr><th>Warranty</th><td>1 Year Manufacturer Warranty</td></tr>
+                <tr><th>Country of Origin</th><td>India</td></tr>
+                {% if has_variants and variants.0.attributes %}
+                    {% for key, value in variants.0.attributes.items %}
+                    <tr><th>{{ key|title }}</th><td>{{ value }}</td></tr>
+                    {% endfor %}
+                {% endif %}
+            </table>
+        </div>
+
+        <div class="tab-content" id="tab-seller">
+            <div class="seller-card">
+                <div class="seller-header">
+                    <h3>{{ product.seller.shop_name }}</h3>
+                    <span class="seller-rating"><i class="fa fa-star"></i> {{ product.seller.rating }}/5.0</span>
+                </div>
+                <p>{{ product.seller.shop_description|default:"Premium quality products delivered with care." }}</p>
+                <div class="seller-meta">
+                    <span><i class="fa fa-map-marker-alt"></i> {{ product.seller.address.city|default:"India" }}</span>
+                </div>
+                <div class="seller-stats">
+                    <span><strong>{{ product.seller.products.count }}</strong> Products</span>
+                    <span><strong>98%</strong> Positive Ratings</span>
+                </div>
+                <a href="{% url 'items:product_list' %}?seller={{ product.seller.id }}" class="btn-outline">
+                    View All Products from this Seller
+                </a>
+            </div>
+        </div>
+
+        <!-- REVIEWS TAB (Customer-Only) -->
+        <div class="tab-content" id="tab-reviews">
+            {% if is_customer %}
+                <!-- Rating Summary -->
+                {% if rating_stats.count > 0 %}
+                <div class="reviews-summary">
+                    <div class="rating-overview">
+                        <span class="avg-rating">{{ rating_stats.average|floatformat:1 }}</span>
+                        <div class="stars">
+                            {% for i in "12345"|make_list %}
+                                <i class="fa fa-star{% if forloop.counter <= rating_stats.average|floatformat:0 %} filled{% endif %}"></i>
+                            {% endfor %}
+                        </div>
+                        <span class="review-count">({{ rating_stats.count }} review{{ rating_stats.count|pluralize }})</span>
+                    </div>
+                    
+                    <!-- Rating Distribution -->
+                    <div class="rating-distribution" style="margin-top:16px;">
+                        {% for star in "54321" %}
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                            <span style="width:30px;font-size:0.85rem;color:var(--gray-600);">{{ star }}★</span>
+                            <div style="flex:1;height:6px;background:var(--gray-200);border-radius:3px;overflow:hidden;">
+                                {% with count_key=star|add:"_star" %}
+                                {% with count=rating_stats|default:0|add:count_key %}
+                                {% with total=rating_stats.count|default:1 %}
+                                {% with width=count|multiply:100|divide:total|floatformat:0 %}
+                                <div style="width:{{ width }}%;height:100%;background:var(--blue-500);border-radius:3px;"></div>
+                                {% endwith %}{% endwith %}{% endwith %}{% endwith %}
+                            </div>
+                            <span style="width:25px;font-size:0.75rem;color:var(--gray-500);text-align:right;">
+                                {{ rating_stats|default:0|add:star|add:"_star" }}
+                            </span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Write Review Button -->
+                {% if can_review and not user_review %}
+                <div style="text-align:center;margin:20px 0;">
+                    <button class="btn-primary" onclick="openReviewModal()" style="width:auto;padding:10px 24px;">
+                        <i class="fa fa-star"></i> Write a Review
+                    </button>
+                    <p style="font-size:0.85rem;color:var(--gray-500);margin-top:8px;">
+                        Share your experience to help other customers
+                    </p>
+                </div>
+                {% elif user_review %}
+                <div style="background:var(--blue-50);border:1px solid var(--blue-200);border-radius:var(--r-lg);padding:16px;margin:20px 0;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+                        <div>
+                            <strong style="color:var(--blue-800);">Your Review</strong>
+                            <span style="margin-left:8px;color:var(--amber);">
+                                {% for i in "12345"|make_list %}
+                                    {% if forloop.counter <= user_review.rating %}★{% else %}☆{% endif %}
+                                {% endfor %}
+                            </span>
+                        </div>
+                        <div style="display:flex;gap:8px;">
+                            <button class="btn-outline" onclick="editReview({{ user_review.id }})" style="width:auto;padding:6px 14px;font-size:0.85rem;">
+                                <i class="fa fa-pencil"></i> Edit
+                            </button>
+                            <button class="btn-outline" onclick="deleteReview({{ user_review.id }})" style="width:auto;padding:6px 14px;font-size:0.85rem;color:var(--red);border-color:var(--red);">
+                                <i class="fa fa-trash"></i> Delete
+                            </button>
+                        </div>
+                    </div>
+                    {% if user_review.title %}
+                    <p style="margin:8px 0 0;font-weight:600;color:var(--gray-800);">"{{ user_review.title }}"</p>
+                    {% endif %}
+                    <p style="margin:4px 0 0;color:var(--gray-600);">{{ user_review.review|truncatechars:150 }}</p>
+                </div>
+                {% endif %}
+                
+                <!-- Reviews List -->
+                <div id="reviewsList">
+                    {% if reviews %}
+                        {% for review in reviews %}
+                        <article class="review-card" data-review-id="{{ review.id }}">
+                            <div style="display:flex;gap:12px;align-items:flex-start;">
+                                <!-- Avatar -->
+                                <div class="review-avatar">
+                                    {{ review.user.full_name|default:review.user.phone|slice:":2"|upper }}
+                                </div>
+                                
+                                <!-- Content -->
+                                <div style="flex:1;min-width:0;">
+                                    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;">
+                                        <div>
+                                            <strong style="font-size:0.95rem;color:var(--gray-800);">
+                                                {{ review.user.full_name|default:review.user.phone }}
+                                                {% if review.is_verified_purchase %}
+                                                <span class="verified-badge">
+                                                    <i class="fa fa-check-circle"></i> Verified
+                                                </span>
+                                                {% endif %}
+                                            </strong>
+                                            {% if review.title %}
+                                            <p style="margin:2px 0 0;font-size:0.9rem;color:var(--gray-700);font-weight:500;">"{{ review.title }}"</p>
+                                            {% endif %}
+                                        </div>
+                                        <div style="text-align:right;">
+                                            <div style="color:var(--amber);font-size:1rem;">
+                                                {% for i in "12345"|make_list %}
+                                                    {% if forloop.counter <= review.rating %}★{% else %}☆{% endif %}
+                                                {% endfor %}
+                                            </div>
+                                            <time style="display:block;font-size:0.7rem;color:var(--gray-400);margin-top:2px;">
+                                                {{ review.created_at|date:"M d, Y" }}
+                                            </time>
+                                        </div>
+                                    </div>
+                                    
+                                    <p style="margin:10px 0 0;font-size:0.9rem;color:var(--gray-700);line-height:1.5;">
+                                        {{ review.review|linebreaksbr }}
+                                    </p>
+                                    
+                                    {% if review.images %}
+                                    <div style="margin-top:10px;">
+                                        <img src="{{ review.images.url }}" alt="Review photo" 
+                                            class="review-image">
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <!-- Actions -->
+                                    <div style="display:flex;gap:12px;margin-top:10px;">
+                                        <button class="helpful-btn" data-review-id="{{ review.id }}" 
+                                                onclick="markHelpful(this, {{ review.id }})">
+                                            <i class="fa fa-thumbs-up"></i>
+                                            <span>Helpful</span>
+                                            <span class="helpful-count" style="margin-left:4px;font-weight:600;">{{ review.helpful_count }}</span>
+                                        </button>
+                                        
+                                        {% if review.user == user %}
+                                        <button onclick="editReview({{ review.id }})" class="edit-review-btn">
+                                            <i class="fa fa-pencil"></i> Edit
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </article>
+                        {% endfor %}
+                        
+                        {% if reviews|length >= 10 %}
+                        <div style="text-align:center;margin-top:16px;">
+                            <button class="btn-outline" style="width:auto;padding:8px 20px;" onclick="loadMoreReviews()">
+                                Load More Reviews
+                            </button>
+                        </div>
+                        {% endif %}
+                    {% else %}
+                    <div class="empty-reviews">
+                        <i class="fa fa-comment-alt"></i>
+                        <p>No reviews yet. {% if can_review %}<strong>Be the first to share your experience!</strong>{% else %}Purchase this product to write a review.{% endif %}</p>
+                        {% if can_review and not user_review %}
+                        <button class="btn-primary" onclick="openReviewModal()" style="margin-top:12px;width:auto;padding:8px 20px;font-size:0.9rem;">
+                            <i class="fa fa-star"></i> Write a Review
+                        </button>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            {% else %}
+                <!-- Non-customers see this message -->
+                <div class="reviews-locked">
+                    <i class="fa fa-lock"></i>
+                    <p><strong>Reviews are only visible to customers.</strong></p>
+                    <p style="margin-top:8px;font-size:0.9rem;">
+                        {% if user.is_authenticated %}
+                            Switch to a customer account to read and write reviews.
+                        {% else %}
+                            <a href="{% url 'accounts:login' %}?next={{ request.path }}" class="login-link">Login as a customer</a> to see reviews.
+                        {% endif %}
+                    </p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Related Products Section -->
 {% if related_products %}
-<section class="related-section">
+<section class="related-section container">
     <div class="section-header">
         <h3>✨ Customers Also Viewed</h3>
         <a href="{% url 'items:product_list' %}?category={{ product.category.slug }}" class="view-all-link">
@@ -500,6 +526,7 @@
                         <img src="{{ p.primary_image.url }}" 
                              alt="{{ p.name }}" 
                              loading="lazy"
+                             class="related-product-image"
                              onerror="this.src='{% static 'images/placeholder.png' %}'">
                     {% else %}
                         <div class="no-image">
@@ -508,15 +535,17 @@
                     {% endif %}
                     
                     <!-- Badges -->
-                    {% if p.gender %}
-                        <span class="gender-badge">{{ p.get_gender_display }}</span>
-                    {% endif %}
-                    {% if p.discount_percent > 0 %}
-                        <span class="discount-badge">-{{ p.discount_percent }}%</span>
-                    {% endif %}
-                    {% if p.is_hot_deal %}
-                        <span class="hot-badge">🔥</span>
-                    {% endif %}
+                    <div class="related-badges">
+                        {% if p.gender %}
+                            <span class="badge badge-gender">{{ p.get_gender_display }}</span>
+                        {% endif %}
+                        {% if p.discount_percent > 0 %}
+                            <span class="badge badge-discount">-{{ p.discount_percent }}%</span>
+                        {% endif %}
+                        {% if p.is_hot_deal %}
+                            <span class="badge badge-hot">🔥</span>
+                        {% endif %}
+                    </div>
                 </div>
                 
                 <div class="related-product-info">
@@ -528,7 +557,7 @@
                         <i class="fa fa-store"></i> {{ p.seller.shop_name|truncatechars:15 }}
                     </p>
                     
-                    <!-- Price Display (matches main product style) -->
+                    <!-- Price Display -->
                     <div class="related-price-display">
                         {% if p.discount_percent > 0 and p.mrp %}
                             <span class="related-price-mrp">₹{{ p.mrp|floatformat:0 }}</span>
@@ -556,7 +585,7 @@
                     <i class="fa fa-eye"></i> View
                 </a>
                 <button type="button" 
-                        class="btn-share" 
+                        class="btn-share-related" 
                         onclick="shareProduct('{{ p.name|escapejs }}', '{{ request.build_absolute_uri|escapejs }}')"
                         title="Share this product"
                         aria-label="Share {{ p.name }}">
@@ -568,13 +597,12 @@
     </div>
 </section>
 {% endif %}
-<!-- ═══════════════════════════════════════
-     REVIEW MODAL
-═══════════════════════════════════════ -->
-<div id="reviewModal" class="modal" role="dialog" aria-modal="true" style="z-index:1600;">
-    <div class="modal-content" style="max-width:520px;">
+
+<!-- REVIEW MODAL -->
+<div id="reviewModal" class="modal" role="dialog" aria-modal="true">
+    <div class="modal-content">
         <div class="modal-header-bar">
-            <h3 id="reviewModalTitle" style="font-size:1.1rem;font-weight:700;color:var(--blue-800);margin:0;">
+            <h3 id="reviewModalTitle">
                 <i class="fa fa-star" style="color:var(--amber);margin-right:8px;"></i>
                 <span id="modalTitleText">Write a Review</span>
             </h3>
@@ -592,13 +620,13 @@
                 <!-- Rating -->
                 <div class="form-group">
                     <label class="form-label">Your Rating *</label>
-                    <div id="starRating" class="star-rating" style="display:flex;gap:4px;font-size:1.8rem;cursor:pointer;">
+                    <div id="starRating" class="star-rating">
                         {% for i in "12345" %}
-                        <span data-value="{{ i }}" style="color:var(--gray-300);transition:color 0.2s;">☆</span>
+                        <span data-value="{{ i }}">☆</span>
                         {% endfor %}
                     </div>
                     <input type="hidden" id="ratingInput" name="rating" required>
-                    <div id="ratingError" class="error-text" style="display:none;"></div>
+                    <div id="ratingError" class="error-text"></div>
                 </div>
                 
                 <!-- Title -->
@@ -615,18 +643,16 @@
                               placeholder="Share details about quality, fit, value..." 
                               rows="4" maxlength="2000" required></textarea>
                     <div class="form-hint"><span id="charCount">0</span>/2000 characters</div>
-                    <div id="reviewError" class="error-text" style="display:none;"></div>
+                    <div id="reviewError" class="error-text"></div>
                 </div>
                 
-                <div id="formError" class="form-error-box" style="display:none;"></div>
+                <div id="formError" class="form-error-box"></div>
                 
-                <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
-                    <button type="button" class="btn-outline" id="cancelReviewBtn" 
-                            style="width:auto;padding:10px 20px;font-size:0.9rem;">
+                <div class="modal-actions">
+                    <button type="button" class="btn-outline" id="cancelReviewBtn">
                         Cancel
                     </button>
-                    <button type="submit" class="btn-primary" id="submitReviewBtn" 
-                            style="width:auto;padding:10px 20px;font-size:0.9rem;">
+                    <button type="submit" class="btn-primary" id="submitReviewBtn">
                         <i class="fa fa-paper-plane"></i> Submit Review
                     </button>
                 </div>
@@ -672,6 +698,7 @@ document.addEventListener('DOMContentLoaded', function () {
     setupQtySelector();
     setupAddToCart();
     setupBuyNow();
+    setupWishlist();
 });
 
 // ── Image Gallery ────────────────────────────────────────────────
@@ -726,10 +753,10 @@ function setupVariantSelection() {
 
             if (stockStatus) {
                 if (stock > 0) {
-                    stockStatus.className = 'in-stock';
+                    stockStatus.className = 'stock-badge in-stock';
                     stockStatus.innerHTML = '<i class="fa fa-check-circle"></i> ' + stock + ' in stock';
                 } else {
-                    stockStatus.className = 'out-of-stock';
+                    stockStatus.className = 'stock-badge out-of-stock';
                     stockStatus.innerHTML = '<i class="fa fa-times-circle"></i> Out of stock';
                 }
             }
@@ -762,7 +789,7 @@ function updatePriceDisplay(price) {
     if (displayPrice) displayPrice.textContent = '₹' + price.toFixed(2);
     if (displaySavings) {
         if (baseMrp > price) {
-            displaySavings.textContent = 'You save: ₹' + (baseMrp - price).toFixed(2);
+            displaySavings.textContent = 'You save: <strong>₹' + (baseMrp - price).toFixed(2) + '</strong>';
             displaySavings.style.display = 'inline';
         } else {
             displaySavings.style.display = 'none';
@@ -920,14 +947,14 @@ function setupTabs() {
 function showToast(msg, type = 'info') {
     document.querySelectorAll('.toast-notification').forEach(t => t.remove());
     const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
-    const bg   = type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : '#2196F3';
+    const bg   = type === 'success' ? 'var(--green)' : type === 'error' ? 'var(--red)' : 'var(--blue-500)';
     const toast = document.createElement('div');
     toast.className = 'toast-notification';
     toast.innerHTML = '<i class="fa ' + icon + '"></i> ' + msg;
     toast.style.cssText =
         'position:fixed;bottom:24px;right:24px;z-index:9999;' +
-        'padding:12px 20px;border-radius:8px;font-weight:600;' +
-        'background:' + bg + ';color:#fff;box-shadow:0 4px 14px rgba(0,0,0,.2);' +
+        'padding:12px 20px;border-radius:var(--r-md);font-weight:600;' +
+        'background:' + bg + ';color:#fff;box-shadow:var(--sh-lg);' +
         'display:flex;align-items:center;gap:8px;font-size:0.95rem;' +
         'animation:toastSlideIn 0.3s ease;max-width:calc(100vw - 48px);';
     document.body.appendChild(toast);
@@ -946,20 +973,8 @@ if (!document.querySelector('#toast-animations')) {
     document.head.appendChild(style);
 }
 
-// ── Keyboard nav for related product cards ────────────────────────
-document.querySelectorAll('.related-product-card').forEach(card => {
-    card.setAttribute('tabindex', '0');
-    card.addEventListener('keydown', e => {
-        if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            card.querySelector('.related-product-link')?.click();
-        }
-    });
-});
-
-// ── Share Product Function (Non-invasive) ───────────────────────
+// ── Share Product Function ───────────────────────────────────────
 window.shareProduct = function(productName, productUrl) {
-    // Try native Web Share API first (mobile)
     if (navigator.share) {
         navigator.share({
             title: productName,
@@ -969,12 +984,10 @@ window.shareProduct = function(productName, productUrl) {
         .then(() => showToast('Shared successfully!', 'success'))
         .catch((err) => {
             if (err.name !== 'AbortError') {
-                // Fallback to clipboard
                 copyToClipboard(productUrl);
             }
         });
     } else {
-        // Fallback: copy link to clipboard
         copyToClipboard(productUrl);
     }
 };
@@ -983,7 +996,6 @@ function copyToClipboard(text) {
     navigator.clipboard.writeText(text).then(() => {
         showToast('Link copied to clipboard!', 'success');
     }).catch(() => {
-        // Last resort: prompt user
         const success = prompt('Copy this link:', text);
         if (success !== null) {
             showToast('Link ready to paste!', 'success');
@@ -991,69 +1003,70 @@ function copyToClipboard(text) {
     });
 }
 
-
 // ── Wishlist Button ──────────────────────────────────────────────
-const wishlistBtn = document.querySelector('.btn-icon[aria-label="Add to Wishlist"]');
+function setupWishlist() {
+    const wishlistBtn = document.querySelector('.wishlist-btn');
+    
+    // On page load, check if already in wishlist
+    (async function checkWishlistState() {
+        if (!wishlistBtn || userRole !== 'customer') return;
+        try {
+            const res = await fetch(`/items/wishlist/status/{{ product.id }}/`);
+            const data = await res.json();
+            if (data.in_wishlist) {
+                wishlistBtn.classList.add('active');
+                wishlistBtn.innerHTML = '<i class="fa fa-heart"></i>';
+            }
+        } catch (e) { /* silent fail */ }
+    })();
 
-// On page load, check if already in wishlist
-(async function checkWishlistState() {
-    if (!wishlistBtn || userRole !== 'customer') return;
-    try {
-        const res = await fetch(`/items/wishlist/status/{{ product.id }}/`);
-        const data = await res.json();
-        if (data.in_wishlist) {
-            wishlistBtn.classList.add('active');
-            wishlistBtn.innerHTML = '<i class="fa fa-heart"></i>';
+    wishlistBtn?.addEventListener('click', async function () {
+        if (userRole !== 'customer') {
+            showToast('Please login to use wishlist', 'error');
+            return;
         }
-    } catch (e) { /* silent fail */ }
-})();
 
-wishlistBtn?.addEventListener('click', async function () {
-    if (userRole !== 'customer') {
-        showToast('Please login to use wishlist', 'error');
-        return;
-    }
+        const btn = this;
+        const productId = '{{ product.id }}';
+        const variantId = selectedVariantId || '';
 
-    const btn = this;
-    const productId = '{{ product.id }}';
-    const variantId = selectedVariantId || '';
-
-    // Optimistic UI
-    const isNowActive = btn.classList.toggle('active');
-    btn.innerHTML = isNowActive
-        ? '<i class="fa fa-heart"></i>'
-        : '<i class="fa fa-heart-o"></i>';
-
-    try {
-        const res = await fetch(`/items/wishlist/toggle/${productId}/`, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': csrfToken,
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams({ variant_id: variantId })
-        });
-        const data = await res.json();
-
-        if (data.status === 'added') {
-            if (window.updateWishlistCount) window.updateWishlistCount(+1);
-            showToast('Added to wishlist ❤️', 'success');
-        } else if (data.status === 'removed') {
-            if (window.updateWishlistCount) window.updateWishlistCount(-1);
-            showToast('Removed from wishlist', 'info');
-        } else  {
-            throw new Error(data.error || 'Unexpected response');
-        }
-    } catch (err) {
-        console.error('Wishlist error:', err);
-        showToast('Failed to update wishlist', 'error');
-        // Revert optimistic update
-        const reverted = btn.classList.toggle('active');
-        btn.innerHTML = reverted
+        // Optimistic UI
+        const isNowActive = btn.classList.toggle('active');
+        btn.innerHTML = isNowActive
             ? '<i class="fa fa-heart"></i>'
             : '<i class="fa fa-heart-o"></i>';
-    }
-});
+
+        try {
+            const res = await fetch(`/items/wishlist/toggle/${productId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({ variant_id: variantId })
+            });
+            const data = await res.json();
+
+            if (data.status === 'added') {
+                if (window.updateWishlistCount) window.updateWishlistCount(+1);
+                showToast('Added to wishlist ❤️', 'success');
+            } else if (data.status === 'removed') {
+                if (window.updateWishlistCount) window.updateWishlistCount(-1);
+                showToast('Removed from wishlist', 'info');
+            } else  {
+                throw new Error(data.error || 'Unexpected response');
+            }
+        } catch (err) {
+            console.error('Wishlist error:', err);
+            showToast('Failed to update wishlist', 'error');
+            // Revert optimistic update
+            const reverted = btn.classList.toggle('active');
+            btn.innerHTML = reverted
+                ? '<i class="fa fa-heart"></i>'
+                : '<i class="fa fa-heart-o"></i>';
+        }
+    });
+}
 
 // ── Star Rating Interaction ──────────────────────────────────
 const starRating = document.getElementById('starRating');
@@ -1208,7 +1221,6 @@ if (reviewForm) {
 
 // ── Edit/Delete Review ───────────────────────────────────────
 async function editReview(reviewId) {
-    // For simplicity, reload with review data in context
     openReviewModal(true, {
         rating: {{ user_review.rating|default:0 }},
         title: '{{ user_review.title|escapejs }}',
@@ -1265,276 +1277,756 @@ async function markHelpful(btn, reviewId) {
 // ── Load More Reviews ────────────────────────────────────────
 async function loadMoreReviews() {
     showToast('Loading more reviews...', 'info');
-    // Implement pagination: fetch(`/items/product/{{ product.slug }}/reviews/?page=2`)
 }
 </script>
-
-
 {% endblock %}
 
 {% block extra_css %}
 <style>
 /* ===== Breadcrumb ===== */
 .breadcrumb {
-    max-width: 1200px; margin: 20px auto 0; padding: 0 20px;
-    font-size: 0.9rem; color: #666;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.875rem;
+    color: var(--gray-500);
+    flex-wrap: wrap;
 }
-.breadcrumb a { color: #2874f0; text-decoration: none; }
-.breadcrumb a:hover { text-decoration: underline; }
+.breadcrumb-link {
+    color: var(--blue-500);
+    text-decoration: none;
+    font-weight: 500;
+    transition: color var(--tr);
+}
+.breadcrumb-link:hover { color: var(--blue-700); }
+.breadcrumb-separator { color: var(--gray-300); }
+.breadcrumb-current { color: var(--gray-700); font-weight: 500; }
 
-/* ===== Layout ===== */
-.product-detail-container {
-    max-width: 1200px; margin: 20px auto; padding: 0 20px;
-    display: grid; grid-template-columns: 1fr 1fr; gap: 40px;
+/* ===== Product Detail Grid ===== */
+.product-detail-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 32px;
+}
+@media (min-width: 992px) {
+    .product-detail-grid {
+        grid-template-columns: 1.1fr 1fr;
+        gap: 40px;
+    }
 }
 
 /* ===== Image Gallery ===== */
-.product-gallery .main-image {
-    position: relative; background: #f8f9fa; border-radius: 12px;
-    overflow: hidden; margin-bottom: 15px; aspect-ratio: 1/1;
+.product-gallery {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
 }
-.product-gallery .main-image img {
-    width: 100%; height: 100%; object-fit: contain; display: block;
+.main-image-wrapper {
+    position: relative;
+    background: var(--gray-50);
+    border-radius: var(--r-xl);
+    overflow: hidden;
+    aspect-ratio: 1/1;
+    border: 1.5px solid var(--gray-100);
 }
-.badge-hot, .badge-discount {
-    position: absolute; padding: 6px 12px; border-radius: 20px;
-    font-size: 0.8rem; font-weight: 600; z-index: 2;
+.main-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+    transition: transform 0.3s ease;
 }
-.badge-hot   { top: 15px; right: 15px; background: #ff9800; color: white; }
-.badge-discount { top: 15px; left: 15px; background: #c62828; color: white; }
+.main-image-wrapper:hover .main-image {
+    transform: scale(1.02);
+}
 
+/* Image Badges */
+.image-badges {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    right: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    z-index: 2;
+}
+.badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.badge-gender {
+    background: rgba(18,73,168,0.95);
+    color: white;
+}
+.badge-discount {
+    background: var(--red);
+    color: white;
+}
+.badge-hot {
+    background: var(--amber);
+    color: var(--gray-900);
+}
+.badge-featured {
+    background: var(--blue-500);
+    color: white;
+}
+
+.out-of-stock-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: var(--red);
+    font-size: 1.1rem;
+    z-index: 2;
+    backdrop-filter: blur(2px);
+}
+
+/* Thumbnails */
 .thumb-list {
-    display: flex; gap: 10px; overflow-x: auto; padding-bottom: 5px;
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding: 4px 0;
     scrollbar-width: thin;
 }
 .thumb-list::-webkit-scrollbar { height: 4px; }
-.thumb-list::-webkit-scrollbar-thumb { background: #ccc; border-radius: 2px; }
+.thumb-list::-webkit-scrollbar-thumb { background: var(--gray-200); border-radius: 2px; }
 .thumb {
-    width: 70px; height: 70px; border: 2px solid #eee;
-    border-radius: 8px; cursor: pointer; overflow: hidden; flex-shrink: 0;
-    transition: border-color 0.2s, transform 0.2s;
+    width: 72px;
+    height: 72px;
+    border: 2px solid var(--gray-200);
+    border-radius: var(--r-md);
+    cursor: pointer;
+    overflow: hidden;
+    flex-shrink: 0;
+    transition: all var(--tr);
+    background: var(--white);
+    padding: 2px;
 }
-.thumb.active, .thumb:hover { border-color: #2874f0; transform: scale(1.05); }
-.thumb img { width: 100%; height: 100%; object-fit: cover; }
+.thumb.active, .thumb:hover {
+    border-color: var(--blue-500);
+    box-shadow: 0 0 0 3px rgba(40,116,240,0.15);
+}
+.thumb-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: calc(var(--r-md) - 2px);
+}
 
 /* ===== Info Panel ===== */
-.info-header h1 { font-size: 1.8rem; margin: 0 0 10px; line-height: 1.3; }
-.meta-tags { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
-.seller-tag, .badge-featured, .gender-badge {
-    background: #f0f0f0; padding: 4px 10px; border-radius: 20px;
-    font-size: 0.85rem; display: inline-flex; align-items: center; gap: 4px;
+.product-info-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
 }
-.seller-tag a { color: #2874f0; text-decoration: none; }
+.info-header h1 {
+    margin: 0 0 8px;
+    line-height: 1.25;
+}
+.meta-tags {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.seller-tag {
+    background: var(--gray-100);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.seller-tag a {
+    color: var(--blue-600);
+    text-decoration: none;
+    font-weight: 600;
+}
 .seller-tag a:hover { text-decoration: underline; }
-.gender-badge { background: #e3f2fd; color: #1976d2; }
 
+/* Price Box */
 .price-box {
-    background: #f8f9fa; padding: 15px; border-radius: 8px;
-    margin-bottom: 15px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    background: var(--white);
+    padding: 16px;
+    border-radius: var(--r-xl);
+    border: 1.5px solid var(--gray-100);
 }
-.mrp { text-decoration: line-through; color: #999; }
-.final-price { font-size: 1.8rem; font-weight: 700; color: #212121; }
-.discount-label {
-    background: #ffebee; color: #c62828; padding: 4px 10px;
-    border-radius: 4px; font-weight: 600; font-size: 0.9rem;
-}
-.savings { color: #2e7d32; font-weight: 600; font-size: 0.9rem; }
-.short-desc { color: #555; margin-bottom: 15px; line-height: 1.6; }
-
-/* ===== Variant Selector ===== */
-.variant-selector {
-    margin: 20px 0; padding: 15px;
-    background: #f8f9ff; border-radius: 10px;
-    border-left: 4px solid #2874f0;
-}
-.variant-label { display: block; font-weight: 600; margin-bottom: 10px; color: #212121; }
-.variant-label .required { color: #c62828; margin-left: 4px; }
-.variant-options { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
-
-.variant-btn {
-    padding: 10px 18px; border: 2px solid #ddd; border-radius: 8px;
-    background: white; font-weight: 600; cursor: pointer;
-    transition: all 0.2s; min-width: 60px; text-align: center; font-size: 0.95rem;
-}
-.variant-btn:hover:not([disabled]) {
-    border-color: #2874f0; background: #e8f0fe;
-    transform: translateY(-2px); box-shadow: 0 4px 12px rgba(40,116,240,.15);
-}
-.variant-btn.active        { border-color: #2874f0; background: #2874f0; color: white; }
-.variant-btn[disabled]     { opacity: 0.5; cursor: not-allowed; background: #f5f5f5; }
-.variant-btn .variant-color { color: #666; font-weight: 400; }
-.variant-btn.active .variant-color { color: rgba(255,255,255,.9); }
-
-.variant-stock-count {
-    font-size: 0.7rem; color: #2e7d32; display: block; margin-top: 2px;
-}
-.variant-btn.active .variant-stock-count { color: rgba(255,255,255,.85); }
-
-.out-of-stock-badge {
-    display: block; font-size: 0.7rem; color: #c62828; margin-top: 4px; font-weight: 500;
-}
-.variant-btn.active .out-of-stock-badge { color: #fff; }
-
-.variant-info {
-    display: flex; align-items: center; gap: 15px;
-    padding-top: 10px; border-top: 1px solid #e0e0e0; font-size: 0.95rem;
-}
-.selected-size  { font-weight: 600; color: #212121; }
-.variant-price  { color: #2e7d32; font-weight: 700; }
-.variant-stock  { color: #666; }
-
-.variant-error {
-    display: none; color: #c62828; font-size: 0.9rem; margin-top: 8px;
-    padding: 8px 12px; background: #ffebee; border-radius: 6px;
-}
-
-/* ===== Stock & Delivery ===== */
-.stock-delivery { margin-bottom: 20px; }
-.in-stock, .out-of-stock, .stock-status {
-    display: block; font-weight: 600; margin-bottom: 10px;
-}
-.in-stock    { color: #2e7d32; }
-.out-of-stock { color: #c62828; }
-.stock-status { color: #555; }
-
-.delivery-info {
-    display: flex; align-items: flex-start; gap: 10px;
-    padding: 12px; background: #e8f5e9; border-radius: 8px;
-}
-.delivery-info i       { color: #2e7d32; font-size: 1.2rem; margin-top: 3px; }
-.delivery-info strong  { display: block; color: #212121; }
-.delivery-info small   { color: #666; }
-
-/* ===== Action Row ===== */
-.action-row {
-    display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; align-items: center;
-}
-.qty-selector {
-    display: flex; align-items: center; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;
-}
-.qty-btn {
-    background: #f0f0f0; border: none; width: 40px; height: 44px;
-    font-size: 1.3rem; cursor: pointer; transition: background 0.2s;
-}
-.qty-btn:hover { background: #e0e0e0; }
-.qty-input {
-    width: 50px; text-align: center; border: none;
-    border-left: 1px solid #ddd; border-right: 1px solid #ddd;
-    height: 44px; font-size: 1.1rem; -moz-appearance: textfield;
-}
-.qty-input::-webkit-outer-spin-button,
-.qty-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-
-.btn-lg { padding: 14px 28px; font-size: 1.05rem; }
-.btn-icon {
-    width: 44px; height: 44px; border: 1px solid #ddd; border-radius: 8px;
-    background: white; cursor: pointer; display: flex; align-items: center;
-    justify-content: center; color: #666; transition: all 0.2s;
-}
-.btn-icon:hover { border-color: #2874f0; color: #2874f0; }
-.action-icons {
+.price-row {
     display: flex;
     align-items: center;
     gap: 10px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+}
+.price-mrp {
+    text-decoration: line-through;
+    color: var(--gray-400);
+    font-size: 0.9rem;
+}
+.price-off {
+    background: var(--red);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+.price-current-wrapper {
+    margin-bottom: 4px;
+}
+.price-current {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: var(--gray-900);
+    line-height: 1;
+}
+.savings-text {
+    color: var(--green);
+    font-size: 0.9rem;
+    font-weight: 600;
 }
 
-.action-icons .btn-icon {
+/* Reorder Banner */
+.reorder-banner {
+    background: var(--green-light);
+    border: 1px solid var(--green);
+    border-left: 4px solid var(--green);
+    padding: 12px 16px;
+    border-radius: var(--r-md);
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    animation: slideDown 0.3s ease;
+}
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.short-desc {
+    color: var(--gray-600);
+    line-height: 1.6;
+    margin: 0;
+}
+
+/* ===== Variant Selector ===== */
+.variant-selector {
+    margin: 0;
+    padding: 16px;
+    background: var(--blue-50);
+    border-radius: var(--r-xl);
+    border-left: 4px solid var(--blue-500);
+}
+.variant-label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: var(--gray-800);
+}
+.variant-label .required { color: var(--red); margin-left: 4px; }
+.variant-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+.variant-btn {
+    padding: 10px 18px;
+    border: 2px solid var(--gray-200);
+    border-radius: var(--r-md);
+    background: var(--white);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--tr);
+    min-width: 60px;
+    text-align: center;
+    font-size: 0.95rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+.variant-btn:hover:not([disabled]) {
+    border-color: var(--blue-500);
+    background: var(--blue-50);
+    transform: translateY(-2px);
+    box-shadow: var(--sh-md);
+}
+.variant-btn.active {
+    border-color: var(--blue-500);
+    background: var(--blue-500);
+    color: white;
+}
+.variant-btn[disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: var(--gray-50);
+}
+.variant-btn .variant-color {
+    color: var(--gray-500);
+    font-weight: 400;
+    font-size: 0.85rem;
+}
+.variant-btn.active .variant-color {
+    color: rgba(255,255,255,0.9);
+}
+.variant-stock-count {
+    font-size: 0.7rem;
+    color: var(--green);
+    display: block;
+}
+.variant-btn.active .variant-stock-count {
+    color: rgba(255,255,255,0.85);
+}
+.out-of-stock-badge {
+    display: block;
+    font-size: 0.7rem;
+    color: var(--red);
+    font-weight: 500;
+}
+.variant-btn.active .out-of-stock-badge {
+    color: #fff;
+}
+.variant-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding-top: 12px;
+    border-top: 1px solid var(--gray-200);
+    font-size: 0.95rem;
+}
+.selected-size { font-weight: 600; color: var(--gray-800); }
+.variant-price { color: var(--green); font-weight: 700; }
+.variant-stock { color: var(--gray-500); }
+.variant-error {
+    color: var(--red);
+    font-size: 0.9rem;
+    margin-top: 8px;
+    padding: 8px 12px;
+    background: var(--red-light);
+    border-radius: var(--r-sm);
+    display: none;
+}
+
+/* Stock & Delivery */
+.stock-delivery {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.stock-badge {
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.in-stock { color: var(--green); }
+.out-of-stock { color: var(--red); }
+.stock-status { color: var(--gray-600); }
+.delivery-info {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px;
+    background: var(--green-light);
+    border-radius: var(--r-md);
+    border: 1px solid var(--green);
+}
+.delivery-info i {
+    color: var(--green);
+    font-size: 1.2rem;
+    margin-top: 3px;
+}
+.delivery-info strong {
+    display: block;
+    color: var(--gray-800);
+}
+.delivery-info small {
+    color: var(--gray-500);
+}
+
+/* Action Row */
+.action-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+.qty-selector {
+    display: flex;
+    align-items: center;
+    border: 1.5px solid var(--gray-200);
+    border-radius: var(--r-md);
+    overflow: hidden;
+    background: var(--white);
+}
+.qty-btn {
+    background: var(--gray-50);
+    border: none;
+    width: 40px;
+    height: 44px;
+    font-size: 1.3rem;
+    cursor: pointer;
+    transition: background var(--tr);
+    color: var(--gray-700);
+}
+.qty-btn:hover { background: var(--gray-100); }
+.qty-input {
+    width: 50px;
+    text-align: center;
+    border: none;
+    border-left: 1.5px solid var(--gray-200);
+    border-right: 1.5px solid var(--gray-200);
+    height: 44px;
+    font-size: 1.1rem;
+    -moz-appearance: textfield;
+    background: var(--white);
+    color: var(--gray-800);
+}
+.qty-input::-webkit-outer-spin-button,
+.qty-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.btn-lg {
+    padding: 14px 24px;
+    font-size: 1rem;
+    font-weight: 700;
+}
+.action-icons {
+    display: flex;
+    gap: 8px;
+    margin-left: auto;
+}
+.btn-icon {
     width: 44px;
     height: 44px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    background: white;
+    border: 1.5px solid var(--gray-200);
+    border-radius: var(--r-md);
+    background: var(--white);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #666;
-    transition: all 0.2s ease;
+    color: var(--gray-500);
+    transition: all var(--tr);
     font-size: 1rem;
 }
-
-.action-icons .btn-icon:hover {
-    border-color: #2874f0;
-    color: #2874f0;
-    transform: translateY(-1px);
+.btn-icon:hover {
+    border-color: var(--blue-500);
+    color: var(--blue-500);
+    background: var(--blue-50);
 }
-/* ===== Trust Badges ===== */
-.trust-badges { display: flex; gap: 20px; margin-top: 20px; color: #666; font-size: 0.9rem; flex-wrap: wrap; }
-.trust-badges i { color: #2874f0; margin-right: 4px; }
+.btn-icon.active {
+    color: var(--red);
+    border-color: var(--red);
+    background: var(--red-light);
+}
+.btn-icon.active i {
+    color: var(--red);
+}
 
-/* ===== Profit Box ===== */
+/* Trust Badges */
+.trust-badges {
+    display: flex;
+    gap: 16px;
+    color: var(--gray-600);
+    font-size: 0.875rem;
+    flex-wrap: wrap;
+    padding-top: 8px;
+}
+.trust-badges i {
+    color: var(--blue-500);
+    margin-right: 4px;
+}
+
+/* Profit Box */
 .profit-info {
-    margin-top: 15px; padding: 12px; background: #f0f9ff;
-    border-radius: 8px; border-left: 3px solid #0ea5e9;
+    margin-top: 8px;
+    padding: 12px;
+    background: var(--blue-50);
+    border-radius: var(--r-md);
+    border-left: 3px solid var(--blue-500);
 }
-.profit-info small { color: #666; display: block; margin-bottom: 6px; }
+.profit-info small {
+    color: var(--gray-600);
+    display: block;
+    margin-bottom: 6px;
+}
 .profit-row {
-    display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    margin-bottom: 4px;
 }
-.profit-row.muted { color: #666; }
+.profit-row.muted { color: var(--gray-500); }
 .profit-row.total {
-    font-size: 1rem; font-weight: 700; color: #2e7d32;
-    margin-top: 6px; padding-top: 6px; border-top: 1px dashed #ddd;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--green);
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px dashed var(--gray-200);
 }
 
 /* ===== Tabs ===== */
-.product-tabs { max-width: 1200px; margin: 40px auto; padding: 0 20px; }
+.product-tabs {
+    max-width: 1280px;
+    margin: 0 auto;
+}
 .tab-headers {
-    display: flex; border-bottom: 2px solid #eee; margin-bottom: 20px;
-    overflow-x: auto; scrollbar-width: none;
+    display: flex;
+    border-bottom: 2px solid var(--gray-200);
+    margin-bottom: 20px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    gap: 4px;
 }
 .tab-headers::-webkit-scrollbar { display: none; }
 .tab-btn {
-    padding: 12px 20px; background: none; border: none;
-    font-size: 1rem; font-weight: 600; color: #666; cursor: pointer;
-    border-bottom: 3px solid transparent; margin-bottom: -2px; white-space: nowrap;
+    padding: 12px 20px;
+    background: none;
+    border: none;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--gray-500);
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    white-space: nowrap;
+    transition: all var(--tr);
+    border-radius: var(--r-sm) var(--r-sm) 0 0;
 }
-.tab-btn.active { color: #2874f0; border-bottom-color: #2874f0; }
-.tab-content { display: none; animation: fadeIn 0.3s; }
+.tab-btn:hover { color: var(--blue-600); }
+.tab-btn.active {
+    color: var(--blue-600);
+    border-bottom-color: var(--blue-500);
+    background: var(--blue-50);
+}
+.tab-content {
+    display: none;
+    animation: fadeIn 0.3s;
+}
 .tab-content.active { display: block; }
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-.content-body { line-height: 1.8; color: #444; font-size: 1.05rem; }
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+.content-body {
+    line-height: 1.8;
+    color: var(--gray-700);
+    font-size: 1.05rem;
+}
 .content-body p { margin-bottom: 15px; }
+.specs-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.95rem;
+}
+.specs-table th,
+.specs-table td {
+    padding: 12px 15px;
+    border-bottom: 1px solid var(--gray-100);
+    text-align: left;
+}
+.specs-table th {
+    width: 30%;
+    font-weight: 600;
+    color: var(--gray-600);
+    background: var(--gray-50);
+}
 
-.specs-table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
-.specs-table th, .specs-table td { padding: 12px 15px; border-bottom: 1px solid #eee; text-align: left; }
-.specs-table th { width: 30%; font-weight: 600; color: #555; background: #f8f9fa; }
-
-/* ===== Seller Card ===== */
-.seller-card { background: #f8f9ff; padding: 20px; border-radius: 12px; border-left: 4px solid #2874f0; }
-.seller-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
-.seller-header h3 { margin: 0; font-size: 1.3rem; }
-.seller-rating { color: #f57f17; font-weight: 600; }
-.seller-meta { display: flex; gap: 20px; margin: 15px 0; color: #666; flex-wrap: wrap; }
-.seller-stats { display: flex; gap: 20px; margin: 15px 0; font-size: 0.9rem; }
-.seller-stats strong { color: #212121; }
+/* Seller Card */
+.seller-card {
+    background: var(--blue-50);
+    padding: 20px;
+    border-radius: var(--r-xl);
+    border: 1.5px solid var(--blue-200);
+}
+.seller-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.seller-header h3 {
+    margin: 0;
+    font-size: 1.3rem;
+    color: var(--gray-800);
+}
+.seller-rating {
+    color: var(--amber);
+    font-weight: 600;
+}
+.seller-meta {
+    display: flex;
+    gap: 20px;
+    margin: 15px 0;
+    color: var(--gray-600);
+    flex-wrap: wrap;
+}
+.seller-stats {
+    display: flex;
+    gap: 20px;
+    margin: 15px 0;
+    font-size: 0.9rem;
+}
+.seller-stats strong {
+    color: var(--gray-800);
+}
 
 /* ===== Reviews ===== */
-.reviews-summary { text-align: center; padding: 20px; background: #f8f9fa; border-radius: 10px; margin-bottom: 20px; }
-.avg-rating { font-size: 2.5rem; font-weight: 700; color: #212121; display: block; margin-bottom: 5px; }
-.stars { color: #ffc107; font-size: 1.2rem; margin-bottom: 5px; }
-.review-count { color: #666; }
-
-/* ===== ✅ FIXED: Related Products Section ===== */
-.related-section {
-    max-width: 1200px;
-    margin: 60px auto 40px;
-    padding: 0 20px;
+.reviews-summary {
+    text-align: center;
+    padding: 20px;
+    background: var(--gray-50);
+    border-radius: var(--r-xl);
+    margin-bottom: 20px;
+    border: 1.5px solid var(--gray-100);
 }
-.related-section .section-header {
+.avg-rating {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: var(--gray-900);
+    display: block;
+    margin-bottom: 5px;
+    line-height: 1;
+}
+.stars {
+    color: var(--amber);
+    font-size: 1.2rem;
+    margin-bottom: 5px;
+}
+.stars .fa-star.filled { color: var(--amber); }
+.review-count { color: var(--gray-500); }
+
+.review-card {
+    background: var(--white);
+    border-radius: var(--r-lg);
+    padding: 16px;
+    border: 1.5px solid var(--gray-100);
+    margin-bottom: 12px;
+    transition: box-shadow var(--tr);
+}
+.review-card:hover {
+    box-shadow: var(--sh-sm);
+}
+.review-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--blue-100);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--blue-700);
+    font-weight: 700;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+}
+.verified-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--green-light);
+    color: #065F46;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    margin-left: 8px;
+}
+.review-image {
+    max-width: 150px;
+    max-height: 100px;
+    border-radius: var(--r-sm);
+    border: 1px solid var(--gray-200);
+    margin-top: 10px;
+}
+.helpful-btn {
+    background: none;
+    border: none;
+    color: var(--gray-500);
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: var(--r-sm);
+    transition: all var(--tr);
+}
+.helpful-btn:hover,
+.helpful-btn.active {
+    color: var(--blue-600);
+    background: var(--blue-50);
+}
+.edit-review-btn {
+    background: none;
+    border: none;
+    color: var(--blue-500);
+    font-size: 0.85rem;
+    cursor: pointer;
+    padding: 4px 8px;
+}
+.empty-reviews {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--gray-500);
+}
+.empty-reviews i {
+    font-size: 2rem;
+    margin-bottom: 12px;
+    opacity: 0.5;
+    display: block;
+}
+.reviews-locked {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--gray-500);
+}
+.reviews-locked i {
+    font-size: 2rem;
+    margin-bottom: 12px;
+    opacity: 0.5;
+    display: block;
+}
+.login-link {
+    color: var(--blue-500);
+    font-weight: 600;
+}
+
+/* ===== Related Products ===== */
+.related-section {
+    padding-top: 24px;
+    padding-bottom: 48px;
+}
+.section-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 24px;
     padding-bottom: 12px;
-    border-bottom: 2px solid #f0f4ff;
+    border-bottom: 2px solid var(--gray-100);
+    flex-wrap: wrap;
+    gap: 12px;
 }
-.related-section h3 {
-    font-size: 1.4rem;
-    font-weight: 700;
-    color: #212121;
+.section-header h3 {
     margin: 0;
+    font-size: 1.3rem;
 }
 .view-all-link {
     display: inline-flex;
@@ -1542,16 +2034,15 @@ async function loadMoreReviews() {
     gap: 6px;
     font-size: 0.9rem;
     font-weight: 600;
-    color: #2874f0;
+    color: var(--blue-500);
     text-decoration: none;
-    transition: gap 0.2s;
+    transition: gap var(--tr);
 }
 .view-all-link:hover {
-    color: #1a5fd4;
+    color: var(--blue-700);
     gap: 10px;
 }
 
-/* ✅ Related Products Grid - Responsive */
 .related-products-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -1570,19 +2061,18 @@ async function loadMoreReviews() {
     }
 }
 
-/* ✅ Related Product Card */
 .related-product-card {
-    background: #fff;
-    border-radius: 12px;
+    background: var(--white);
+    border-radius: var(--r-xl);
     overflow: hidden;
-    border: 1.5px solid #f1f4f9;
-    transition: all 0.2s ease;
+    border: 1.5px solid var(--gray-100);
+    transition: all var(--tr);
     display: flex;
     flex-direction: column;
 }
 .related-product-card:hover {
-    border-color: #2874f0;
-    box-shadow: 0 8px 24px rgba(40, 116, 240, 0.12);
+    border-color: var(--blue-200);
+    box-shadow: var(--sh-lg);
     transform: translateY(-4px);
 }
 .related-product-link {
@@ -1593,64 +2083,42 @@ async function loadMoreReviews() {
     color: inherit;
 }
 
-/* ✅ Related Image Wrapper */
 .related-image-wrapper {
     position: relative;
-    background: #f8f9fa;
+    background: var(--gray-50);
     aspect-ratio: 3/4;
     overflow: hidden;
 }
-.related-image-wrapper img {
+.related-product-image {
     width: 100%;
     height: 100%;
     object-fit: cover;
     transition: transform 0.3s ease;
 }
-.related-product-card:hover .related-image-wrapper img {
+.related-product-card:hover .related-product-image {
     transform: scale(1.04);
 }
-.related-image-wrapper .no-image {
+.no-image {
     width: 100%;
     height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #cbd5e1;
+    color: var(--gray-300);
     font-size: 2rem;
 }
 
-/* ✅ Badges in Related Cards */
-.related-image-wrapper .gender-badge,
-.related-image-wrapper .discount-badge,
-.related-image-wrapper .hot-badge {
+.related-badges {
     position: absolute;
-    font-size: 0.65rem;
-    font-weight: 700;
-    padding: 3px 7px;
-    border-radius: 16px;
-    z-index: 2;
-}
-.related-image-wrapper .gender-badge {
     top: 8px;
     left: 8px;
-    background: rgba(40, 116, 240, 0.95);
-    color: white;
-}
-.related-image-wrapper .discount-badge {
-    top: 8px;
     right: 8px;
-    background: #ef4444;
-    color: white;
-}
-.related-image-wrapper .hot-badge {
-    bottom: 8px;
-    right: 8px;
-    background: #f59e0b;
-    color: #1e293b;
-    font-size: 0.7rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    z-index: 2;
 }
 
-/* ✅ Related Product Info */
 .related-product-info {
     padding: 12px;
     flex: 1;
@@ -1661,7 +2129,7 @@ async function loadMoreReviews() {
 .related-product-name {
     font-size: 0.9rem;
     font-weight: 600;
-    color: #212121;
+    color: var(--gray-800);
     margin: 0;
     line-height: 1.35;
     display: -webkit-box;
@@ -1672,7 +2140,7 @@ async function loadMoreReviews() {
 }
 .related-seller {
     font-size: 0.75rem;
-    color: #64748b;
+    color: var(--gray-400);
     margin: 0;
     display: flex;
     align-items: center;
@@ -1680,10 +2148,9 @@ async function loadMoreReviews() {
 }
 .related-seller i {
     font-size: 0.7rem;
-    color: #94a3b8;
+    color: var(--gray-300);
 }
 
-/* ✅ Price Display in Related Cards */
 .related-price-display {
     display: flex;
     align-items: baseline;
@@ -1692,19 +2159,18 @@ async function loadMoreReviews() {
 }
 .related-price-mrp {
     font-size: 0.75rem;
-    color: #94a3b8;
+    color: var(--gray-400);
     text-decoration: line-through;
 }
 .related-price-current {
     font-size: 1.05rem;
-    font-weight: 700;
-    color: #212121;
+    font-weight: 800;
+    color: var(--gray-900);
 }
 
-/* ✅ Low Stock Indicator */
 .related-low-stock {
     font-size: 0.7rem;
-    color: #ef4444;
+    color: var(--red);
     font-weight: 600;
     display: flex;
     align-items: center;
@@ -1714,8 +2180,11 @@ async function loadMoreReviews() {
     font-size: 0.65rem;
 }
 
-/* ✅ Action Button */
 .related-product-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
     padding: 0 12px 12px;
     margin-top: auto;
 }
@@ -1724,37 +2193,209 @@ async function loadMoreReviews() {
     align-items: center;
     justify-content: center;
     gap: 5px;
-    width: 100%;
+    flex: 1;
     padding: 8px 12px;
-    background: #fff;
-    color: #2874f0;
-    border: 1.5px solid #c3d9ff;
-    border-radius: 8px;
+    background: var(--blue-50);
+    color: var(--blue-600);
+    border: 1.5px solid var(--blue-200);
+    border-radius: var(--r-sm);
     font-size: 0.8rem;
     font-weight: 600;
     text-decoration: none;
-    transition: all 0.2s ease;
+    transition: all var(--tr);
 }
 .btn-view-details:hover {
-    background: #2874f0;
+    background: var(--blue-500);
     color: #fff;
-    border-color: #2874f0;
-    transform: translateY(-1px);
+    border-color: var(--blue-500);
+}
+.btn-share-related {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: var(--gray-50);
+    color: var(--gray-500);
+    border: 1.5px solid var(--gray-200);
+    border-radius: var(--r-sm);
+    cursor: pointer;
+    transition: all var(--tr);
+    font-size: 0.9rem;
+    padding: 0;
+}
+.btn-share-related:hover {
+    background: var(--blue-50);
+    color: var(--blue-600);
+    border-color: var(--blue-200);
+}
+
+/* ===== Review Modal ===== */
+.modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(10,20,50,0.65);
+    backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1600;
+    padding: 16px;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.25s ease;
+}
+.modal.show {
+    opacity: 1;
+    visibility: visible;
+}
+.modal-content {
+    background: var(--white);
+    border-radius: var(--r-2xl);
+    width: 100%;
+    max-width: 520px;
+    max-height: 92vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--sh-xl);
+    transform: scale(0.93) translateY(16px);
+    transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+}
+.modal.show .modal-content {
+    transform: scale(1) translateY(0);
+}
+.modal-header-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--gray-100);
+}
+.modal-close {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid var(--gray-200);
+    border-radius: var(--r-sm);
+    background: none;
+    color: var(--gray-500);
+    font-size: 0.875rem;
+    transition: all var(--tr);
+}
+.modal-close:hover {
+    background: var(--red-light);
+    border-color: var(--red);
+    color: var(--red);
+}
+.modal-body {
+    padding: 24px;
+}
+.form-group {
+    margin-bottom: 18px;
+}
+.form-label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--gray-700);
+    margin-bottom: 6px;
+}
+.star-rating {
+    display: flex;
+    gap: 4px;
+    font-size: 1.8rem;
+    cursor: pointer;
+}
+.star-rating span {
+    color: var(--gray-300);
+    transition: color 0.15s ease, transform 0.15s ease;
+}
+.star-rating span.active,
+.star-rating span:hover,
+.star-rating span:hover ~ span {
+    color: var(--amber);
+}
+.star-rating span.active {
+    transform: scale(1.1);
+}
+.error-text {
+    font-size: 0.8rem;
+    color: var(--red);
+    margin-top: 4px;
+    display: none;
+}
+.form-hint {
+    font-size: 0.75rem;
+    color: var(--gray-400);
+    text-align: right;
+    margin-top: 4px;
+}
+.char-counter.warning { color: var(--amber); }
+.char-counter.error { color: var(--red); }
+.form-error-box {
+    background: var(--red-light);
+    border: 1px solid rgba(239,68,68,0.2);
+    color: var(--red);
+    padding: 10px 14px;
+    border-radius: var(--r-md);
+    font-size: 0.875rem;
+    margin-bottom: 14px;
+    display: none;
+}
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 20px;
 }
 
 /* ===== Responsive ===== */
 @media (max-width: 992px) {
-    .product-detail-container { grid-template-columns: 1fr; }
-    .product-gallery .main-image { aspect-ratio: 4/3; }
+    .product-info-panel {
+        order: -1;
+    }
 }
 @media (max-width: 768px) {
-    .price-box    { flex-direction: column; align-items: flex-start; gap: 5px; }
-    .action-row   { flex-direction: column; }
-    .btn-lg       { width: 100%; }
-    .tab-headers  { flex-wrap: wrap; }
-    .specs-table th, .specs-table td { padding: 10px; font-size: 0.9rem; }
-    .specs-table th { width: 40%; }
-    .variant-options { justify-content: center; }
+    .price-box {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    .action-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .btn-lg {
+        width: 100%;
+    }
+    .action-icons {
+        margin-left: 0;
+        justify-content: center;
+    }
+    .qty-selector {
+        width: 100%;
+        justify-content: center;
+    }
+    .variant-options {
+        justify-content: center;
+    }
+    .variant-info {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    .specs-table th,
+    .specs-table td {
+        padding: 10px;
+        font-size: 0.9rem;
+    }
+    .specs-table th {
+        width: 40%;
+    }
     
     /* Related products on mobile */
     .related-products-grid {
@@ -1770,175 +2411,39 @@ async function loadMoreReviews() {
     }
 }
 @media (max-width: 480px) {
-    .thumb        { width: 60px; height: 60px; }
-    .final-price  { font-size: 1.5rem; }
-    .qty-selector { width: 100%; justify-content: center; }
-    .variant-btn  { padding: 8px 12px; font-size: 0.9rem; min-width: 50px; }
-    .variant-info { flex-direction: column; align-items: flex-start; gap: 5px; }
+    .thumb {
+        width: 60px;
+        height: 60px;
+    }
+    .price-current {
+        font-size: 1.5rem;
+    }
+    .variant-btn {
+        padding: 8px 12px;
+        font-size: 0.9rem;
+        min-width: 50px;
+    }
     
     /* Related products on small mobile */
     .related-products-grid {
         grid-template-columns: 1fr;
     }
-    .related-section .section-header {
+    .section-header {
         flex-direction: column;
         align-items: flex-start;
         gap: 10px;
     }
-}
-/* ===== Share Button (Related Products) ===== */
-.related-product-actions {
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 8px;
-    padding: 0 12px 12px;
-    margin-top: auto;
-}
-.btn-share {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    background: #f8f9fa;
-    color: #64748b;
-    border: 1.5px solid #e2e8f0;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-size: 0.9rem;
-    padding: 0;
-}
-.btn-share:hover {
-    background: #2874f0;
-    color: #fff;
-    border-color: #2874f0;
-    transform: translateY(-1px);
-}
-.btn-share:active {
-    transform: translateY(0);
-}
-@media (max-width: 480px) {
-    .btn-share {
-        width: 32px;
-        height: 32px;
-        font-size: 0.85rem;
+    
+    /* Modal on mobile */
+    .modal {
+        padding: 0;
+        align-items: flex-end;
     }
-}
-
-/* Wishlist active state */
-.btn-icon.active {
-    color: #e53935;
-    border-color: #e53935;
-    background: #fff5f5;
-}
-.btn-icon.active i {
-    color: #e53935;
-}
-/* Reorder Banner */
-.reorder-banner {
-    animation: slideDown 0.3s ease;
-}
-@keyframes slideDown {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-@media (max-width: 768px) {
-    .reorder-banner {
-        flex-direction: column;
-        text-align: center;
-        align-items: center;
+    .modal-content {
+        max-width: 100%;
+        border-radius: var(--r-2xl) var(--r-2xl) 0 0;
+        max-height: 95dvh;
     }
-    .reorder-banner i {
-        margin-top: 0;
-        margin-bottom: 8px;
-    }
-}
-
-/* ════════════════════════════════════════
-   REVIEWS & RATINGS
-════════════════════════════════════════ */
-.review-card {
-    background: var(--white);
-    border-radius: var(--radius-lg);
-    padding: 16px;
-    border: 1.5px solid var(--gray-100);
-    margin-bottom: 12px;
-    transition: box-shadow var(--transition);
-}
-.review-card:hover { box-shadow: var(--shadow-sm); }
-
-.star-rating span {
-    color: var(--gray-300);
-    transition: color 0.15s ease, transform 0.15s ease;
-}
-.star-rating span.active,
-.star-rating span:hover,
-.star-rating span:hover ~ span {
-    color: var(--amber);
-}
-.star-rating span.active { transform: scale(1.1); }
-
-.verified-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    background: var(--green-bg);
-    color: #065F46;
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 0.7rem;
-    font-weight: 600;
-}
-
-.helpful-btn:hover { color: var(--blue-500); }
-.helpful-btn.active { color: var(--blue-600); }
-.helpful-btn.active i { animation: bounce 0.3s ease; }
-@keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
-
-#reviewForm .form-group { margin-bottom: 18px; }
-#reviewForm .form-label {
-    display: block; margin-bottom: 6px; font-weight: 600;
-    color: var(--gray-700); font-size: 0.9rem;
-}
-#reviewForm .form-input {
-    width: 100%; padding: 10px 14px; border: 1.5px solid var(--gray-200);
-    border-radius: var(--radius-md); font-size: 0.95rem;
-    transition: border-color var(--transition);
-}
-#reviewForm .form-input:focus {
-    outline: none; border-color: var(--blue-400);
-    box-shadow: 0 0 0 3px rgba(40,116,240,0.12);
-}
-#reviewForm textarea.form-input { resize: vertical; min-height: 100px; }
-
-.char-counter {
-    font-size: 0.75rem; color: var(--gray-400);
-    text-align: right; margin-top: 4px;
-}
-.char-counter.warning { color: var(--amber); }
-.char-counter.error { color: var(--red); }
-
-.reviews-summary {
-    text-align: center; padding: 20px;
-    background: var(--gray-50); border-radius: var(--radius-lg);
-    margin-bottom: 20px;
-}
-.avg-rating {
-    font-size: 2.5rem; font-weight: 700;
-    color: var(--gray-900); display: block; margin-bottom: 5px;
-}
-.stars { color: var(--amber); font-size: 1.2rem; margin-bottom: 5px; }
-.review-count { color: var(--gray-500); }
-
-.rating-distribution {
-    margin-top: 16px;
-}
-
-@media (max-width: 600px) {
-    .review-card { padding: 12px; }
-    .star-rating { font-size: 1.5rem; }
 }
 </style>
 {% endblock %}
