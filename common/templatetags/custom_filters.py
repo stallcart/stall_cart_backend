@@ -23,3 +23,10 @@ def divide(value, arg):
 def add(value, arg):
     """Add two values (for dynamic dict key access)"""
     return f"{value}{arg}"
+
+@register.filter
+def split(value, arg):
+    """Split a string by the given delimiter"""
+    if not value:
+        return []
+    return value.split(arg)

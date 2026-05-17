@@ -4,170 +4,70 @@
 {% block title %}Shop | {{ site_settings.site_name|default:"StallCart" }}{% endblock %}
 {% block meta_description %}Browse our premium collection. Free delivery, secure payments, and 100% original products.{% endblock %}
 
-{% block extra_css %}
-<style>
-    /* Product List Specific Enhancements */
-    .product-section { animation: fadeIn 0.4s ease; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-    
-    /* Filter form enhancements */
-    .filter-form { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-    
-    /* Product card hover lift */
-    .product-card { will-change: transform; transition: transform 0.2s ease, box-shadow 0.2s ease; }
-    .product-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
-    
-    /* Badge entrance animation */
-    .gender-badge, .discount-badge, .hot-badge, .featured-badge {
-        animation: badgeSlide 0.3s ease;
-    }
-    @keyframes badgeSlide { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
-    
-    /* ✅ Price Display Styles */
-    .price-display {
-        display: flex;
-        align-items: baseline;
-        gap: 8px;
-        margin-bottom: 10px;
-        flex-wrap: wrap;
-    }
-    .price-mrp {
-        font-size: 0.8rem;
-        color: var(--gray-400);
-        text-decoration: line-through;
-        font-weight: 400;
-    }
-    .price-current {
-        font-size: 1.1rem;
-        font-weight: 800;
-        color: var(--gray-900);
-    }
-    .price-discount {
-        background: var(--red);
-        color: white;
-        font-size: 0.7rem;
-        font-weight: 700;
-        padding: 2px 8px;
-        border-radius: 12px;
-    }
-    
-    /* ✅ View Details Button Styles */
-    .btn-view-details {
-        width: 100%;
-        padding: 10px;
-        background: var(--white);
-        color: var(--blue-600);
-        border: 2px solid var(--blue-200);
-        border-radius: var(--radius-md);
-        font-size: 0.85rem;
-        font-weight: 700;
-        cursor: pointer;
-        transition: all var(--transition);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 6px;
-        text-decoration: none;
-    }
-    .btn-view-details:hover {
-        background: var(--blue-500);
-        color: var(--white);
-        border-color: var(--blue-500);
-        transform: translateY(-2px);
-    }
-    .btn-view-details.out-of-stock {
-        background: var(--gray-100);
-        color: var(--gray-400);
-        border-color: var(--gray-200);
-        cursor: not-allowed;
-        opacity: 0.7;
-    }
-    .btn-view-details.out-of-stock:hover {
-        transform: none;
-        background: var(--gray-100);
-        color: var(--gray-400);
-    }
-    
-    /* Out of stock overlay */
-    .out-of-stock-overlay {
-        position: absolute;
-        inset: 0;
-        background: rgba(255,255,255,0.85);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 700;
-        color: var(--red);
-        font-size: 0.85rem;
-        border-radius: var(--radius-lg);
-        z-index: 2;
-    }
-</style>
-{% endblock %}
-
 {% block content %}
-<section class="product-section">
+<!-- ══════════════════════════════════════
+     PRODUCT LIST SECTION
+══════════════════════════════════════ -->
+<section class="section-wrap">
     <div class="container">
-        
-        <!-- Header & Filters -->
-        <div class="section-header">
+
+        <!-- Section Header + Filters -->
+        <div class="section-row">
             <div>
-                <h2 class="section-title">🛍️ All <span>Products</span></h2>
-                <p class="section-subtitle">Discover {{ products|length }}+ items in our collection</p>
+                <h2 class="section-title">Shop <span class="accent">All Products</span></h2>
+                <p class="section-subtitle">{{ products|length }} item{{ products|length|pluralize }} found</p>
             </div>
             
-            <div class="filters">
+            <!-- Filter Controls -->
+            <div class="filter-controls">
                 <form method="get" class="filter-form" id="filterForm">
-                    <!-- Category Filter -->
-                    <select name="category" class="form-select-sm" aria-label="Filter by category" onchange="document.getElementById('filterForm').submit()">
+                    <select name="category" class="form-select-sm" aria-label="Filter by category" onchange="this.form.submit()">
                         <option value="">All Categories</option>
                         {% for cat in categories %}
-                            <option value="{{ cat.slug }}" {% if filters.category == cat.slug %}selected{% endif %}>
+                            <option value="{{ cat.slug }}" {% if request.GET.category == cat.slug %}selected{% endif %}>
                                 {{ cat.name }}
                             </option>
                         {% endfor %}
                     </select>
                     
-                    <!-- Gender Filter -->
-                    <select name="gender" class="form-select-sm" aria-label="Filter by gender" onchange="document.getElementById('filterForm').submit()">
+                    <select name="gender" class="form-select-sm" aria-label="Filter by gender" onchange="this.form.submit()">
                         <option value="">All Genders</option>
                         {% for value, label in genders %}
-                            <option value="{{ value }}" {% if filters.gender == value %}selected{% endif %}>
+                            <option value="{{ value }}" {% if request.GET.gender == value %}selected{% endif %}>
                                 {{ label }}
                             </option>
                         {% endfor %}
                     </select>
                     
-                    <!-- Sort Filter -->
-                    <select name="sort" class="form-select-sm" aria-label="Sort products" onchange="document.getElementById('filterForm').submit()">
-                        <option value="-created_at" {% if sort == '-created_at' %}selected{% endif %}>✨ Newest</option>
-                        <option value="price_asc" {% if sort == 'price_asc' %}selected{% endif %}>💰 Low to High</option>
-                        <option value="price_desc" {% if sort == 'price_desc' %}selected{% endif %}>💎 High to Low</option>
-                        <option value="-views_count" {% if sort == '-views_count' %}selected{% endif %}>🔥 Most Popular</option>
+                    <select name="sort" class="form-select-sm" aria-label="Sort products" onchange="this.form.submit()">
+                        <option value="-created_at" {% if request.GET.sort == '-created_at' %}selected{% endif %}>✨ Newest</option>
+                        <option value="price_asc" {% if request.GET.sort == 'price_asc' %}selected{% endif %}>💰 Price ↑</option>
+                        <option value="price_desc" {% if request.GET.sort == 'price_desc' %}selected{% endif %}>💎 Price ↓</option>
+                        <option value="-views_count" {% if request.GET.sort == '-views_count' %}selected{% endif %}>🔥 Popular</option>
                     </select>
                 </form>
             </div>
         </div>
 
-        <!-- Active Filters Tags -->
-        {% if filters.category or filters.gender or filters.search %}
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 20px;">
-            {% if filters.search %}
-                <span style="background:var(--blue-50);color:var(--blue-700);padding:4px 10px;border-radius:20px;font-size:0.75rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;">
-                    🔍 "{{ filters.search }}"
-                    <a href="?{% for key, value in request.GET.items %}{% if key != 'search' %}{{ key }}={{ value }}&{% endif %}{% endfor %}" style="color:inherit;text-decoration:none;font-weight:700;">×</a>
+        <!-- Active Filter Tags -->
+        {% if request.GET.category or request.GET.gender or request.GET.search %}
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;">
+            {% if request.GET.search %}
+                <span style="background:var(--blue-50);color:var(--blue-700);padding:4px 12px;border-radius:20px;font-size:0.75rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;">
+                    🔍 "{{ request.GET.search }}"
+                    <a href="?{% for key, value in request.GET.items %}{% if key != 'search' %}{{ key }}={{ value }}&{% endif %}{% endfor %}" style="color:inherit;text-decoration:none;font-weight:700;margin-left:4px;">×</a>
                 </span>
             {% endif %}
-            {% if filters.category %}
-                <span style="background:var(--blue-50);color:var(--blue-700);padding:4px 10px;border-radius:20px;font-size:0.75rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;">
-                    📁 {{ filters.category }}
-                    <a href="?{% for key, value in request.GET.items %}{% if key != 'category' %}{{ key }}={{ value }}&{% endif %}{% endfor %}" style="color:inherit;text-decoration:none;font-weight:700;">×</a>
+            {% if request.GET.category %}
+                <span style="background:var(--blue-50);color:var(--blue-700);padding:4px 12px;border-radius:20px;font-size:0.75rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;">
+                    📁 {{ request.GET.category }}
+                    <a href="?{% for key, value in request.GET.items %}{% if key != 'category' %}{{ key }}={{ value }}&{% endif %}{% endfor %}" style="color:inherit;text-decoration:none;font-weight:700;margin-left:4px;">×</a>
                 </span>
             {% endif %}
-            {% if filters.gender %}
-                <span style="background:var(--blue-50);color:var(--blue-700);padding:4px 10px;border-radius:20px;font-size:0.75rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;">
-                    👤 {{ filters.gender }}
-                    <a href="?{% for key, value in request.GET.items %}{% if key != 'gender' %}{{ key }}={{ value }}&{% endif %}{% endfor %}" style="color:inherit;text-decoration:none;font-weight:700;">×</a>
+            {% if request.GET.gender %}
+                <span style="background:var(--blue-50);color:var(--blue-700);padding:4px 12px;border-radius:20px;font-size:0.75rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;">
+                    👤 {{ request.GET.gender }}
+                    <a href="?{% for key, value in request.GET.items %}{% if key != 'gender' %}{{ key }}={{ value }}&{% endif %}{% endfor %}" style="color:inherit;text-decoration:none;font-weight:700;margin-left:4px;">×</a>
                 </span>
             {% endif %}
             <a href="{% url 'items:product_list' %}" style="font-size:0.75rem;color:var(--gray-500);text-decoration:none;font-weight:600;">Clear all</a>
@@ -176,154 +76,170 @@
 
         <!-- Product Grid -->
         {% if products %}
-        <div class="product-grid" id="productGrid">
+        <div class="product-grid">
             {% for product in products %}
             <article class="product-card" data-product-id="{{ product.id }}">
-                <!-- ✅ Image links to product detail -->
-                <a href="{% url 'items:product_detail' product.slug %}" class="product-link" aria-label="View {{ product.name }}" style="display:block;">
-                    <div class="image-wrapper">
+                
+                <!-- Product Image Link -->
+                <a href="{% url 'items:product_detail' product.slug %}" style="display:block;">
+                    <div class="img-wrap">
                         {% if product.primary_image %}
                             <img src="{{ product.primary_image.url }}" 
                                  alt="{{ product.name }}" 
                                  loading="lazy"
-                                 onerror="this.parentElement.innerHTML='<div class=\'no-image\'>Image unavailable</div>'">
+                                 onerror="this.closest('.img-wrap').innerHTML='<div class=\'no-img\'><i class=\'fa fa-image\'></i><span>Image unavailable</span></div>'">
                         {% else %}
-                            <div class="no-image">
-                                <i class="fa fa-image" style="font-size:2rem;"></i>
+                            <div class="no-img">
+                                <i class="fa fa-image"></i>
+                                <span>No image</span>
                             </div>
                         {% endif %}
                         
-                        <!-- Badges -->
+                        <!-- Badges (using style.css classes) -->
                         {% if product.gender %}
-                            <span class="gender-badge">{{ product.get_gender_display }}</span>
+                            <span class="badge-gender">{{ product.get_gender_display }}</span>
                         {% endif %}
                         {% if product.discount_percent > 0 %}
-                            <span class="discount-badge">-{{ product.discount_percent }}%</span>
+                            <span class="badge-discount">-{{ product.discount_percent }}%</span>
                         {% endif %}
                         {% if product.is_hot_deal %}
-                            <span class="hot-badge">🔥 Hot</span>
-                        {% endif %}
-                        {% if product.is_featured %}
-                            <span class="featured-badge" style="position:absolute;bottom:8px;left:8px;background:var(--blue-500);color:#fff;font-size:0.7rem;font-weight:700;padding:3px 8px;border-radius:20px;">⭐ Featured</span>
+                            <span class="badge-hot">🔥 Hot</span>
                         {% endif %}
                         
-                        <!-- ✅ Out of Stock Overlay -->
+                        <!-- Out of Stock Overlay -->
                         {% if product.stock <= 0 %}
-                            <div class="out-of-stock-overlay">Out of Stock</div>
+                            <div class="out-of-stock-overlay">
+                                <span><i class="fa fa-ban" style="margin-right:5px;"></i>Out of Stock</span>
+                            </div>
                         {% endif %}
                     </div>
                 </a>
                 
+                <!-- Product Info -->
                 <div class="product-info">
-                    <h4>
-                        <a href="{% url 'items:product_detail' product.slug %}">
-                            {{ product.name|truncatechars:50 }}
-                        </a>
-                    </h4>
-                    <p class="seller-name">
-                        <i class="fa fa-store" style="margin-right:4px;"></i>
-                        {{ product.seller.shop_name|truncatechars:20 }}
-                    </p>
+                    <div class="product-name">
+                        <a href="{% url 'items:product_detail' product.slug %}">{{ product.name|truncatechars:45 }}</a>
+                    </div>
+                    <div class="product-seller">by {{ product.seller.shop_name|truncatechars:22 }}</div>
                     
-                    <!-- ✅ UPDATED: Price Display with MRP + Discount -->
-                    <div class="price-display">
+                    <!-- Price Row (using style.css classes) -->
+                    <div class="price-row">
                         {% if product.discount_percent > 0 and product.mrp %}
                             <span class="price-mrp">₹{{ product.mrp|floatformat:0 }}</span>
-                            <span class="price-current">₹{{ product.discount_price|floatformat:2 }}</span>
-                            <span class="price-discount">-{{ product.discount_percent }}%</span>
+                            <span class="price-current">₹{{ product.discount_price|floatformat:0 }}</span>
+                            <span class="price-off">-{{ product.discount_percent }}%</span>
                         {% elif product.discount_percent > 0 %}
                             <span class="price-mrp">₹{{ product.price|floatformat:0 }}</span>
-                            <span class="price-current">₹{{ product.discount_price|floatformat:2 }}</span>
-                            <span class="price-discount">-{{ product.discount_percent }}%</span>
+                            <span class="price-current">₹{{ product.discount_price|floatformat:0 }}</span>
+                            <span class="price-off">-{{ product.discount_percent }}%</span>
                         {% else %}
-                            <span class="price-current">₹{{ product.price|floatformat:2 }}</span>
+                            <span class="price-current">₹{{ product.price|floatformat:0 }}</span>
                         {% endif %}
                     </div>
                     
+                    <!-- Low Stock Warning -->
                     {% if product.stock <= product.low_stock_threshold and product.stock > 0 %}
-                        <span class="low-stock">
-                            <i class="fa fa-exclamation-triangle"></i> Only {{ product.stock }} left!
-                        </span>
+                        <div class="low-stock-tag">
+                            <i class="fa fa-exclamation-triangle"></i>
+                            Only {{ product.stock }} left!
+                        </div>
                     {% endif %}
                     
-                    <!-- ✅ UPDATED: View Details Button (replaces Add to Cart) -->
-                    <a href="{% url 'items:product_detail' product.slug %}" 
-                       class="btn-view-details {% if product.stock <= 0 %}out-of-stock{% endif %}"
-                       aria-label="{% if product.stock > 0 %}View details for {{ product.name }}{% else %}{{ product.name }} is out of stock{% endif %}">
-                        <i class="fa fa-eye"></i> 
-                        <span class="btn-text">{% if product.stock > 0 %}View Product{% else %}Out of Stock{% endif %}</span>
+                    <!-- View Button (using style.css .btn-view) -->
+                    <a href="{% url 'items:product_detail' product.slug %}"
+                       class="btn-view"
+                       {% if product.stock <= 0 %}style="opacity:0.6;pointer-events:none;"{% endif %}>
+                        <i class="fa fa-eye"></i>
+                        {% if product.stock > 0 %}View Product{% else %}Out of Stock{% endif %}
                     </a>
+                    
+                    <!-- Share Button (using style.css .btn-share) -->
+                    <button class="btn-share"
+                            data-name="{{ product.name }}"
+                            data-url="{{ request.scheme }}://{{ request.get_host }}{% url 'items:product_detail' product.slug %}">
+                        <i class="fa fa-share-alt"></i> Share
+                    </button>
                 </div>
+                
             </article>
             {% endfor %}
         </div>
         
-        <!-- Pagination -->
+        <!-- Pagination (using btn-outline from style.css) -->
         {% if is_paginated %}
-        <div style="display:flex;justify-content:center;gap:8px;margin-top:32px;flex-wrap:wrap;">
+        <div style="display:flex;justify-content:center;gap:10px;margin-top:36px;flex-wrap:wrap;">
             {% if page_obj.has_previous %}
                 <a href="?page=1{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}" 
-                   class="btn-outline" style="width:auto;padding:8px 16px;">« First</a>
+                   class="btn-outline" style="width:auto;padding:10px 18px;">« First</a>
                 <a href="?page={{ page_obj.previous_page_number }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}" 
-                   class="btn-outline" style="width:auto;padding:8px 16px;">‹ Prev</a>
+                   class="btn-outline" style="width:auto;padding:10px 18px;">‹ Prev</a>
             {% endif %}
             
-            <span style="padding:8px 16px;background:var(--blue-50);color:var(--blue-700);border-radius:var(--radius-md);font-weight:600;font-size:0.875rem;">
+            <span style="padding:10px 18px;background:var(--blue-50);color:var(--blue-700);border-radius:var(--r-md);font-weight:700;font-size:0.875rem;border:1.5px solid var(--blue-200);">
                 Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
             </span>
             
             {% if page_obj.has_next %}
                 <a href="?page={{ page_obj.next_page_number }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}" 
-                   class="btn-outline" style="width:auto;padding:8px 16px;">Next ›</a>
+                   class="btn-outline" style="width:auto;padding:10px 18px;">Next ›</a>
                 <a href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}" 
-                   class="btn-outline" style="width:auto;padding:8px 16px;">Last »</a>
+                   class="btn-outline" style="width:auto;padding:10px 18px;">Last »</a>
             {% endif %}
         </div>
         {% endif %}
         
         {% else %}
-        <!-- Empty State -->
+        <!-- Empty State (using style.css .empty-state) -->
         <div class="empty-state">
-            <div style="font-size:3.5rem;color:var(--gray-200);margin-bottom:16px;">
-                <i class="fa fa-box-open"></i>
-            </div>
+            <div class="empty-state-icon"><i class="fa fa-search"></i></div>
             <h3>No products found</h3>
-            <p style="color:var(--gray-500);max-width:400px;margin:0 auto 20px;">
-                Try adjusting your search terms, removing filters, or check back later for new arrivals.
-            </p>
-            <a href="{% url 'items:product_list' %}" class="btn-outline" style="width:auto;padding:10px 24px;">
-                <i class="fa fa-rotate-right"></i> Clear All Filters
+            <p>Try adjusting your filters or search term.</p>
+            <a href="{% url 'items:product_list' %}" class="btn-primary" style="width:auto;padding:11px 28px;margin:0 auto;">
+                Clear Filters
             </a>
         </div>
         {% endif %}
-        
+
     </div>
 </section>
-
-<!-- Quick View Modal (Optional - kept for future use) -->
-<div id="quickViewModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="quickViewTitle" style="z-index:1600;">
-    <div class="modal-content" style="max-width:720px;">
-        <div class="modal-header-bar">
-            <h3 id="quickViewTitle"><i class="fa fa-eye" style="color:var(--blue-400);margin-right:8px;"></i> Quick View</h3>
-            <button class="modal-close" id="closeQuickView" aria-label="Close">
-                <i class="fa fa-times"></i>
-            </button>
-        </div>
-        <div class="modal-body" id="quickViewContent" style="text-align:center;color:var(--gray-500);">
-            <i class="fa fa-spinner fa-spin" style="font-size:2rem;"></i>
-            <p style="margin-top:12px;">Loading product details...</p>
-        </div>
-    </div>
-</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-// ── Filter Form: Smooth Submit ─────────────────────────────
+// ── Filter Form: Smooth Visual Feedback ─────────────────────
 document.getElementById('filterForm')?.addEventListener('submit', (e) => {
     const selects = e.target.querySelectorAll('select');
-    selects.forEach(s => s.style.opacity = '0.7');
-    setTimeout(() => selects.forEach(s => s.style.opacity = '1'), 300);
+    selects.forEach(s => {
+        s.style.opacity = '0.7';
+        s.style.pointerEvents = 'none';
+    });
+    setTimeout(() => selects.forEach(s => {
+        s.style.opacity = '1';
+        s.style.pointerEvents = 'auto';
+    }), 300);
+});
+
+// ── Share Button Functionality ──────────────────────────────
+document.querySelectorAll('.btn-share').forEach(btn => {
+    btn.addEventListener('click', async e => {
+        e.preventDefault();
+        e.stopPropagation();
+        const { name, url } = btn.dataset;
+        
+        if (navigator.share) {
+            try {
+                await navigator.share({ title: name, text: `Check out: ${name}`, url });
+                showToast?.('Shared! 🎉', 'success');
+            } catch {}
+        } else {
+            try {
+                await navigator.clipboard.writeText(url);
+                showToast?.('Link copied to clipboard!', 'success');
+            } catch {
+                showToast?.('Could not copy link', 'error');
+            }
+        }
+    });
 });
 
 // ── Keyboard Navigation for Product Cards ───────────────────
@@ -332,66 +248,9 @@ document.querySelectorAll('.product-card').forEach(card => {
     card.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
-            card.querySelector('.product-link')?.click();
+            card.querySelector('a')?.click();
         }
     });
 });
-
-// ── Lazy Load Enhancement ───────────────────────────────────
-if ('IntersectionObserver' in window) {
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                const img = entry.target;
-                if (img.dataset.src) {
-                    img.src = img.dataset.src;
-                    img.removeAttribute('data-src');
-                    observer.unobserve(img);
-                }
-            }
-        });
-    }, { rootMargin: '50px' });
-    
-    document.querySelectorAll('img[loading="lazy"]').forEach(img => {
-        if (img.src === '' && img.dataset.src) {
-            observer.observe(img);
-        }
-    });
-}
-
-// ── Global Toast (kept for other pages that may use it) ─────
-if (typeof window.showToast !== 'function') {
-    window.showToast = function(message, type = 'info') {
-        const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
-        const bg = type === 'success' ? 'var(--green)' : 'var(--red)';
-        
-        const toast = document.createElement('div');
-        toast.innerHTML = `<i class="fa ${icon}"></i> ${message}`;
-        toast.style.cssText = `
-            position:fixed; bottom:24px; right:24px; z-index:9999;
-            padding:12px 20px; border-radius:var(--radius-lg); font-weight:600;
-            background:${bg}; color:#fff; box-shadow:var(--shadow-lg);
-            display:flex; align-items:center; gap:8px; font-size:0.9rem;
-            animation:toastIn 0.3s ease; max-width:calc(100vw - 48px);
-        `;
-        document.body.appendChild(toast);
-        
-        setTimeout(() => {
-            toast.style.animation = 'toastOut 0.3s ease forwards';
-            setTimeout(() => toast.remove(), 300);
-        }, 2800);
-    };
-}
-
-// Add toast animations if not present
-if (!document.querySelector('#toast-animations')) {
-    const style = document.createElement('style');
-    style.id = 'toast-animations';
-    style.textContent = `
-        @keyframes toastIn { from { transform:translateY(20px); opacity:0; } to { transform:translateY(0); opacity:1; } }
-        @keyframes toastOut { from { transform:translateY(0); opacity:1; } to { transform:translateY(20px); opacity:0; } }
-    `;
-    document.head.appendChild(style);
-}
 </script>
 {% endblock %}

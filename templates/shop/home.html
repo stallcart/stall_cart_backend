@@ -1,183 +1,121 @@
 {% extends 'base.html' %}
 {% load static %}
-
+{% load custom_filters %}  ← Add this line
 {% block title %}{{ site_settings.site_name|default:"StallCart" }} — Premium Fashion at Unbeatable Prices{% endblock %}
 {% block meta_description %}{{ site_settings.meta_description|default:"Shop premium fashion for men & women. Free delivery, easy returns, 100% original products." }}{% endblock %}
 
 {% block extra_css %}
 <style>
-/* Page-specific overrides */
-.hero { padding-bottom: clamp(60px, 10vw, 100px); }
+/* ── Page-specific only ─────────────────────── */
 
-.deals-header-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-}
-.deals-header-row .view-all-link { margin-left: auto; }
-
-/* Section wrapper spacing */
-.section-wrap { padding: clamp(28px, 5vw, 52px) 0; }
-
-/* Deals timer */
-@keyframes timerPulse { 0%,100% { opacity:1; } 50% { opacity:0.7; } }
-.deals-timer { animation: timerPulse 2s infinite; }
-
-/* Product card out of stock overlay */
-.out-of-stock-overlay {
-    position: absolute;
-    inset: 0;
-    background: rgba(255,255,255,0.85);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    color: var(--red);
-    font-size: 0.85rem;
-    border-radius: var(--radius-lg);
-    z-index: 2;
-}
-
-/* Price display enhancements */
-.price-display {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    margin-bottom: 10px;
-    flex-wrap: wrap;
-}
-.price-mrp {
-    font-size: 0.8rem;
-    color: var(--gray-400);
-    text-decoration: line-through;
-    font-weight: 400;
-}
-.price-current {
-    font-size: 1.1rem;
-    font-weight: 800;
-    color: var(--gray-900);
-}
-.price-discount {
-    background: var(--red);
-    color: white;
-    font-size: 0.7rem;
-    font-weight: 700;
-    padding: 2px 8px;
-    border-radius: 12px;
-}
-
-/* View Details button */
-.btn-view-details {
-    width: 100%;
-    padding: 10px;
-    background: var(--white);
-    color: var(--blue-600);
-    border: 2px solid var(--blue-200);
-    border-radius: var(--radius-md);
-    font-size: 0.85rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all var(--transition);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    text-decoration: none;
-}
-.btn-view-details:hover {
-    background: var(--blue-500);
-    color: var(--white);
-    border-color: var(--blue-500);
-    transform: translateY(-2px);
-}
-
-/* Quick Add button (for carousel) */
-.btn-quick-add {
-    width: 100%;
-    padding: 8px;
-    background: var(--blue-50);
-    color: var(--blue-600);
-    border: 1.5px solid var(--blue-200);
-    border-radius: var(--radius-sm);
-    font-size: 0.8rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all var(--transition);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-}
-.btn-quick-add:hover {
-    background: var(--blue-500);
-    color: var(--white);
-    border-color: var(--blue-500);
-}
-.btn-quick-add:disabled {
-    background: var(--gray-100);
-    color: var(--gray-400);
-    border-color: var(--gray-200);
-    cursor: not-allowed;
-}
-
-/* Responsive adjustments */
+/* Hero: smooth wave on mobile */
 @media (max-width: 480px) {
+    .hero { padding-top: 44px; padding-bottom: 80px; }
     .feature-strip { display: none; }
-    .hero { padding-top: 36px; padding-bottom: 56px; }
-    .price-current { font-size: 1rem; }
-    .btn-view-details { padding: 9px; font-size: 0.82rem; }
 }
 
-.btn-share {
-    width: 100%;
-    padding: 10px;
-    margin-top: 8px;
-    background: var(--white);
-    color: var(--gray-700);
-    border: 2px solid var(--gray-200);
-    border-radius: var(--radius-md);
-    font-size: 0.85rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all var(--transition);
-    display: flex;
+/* Section bg alternation */
+.bg-white { background: var(--white); }
+.bg-muted  { background: var(--blue-50); }
+
+/* Deals section label pill */
+.section-pill {
+    display: inline-flex;
     align-items: center;
-    justify-content: center;
-    gap: 6px;
+    gap: 5px;
+    background: var(--red);
+    color: #fff;
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 0.74rem;
+    font-weight: 700;
+    margin-left: 8px;
+    vertical-align: middle;
 }
 
-.btn-share:hover {
-    background: var(--blue-500);
-    color: var(--white);
-    border-color: var(--blue-500);
-    transform: translateY(-2px);
+/* Trending label */
+.trending-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--amber-light);
+    color: #92400E;
+    border-radius: 20px;
+    padding: 4px 10px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    border: 1px solid rgba(245,158,11,0.2);
+    margin-left: 6px;
 }
+
+/* Product count chip */
+.count-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--gray-100);
+    color: var(--gray-600);
+    border-radius: 20px;
+    padding: 3px 10px;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+/* Filter form inline */
+.filter-form { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Staggered card animation on load */
+@keyframes cardIn {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.product-card {
+    animation: cardIn 0.4s ease both;
+}
+.product-card:nth-child(1)  { animation-delay: 0.04s; }
+.product-card:nth-child(2)  { animation-delay: 0.08s; }
+.product-card:nth-child(3)  { animation-delay: 0.12s; }
+.product-card:nth-child(4)  { animation-delay: 0.16s; }
+.product-card:nth-child(5)  { animation-delay: 0.20s; }
+.product-card:nth-child(6)  { animation-delay: 0.24s; }
+.product-card:nth-child(7)  { animation-delay: 0.28s; }
+.product-card:nth-child(8)  { animation-delay: 0.32s; }
+.product-card:nth-child(9)  { animation-delay: 0.36s; }
+.product-card:nth-child(10) { animation-delay: 0.40s; }
 </style>
 {% endblock %}
 
 {% block content %}
 
-<!-- ═══════════════════════════════════════
+<!-- ══════════════════════════════════════
      HERO
-═══════════════════════════════════════ -->
+══════════════════════════════════════ -->
 <section class="hero">
     <div class="hero-content">
+
         <div class="hero-eyebrow">
-            <i class="fa fa-bolt"></i>
+            <i class="fa fa-fire"></i>
             {{ site_settings.site_tagline|default:"Summer Collection 2026" }}
         </div>
-        <h1>Premium Fashion.<br>Unbeatable Prices.</h1>
-        <h2>Curated for Every Style — Delivered Fast.</h2>
-        <p>{{ site_settings.meta_description|default:"From graceful Sarees to modern Streetwear — discover hand-picked pieces delivered fast across India." }}</p>
-        <div class="hero-cta-row">
+
+        <h1>
+            Premium Fashion.<br>
+            <span class="accent">Unbeatable</span> Prices.
+        </h1>
+
+        <p class="hero-subtitle">
+            {{ site_settings.meta_description|default:"From graceful Sarees to modern Streetwear — hand-picked pieces delivered fast across India." }}
+        </p>
+
+        <div class="hero-actions">
             <a href="#products" class="btn-hero-primary">
                 <i class="fa fa-shopping-bag"></i> Shop Now
             </a>
             <a href="{% url 'items:product_list' %}" class="btn-hero-secondary">
-                Explore All
+                <i class="fa fa-th-large"></i> Browse All
             </a>
         </div>
+
         <div class="hero-stats">
             <div class="hero-stat">
                 <span class="hero-stat-num">10K+</span>
@@ -188,39 +126,56 @@
                 <span class="hero-stat-label">Customers</span>
             </div>
             <div class="hero-stat">
-                <span class="hero-stat-num">Free</span>
-                <span class="hero-stat-label">Delivery</span>
+                <span class="hero-stat-num">₹499+</span>
+                <span class="hero-stat-label">Free Delivery</span>
+            </div>
+            <div class="hero-stat">
+                <span class="hero-stat-num">4.8 ★</span>
+                <span class="hero-stat-label">Avg Rating</span>
             </div>
         </div>
+
+    </div>
+
+    <!-- Wave svg -->
+    <div class="hero-wave">
+        <svg viewBox="0 0 1440 60" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M0,40 C360,80 1080,0 1440,40 L1440,60 L0,60 Z" fill="#F7F9FF"/>
+        </svg>
     </div>
 </section>
 
 <!-- Feature strip -->
 <div class="feature-strip">
     <div class="container">
-        <div class="feature-strip-inner">
+        <div class="feature-strip-track">
             <div class="feature-item"><i class="fa fa-truck"></i> Free Delivery ₹499+</div>
-            <div class="feature-item"><i class="fa fa-undo"></i> 7-Day Returns</div>
+            <div class="feature-item"><i class="fa fa-undo"></i> 7-Day Easy Returns</div>
             <div class="feature-item"><i class="fa fa-shield-alt"></i> 100% Genuine</div>
+            <div class="feature-item"><i class="fa fa-lock"></i> Secure Payments</div>
         </div>
     </div>
 </div>
 
-<!-- ═══════════════════════════════════════
+<!-- ══════════════════════════════════════
      COLLECTIONS
-═══════════════════════════════════════ -->
-<section class="section-wrap" style="background:var(--white);">
+══════════════════════════════════════ -->
+<section class="section-wrap bg-white">
     <div class="container">
-        <div class="section-title-row">
-            <h3 class="section-title">Shop by <span>Collection</span></h3>
-            <a href="{% url 'items:product_list' %}" class="view-all-link">
-                View All <i class="fa fa-arrow-right" style="font-size:0.75rem;"></i>
+        <div class="section-row">
+            <div>
+                <h3 class="section-title">Shop by <span class="accent">Collection</span></h3>
+                <p class="section-subtitle">Browse curated categories</p>
+            </div>
+            <a href="{% url 'items:product_list' %}" class="view-all">
+                View All <i class="fa fa-arrow-right"></i>
             </a>
         </div>
+
         <div class="collections-grid">
             {% for cat in categories|slice:":8" %}
             <a href="{% url 'items:product_list' %}?category={{ cat.slug }}" class="collection-card">
-                <div class="collection-icon-wrap">
+                <span class="collection-emoji">
                     {% if "women" in cat.name|lower %}👗
                     {% elif "men" in cat.name|lower %}👔
                     {% elif "footwear" in cat.name|lower or "shoe" in cat.name|lower %}👟
@@ -230,65 +185,59 @@
                     {% elif "book" in cat.name|lower %}📚
                     {% elif "kid" in cat.name|lower or "toy" in cat.name|lower %}🧸
                     {% else %}🛍️{% endif %}
-                </div>
+                </span>
                 <span class="collection-name">{{ cat.name }}</span>
             </a>
             {% empty %}
-            <!-- Default categories if none exist -->
-            <a href="{% url 'items:product_list' %}?category=women" class="collection-card">
-                <div class="collection-icon-wrap">👗</div>
-                <span class="collection-name">Women</span>
+            {% for pair in "👗 Women,👔 Men,👟 Footwear,💍 Jewellery,💄 Beauty,⚽ Sports,📚 Books,🧸 Kids"|split:"," %}
+            <a href="{% url 'items:product_list' %}" class="collection-card">
+                <span class="collection-emoji">{{ pair|slice:":2" }}</span>
+                <span class="collection-name">{{ pair|slice:"3:" }}</span>
             </a>
-            <a href="{% url 'items:product_list' %}?category=men" class="collection-card">
-                <div class="collection-icon-wrap">👔</div>
-                <span class="collection-name">Men</span>
-            </a>
-            <a href="{% url 'items:product_list' %}?category=footwear" class="collection-card">
-                <div class="collection-icon-wrap">👟</div>
-                <span class="collection-name">Footwear</span>
-            </a>
-            <a href="{% url 'items:product_list' %}?category=jewellery" class="collection-card">
-                <div class="collection-icon-wrap">💍</div>
-                <span class="collection-name">Jewellery</span>
-            </a>
+            {% endfor %}
             {% endfor %}
         </div>
     </div>
 </section>
 
-<!-- ═══════════════════════════════════════
+<!-- ══════════════════════════════════════
      PRODUCT GRID
-═══════════════════════════════════════ -->
+══════════════════════════════════════ -->
 <section id="products" class="section-wrap">
     <div class="container">
-        <div class="section-header">
+
+        <div class="filter-bar">
             <div>
-                <h3 class="section-title">Trending <span>2026</span></h3>
+                <h3 class="section-title">
+                    Trending <span class="accent">2026</span>
+                    <span class="trending-badge"><i class="fa fa-fire"></i> Hot</span>
+                </h3>
                 <p class="section-subtitle" style="margin-top:4px;">
-                    {{ products|length }} product{{ products|length|pluralize }} found
+                    <span class="count-chip">
+                        <i class="fa fa-box"></i>
+                        {{ products|length }} product{{ products|length|pluralize }} found
+                    </span>
                 </p>
             </div>
-            <div class="filters">
-                <form method="get" class="filter-form" id="filterForm">
-                    <select name="category" class="form-select-sm"
-                            onchange="document.getElementById('filterForm').submit()">
-                        <option value="">All Categories</option>
-                        {% for cat in categories %}
-                            <option value="{{ cat.slug }}"
-                                {% if request.GET.category == cat.slug %}selected{% endif %}>
-                                {{ cat.name }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                    <select name="sort" class="form-select-sm"
-                            onchange="document.getElementById('filterForm').submit()">
-                        <option value="-created_at"  {% if request.GET.sort == '-created_at'  %}selected{% endif %}>Newest</option>
-                        <option value="price_asc"    {% if request.GET.sort == 'price_asc'    %}selected{% endif %}>Price ↑</option>
-                        <option value="price_desc"   {% if request.GET.sort == 'price_desc'   %}selected{% endif %}>Price ↓</option>
-                        <option value="-views_count" {% if request.GET.sort == '-views_count' %}selected{% endif %}>Popular</option>
-                    </select>
-                </form>
-            </div>
+            <form method="get" class="filter-form" id="filterForm">
+                <select name="category" class="form-select-sm"
+                        onchange="this.form.submit()">
+                    <option value="">All Categories</option>
+                    {% for cat in categories %}
+                        <option value="{{ cat.slug }}"
+                            {% if request.GET.category == cat.slug %}selected{% endif %}>
+                            {{ cat.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <select name="sort" class="form-select-sm"
+                        onchange="this.form.submit()">
+                    <option value="-created_at"  {% if request.GET.sort == '-created_at'  %}selected{% endif %}>Newest</option>
+                    <option value="price_asc"    {% if request.GET.sort == 'price_asc'    %}selected{% endif %}>Price ↑</option>
+                    <option value="price_desc"   {% if request.GET.sort == 'price_desc'   %}selected{% endif %}>Price ↓</option>
+                    <option value="-views_count" {% if request.GET.sort == '-views_count' %}selected{% endif %}>Popular</option>
+                </select>
+            </form>
         </div>
 
         <div class="product-grid">
@@ -297,70 +246,70 @@
                  data-category="{{ product.category.slug }}"
                  data-price="{{ product.price }}">
 
-                <a href="{% url 'items:product_detail' product.slug %}" style="display:block;">
-                    <div class="image-wrapper">
+                <a href="{% url 'items:product_detail' product.slug %}">
+                    <div class="img-wrap">
                         {% if product.primary_image %}
                             <img src="{{ product.primary_image.url }}"
                                  alt="{{ product.name }}"
                                  loading="lazy">
                         {% else %}
-                            <div class="no-image">
-                                <i class="fa fa-image" style="font-size:2rem;opacity:0.3;"></i>
+                            <div class="no-img">
+                                <i class="fa fa-image"></i>
+                                <span>No image</span>
                             </div>
                         {% endif %}
 
                         {% if product.gender %}
-                            <span class="gender-badge">{{ product.get_gender_display }}</span>
+                            <span class="badge-gender">{{ product.get_gender_display }}</span>
                         {% endif %}
                         {% if product.discount_percent > 0 %}
-                            <span class="discount-badge">-{{ product.discount_percent }}%</span>
+                            <span class="badge-discount">-{{ product.discount_percent }}%</span>
                         {% endif %}
                         {% if product.is_hot_deal %}
-                            <span class="hot-badge">🔥 Hot</span>
+                            <span class="badge-hot">🔥 Hot</span>
                         {% endif %}
                         {% if product.stock == 0 %}
-                            <div class="out-of-stock-overlay">Out of Stock</div>
+                            <div class="out-of-stock-overlay">
+                                <span><i class="fa fa-ban" style="margin-right:5px;"></i>Out of Stock</span>
+                            </div>
                         {% endif %}
                     </div>
                 </a>
 
                 <div class="product-info">
-                    <h4>
-                        <a href="{% url 'items:product_detail' product.slug %}">
-                            {{ product.name|truncatechars:40 }}
-                        </a>
-                    </h4>
-                    <p class="seller-name">by {{ product.seller.shop_name|truncatechars:20 }}</p>
+                    <div class="product-name">
+                        <a href="{% url 'items:product_detail' product.slug %}">{{ product.name|truncatechars:40 }}</a>
+                    </div>
+                    <div class="product-seller">by {{ product.seller.shop_name|truncatechars:22 }}</div>
 
-                    <!-- Price Display with MRP + Discount -->
-                    <div class="price-display">
+                    <div class="price-row">
                         {% if product.discount_percent > 0 and product.mrp %}
                             <span class="price-mrp">₹{{ product.mrp|floatformat:0 }}</span>
-                            <span class="price-current">₹{{ product.discount_price|floatformat:2 }}</span>
-                            <span class="price-discount">-{{ product.discount_percent }}%</span>
+                            <span class="price-current">₹{{ product.discount_price|floatformat:0 }}</span>
+                            <span class="price-off">-{{ product.discount_percent }}%</span>
                         {% elif product.discount_percent > 0 %}
                             <span class="price-mrp">₹{{ product.price|floatformat:0 }}</span>
-                            <span class="price-current">₹{{ product.discount_price|floatformat:2 }}</span>
-                            <span class="price-discount">-{{ product.discount_percent }}%</span>
+                            <span class="price-current">₹{{ product.discount_price|floatformat:0 }}</span>
+                            <span class="price-off">-{{ product.discount_percent }}%</span>
                         {% else %}
-                            <span class="price-current">₹{{ product.price|floatformat:2 }}</span>
+                            <span class="price-current">₹{{ product.price|floatformat:0 }}</span>
                         {% endif %}
                     </div>
 
                     {% if product.stock <= product.low_stock_threshold and product.stock > 0 %}
-                        <span class="low-stock">
+                        <div class="low-stock-tag">
                             <i class="fa fa-exclamation-triangle"></i>
                             Only {{ product.stock }} left!
-                        </span>
+                        </div>
                     {% endif %}
 
-                    <!-- View Details Button -->
-                    <a href="{% url 'items:product_detail' product.slug %}" 
-                       class="btn-view-details"
-                       {% if product.stock == 0 %}style="opacity:0.6;cursor:not-allowed;"{% endif %}>
-                        <i class="fa fa-eye"></i> 
+                    <a href="{% url 'items:product_detail' product.slug %}"
+                       class="btn-view"
+                       {% if product.stock == 0 %}style="opacity:0.55;pointer-events:none;"{% endif %}>
+                        <i class="fa fa-eye"></i>
                         {% if product.stock > 0 %}View Product{% else %}Out of Stock{% endif %}
                     </a>
+
                     <button class="btn-share"
                             data-name="{{ product.name }}"
                             data-url="{{ request.scheme }}://{{ request.get_host }}{% url 'items:product_detail' product.slug %}">
@@ -371,96 +320,97 @@
 
             {% empty %}
             <div class="empty-state">
-                <i class="fa fa-search" style="font-size:3rem;color:var(--gray-200);margin-bottom:16px;"></i>
+                <div class="empty-state-icon"><i class="fa fa-search"></i></div>
                 <h3>No products found</h3>
-                <p style="color:var(--gray-500);margin-bottom:20px;">
-                    Try adjusting your filters or search term.
-                </p>
-                <a href="{% url 'items:product_list' %}" class="btn-outline"
-                   style="display:inline-flex;width:auto;padding:10px 24px;">
+                <p>Try adjusting your filters or search term.</p>
+                <a href="{% url 'items:product_list' %}" class="btn-primary" style="width:auto;padding:11px 28px;margin:0 auto;">
                     Clear Filters
                 </a>
             </div>
             {% endfor %}
         </div>
+
+        <!-- View all CTA -->
+        {% if products|length >= 10 %}
+        <div style="text-align:center;margin-top:32px;">
+            <a href="{% url 'items:product_list' %}" class="btn-outline" style="padding:12px 36px;">
+                <i class="fa fa-th-large"></i> View All Products
+            </a>
+        </div>
+        {% endif %}
+
     </div>
 </section>
 
-<!-- ═══════════════════════════════════════
+<!-- ══════════════════════════════════════
      DEALS OF THE DAY
-═══════════════════════════════════════ -->
+══════════════════════════════════════ -->
 {% if hot_products %}
-<section class="section-wrap" style="background:var(--white);">
+<section class="section-wrap bg-white">
     <div class="container">
-        <div class="deals-header-row">
-            <h3 class="section-title">Deals of the Day</h3>
-            <div class="deals-timer" id="countdown">
-                <i class="fa fa-clock"></i> 23h : 59m : 55s
+        <div class="deals-row">
+            <div>
+                <h3 class="section-title">
+                    Deals of the Day
+                    <span class="section-pill"><i class="fa fa-clock"></i> Limited</span>
+                </h3>
             </div>
-            <a href="{% url 'items:product_list' %}?sort=-views_count" class="view-all-link">
-                View All <i class="fa fa-arrow-right" style="font-size:0.75rem;"></i>
+            <div class="deals-timer" id="countdown">
+                <i class="fa fa-clock"></i> <span id="countdown-text">23:59:55</span>
+            </div>
+            <a href="{% url 'items:product_list' %}?sort=-views_count" class="view-all" style="margin-left:auto;">
+                View All <i class="fa fa-arrow-right"></i>
             </a>
         </div>
 
-        <div class="products-carousel" style="margin-top:16px;">
+        <div class="deals-scroll">
             {% for product in hot_products %}
-            <div class="product-card-interactive">
-                <a href="{% url 'items:product_detail' product.slug %}"
-                   style="display:block;position:relative;">
+            <div class="deal-card">
+                <a href="{% url 'items:product_detail' product.slug %}" class="deal-card-img">
                     {% if product.primary_image %}
-                        <img src="{{ product.primary_image.url }}"
-                             alt="{{ product.name }}"
-                             loading="lazy">
+                        <img src="{{ product.primary_image.url }}" alt="{{ product.name }}" loading="lazy">
                     {% else %}
-                        <div style="aspect-ratio:1;background:var(--gray-50);display:flex;align-items:center;justify-content:center;color:var(--gray-300);">
-                            <i class="fa fa-image" style="font-size:1.5rem;"></i>
+                        <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--gray-300);font-size:1.5rem;">
+                            <i class="fa fa-image"></i>
                         </div>
                     {% endif %}
                     {% if product.gender %}
-                        <span class="gender-badge">{{ product.get_gender_display }}</span>
+                        <span class="badge-gender" style="top:6px;left:6px;font-size:0.62rem;">{{ product.get_gender_display }}</span>
                     {% endif %}
                     {% if product.discount_percent > 0 %}
-                        <span class="discount-badge">-{{ product.discount_percent }}%</span>
+                        <span class="badge-discount" style="top:6px;right:6px;font-size:0.62rem;">-{{ product.discount_percent }}%</span>
                     {% endif %}
                     {% if product.stock == 0 %}
                         <div class="out-of-stock-overlay" style="font-size:0.75rem;">Out of Stock</div>
                     {% endif %}
                 </a>
-                <div class="product-info" style="padding:10px;">
-                    <h4 style="font-size:0.83rem;margin-bottom:6px;">
-                        {{ product.name|truncatechars:28 }}
-                    </h4>
-                    
-                    <!-- Price Display for Carousel -->
-                    <div class="price-display" style="margin-bottom:8px;">
+                <div class="deal-card-body">
+                    <div class="deal-card-name">{{ product.name|truncatechars:32 }}</div>
+                    <div class="price-row" style="margin-bottom:8px;">
                         {% if product.discount_percent > 0 and product.mrp %}
-                            <span class="price-mrp" style="font-size:0.75rem;">₹{{ product.mrp|floatformat:0 }}</span>
-                            <span class="price-current" style="font-size:0.95rem;">₹{{ product.discount_price|floatformat:2 }}</span>
+                            <span class="price-mrp" style="font-size:0.72rem;">₹{{ product.mrp|floatformat:0 }}</span>
+                            <span class="price-current" style="font-size:0.92rem;">₹{{ product.discount_price|floatformat:0 }}</span>
                         {% elif product.discount_percent > 0 %}
-                            <span class="price-mrp" style="font-size:0.75rem;">₹{{ product.price|floatformat:0 }}</span>
-                            <span class="price-current" style="font-size:0.95rem;">₹{{ product.discount_price|floatformat:2 }}</span>
+                            <span class="price-mrp" style="font-size:0.72rem;">₹{{ product.price|floatformat:0 }}</span>
+                            <span class="price-current" style="font-size:0.92rem;">₹{{ product.discount_price|floatformat:0 }}</span>
                         {% else %}
-                            <span class="price-current" style="font-size:0.95rem;">₹{{ product.price|floatformat:2 }}</span>
+                            <span class="price-current" style="font-size:0.92rem;">₹{{ product.price|floatformat:0 }}</span>
                         {% endif %}
                     </div>
-                    
-                    <!-- Quick Add Button -->
                     {% if user.role == 'customer' or not user.is_authenticated %}
                         <button class="btn-quick-add"
                                 data-product-id="{{ product.id }}"
                                 data-stock="{{ product.stock }}"
                                 {% if product.stock == 0 %}disabled{% endif %}>
                             {% if product.stock > 0 %}
-                                <i class="fa fa-cart-plus"></i> Quick Add
+                                <i class="fa fa-cart-plus"></i> Add to Cart
                             {% else %}
                                 Out of Stock
                             {% endif %}
                         </button>
                     {% else %}
-                        <a href="{% url 'items:product_detail' product.slug %}" 
-                           class="btn-view-details" 
-                           style="padding:8px;font-size:0.78rem;">
-                            View
+                        <a href="{% url 'items:product_detail' product.slug %}" class="btn-quick-add">
+                            View →
                         </a>
                     {% endif %}
                 </div>
@@ -471,61 +421,66 @@
 </section>
 {% endif %}
 
-<!-- ═══════════════════════════════════════
+<!-- ══════════════════════════════════════
      WHY CHOOSE US
-═══════════════════════════════════════ -->
-<section class="section-wrap" style="background:var(--blue-50);">
+══════════════════════════════════════ -->
+<section class="section-wrap bg-muted">
     <div class="container">
-        <h3 class="section-title" style="text-align:center;margin-bottom:28px;">
-            Why Shop with <span>{{ site_settings.site_name|default:"Us" }}?</span>
-        </h3>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">
-            <div style="
-                background:var(--white);
-                border-radius:var(--radius-lg);
-                padding:20px;
-                text-align:center;
-                border:1.5px solid var(--blue-100);
-                transition:all 0.2s ease;
-            " onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='var(--shadow-md)'"
-               onmouseout="this.style.transform='';this.style.boxShadow=''">
-                <div style="font-size:2rem;margin-bottom:10px;">🚚</div>
-                <h4 style="color:var(--blue-700);margin-bottom:6px;">Free Delivery</h4>
-                <p style="font-size:0.82rem;color:var(--gray-500);line-height:1.5;">On orders above ₹499</p>
+        <div style="text-align:center;margin-bottom:28px;">
+            <h3 class="section-title">
+                Why Shop with <span class="accent">{{ site_settings.site_name|default:"StallCart" }}?</span>
+            </h3>
+            <p class="section-subtitle" style="margin-top:6px;">
+                We make shopping easy, safe, and delightful
+            </p>
+        </div>
+
+        <div class="trust-grid">
+            <div class="trust-card">
+                <span class="trust-emoji">🚚</span>
+                <h4>Free Delivery</h4>
+                <p>On all orders above ₹499 — delivered to your doorstep</p>
             </div>
-            <div style="
-                background:var(--white);
-                border-radius:var(--radius-lg);
-                padding:20px;
-                text-align:center;
-                border:1.5px solid var(--blue-100);
-            ">
-                <div style="font-size:2rem;margin-bottom:10px;">↩️</div>
-                <h4 style="color:var(--blue-700);margin-bottom:6px;">Easy Returns</h4>
-                <p style="font-size:0.82rem;color:var(--gray-500);line-height:1.5;">7-day return policy</p>
+            <div class="trust-card">
+                <span class="trust-emoji">↩️</span>
+                <h4>Easy Returns</h4>
+                <p>7-day hassle-free return policy on all products</p>
             </div>
-            <div style="
-                background:var(--white);
-                border-radius:var(--radius-lg);
-                padding:20px;
-                text-align:center;
-                border:1.5px solid var(--blue-100);
-            ">
-                <div style="font-size:2rem;margin-bottom:10px;">✓</div>
-                <h4 style="color:var(--blue-700);margin-bottom:6px;">100% Genuine</h4>
-                <p style="font-size:0.82rem;color:var(--gray-500);line-height:1.5;">Authentic products only</p>
+            <div class="trust-card">
+                <span class="trust-emoji">✅</span>
+                <h4>100% Genuine</h4>
+                <p>Every product is verified authentic before listing</p>
             </div>
-            <div style="
-                background:var(--white);
-                border-radius:var(--radius-lg);
-                padding:20px;
-                text-align:center;
-                border:1.5px solid var(--blue-100);
-            ">
-                <div style="font-size:2rem;margin-bottom:10px;">🔒</div>
-                <h4 style="color:var(--blue-700);margin-bottom:6px;">Secure Payment</h4>
-                <p style="font-size:0.82rem;color:var(--gray-500);line-height:1.5;">100% secure checkout</p>
+            <div class="trust-card">
+                <span class="trust-emoji">🔒</span>
+                <h4>Secure Payments</h4>
+                <p>Encrypted checkout with Razorpay & UPI support</p>
             </div>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════════════════════════
+     NEWSLETTER / CTA BANNER
+══════════════════════════════════════ -->
+<section class="section-wrap" style="background:var(--gray-900);margin-top:0;">
+    <div class="container">
+        <div style="
+            max-width:600px;
+            margin:0 auto;
+            text-align:center;
+            padding: clamp(16px, 4vw, 32px) 0;
+        ">
+            <div style="font-size:2.5rem;margin-bottom:12px;">🎉</div>
+            <h2 style="color:var(--white);margin-bottom:10px;">
+                Don't miss the best deals
+            </h2>
+            <p style="color:rgba(255,255,255,0.6);margin-bottom:24px;font-size:0.95rem;">
+                New arrivals, flash sales, and exclusive offers — all in one place.
+            </p>
+            <a href="{% url 'items:product_list' %}" class="btn-hero-primary" style="margin:0 auto;display:inline-flex;">
+                <i class="fa fa-th-large"></i> Start Shopping
+            </a>
         </div>
     </div>
 </section>
@@ -537,14 +492,14 @@
 const csrfToken = '{{ csrf_token }}';
 const userRole  = '{{ user.role|default:"" }}';
 
-// Quick Add to Cart (for carousel only)
+// Quick Add to Cart
 document.querySelectorAll('.btn-quick-add').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
+    btn.addEventListener('click', async e => {
         e.preventDefault();
         e.stopPropagation();
 
         if (userRole && userRole !== 'customer') {
-            showToast('Sellers cannot add to cart. Use a customer account.', 'error');
+            showToast('Sellers cannot add to cart.', 'error');
             return;
         }
 
@@ -557,10 +512,7 @@ document.querySelectorAll('.btn-quick-add').forEach(btn => {
         }
 
         if (!userRole) {
-            if (window.openLoginModal) {
-                openLoginModal();
-                return;
-            }
+            if (window.openLoginModal) { openLoginModal(); return; }
             window.location.href = "{% url 'accounts:login' %}?next={{ request.path }}";
             return;
         }
@@ -572,19 +524,14 @@ document.querySelectorAll('.btn-quick-add').forEach(btn => {
         try {
             const res  = await fetch("{% url 'shop:add_to_cart' %}", {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken':  csrfToken
-                },
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
                 body: JSON.stringify({ product_id: productId, quantity: 1 })
             });
             const data = await res.json();
 
             if (data.status === 'success') {
-                if (window.updateCartCount) {
-                    updateCartCount(data.cart_count);
-                }
-                showToast('Added to cart!', 'success');
+                window.updateCartCount?.(data.cart_count);
+                showToast('Added to cart! 🛍️', 'success');
                 btn.innerHTML = '<i class="fa fa-check"></i> Added';
                 btn.style.background = 'var(--green)';
                 btn.style.borderColor = 'var(--green)';
@@ -592,9 +539,7 @@ document.querySelectorAll('.btn-quick-add').forEach(btn => {
                 setTimeout(() => {
                     btn.disabled = false;
                     btn.innerHTML = orig;
-                    btn.style.background = '';
-                    btn.style.borderColor = '';
-                    btn.style.color = '';
+                    btn.style.cssText = '';
                 }, 1800);
             } else {
                 showToast(data.message || 'Failed to add to cart.', 'error');
@@ -602,7 +547,7 @@ document.querySelectorAll('.btn-quick-add').forEach(btn => {
                 btn.innerHTML = orig;
             }
         } catch {
-            showToast('Network error. Please try again.', 'error');
+            showToast('Network error. Try again.', 'error');
             btn.disabled = false;
             btn.innerHTML = orig;
         }
@@ -610,46 +555,40 @@ document.querySelectorAll('.btn-quick-add').forEach(btn => {
 });
 
 // Countdown timer
-function updateCountdown() {
-    const el = document.getElementById('countdown');
-    if (!el) return;
-    const now = new Date();
-    const end = new Date(); end.setHours(23, 59, 59);
-    const diff = end - now;
-    const h = Math.floor(diff / 3600000);
-    const m = Math.floor((diff % 3600000) / 60000);
-    const s = Math.floor((diff % 60000) / 1000);
-    el.innerHTML = `<i class="fa fa-clock"></i> ${String(h).padStart(2,'0')}h : ${String(m).padStart(2,'0')}m : ${String(s).padStart(2,'0')}s`;
-}
-setInterval(updateCountdown, 1000);
-updateCountdown();
+(function() {
+    function updateTimer() {
+        const el = document.getElementById('countdown-text');
+        if (!el) return;
+        const now = new Date();
+        const end = new Date();
+        end.setHours(23, 59, 59, 0);
+        const diff = Math.max(0, end - now);
+        const h = Math.floor(diff / 3600000);
+        const m = Math.floor((diff % 3600000) / 60000);
+        const s = Math.floor((diff % 60000) / 1000);
+        el.textContent = `${String(h).padStart(2,'0')}h : ${String(m).padStart(2,'0')}m : ${String(s).padStart(2,'0')}s`;
+    }
+    setInterval(updateTimer, 1000);
+    updateTimer();
+})();
 
-// Share functionality
+// Share
 document.querySelectorAll('.btn-share').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
+    btn.addEventListener('click', async e => {
         e.preventDefault();
         e.stopPropagation();
-
-        const name = btn.dataset.name;
-        const url = btn.dataset.url;
-
+        const { name, url } = btn.dataset;
         if (navigator.share) {
             try {
-                await navigator.share({
-                    title: name,
-                    text: `Check out this product: ${name}`,
-                    url: url
-                });
-                showToast('Shared successfully!', 'success');
-            } catch (err) {
-                console.log('Share cancelled');
-            }
+                await navigator.share({ title: name, text: `Check out: ${name}`, url });
+                showToast('Shared! 🎉', 'success');
+            } catch {}
         } else {
             try {
                 await navigator.clipboard.writeText(url);
                 showToast('Link copied to clipboard!', 'success');
             } catch {
-                showToast('Unable to copy link', 'error');
+                showToast('Could not copy link', 'error');
             }
         }
     });

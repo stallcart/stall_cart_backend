@@ -168,11 +168,11 @@ class Product(BaseModel):
             return self.price * (Decimal(1) - discount)
         return self.price
     
-    @property
-    def savings(self):
-        if self.mrp and self.price and self.mrp > self.price:
-            return self.mrp - self.price
-        return 0
+    # def savings(self):
+    #     """Calculate savings amount: MRP - Final Price (never negative)"""
+    #     mrp = self.mrp if self.mrp else self.price
+    #     final = self.final_price if hasattr(self, 'final_price') and self.final_price else self.price
+    #     return max(0, mrp - final)
     
     @property
     def is_in_stock(self):
@@ -188,27 +188,43 @@ class Product(BaseModel):
             return ((self.price - self.cost_price) / self.price) * 100
         return None
     
-    @property
-    def final_price(self):
-        """Return price after discount"""
-        return self.discount_price if self.discount_percent > 0 else self.price
-
+    # @property
+    # def final_price(self):
+    #     """Get discounted price if applicable"""
+    #     if self.discount_percent and self.discount_percent > 0:
+    #         return round(self.price * (1 - self.discount_percent / 100), 2)
+    #     return self.price
+    # @property
+    # def savings_per_unit(self):
+    #     """Return savings per unit (MRP - final price)"""
+    #     return self.price - self.final_price if self.discount_percent > 0 else 0
     @property
     def savings_per_unit(self):
-        """Return savings per unit (MRP - final price)"""
-        return self.price - self.final_price if self.discount_percent > 0 else 0
+        """Return savings per unit: MRP - Final Price (never negative)"""
+        # Use MRP if available, otherwise fall back to regular price
+        base_price = self.mrp if self.mrp and self.mrp > 0 else self.price
+        final_price = self.final_price
+        return max(Decimal('0'), base_price - final_price)
 
     def calculate_savings(self, quantity):
         """Return total savings for given quantity"""
         return self.savings_per_unit * quantity
-
+    @property
+    def savings(self):
+        """Alias for savings_per_unit for template compatibility"""
+        return self.savings_per_unit
     @property
     def total_stock(self):
         """Returns sum of variant stock if variants exist, else base product stock"""
         if self.variants.filter(is_active=True).exists():
             return sum(v.stock for v in self.variants.filter(is_active=True))
         return self.stock
-
+    @property
+    def final_price(self):
+        """Get discounted price if applicable (always returns Decimal)"""
+        if self.discount_percent and self.discount_percent > 0:
+            return round(self.price * (Decimal('1') - Decimal(self.discount_percent) / Decimal('100')), 2)
+        return self.price
     @property
     def available_variants(self):
         """Returns only active variants with stock > 0"""
