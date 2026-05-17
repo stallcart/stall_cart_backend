@@ -146,7 +146,21 @@ class Product(BaseModel):
             self.slug = slug
 
         if not self.sku and self.seller:
-            self.sku = f"{self.seller.shop_name[:3].upper()}-{self.name[:5].upper().replace(' ', '')}-{self.pk or 'NEW'}"
+            # Option A: Generate AFTER first save (two-phase save)
+            if is_new:
+                # First save to get pk
+                super().save(*args, **kwargs)
+                is_new = False  # Mark as saved
+                
+            # Now generate unique SKU with pk
+            base_sku = f"{self.seller.shop_name[:3].upper()}-{self.name[:5].upper().replace(' ', '')}-{self.pk}"
+            sku = base_sku
+            counter = 1
+            # Ensure uniqueness with retry loop (like slug)
+            while Product.objects.filter(sku=sku).exclude(pk=self.pk).exists():
+                sku = f"{base_sku}-{counter}"
+                counter += 1
+            self.sku = sku
 
         super().save(*args, **kwargs)
 
