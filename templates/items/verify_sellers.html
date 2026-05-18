@@ -1,0 +1,642 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Verify Sellers - Admin Panel{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ===== Seller Verification Page — Design System Aligned ===== */
+
+/* Header */
+.admin-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 20px 0;
+    border-bottom: 1px solid var(--gray-200);
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+.admin-header h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--gray-900);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+}
+.admin-header h1 i { color: var(--blue-500); }
+
+/* Filter Bar */
+.filter-bar-admin {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    background: var(--white);
+    padding: 12px 16px;
+    border-radius: var(--r-lg);
+    border: 1.5px solid var(--gray-200);
+    margin-bottom: 20px;
+}
+.filter-bar-admin .search-wrap {
+    flex: 1;
+    min-width: 200px;
+    display: flex;
+    align-items: center;
+    border: 1.5px solid var(--gray-200);
+    border-radius: var(--r-md);
+    padding: 0 12px;
+    background: var(--gray-50);
+    transition: all var(--tr);
+}
+.filter-bar-admin .search-wrap:focus-within {
+    border-color: var(--blue-400);
+    background: var(--white);
+    box-shadow: 0 0 0 3px rgba(40,116,240,0.1);
+}
+.filter-bar-admin .search-wrap input {
+    flex: 1;
+    border: none;
+    background: none;
+    padding: 8px 8px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    color: var(--gray-800);
+    outline: none;
+}
+.filter-bar-admin .search-wrap i { color: var(--gray-400); }
+
+.filter-tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--gray-100);
+    padding: 4px;
+    border-radius: var(--r-md);
+}
+.filter-tab {
+    padding: 6px 14px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--gray-600);
+    border: none;
+    background: none;
+    border-radius: var(--r-sm);
+    cursor: pointer;
+    transition: all var(--tr);
+    text-decoration: none;
+    font-family: 'DM Sans', sans-serif;
+}
+.filter-tab.active, .filter-tab:hover {
+    background: var(--white);
+    color: var(--blue-600);
+    box-shadow: var(--sh-xs);
+}
+.filter-tab.pending { color: var(--amber); }
+.filter-tab.verified { color: var(--green); }
+.filter-tab.rejected { color: var(--red); }
+
+/* Stats Cards */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+}
+@media (min-width: 640px) { .stats-grid { grid-template-columns: repeat(4, 1fr); } }
+
+.stat-card {
+    background: var(--white);
+    padding: 16px;
+    border-radius: var(--r-lg);
+    border: 1.5px solid var(--gray-200);
+    text-align: center;
+}
+.stat-card.pending { border-left: 4px solid var(--amber); }
+.stat-card.verified { border-left: 4px solid var(--green); }
+.stat-card.rejected { border-left: 4px solid var(--red); }
+.stat-card.total { border-left: 4px solid var(--blue-500); }
+
+.stat-num {
+    display: block;
+    font-family: 'Syne', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--gray-900);
+    line-height: 1.1;
+}
+.stat-label {
+    font-size: 0.75rem;
+    color: var(--gray-500);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 4px;
+    font-weight: 600;
+}
+
+/* Seller List */
+.seller-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.seller-card {
+    background: var(--white);
+    border-radius: var(--r-lg);
+    border: 1.5px solid var(--gray-200);
+    padding: 16px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 16px;
+    align-items: start;
+    transition: all var(--tr);
+    font-family: 'DM Sans', sans-serif;
+}
+.seller-card:hover {
+    border-color: var(--blue-300);
+    box-shadow: var(--sh-md);
+}
+.seller-card.pending { border-left: 4px solid var(--amber); }
+.seller-card.verified { border-left: 4px solid var(--green); opacity: 0.7; }
+.seller-card.rejected { border-left: 4px solid var(--red); opacity: 0.6; }
+
+.seller-main {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+.seller-avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: var(--r-md);
+    background: linear-gradient(135deg, var(--blue-500), var(--blue-700));
+    color: #fff;
+    font-family: 'Syne', sans-serif;
+    font-size: 1.2rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.seller-info h4 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin: 0 0 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.seller-info h4 a { color: inherit; text-decoration: none; }
+.seller-info h4 a:hover { color: var(--blue-500); }
+
+.seller-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    font-size: 0.82rem;
+    color: var(--gray-600);
+}
+.seller-meta span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.seller-meta i { color: var(--gray-400); font-size: 0.8rem; }
+
+.badge-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+.badge-pill.pending { background: var(--amber-light); color: var(--amber); }
+.badge-pill.verified { background: var(--green-light); color: var(--green); }
+.badge-pill.rejected { background: var(--red-light); color: var(--red); }
+
+/* Action Buttons - Simplified: Edit + View only */
+.seller-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-end;
+}
+.btn-edit, .btn-view-modal {
+    padding: 8px 16px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    border-radius: var(--r-md);
+    border: none;
+    cursor: pointer;
+    transition: all var(--tr);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'DM Sans', sans-serif;
+    text-decoration: none;
+}
+.btn-edit {
+    background: var(--blue-500);
+    color: #fff;
+}
+.btn-edit:hover { background: var(--blue-600); transform: translateY(-1px); }
+.btn-view-modal {
+    background: var(--gray-100);
+    color: var(--gray-700);
+    border: 1.5px solid var(--gray-200);
+}
+.btn-view-modal:hover { background: var(--gray-200); }
+
+/* Empty State */
+.empty-verify {
+    text-align: center;
+    padding: 60px 20px;
+    background: var(--white);
+    border-radius: var(--r-xl);
+    border: 1.5px solid var(--gray-200);
+}
+.empty-verify i { font-size: 3rem; color: var(--gray-300); margin-bottom: 16px; }
+.empty-verify h3 { 
+    font-family: 'Syne', sans-serif;
+    color: var(--gray-700); 
+    margin-bottom: 8px; 
+}
+.empty-verify p { color: var(--gray-500); max-width: 400px; margin: 0 auto; }
+
+/* Pagination */
+.pagination-admin {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 24px;
+    flex-wrap: wrap;
+}
+.page-link {
+    min-width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--r-sm);
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--gray-600);
+    background: var(--white);
+    border: 1.5px solid var(--gray-200);
+    text-decoration: none;
+    transition: all var(--tr);
+    font-family: 'DM Sans', sans-serif;
+}
+.page-link.active, .page-link:hover {
+    background: var(--blue-500);
+    color: #fff;
+    border-color: var(--blue-500);
+}
+.page-link:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Modal — Matches login modal pattern */
+.modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(10,20,50,0.65);
+    backdrop-filter: blur(6px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1600;
+    padding: 16px;
+    font-family: 'DM Sans', sans-serif;
+}
+.modal.show { display: flex; }
+
+.modal .modal-content {
+    background: var(--white);
+    border-radius: var(--r-2xl);
+    width: 100%;
+    max-width: 520px;
+    max-height: 92vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--sh-xl);
+    transform: scale(0.93) translateY(16px);
+    transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+}
+.modal.show .modal-content { transform: scale(1) translateY(0); }
+
+.modal-header-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--gray-100);
+}
+.modal-header-bar h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.modal-close {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid var(--gray-200);
+    border-radius: var(--r-md);
+    background: none;
+    color: var(--gray-500);
+    font-size: 0.875rem;
+    flex-shrink: 0;
+    transition: all var(--tr);
+}
+.modal-close:hover { background: var(--red-light); border-color: var(--red); color: var(--red); }
+
+.modal-body { padding: 24px; }
+
+.seller-detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px dashed var(--gray-200);
+    font-size: 0.9rem;
+}
+.seller-detail-row:last-child { border-bottom: none; }
+.seller-detail-row strong { color: var(--gray-700); }
+.seller-detail-row span { color: var(--gray-900); font-weight: 600; }
+
+/* Responsive */
+@media (max-width: 768px) {
+    .seller-card { grid-template-columns: 1fr; }
+    .seller-actions { flex-direction: row; justify-content: flex-start; }
+    .admin-header { flex-direction: column; align-items: flex-start; }
+}
+
+/* Pulse animation for pending badge */
+@keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.1); opacity: 0.85; }
+}
+.badge-pill.pending { animation: pulse 2s infinite; }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="section-wrap">
+    <div class="container">
+        
+        <!-- Header -->
+        <div class="admin-header">
+            <h1><i class="fa fa-user-check"></i> Verify Sellers</h1>
+            <a href="{% url 'shop:home' %}" class="btn-outline" style="width:auto;padding:8px 16px;font-size:0.875rem;">
+                <i class="fa fa-arrow-left"></i> Back to Home
+            </a>
+        </div>
+        
+        <!-- Stats -->
+        <div class="stats-grid">
+            <div class="stat-card total">
+                <span class="stat-num">{{ total_count }}</span>
+                <span class="stat-label">Total Sellers</span>
+            </div>
+            <div class="stat-card pending">
+                <span class="stat-num">{{ pending_count }}</span>
+                <span class="stat-label">Pending Review</span>
+            </div>
+            <div class="stat-card verified">
+                <span class="stat-num">{{ sellers|length }}</span>
+                <span class="stat-label">Showing</span>
+            </div>
+            <div class="stat-card verified">
+                <span class="stat-num">{{ admin_verified_sellers|default:0 }}</span>
+                <span class="stat-label">Verified</span>
+            </div>
+        </div>
+        
+        <!-- Filters -->
+        <div class="filter-bar-admin">
+            <div class="search-wrap">
+                <i class="fa fa-search"></i>
+                <form method="get" style="display:flex;flex:1;">
+                    <input type="search" name="search" placeholder="Search shop, name, phone, GST…" 
+                           value="{{ search_query }}" style="flex:1;border:none;background:none;">
+                    <button type="submit" class="btn-primary" style="width:auto;padding:6px 12px;font-size:0.8rem;">Search</button>
+                </form>
+            </div>
+            <div class="filter-tabs">
+                <a href="?status=pending&search={{ search_query }}" 
+                   class="filter-tab pending {% if current_filter == 'pending' %}active{% endif %}">
+                    ⏳ Pending
+                </a>
+                <a href="?status=verified&search={{ search_query }}" 
+                   class="filter-tab verified {% if current_filter == 'verified' %}active{% endif %}">
+                    ✅ Verified
+                </a>
+                <a href="?status=rejected&search={{ search_query }}" 
+                   class="filter-tab rejected {% if current_filter == 'rejected' %}active{% endif %}">
+                    ❌ Rejected
+                </a>
+                <a href="?status=all&search={{ search_query }}" 
+                   class="filter-tab {% if current_filter == 'all' %}active{% endif %}">
+                    📋 All
+                </a>
+            </div>
+        </div>
+        
+        <!-- Seller List -->
+        <div class="seller-list">
+            {% for seller in sellers %}
+            <article class="seller-card {% if not seller.is_verified and seller.is_active %}pending{% elif seller.is_verified %}verified{% else %}rejected{% endif %}"
+                     data-seller-id="{{ seller.id }}"
+                     data-seller-name="{{ seller.shop_name|escapejs }}">
+                
+                <div class="seller-main">
+                    <!-- Avatar -->
+                    <div class="seller-avatar">
+                        {{ seller.shop_name|slice:":1"|upper }}
+                    </div>
+                    
+                    <!-- Info -->
+                    <div class="seller-info" style="flex:1;min-width:200px;">
+                        <h4>
+                            <a href="{% url 'items:seller_edit' seller.id %}" 
+                               style="color:var(--blue-500);font-weight:600;text-decoration:none;">
+                                {{ seller.shop_name }}
+                            </a>
+                            <span class="badge-pill {% if not seller.is_verified and seller.is_active %}pending{% elif seller.is_verified %}verified{% else %}rejected{% endif %}">
+                                {% if not seller.is_verified and seller.is_active %}
+                                    <i class="fa fa-clock"></i> Pending
+                                {% elif seller.is_verified %}
+                                    <i class="fa fa-check-circle"></i> Verified
+                                {% else %}
+                                    <i class="fa fa-times-circle"></i> Rejected
+                                {% endif %}
+                            </span>
+                        </h4>
+                        
+                        <div class="seller-meta">
+                            <span><i class="fa fa-user"></i> {{ seller.user.full_name|default:"N/A" }}</span>
+                            <span><i class="fa fa-phone"></i> {{ seller.user.phone }}</span>
+                            {% if seller.gst_number %}
+                                <span><i class="fa fa-file-invoice"></i> GST: {{ seller.gst_number }}</span>
+                            {% endif %}
+                            <span><i class="fa fa-box"></i> {{ seller.product_count|default:0 }} Products</span>
+                        </div>
+                        
+                        <p style="font-size:0.85rem;color:var(--gray-500);margin:8px 0 0;line-height:1.5;">
+                            {{ seller.shop_description|truncatechars:120|default:"No description provided" }}
+                        </p>
+                        
+                        <p style="font-size:0.75rem;color:var(--gray-400);margin:6px 0 0;">
+                            <i class="fa fa-calendar"></i> Registered: {{ seller.created_at|date:"M d, Y" }}
+                        </p>
+                    </div>
+                </div>
+                
+                <!-- ✅ Simplified Actions: Edit + View only -->
+                <div class="seller-actions">
+                    <!-- Edit Button - Goes to full edit page with verify/reject options -->
+                    <a href="{% url 'items:seller_edit' seller.id %}" 
+                       class="btn-edit"
+                       title="Edit seller details, verify or reject">
+                        <i class="fa fa-pencil"></i> Edit
+                    </a>
+                    
+                    <!-- View Button - Opens modal with read-only details -->
+                    <button class="btn-view-modal" 
+                            onclick="openSellerModal({{ seller.id }})"
+                            title="View seller details">
+                        <i class="fa fa-eye"></i> View
+                    </button>
+                </div>
+            </article>
+            {% empty %}
+            <div class="empty-verify">
+                <i class="fa fa-clipboard-check"></i>
+                <h3>No sellers found</h3>
+                <p>{% if search_query %}Try adjusting your search or filters.{% else %}All caught up! No pending sellers to review.{% endif %}</p>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Pagination -->
+        {% if has_prev or has_next %}
+        <div class="pagination-admin">
+            {% if has_prev %}
+                <a href="?page={{ page|add:'-1' }}&status={{ current_filter }}&search={{ search_query }}" class="page-link">←</a>
+            {% else %}
+                <span class="page-link" disabled>←</span>
+            {% endif %}
+            
+            <span class="page-link active">{{ page }}</span>
+            
+            {% if has_next %}
+                <a href="?page={{ page|add:'1' }}&status={{ current_filter }}&search={{ search_query }}" class="page-link">→</a>
+            {% else %}
+                <span class="page-link" disabled>→</span>
+            {% endif %}
+        </div>
+        {% endif %}
+        
+    </div>
+</section>
+
+<!-- ✅ Seller Detail Modal (View Only) -->
+<div id="sellerModal" class="modal" role="dialog" aria-modal="true">
+    <div class="modal-content">
+        <div class="modal-header-bar">
+            <h3>
+                <i class="fa fa-store" style="color:var(--blue-400);"></i> 
+                <span id="modalSellerName">Seller Details</span>
+            </h3>
+            <button class="modal-close" id="closeSellerModal" aria-label="Close">
+                <i class="fa fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" id="sellerModalBody">
+            <div style="text-align:center;padding:40px;">
+                <i class="fa fa-spinner fa-spin" style="font-size:2rem;color:var(--blue-400);"></i>
+                <p style="margin-top:12px;color:var(--gray-500);">Loading seller details...</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // ── Modal Functions ──
+    const sellerModal = document.getElementById('sellerModal');
+    
+    function openModal(modal) {
+        modal?.classList.add('show');
+        document.body.style.overflow = 'hidden';
+    }
+    function closeModal(modal) {
+        modal?.classList.remove('show');
+        document.body.style.overflow = '';
+    }
+    
+    window.openSellerModal = async function(sellerId) {
+        const body = document.getElementById('sellerModalBody');
+        body.innerHTML = `<div style="text-align:center;padding:40px;"><i class="fa fa-spinner fa-spin" style="font-size:2rem;color:var(--blue-400);"></i><p style="margin-top:12px;color:var(--gray-500);">Loading...</p></div>`;
+        
+        openModal(sellerModal);
+        
+        try {
+            const res = await fetch(`/items/admin/api/seller/${sellerId}/`, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            
+            if (res.ok) {
+                const data = await res.json();
+                document.getElementById('modalSellerName').textContent = data.shop_name || 'Seller';
+                body.innerHTML = `
+                    <div class="seller-detail-row"><strong>Shop Name</strong><span>${data.shop_name || 'N/A'}</span></div>
+                    <div class="seller-detail-row"><strong>Owner</strong><span>${data.owner_name || 'N/A'}</span></div>
+                    <div class="seller-detail-row"><strong>Phone</strong><span>${data.phone || 'N/A'}</span></div>
+                    ${data.gst_number ? `<div class="seller-detail-row"><strong>GST</strong><span>${data.gst_number}</span></div>` : ''}
+                    <div class="seller-detail-row"><strong>Products</strong><span>${data.product_count || 0} Published</span></div>
+                    <div class="seller-detail-row"><strong>Status</strong><span>${data.is_verified ? '✅ Verified' : (data.is_active ? '⏳ Pending' : '❌ Rejected')}</span></div>
+                    <div class="seller-detail-row" style="flex-direction:column;align-items:flex-start;padding-top:14px;">
+                        <strong style="margin-bottom:6px;">Description</strong>
+                        <span style="color:var(--gray-600);line-height:1.5;">${data.description || 'No description provided'}</span>
+                    </div>
+                `;
+            } else {
+                body.innerHTML = `<p style="color:var(--red);text-align:center;">Failed to load details</p>`;
+            }
+        } catch (err) {
+            body.innerHTML = `<p style="color:var(--red);text-align:center;">Failed to load details</p>`;
+        }
+    };
+    
+    // Close modal
+    document.getElementById('closeSellerModal')?.addEventListener('click', () => closeModal(sellerModal));
+    sellerModal?.addEventListener('click', (e) => { if (e.target === sellerModal) closeModal(sellerModal); });
+    
+    // Escape key closes modal
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeModal(sellerModal);
+        }
+    });
+});
+</script>
+{% endblock %}

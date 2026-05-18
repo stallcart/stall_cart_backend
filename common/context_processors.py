@@ -1,6 +1,6 @@
 from .models import SiteSettings
 from django.core.cache import cache
-from items.models import Category
+from items.models import Category,SellerProfile
 from shop.models import Cart 
 def site_settings(request):
     settings = SiteSettings.get_singleton()
@@ -78,8 +78,24 @@ def cart_and_wishlist(request):
         # Guest cart from session
         cart = request.session.get('cart', {})
         cart_count = sum(cart.values())
-
+    admin_pending_count = 0
+    admin_verified_count = 0
+    
+    if request.user.is_authenticated and (request.user.is_superuser or request.user.has_perm('items.verify_seller')):
+        admin_pending_count = SellerProfile.objects.filter(
+            is_verified=False, 
+            is_active=True
+        ).count()
+        admin_verified_count = SellerProfile.objects.filter(
+            is_verified=True, 
+            is_active=True
+        ).count()
     return {
         'cart_count': cart_count,
         'wishlist_count': wishlist_count,
+        'admin_pending_sellers': admin_pending_count,
+        'admin_verified_sellers': admin_verified_count,
+        'show_admin_verify_link': request.user.is_authenticated and (
+            request.user.is_superuser or request.user.has_perm('items.verify_seller')
+        ),
     }

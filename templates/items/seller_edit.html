@@ -1,0 +1,628 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Edit Seller: {{ seller.shop_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Seller Edit Page — Design System Aligned */
+.edit-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 20px 0;
+    border-bottom: 1px solid var(--gray-200);
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+.edit-header h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--gray-900);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.edit-header h1 i { color: var(--blue-500); }
+
+.edit-container {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+}
+@media (min-width: 900px) {
+    .edit-container { grid-template-columns: 2fr 1fr; }
+}
+
+/* Edit Form Card */
+.edit-card {
+    background: var(--white);
+    border-radius: var(--r-lg);
+    border: 1.5px solid var(--gray-200);
+    padding: 24px;
+}
+.edit-card h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin: 0 0 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--gray-100);
+}
+
+.form-grid {
+    display: grid;
+    gap: 16px;
+}
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+}
+@media (min-width: 640px) {
+    .form-row { grid-template-columns: 1fr 1fr; }
+}
+
+.form-group label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--gray-700);
+    margin-bottom: 6px;
+}
+.form-group input,
+.form-group textarea,
+.form-group select {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1.5px solid var(--gray-200);
+    border-radius: var(--r-md);
+    font-size: 0.9rem;
+    color: var(--gray-800);
+    background: var(--white);
+    font-family: inherit;
+    transition: all var(--tr);
+}
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: var(--blue-400);
+    box-shadow: 0 0 0 3px rgba(40,116,240,0.1);
+}
+.form-group textarea { min-height: 100px; resize: vertical; }
+
+/* Status Section */
+.status-section {
+    background: var(--gray-50);
+    border-radius: var(--r-md);
+    padding: 16px;
+    margin: 20px 0;
+}
+.status-section h4 {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--gray-800);
+    margin: 0 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.status-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.status-option {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.875rem;
+    color: var(--gray-700);
+}
+.status-option input {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--blue-500);
+}
+
+/* Action Buttons */
+.form-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 24px;
+    flex-wrap: wrap;
+}
+.btn-save {
+    background: var(--green);
+    color: #fff;
+    padding: 10px 24px;
+    border: none;
+    border-radius: var(--r-md);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--tr);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.btn-save:hover { background: #0d9668; transform: translateY(-1px); }
+.btn-cancel {
+    background: var(--gray-100);
+    color: var(--gray-700);
+    padding: 10px 20px;
+    border: 1.5px solid var(--gray-200);
+    border-radius: var(--r-md);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--tr);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.btn-cancel:hover { background: var(--gray-200); }
+.btn-danger {
+    background: var(--red);
+    color: #fff;
+    padding: 10px 20px;
+    border: none;
+    border-radius: var(--r-md);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--tr);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.btn-danger:hover { background: #dc2626; transform: translateY(-1px); }
+
+/* Sidebar Info */
+.info-card {
+    background: var(--white);
+    border-radius: var(--r-lg);
+    border: 1.5px solid var(--gray-200);
+    padding: 20px;
+    align-self: start;
+    position: sticky;
+    top: 80px;
+}
+.info-card h4 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin: 0 0 16px;
+}
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px dashed var(--gray-200);
+    font-size: 0.875rem;
+}
+.info-row:last-child { border-bottom: none; }
+.info-row strong { color: var(--gray-600); }
+.info-row span { color: var(--gray-900); font-weight: 600; }
+
+.status-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+.status-badge.pending { background: var(--amber-light); color: var(--amber); }
+.status-badge.verified { background: var(--green-light); color: var(--green); }
+.status-badge.rejected { background: var(--red-light); color: var(--red); }
+
+/* ✅ FIXED: Modal aligned with base.html design system */
+#rejectModal.modal-overlay {
+    /* Use same structure as login modal in base.html */
+    background: rgba(10,20,50,0.65);
+    backdrop-filter: blur(6px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1500;
+    padding: 16px;
+    font-family: 'DM Sans', sans-serif;
+}
+#rejectModal.modal-overlay.show {
+    display: flex;
+}
+#rejectModal .modal-sheet {
+    background: var(--white);
+    border-radius: var(--r-2xl);
+    width: 100%;
+    max-width: 480px;
+    max-height: 92vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--sh-xl);
+    transform: scale(0.93) translateY(16px);
+    transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+}
+#rejectModal.modal-overlay.show .modal-sheet {
+    transform: scale(1) translateY(0);
+}
+
+/* Modal header matching base.html */
+#rejectModal .modal-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 24px 24px 20px;
+    border-bottom: 1px solid var(--gray-100);
+    flex-shrink: 0;
+}
+#rejectModal .modal-top h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--red);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+#rejectModal .modal-x {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid var(--gray-200);
+    border-radius: var(--r-md);
+    background: none;
+    color: var(--gray-500);
+    font-size: 0.875rem;
+    flex-shrink: 0;
+    transition: all var(--tr);
+    cursor: pointer;
+}
+#rejectModal .modal-x:hover {
+    background: var(--red-light);
+    border-color: var(--red);
+    color: var(--red);
+}
+
+/* Modal body with proper padding */
+#rejectModal .modal-body {
+    padding: 24px;
+    flex: 1;
+}
+
+/* ✅ FIXED: Reason field using design system form styles */
+#rejectModal .field-group {
+    margin-bottom: 16px;
+}
+#rejectModal .field-label {
+    display: block;
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: var(--gray-700);
+    margin-bottom: 6px;
+}
+#rejectModal .field-wrap {
+    /* Optional wrapper if you want prefix icon */
+}
+#rejectModal textarea.field-input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1.5px solid var(--gray-200);
+    border-radius: var(--r-md);
+    font-size: 0.9rem;
+    color: var(--gray-800);
+    background: var(--white);
+    font-family: inherit;
+    resize: vertical;
+    min-height: 100px;
+    transition: all var(--tr);
+}
+#rejectModal textarea.field-input:focus {
+    outline: none;
+    border-color: var(--blue-400);
+    box-shadow: 0 0 0 3px rgba(40,116,240,0.1);
+}
+#rejectModal textarea.field-input::placeholder {
+    color: var(--gray-400);
+}
+
+/* Modal footer with buttons */
+#rejectModal .modal-foot {
+    padding: 16px 24px 24px;
+    border-top: 1px solid var(--gray-100);
+    background: var(--gray-50);
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    flex-shrink: 0;
+    border-radius: 0 0 var(--r-2xl) var(--r-2xl);
+}
+
+/* Mobile: slide up modal */
+@media (max-width: 480px) {
+    #rejectModal.modal-overlay {
+        padding: 0;
+        align-items: flex-end;
+    }
+    #rejectModal .modal-sheet {
+        max-width: 100%;
+        border-radius: var(--r-2xl) var(--r-2xl) 0 0;
+        max-height: 95dvh;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="section-wrap">
+    <div class="container">
+        
+        <!-- Header -->
+        <div class="edit-header">
+            <h1>
+                <i class="fa fa-pencil"></i>
+                Edit Seller: {{ seller.shop_name }}
+            </h1>
+            <a href="{% url 'items:verify_sellers' %}" class="btn-cancel" style="width:auto;">
+                <i class="fa fa-arrow-left"></i> Back to List
+            </a>
+        </div>
+        
+        <div class="edit-container">
+            <!-- Edit Form -->
+            <div class="edit-card">
+                <h3><i class="fa fa-edit"></i> Seller Details</h3>
+                
+                <form method="post" id="sellerEditForm">
+                    {% csrf_token %}
+                    
+                    <div class="form-grid">
+                        <!-- Shop Name -->
+                        <div class="form-group">
+                            <label for="shop_name">Shop Name *</label>
+                            <input type="text" id="shop_name" name="shop_name" 
+                                   value="{{ seller.shop_name }}" required
+                                   placeholder="Enter shop name"
+                                   class="form-input">
+                        </div>
+                        
+                        <!-- GST Number -->
+                        <div class="form-group">
+                            <label for="gst_number">GST Number</label>
+                            <input type="text" id="gst_number" name="gst_number" 
+                                   value="{{ seller.gst_number|default:'' }}"
+                                   placeholder="Enter GST number (optional)"
+                                   class="form-input">
+                        </div>
+                        
+                        <!-- Phone (read-only, from user) -->
+                        <div class="form-group">
+                            <label>Phone Number</label>
+                            <input type="text" value="{{ seller.user.phone }}" disabled
+                                   style="background:var(--gray-50);color:var(--gray-500);"
+                                   class="form-input">
+                            <small style="color:var(--gray-400);">Contact: {{ seller.user.full_name|default:"N/A" }}</small>
+                        </div>
+                        
+                        <!-- Description -->
+                        <div class="form-group" style="grid-column: 1 / -1;">
+                            <label for="shop_description">Shop Description</label>
+                            <textarea id="shop_description" name="shop_description" 
+                                      placeholder="Describe the shop, products, specialties..."
+                                      class="form-input">{{ seller.shop_description }}</textarea>
+                        </div>
+                    </div>
+                    
+                    <!-- Status Controls -->
+                    <div class="status-section">
+                        <h4><i class="fa fa-toggle-on"></i> Seller Status</h4>
+                        <div class="status-options">
+                            <label class="status-option">
+                                <input type="checkbox" name="is_verified" {% if seller.is_verified %}checked{% endif %}>
+                                ✅ Verified (can list products)
+                            </label>
+                            <label class="status-option">
+                                <input type="checkbox" name="is_active" {% if seller.is_active %}checked{% endif %}>
+                                🟢 Active (account enabled)
+                            </label>
+                        </div>
+                        <p style="font-size:0.8rem;color:var(--gray-500);margin:10px 0 0;">
+                            <i class="fa fa-info-circle"></i> 
+                            Uncheck "Verified" to suspend selling privileges. Uncheck "Active" to reject/deactivate the seller.
+                        </p>
+                    </div>
+                    
+                    <!-- Form Actions -->
+                    <div class="form-actions">
+                        <a href="{% url 'items:verify_sellers' %}" class="btn-cancel">
+                            <i class="fa fa-times"></i> Cancel
+                        </a>
+                        {% if not seller.is_verified and seller.is_active %}
+                        <button type="button" class="btn-danger" id="rejectBtn">
+                            <i class="fa fa-times-circle"></i> Reject Seller
+                        </button>
+                        {% endif %}
+                        <button type="submit" class="btn-save">
+                            <i class="fa fa-check"></i> Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Sidebar: Quick Info -->
+            <aside class="info-card">
+                <h4><i class="fa fa-info-circle"></i> Quick Info</h4>
+                
+                <div class="info-row">
+                    <strong>Joined</strong>
+                    <span>{{ seller.created_at|date:"M d, Y" }}</span>
+                </div>
+                <div class="info-row">
+                    <strong>Products</strong>
+                    <span>{{ seller.product_count|default:0 }} Published</span>
+                </div>
+                <div class="info-row">
+                    <strong>Status</strong>
+                    <span>
+                        <span class="status-badge {% if not seller.is_verified and seller.is_active %}pending{% elif seller.is_verified %}verified{% else %}rejected{% endif %}">
+                            {% if not seller.is_verified and seller.is_active %}Pending{% elif seller.is_verified %}Verified{% else %}Rejected{% endif %}
+                        </span>
+                    </span>
+                </div>
+                <div class="info-row">
+                    <strong>User ID</strong>
+                    <span>#{{ seller.user.id }}</span>
+                </div>
+                
+                {% if seller.is_verified and seller.is_active %}
+                <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--gray-200);">
+                    <p style="font-size:0.85rem;color:var(--green);font-weight:600;">
+                        <i class="fa fa-check-circle"></i> This seller is verified and active
+                    </p>
+                </div>
+                {% elif not seller.is_active %}
+                <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--gray-200);">
+                    <p style="font-size:0.85rem;color:var(--red);font-weight:600;">
+                        <i class="fa fa-times-circle"></i> This seller is rejected/inactive
+                    </p>
+                </div>
+                {% endif %}
+            </aside>
+        </div>
+        
+    </div>
+</section>
+
+<!-- ✅ FIXED: Reject Modal aligned with base.html design system -->
+<div id="rejectModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="rejectModalTitle">
+    <div class="modal-sheet">
+        
+        <!-- Modal Header -->
+        <div class="modal-top">
+            <div style="display:flex;align-items:center;gap:10px;">
+                <div style="width:40px;height:40px;border-radius:var(--r-lg);background:linear-gradient(135deg,var(--red),#c62828);display:flex;align-items:center;justify-content:center;color:#fff;font-size:1rem;">
+                    <i class="fa fa-exclamation-triangle"></i>
+                </div>
+                <div>
+                    <h3 id="rejectModalTitle" style="font-size:1.1rem;font-weight:700;color:var(--gray-900);margin:0 0 2px;">
+                        Reject Seller
+                    </h3>
+                    <p style="font-size:0.8rem;color:var(--gray-500);margin:0;">
+                        Confirm rejection of {{ seller.shop_name }}
+                    </p>
+                </div>
+            </div>
+            <button class="modal-x" id="closeRejectModal" aria-label="Close">
+                <i class="fa fa-times"></i>
+            </button>
+        </div>
+        
+        <!-- Modal Body -->
+        <div class="modal-body">
+            <p style="margin-bottom:16px;font-size:0.9rem;color:var(--gray-600);line-height:1.6;">
+                Are you sure you want to reject <strong>{{ seller.shop_name }}</strong>?<br>
+                This will deactivate their account and hide their products from the marketplace.
+            </p>
+            
+            <form id="rejectForm" method="post" action="{% url 'items:verify_seller_action' seller.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="reject">
+                
+                <!-- ✅ FIXED: Reason field using proper form-group structure -->
+                <div class="field-group">
+                    <label class="field-label" for="rejectReason">
+                        Reason for Rejection <small style="color:var(--gray-400);font-weight:400;">(optional)</small>
+                    </label>
+                    <textarea id="rejectReason" name="reason" 
+                              class="field-input"
+                              placeholder="e.g., Incomplete documents, Policy violation, Suspicious activity..."></textarea>
+                </div>
+                
+                <!-- Modal Footer with Buttons -->
+                <div class="modal-foot">
+                    <button type="button" class="btn-cancel" id="cancelRejectBtn" style="width:auto;padding:10px 20px;">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn-danger" style="width:auto;padding:10px 20px;">
+                        <i class="fa fa-times-circle"></i> Confirm Reject
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Reject button opens modal
+    const rejectBtn = document.getElementById('rejectBtn');
+    const rejectModal = document.getElementById('rejectModal');
+    
+    function openRejectModal() {
+        if (rejectModal) {
+            rejectModal.classList.add('show');
+            document.body.style.overflow = 'hidden';
+            // Focus reason field after animation
+            setTimeout(() => document.getElementById('rejectReason')?.focus(), 300);
+        }
+    }
+    
+    function closeRejectModal() {
+        if (rejectModal) {
+            rejectModal.classList.remove('show');
+            document.body.style.overflow = '';
+        }
+    }
+    
+    if (rejectBtn && rejectModal) {
+        rejectBtn.addEventListener('click', openRejectModal);
+        
+        document.getElementById('closeRejectModal')?.addEventListener('click', closeRejectModal);
+        document.getElementById('cancelRejectBtn')?.addEventListener('click', closeRejectModal);
+        
+        // Close on overlay click
+        rejectModal.addEventListener('click', (e) => {
+            if (e.target === rejectModal) closeRejectModal();
+        });
+    }
+    
+    // Form validation for seller edit
+    const form = document.getElementById('sellerEditForm');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const shopName = document.getElementById('shop_name').value.trim();
+            if (!shopName) {
+                e.preventDefault();
+                if (typeof window.showToast === 'function') {
+                    window.showToast('Shop name is required', 'error');
+                }
+                document.getElementById('shop_name').focus();
+            }
+        });
+    }
+    
+    // Escape key closes modal
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && rejectModal?.classList.contains('show')) {
+            closeRejectModal();
+        }
+    });
+});
+</script>
+{% endblock %}

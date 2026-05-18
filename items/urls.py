@@ -54,5 +54,9 @@ urlpatterns = [
       path('review/<int:review_id>/update/', views.update_review, name='update_review'),
     path('review/<int:review_id>/delete/', views.delete_review, name='delete_review'),
     path('review/<int:review_id>/helpful/', views.mark_helpful, name='mark_helpful'),
+     path('admin/verify-sellers/', views.verify_sellers_view, name='verify_sellers'),
+    path('admin/verify-sellers/<int:seller_id>/action/', views.verify_seller_action, name='verify_seller_action'),
+    path('admin/api/seller/<int:seller_id>/', views.seller_detail_api, name='seller_detail_api'),
+    path('admin/seller/<int:seller_id>/edit/', views.seller_edit_view, name='seller_edit'),
 
 ]
