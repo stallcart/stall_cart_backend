@@ -3,7 +3,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from django.db.models import Sum
-
+from orders.models import OrderItem
 from .models import (
     SellerProfile,
     Category,
@@ -184,18 +184,16 @@ class SellerProfileAdmin(admin.ModelAdmin):
     product_count.short_description = "Products"
 
     def total_sales(self, obj):
-
-        from orders.models import OrderItem
+        
 
         total = OrderItem.objects.filter(
             product__seller=obj,
             order__status='Delivered'
         ).aggregate(total=Sum('price'))['total'] or 0
 
-        return format_html(
-            '<strong>₹{:,.2f}</strong>',
-            total
-        )
+        # ✅ Format the number FIRST, then pass to format_html
+        formatted = f"₹{total:,.2f}"
+        return format_html('<strong>{}</strong>', formatted)
 
     total_sales.short_description = "Total Sales"
 

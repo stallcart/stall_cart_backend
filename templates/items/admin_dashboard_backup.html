@@ -33,7 +33,6 @@
             <i class="fa fa-ban"></i> Out of Stock
             <span class="tab-count danger">{{ stats.out_of_stock }}</span>
         </a>
-        <!-- Add New always on the right -->
         <a href="{% url 'items:product_create' %}" class="dash-tab add-tab">
             <i class="fa fa-plus"></i> Add New Item
         </a>
@@ -54,12 +53,12 @@
 
     <!-- ══ Stats Cards ══════════════════════════════════════════════════════ -->
     <div class="stats-grid">
-        <div class="stat-card"><span>{{ stats.total }}</span><small>Total Items</small></div>
-        <div class="stat-card success"><span>{{ stats.published }}</span><small>Published</small></div>
-        <div class="stat-card neutral"><span>{{ stats.draft }}</span><small>Draft</small></div>
-        <div class="stat-card warning"><span>{{ stats.low_stock }}</span><small>Low Stock</small></div>
-        <div class="stat-card danger"><span>{{ stats.out_of_stock }}</span><small>Out of Stock</small></div>
-        <div class="stat-card info"><span>₹{{ stats.total_value|floatformat:0 }}</span><small>Inventory Value</small></div>
+        <div class="stat-card">           <span>{{ stats.total }}</span>                         <small>Total Items</small></div>
+        <div class="stat-card success">   <span>{{ stats.published }}</span>                     <small>Published</small></div>
+        <div class="stat-card neutral">   <span>{{ stats.draft }}</span>                         <small>Draft</small></div>
+        <div class="stat-card warning">   <span>{{ stats.low_stock }}</span>                     <small>Low Stock</small></div>
+        <div class="stat-card danger">    <span>{{ stats.out_of_stock }}</span>                  <small>Out of Stock</small></div>
+        <div class="stat-card info">      <span>₹{{ stats.total_value|floatformat:0 }}</span>   <small>Inventory Value</small></div>
     </div>
 
     <!-- ══ Filters ══════════════════════════════════════════════════════════ -->
@@ -118,46 +117,46 @@
                     data-name="{{ product.name|lower }}"
                     data-sku="{{ product.sku|lower }}">
 
-                    <td class="item-cell">
-                        <a href="{% url 'items:product_detail' product.slug %}" target="_blank" class="product-link">
-                            
+                    <!-- Item cell: thumbnail + name + badges -->
+                    <td>
+                        <div class="item-cell">
                             {% if product.primary_image %}
-                                <img src="{{ product.primary_image.url }}" alt="{{ product.name }}">
+                                <img src="{{ product.primary_image.url }}" alt="{{ product.name }}" class="prod-thumb">
                             {% else %}
-                                <div class="img-placeholder">No Image</div>
+                                <div class="img-placeholder"><i class="fa fa-image"></i></div>
                             {% endif %}
-                            
                             <div class="item-info">
-                                <strong>{{ product.name }}</strong>
+                                <strong>{{ product.name|truncatechars:38 }}</strong>
                                 <small class="text-muted">SKU: {{ product.sku|default:"—" }}</small>
-                                
-                                {% if product.is_featured %}
-                                    <span class="mini-badge featured">★ Featured</span>
-                                {% endif %}
-                                {% if product.is_hot_deal %}
-                                    <span class="mini-badge hot">🔥 Hot</span>
-                                {% endif %}
+                                <div class="badge-row">
+                                    {% if product.is_featured %}<span class="mini-badge featured">★ Featured</span>{% endif %}
+                                    {% if product.is_hot_deal %}<span class="mini-badge hot">🔥 Hot</span>{% endif %}
+                                    {% if product.gender %}<span class="mini-badge gender">{{ product.get_gender_display }}</span>{% endif %}
+                                </div>
                             </div>
-
-                        </a>
+                        </div>
                     </td>
 
+                    <!-- Category -->
                     <td>{{ product.category.name|default:"Uncategorized" }}</td>
 
+                    <!-- Seller (superuser only) -->
                     {% if is_superuser %}
-                    <td><span class="seller-tag">{{ product.seller.shop_name }}</span></td>
+                    <td><span class="seller-tag">{{ product.seller.shop_name|truncatechars:18 }}</span></td>
                     {% endif %}
 
-                    <td>
+                    <!-- Price -->
+                    <td class="price-cell">
                         {% if product.discount_percent > 0 %}
-                            <span class="price-original">₹{{ product.price }}</span><br>
+                            <span class="price-original">₹{{ product.price }}</span>
                             <strong class="price-final">₹{{ product.discount_price|floatformat:2 }}</strong>
-                            <span class="discount-badge">-{{ product.discount_percent }}%</span>
+                            <span class="discount-chip">-{{ product.discount_percent }}%</span>
                         {% else %}
                             <strong>₹{{ product.price }}</strong>
                         {% endif %}
                     </td>
 
+                    <!-- Stock -->
                     <td>
                         {% if product.stock == 0 %}
                             <span class="badge danger">0 — Out</span>
@@ -168,28 +167,78 @@
                         {% endif %}
                     </td>
 
+                    <!-- Status badge (read-only label) -->
                     <td>
-                        <span class="badge
-                            {% if product.status == 'published'     %}success
-                            {% elif product.status == 'draft'        %}neutral
-                            {% elif product.status == 'discontinued' %}danger
-                            {% else %}warning{% endif %}">
-                            {{ product.get_status_display }}
+                        <span class="status-pill
+                            {% if product.status == 'published'     %}status-published
+                            {% elif product.status == 'draft'        %}status-draft
+                            {% elif product.status == 'discontinued' %}status-discontinued
+                            {% else %}status-oos{% endif %}"
+                            id="status-pill-{{ product.id }}">
+                            {% if product.status == 'published'     %}✅ Published
+                            {% elif product.status == 'draft'        %}📝 Draft
+                            {% elif product.status == 'out_of_stock' %}📦 Out of Stock
+                            {% elif product.status == 'discontinued' %}🚫 Archived
+                            {% else %}{{ product.get_status_display }}{% endif %}
                         </span>
                     </td>
 
-                    <td class="actions">
-                        <a href="{% url 'items:product_edit' product.id %}" class="btn-icon edit" title="Edit">✏️</a>
-                        {% if product.status != 'discontinued' %}
-                        <button class="btn-icon toggle" data-id="{{ product.id }}" data-status="{{ product.status }}"
-                                title="{% if product.status == 'published' %}Unpublish{% else %}Publish{% endif %}">
-                            {% if product.status == 'published' %}👁️{% else %}🚀{% endif %}
-                        </button>
-                        <button class="btn-icon delete" data-id="{{ product.id }}" title="Archive">🗑️</button>
-                        {% else %}
-                        <span class="archived-label">Archived</span>
-                        {% endif %}
+                    <!-- ── Actions ── -->
+                    <td>
+                        <div class="action-group">
+
+                            {# 👁 VIEW — live page, new tab; muted if not published #}
+                            {% if product.status == 'published' %}
+                                <a href="{% url 'items:product_detail' product.slug %}"
+                                   target="_blank"
+                                   rel="noopener noreferrer"
+                                   class="act-btn act-view"
+                                   title="View live product">
+                                    <i class="fa fa-eye"></i><span>View</span>
+                                </a>
+                            {% else %}
+                                <span class="act-btn act-view-off" title="Publish to view live">
+                                    <i class="fa fa-eye-slash"></i><span>View</span>
+                                </span>
+                            {% endif %}
+
+                            {# ✏ EDIT #}
+                            <a href="{% url 'items:product_edit' product.id %}"
+                               class="act-btn act-edit"
+                               title="Edit product">
+                                <i class="fa fa-pencil"></i><span>Edit</span>
+                            </a>
+
+                            {# 🔄 TOGGLE — hidden for discontinued #}
+                            {% if product.status != 'discontinued' %}
+                                <button type="button"
+                                        class="act-btn act-toggle"
+                                        data-id="{{ product.id }}"
+                                        data-status="{{ product.status }}"
+                                        id="toggle-btn-{{ product.id }}"
+                                        title="{% if product.status == 'published' %}Unpublish{% else %}Publish{% endif %}">
+                                    {% if product.status == 'published' %}
+                                        <i class="fa fa-toggle-on"></i><span>Unpublish</span>
+                                    {% else %}
+                                        <i class="fa fa-toggle-off"></i><span>Publish</span>
+                                    {% endif %}
+                                </button>
+                            {% endif %}
+
+                            {# 🗑 ARCHIVE — hidden for discontinued #}
+                            {% if product.status != 'discontinued' %}
+                                <button type="button"
+                                        class="act-btn act-archive"
+                                        data-id="{{ product.id }}"
+                                        data-name="{{ product.name|escapejs }}"
+                                        title="Archive product">
+                                    <i class="fa fa-archive"></i><span>Archive</span>
+                                </button>
+                            {% endif %}
+
+                        </div>
                     </td>
+
                 </tr>
                 {% empty %}
                 <tr>
@@ -210,143 +259,293 @@
 <script>
 const csrfToken = '{{ csrf_token }}';
 
+// ── Toast ─────────────────────────────────────────────────────────────────
 function showToast(msg, type = 'success') {
     const t = document.createElement('div');
     t.textContent = msg;
-    t.style.cssText = `position:fixed;bottom:24px;right:24px;z-index:9999;
-        padding:12px 22px;border-radius:8px;font-weight:600;
-        background:${type==='error'?'#c62828':'#2874f0'};color:#fff;
-        box-shadow:0 4px 14px rgba(0,0,0,.18);animation:slideUp .25s ease;`;
+    t.style.cssText = `
+        position:fixed;bottom:24px;right:24px;z-index:9999;
+        padding:12px 22px;border-radius:8px;font-weight:600;font-size:.9rem;
+        background:${type === 'error' ? '#c62828' : type === 'warning' ? '#f57f17' : '#2e7d32'};
+        color:#fff;box-shadow:0 4px 14px rgba(0,0,0,.2);
+        display:flex;align-items:center;gap:8px;
+        animation:slideUp .25s ease;
+    `;
     document.body.appendChild(t);
-    setTimeout(() => t.remove(), 2500);
+    setTimeout(() => {
+        t.style.opacity = '0';
+        t.style.transition = 'opacity .3s';
+        setTimeout(() => t.remove(), 300);
+    }, 2500);
 }
 
-document.querySelectorAll('.btn-icon.toggle').forEach(btn => {
-    btn.addEventListener('click', async () => {
-        const id = btn.dataset.id;
-        try {
-            const res  = await fetch(`/items/product/${id}/toggle/`, { method:'POST', headers:{'X-CSRFToken':csrfToken} });
-            const data = await res.json();
-            if (data.status === 'success') {
-                const row = document.getElementById(`row-${id}`);
-                const ns  = data.new_status;
-                row.dataset.status = ns;
-                const badge = row.querySelector('td:nth-last-child(2) .badge');
-                if (badge) { badge.className=`badge ${ns==='published'?'success':'neutral'}`; badge.textContent=ns==='published'?'Published':'Draft'; }
-                btn.dataset.status = ns; btn.title = ns==='published'?'Unpublish':'Publish'; btn.textContent = ns==='published'?'👁️':'🚀';
-                showToast(data.message);
-            } else showToast(data.message||'Error','error');
-        } catch { showToast('Network error','error'); }
-    });
+// ── Toggle published ↔ draft ──────────────────────────────────────────────
+document.addEventListener('click', async function (e) {
+    const btn = e.target.closest('.act-toggle');
+    if (!btn) return;
+
+    const id = btn.dataset.id;
+    const originalHTML = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i><span>...</span>';
+
+    try {
+        const res  = await fetch(`/items/product/${id}/toggle/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        const data = await res.json();
+
+        if (data.status === 'success') {
+            const ns  = data.new_status;
+            const row = document.getElementById(`row-${id}`);
+
+            // 1. Update status pill
+            const pill = document.getElementById(`status-pill-${id}`);
+            if (pill) {
+                pill.className = `status-pill ${ns === 'published' ? 'status-published' : 'status-draft'}`;
+                pill.textContent = ns === 'published' ? '✅ Published' : '📝 Draft';
+            }
+
+            // 2. Swap toggle button label + icon
+            btn.dataset.status = ns;
+            btn.title = ns === 'published' ? 'Unpublish' : 'Publish';
+            btn.innerHTML = ns === 'published'
+                ? '<i class="fa fa-toggle-on"></i><span>Unpublish</span>'
+                : '<i class="fa fa-toggle-off"></i><span>Publish</span>';
+
+            // 3. Swap View button (active ↔ muted)
+            const viewActive = row.querySelector('.act-view');
+            const viewOff    = row.querySelector('.act-view-off');
+
+            if (ns === 'published' && viewOff) {
+                // Replace muted span with real anchor
+                const slug = viewOff.dataset.slug || '';   // slug set below
+                viewOff.outerHTML = `<a href="/items/product/${id}/" target="_blank" rel="noopener noreferrer"
+                    class="act-btn act-view" title="View live product" data-id="${id}">
+                    <i class="fa fa-eye"></i><span>View</span></a>`;
+            } else if (ns !== 'published' && viewActive) {
+                viewActive.outerHTML = `<span class="act-btn act-view-off" title="Publish to view live">
+                    <i class="fa fa-eye-slash"></i><span>View</span></span>`;
+            }
+
+            showToast(data.message);
+        } else {
+            showToast(data.message || 'Failed to toggle status', 'error');
+            btn.innerHTML = originalHTML;
+        }
+    } catch (err) {
+        showToast('Network error: ' + err.message, 'error');
+        btn.innerHTML = originalHTML;
+    } finally {
+        btn.disabled = false;
+    }
 });
 
-document.querySelectorAll('.btn-icon.delete').forEach(btn => {
-    btn.addEventListener('click', async () => {
-        if (!confirm('Archive this item? It will be hidden from the shop.')) return;
-        const id = btn.dataset.id;
-        try {
-            const res  = await fetch(`/items/product/${id}/delete/`, { method:'POST', headers:{'X-CSRFToken':csrfToken} });
-            const data = await res.json();
-            if (data.status === 'success') {
-                const row = document.getElementById(`row-${id}`);
-                const badge = row.querySelector('td:nth-last-child(2) .badge');
-                if (badge) { badge.className='badge danger'; badge.textContent='Discontinued'; }
-                const actions = row.querySelector('.actions');
-                if (actions) actions.innerHTML = '<span class="archived-label">Archived</span>';
-                showToast(data.message);
-            } else showToast(data.message||'Error','error');
-        } catch { showToast('Network error','error'); }
-    });
+// ── Archive ───────────────────────────────────────────────────────────────
+document.addEventListener('click', async function (e) {
+    const btn = e.target.closest('.act-archive');
+    if (!btn) return;
+
+    const id   = btn.dataset.id;
+    const name = btn.dataset.name;
+
+    if (!confirm(`Archive "${name}"?\nThis hides it from customers but keeps it in your dashboard.`)) return;
+
+    const originalHTML = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i><span>...</span>';
+
+    try {
+        const res  = await fetch(`/items/product/${id}/delete/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        const data = await res.json();
+
+        if (data.status === 'success') {
+            const row = document.getElementById(`row-${id}`);
+
+            // Update status pill
+            const pill = document.getElementById(`status-pill-${id}`);
+            if (pill) {
+                pill.className = 'status-pill status-discontinued';
+                pill.textContent = '🚫 Archived';
+            }
+
+            // Remove toggle + archive buttons; keep view (muted) + edit
+            row.querySelector('.act-toggle')?.remove();
+            btn.remove();
+
+            // Mute the View button
+            const viewActive = row.querySelector('.act-view');
+            if (viewActive) {
+                viewActive.outerHTML = `<span class="act-btn act-view-off" title="Product is archived">
+                    <i class="fa fa-eye-slash"></i><span>View</span></span>`;
+            }
+
+            showToast(data.message);
+        } else {
+            showToast(data.message || 'Failed to archive', 'error');
+            btn.innerHTML = originalHTML;
+            btn.disabled = false;
+        }
+    } catch (err) {
+        showToast('Network error: ' + err.message, 'error');
+        btn.innerHTML = originalHTML;
+        btn.disabled = false;
+    }
 });
 </script>
+{% endblock %}
 
+
+{% block extra_css %}
 <style>
-@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes slideUp { from { transform:translateY(20px);opacity:0 } to { transform:translateY(0);opacity:1 } }
 
-/* Tab Bar */
-.dash-tabs{display:flex;align-items:center;gap:4px;background:#fff;border-radius:12px;padding:6px;margin-bottom:22px;box-shadow:0 2px 8px rgba(0,0,0,.07);overflow-x:auto;flex-wrap:nowrap;}
-.dash-tab{display:flex;align-items:center;gap:7px;padding:9px 16px;border-radius:8px;color:#555;text-decoration:none;font-size:.88rem;font-weight:500;white-space:nowrap;transition:all .2s;}
-.dash-tab:hover{background:#f0f4ff;color:#2874f0;}
-.dash-tab.active{background:#2874f0;color:#fff!important;}
-.dash-tab.active .tab-count{background:rgba(255,255,255,.3);color:#fff;}
-.tab-count{background:#f0f0f0;color:#555;font-size:.72rem;font-weight:700;padding:2px 7px;border-radius:20px;min-width:22px;text-align:center;}
-.tab-count.success{background:#e8f5e9;color:#2e7d32;}
-.tab-count.neutral{background:#f5f5f5;color:#757575;}
-.tab-count.warning{background:#fff8e1;color:#f57f17;}
-.tab-count.danger{background:#ffebee;color:#c62828;}
-.add-tab{margin-left:auto;background:#2874f0;color:#fff!important;font-weight:600;}
-.add-tab:hover{background:#1a56c4;}
+/* ── Shell ── */
+.admin-panel      { max-width:1400px;margin:0 auto;padding:20px; }
+.panel-header     { display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:22px;flex-wrap:wrap;gap:12px; }
+.panel-header h2  { margin:0; }
+.page-subtitle    { color:#888;font-size:.9rem;margin:4px 0 0; }
 
-/* Layout */
-.admin-panel{max-width:1400px;margin:0 auto;padding:20px;}
-.panel-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:22px;}
-.panel-header h2{margin:0;}
-.page-subtitle{color:#888;font-size:.9rem;margin:4px 0 0;}
+/* ── Tab Bar ── */
+.dash-tabs  { display:flex;align-items:center;gap:4px;background:#fff;border-radius:12px;padding:6px;margin-bottom:22px;box-shadow:0 2px 8px rgba(0,0,0,.07);overflow-x:auto;flex-wrap:nowrap; }
+.dash-tab   { display:flex;align-items:center;gap:7px;padding:9px 16px;border-radius:8px;color:#555;text-decoration:none;font-size:.88rem;font-weight:500;white-space:nowrap;transition:all .2s; }
+.dash-tab:hover         { background:#f0f4ff;color:#2874f0; }
+.dash-tab.active        { background:#2874f0;color:#fff!important; }
+.dash-tab.active .tab-count { background:rgba(255,255,255,.3);color:#fff; }
+.tab-count              { background:#f0f0f0;color:#555;font-size:.72rem;font-weight:700;padding:2px 7px;border-radius:20px;min-width:22px;text-align:center; }
+.tab-count.success      { background:#e8f5e9;color:#2e7d32; }
+.tab-count.neutral      { background:#f5f5f5;color:#757575; }
+.tab-count.warning      { background:#fff8e1;color:#f57f17; }
+.tab-count.danger       { background:#ffebee;color:#c62828; }
+.add-tab                { margin-left:auto;background:#2874f0;color:#fff!important;font-weight:600; }
+.add-tab:hover          { background:#1a56c4; }
 
-/* Stats */
-.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:14px;margin-bottom:22px;}
-.stat-card{background:#fff;padding:16px;border-radius:10px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.06);}
-.stat-card span{display:block;font-size:1.5rem;font-weight:700;}
-.stat-card small{color:#666;font-size:.8rem;}
-.stat-card.success{border-top:3px solid #2e7d32;}
-.stat-card.neutral{border-top:3px solid #9e9e9e;}
-.stat-card.warning{border-top:3px solid #f57f17;}
-.stat-card.danger{border-top:3px solid #c62828;}
-.stat-card.info{border-top:3px solid #1976d2;}
+/* ── Stats ── */
+.stats-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:14px;margin-bottom:22px; }
+.stat-card  { background:#fff;padding:16px;border-radius:10px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.06); }
+.stat-card span   { display:block;font-size:1.5rem;font-weight:700; }
+.stat-card small  { color:#666;font-size:.8rem; }
+.stat-card.success { border-top:3px solid #2e7d32; }
+.stat-card.neutral { border-top:3px solid #9e9e9e; }
+.stat-card.warning { border-top:3px solid #f57f17; }
+.stat-card.danger  { border-top:3px solid #c62828; }
+.stat-card.info    { border-top:3px solid #1976d2; }
 
-/* Filters */
-.filters-bar{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap;}
-.form-input{padding:10px;border:1px solid #ddd;border-radius:8px;flex:1;min-width:160px;}
-.form-select{padding:10px;border:1px solid #ddd;border-radius:8px;min-width:140px;}
-.btn-outline{padding:10px 18px;border:1px solid #2874f0;color:#2874f0;background:#fff;border-radius:8px;cursor:pointer;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center;gap:6px;}
-.btn-clear{padding:10px 12px;color:#c62828;text-decoration:none;border-radius:8px;}
+/* ── Filters ── */
+.filters-bar { display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap; }
+.form-input  { padding:10px;border:1px solid #ddd;border-radius:8px;flex:1;min-width:160px; }
+.form-select { padding:10px;border:1px solid #ddd;border-radius:8px;min-width:140px; }
+.btn-outline { padding:10px 18px;border:1px solid #2874f0;color:#2874f0;background:#fff;border-radius:8px;cursor:pointer;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-size:.9rem; }
+.btn-outline:hover { background:#f0f4ff; }
+.btn-clear   { padding:10px 12px;color:#c62828;text-decoration:none;border-radius:8px;font-size:.9rem; }
 
-/* Table */
-.table-wrapper{background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.06);overflow-x:auto;}
-.data-table{width:100%;border-collapse:collapse;min-width:800px;}
-.data-table th{background:#f8f9fa;padding:12px 14px;text-align:left;font-weight:600;color:#444;border-bottom:2px solid #eee;}
-.data-table td{padding:12px 14px;border-bottom:1px solid #f0f0f0;vertical-align:middle;}
-.data-table tr:last-child td{border-bottom:none;}
-.item-cell{display:flex;align-items:center;gap:12px;}
-.item-cell img{width:50px;height:50px;border-radius:6px;object-fit:cover;border:1px solid #eee;}
-.img-placeholder{width:50px;height:50px;border-radius:6px;background:#eee;display:flex;align-items:center;justify-content:center;font-size:.7rem;color:#888;}
-.item-info small{color:#888;display:block;margin-top:2px;}
-.mini-badge{font-size:.68rem;padding:1px 6px;border-radius:10px;margin-left:4px;font-weight:600;}
-.mini-badge.featured{background:#fff8e1;color:#f57f17;}
-.mini-badge.hot{background:#fce4ec;color:#c2185b;}
-.price-original{text-decoration:line-through;color:#999;font-size:.85rem;}
-.price-final{color:#e91e63;}
-.discount-badge{background:#ffebee;color:#c62828;padding:2px 6px;border-radius:3px;font-size:.72rem;margin-left:3px;}
-.badge{padding:4px 10px;border-radius:20px;font-size:.75rem;font-weight:600;}
-.badge.success{background:#e8f5e9;color:#2e7d32;}
-.badge.neutral{background:#f5f5f5;color:#555;}
-.badge.warning{background:#fff8e1;color:#f57f17;}
-.badge.danger{background:#ffebee;color:#c62828;}
-.seller-tag{background:#e3f2fd;color:#1565c0;padding:3px 8px;border-radius:20px;font-size:.8rem;font-weight:600;}
-.actions{display:flex;gap:8px;align-items:center;}
-.btn-icon{width:34px;height:34px;border:none;background:#f5f5f5;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;transition:.2s;text-decoration:none;}
-.btn-icon:hover{background:#e0e0e0;transform:scale(1.08);}
-.archived-label{color:#9e9e9e;font-size:.8rem;font-style:italic;}
-.empty-state{text-align:center;padding:40px;color:#888;}
-.text-muted{color:#888;}
+/* ── Table ── */
+.table-wrapper  { background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.06);overflow-x:auto; }
+.data-table     { width:100%;border-collapse:collapse;min-width:820px; }
+.data-table th  { background:#f8f9fa;padding:12px 14px;text-align:left;font-weight:600;color:#444;border-bottom:2px solid #eee; }
+.data-table td  { padding:11px 14px;border-bottom:1px solid #f0f0f0;vertical-align:middle; }
+.data-table tr:last-child td { border-bottom:none; }
+.data-table tr:hover td { background:#fafbff; }
 
-@media(max-width:768px){
-    .stats-grid{grid-template-columns:repeat(2,1fr);}
-    .filters-bar{flex-direction:column;}
-    .panel-header{flex-direction:column;gap:12px;}
-    .dash-tabs{padding:4px;gap:2px;}
-    .dash-tab{padding:8px 10px;font-size:.8rem;}
-}
+/* Item cell */
+.item-cell  { display:flex;align-items:center;gap:12px; }
+.prod-thumb { width:48px;height:48px;border-radius:7px;object-fit:cover;border:1px solid #eee;flex-shrink:0; }
+.img-placeholder { width:48px;height:48px;border-radius:7px;background:#f0f0f0;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:1.1rem;flex-shrink:0; }
+.item-info  { display:flex;flex-direction:column;gap:2px; }
+.item-info strong { font-size:.9rem;line-height:1.3; }
+.item-info .text-muted { font-size:.78rem; }
+.badge-row  { display:flex;gap:4px;flex-wrap:wrap;margin-top:3px; }
+.mini-badge { font-size:.67rem;padding:1px 6px;border-radius:10px;font-weight:700; }
+.mini-badge.featured { background:#fff8e1;color:#e65100; }
+.mini-badge.hot      { background:#fce4ec;color:#c2185b; }
+.mini-badge.gender   { background:#e3f2fd;color:#1565c0; }
 
-.product-link {
-    display: flex;
+/* Price cell */
+.price-cell { white-space:nowrap; }
+.price-original { text-decoration:line-through;color:#999;font-size:.82rem;display:block; }
+.price-final    { color:#e91e63;font-size:1rem; }
+.discount-chip  { background:#ffebee;color:#c62828;padding:1px 5px;border-radius:3px;font-size:.7rem;margin-left:3px; }
+
+/* Badges */
+.badge          { padding:4px 10px;border-radius:20px;font-size:.75rem;font-weight:600;white-space:nowrap; }
+.badge.success  { background:#e8f5e9;color:#2e7d32; }
+.badge.neutral  { background:#f5f5f5;color:#555; }
+.badge.warning  { background:#fff8e1;color:#f57f17; }
+.badge.danger   { background:#ffebee;color:#c62828; }
+
+/* Status pill */
+.status-pill         { display:inline-block;padding:4px 10px;border-radius:20px;font-size:.75rem;font-weight:700;white-space:nowrap; }
+.status-published    { background:#e8f5e9;color:#2e7d32; }
+.status-draft        { background:#fff8e1;color:#e65100; }
+.status-oos          { background:#fce4ec;color:#c62828; }
+.status-discontinued { background:#f5f5f5;color:#9e9e9e; }
+
+/* Seller tag */
+.seller-tag { background:#e3f2fd;color:#1565c0;padding:3px 8px;border-radius:20px;font-size:.78rem;font-weight:600; }
+
+/* ── Action buttons ── */
+.action-group { display:flex;gap:5px;align-items:center;flex-wrap:wrap; }
+
+.act-btn {
+    display: inline-flex;
     align-items: center;
-    gap: 12px;
+    gap: 4px;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: .78rem;
+    font-weight: 600;
+    border: 1px solid transparent;
+    cursor: pointer;
     text-decoration: none;
-    color: inherit;
+    white-space: nowrap;
+    background: none;
+    transition: background .15s, transform .1s, box-shadow .15s;
+    line-height: 1;
 }
-.product-link:hover strong {
-    color: #2874f0;
+.act-btn:hover       { transform:translateY(-1px);box-shadow:0 2px 6px rgba(0,0,0,.12); }
+.act-btn:active      { transform:translateY(0); }
+.act-btn i           { font-size:.8rem; }
+
+/* View — green */
+.act-view            { background:#e8f5e9;border-color:#a5d6a7;color:#2e7d32; }
+.act-view:hover      { background:#c8e6c9; }
+
+/* View disabled */
+.act-view-off        { background:#f5f5f5;border-color:#e0e0e0;color:#bbb;cursor:not-allowed; }
+
+/* Edit — blue */
+.act-edit            { background:#e3f2fd;border-color:#90caf9;color:#1565c0; }
+.act-edit:hover      { background:#bbdefb; }
+
+/* Toggle — amber */
+.act-toggle          { background:#fff8e1;border-color:#ffe082;color:#e65100; }
+.act-toggle:hover    { background:#ffecb3; }
+
+/* Archive — red */
+.act-archive         { background:#fce4ec;border-color:#f48fb1;color:#c62828; }
+.act-archive:hover   { background:#f8bbd0; }
+
+/* Hide label text on narrow screens */
+@media (max-width: 1050px) {
+    .act-btn span    { display:none; }
+    .act-btn         { padding:6px 9px; }
+}
+
+/* Misc */
+.archived-label { color:#9e9e9e;font-size:.8rem;font-style:italic; }
+.empty-state    { text-align:center;padding:40px;color:#888; }
+.text-muted     { color:#888; }
+
+@media (max-width:768px) {
+    .stats-grid    { grid-template-columns:repeat(2,1fr); }
+    .filters-bar   { flex-direction:column; }
+    .panel-header  { flex-direction:column;gap:12px; }
+    .dash-tabs     { padding:4px;gap:2px; }
+    .dash-tab      { padding:8px 10px;font-size:.8rem; }
 }
 </style>
 {% endblock %}

@@ -55,8 +55,8 @@ def admin_dashboard(request):
             .select_related('seller', 'category')
             .prefetch_related('product_image_product')
         )
-        title = "👑 Superuser Item Management"
-
+        # title = "👑 Superuser Item Management"
+        title = ""
     elif hasattr(request.user, 'seller_profile'):
         if not request.user.seller_profile.is_verified:
             messages.error(request, "Your seller account is pending verification.")
@@ -1324,3 +1324,166 @@ def mark_helpful(request, review_id):
         return JsonResponse({'status': 'success', 'helpful_count': review.helpful_count})
     
     return redirect('items:product_detail', slug=review.product.slug)
+
+@admin_only
+def verify_sellers_view(request):
+    """Admin dashboard for verifying pending sellers"""
+    
+    # Filters
+    status_filter = request.GET.get('status', 'pending')  # pending, verified, rejected, all
+    search_query = request.GET.get('search', '').strip()
+    
+    # Base queryset
+    sellers = SellerProfile.objects.select_related('user').prefetch_related('products')
+    
+    # Apply filters
+    if status_filter == 'pending':
+        sellers = sellers.filter(is_verified=False, is_active=True)
+    elif status_filter == 'verified':
+        sellers = sellers.filter(is_verified=True, is_active=True)
+    elif status_filter == 'rejected':
+        sellers = sellers.filter(is_active=False)
+    # 'all' shows everything
+    
+    # Search
+    if search_query:
+        sellers = sellers.filter(
+            Q(shop_name__icontains=search_query) |
+            Q(user__full_name__icontains=search_query) |
+            Q(user__phone__icontains=search_query) |
+            Q(gst_number__icontains=search_query)
+        )
+    
+    # Annotate with stats
+    sellers = sellers.annotate(
+        product_count=Count('products', filter=Q(products__status='published')),
+        total_orders=Count('products__orderitem', filter=Q(products__orderitem__order__status='Delivered'), distinct=True)
+    ).order_by('-created_at')
+    
+    # Pagination (simple)
+    page = request.GET.get('page', 1)
+    per_page = 20
+    start_idx = (int(page) - 1) * per_page
+    paginated_sellers = sellers[start_idx:start_idx + per_page]
+    
+    context = {
+        'sellers': paginated_sellers,
+        'total_count': sellers.count(),
+        'pending_count': SellerProfile.objects.filter(is_verified=False, is_active=True).count(),
+        'current_filter': status_filter,
+        'search_query': search_query,
+        'page': int(page),
+        'has_next': start_idx + per_page < sellers.count(),
+        'has_prev': int(page) > 1,
+    }
+    
+    return render(request, 'items/verify_sellers.html', context)
+
+
+@require_POST
+@admin_only
+def verify_seller_action(request, seller_id):
+    """AJAX endpoint to verify/reject a seller"""
+    try:
+        data = json.loads(request.body)
+        action = data.get('action')  # 'verify' or 'reject'
+        reason = data.get('reason', '').strip()
+        
+        seller = get_object_or_404(SellerProfile, id=seller_id)
+        
+        if action == 'verify':
+            seller.is_verified = True
+            seller.is_active = True
+            seller.save(update_fields=['is_verified', 'is_active'])
+            
+            # Optional: Send welcome email
+            # send_seller_welcome_email(seller)
+            
+            return JsonResponse({
+                'status': 'success',
+                'message': f'✅ {seller.shop_name} is now verified!',
+                'seller_id': seller.id
+            })
+            
+        elif action == 'reject':
+            seller.is_active = False
+            seller.save(update_fields=['is_active'])
+            
+            # Optional: Send rejection email with reason
+            # send_rejection_email(seller, reason)
+            
+            return JsonResponse({
+                'status': 'success',
+                'message': f'❌ {seller.shop_name} has been rejected',
+                'seller_id': seller.id
+            })
+        else:
+            return JsonResponse({'status': 'error', 'message': 'Invalid action'}, status=400)
+            
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+    
+
+@admin_only
+def seller_detail_api(request, seller_id):
+    """JSON API for seller modal details"""
+    seller = get_object_or_404(SellerProfile, id=seller_id)
+    data = {
+        'shop_name': seller.shop_name,
+        'owner_name': seller.user.full_name or seller.user.phone,
+        'phone': seller.user.phone,
+        'gst_number': seller.gst_number,
+        'description': seller.shop_description,
+        'product_count': seller.products.filter(status='published').count(),
+        'is_verified': seller.is_verified,
+        'is_active': seller.is_active,
+    }
+    return JsonResponse(data)    
+
+
+@admin_only
+def seller_edit_view(request, seller_id):
+    """
+    Admin-only page to edit seller details AND verify/reject sellers.
+    Shows a form with shop name, description, GST, and status toggles.
+    """
+    seller = get_object_or_404(SellerProfile.objects.select_related('user'), id=seller_id)
+    
+    if request.method == 'POST':
+        # Handle form submission
+        seller.shop_name = request.POST.get('shop_name', seller.shop_name).strip()
+        seller.shop_description = request.POST.get('shop_description', seller.shop_description).strip()
+        seller.gst_number = request.POST.get('gst_number', seller.gst_number).strip() or None
+        
+        # Handle status toggles (checkboxes only send value when checked)
+        seller.is_verified = request.POST.get('is_verified') == 'on'
+        seller.is_active = request.POST.get('is_active') == 'on'
+        
+        # Validate shop name
+        if not seller.shop_name:
+            messages.error(request, 'Shop name is required.')
+            return render(request, 'items/seller_edit.html', {'seller': seller})
+        
+        seller.save()
+        
+        # Show success message with status change info
+        status_msg = []
+        if seller.is_verified and seller.is_active:
+            status_msg.append("✅ Verified & Active")
+        elif seller.is_verified and not seller.is_active:
+            status_msg.append("⚠️ Verified but Inactive")
+        elif not seller.is_verified and seller.is_active:
+            status_msg.append("⏳ Pending Verification")
+        else:
+            status_msg.append("❌ Rejected/Inactive")
+        
+        messages.success(request, f'Seller "{seller.shop_name}" updated. Status: {", ".join(status_msg)}')
+        return redirect('items:verify_sellers')
+    
+    # GET request: render edit form
+    # Pre-calculate product count for sidebar
+    seller.product_count = seller.products.filter(status='published').count()
+    
+    return render(request, 'items/seller_edit.html', {'seller': seller})

@@ -14,8 +14,12 @@
         <!-- Section Header + Filters -->
         <div class="section-row">
             <div>
-                <h2 class="section-title">Shop <span class="accent">All Products</span></h2>
-                <p class="section-subtitle">{{ products|length }} item{{ products|length|pluralize }} found</p>
+              
+            <h2 class="section-title">
+                <i class="fa fa-box-open" style="color: var(--blue-500); margin-right: 8px;"></i>
+                Products<span class="accent"></span>
+            </h2>               
+             <p class="section-subtitle">{{ products|length }} item{{ products|length|pluralize }} found</p>
             </div>
             
             <!-- Filter Controls -->

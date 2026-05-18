@@ -126,11 +126,50 @@
                     <span class="hide-mobile">Products</span>
                 </a>
             {% endif %}
-
+            
+            <!-- ✅ Admin: Seller Verification Link (with pending badge) -->
+            {% if show_admin_verify_link %}
+                <a href="{% url 'items:verify_sellers' %}"
+                class="nav-link nav-icon-btn"
+                title="Verify Sellers"
+                style="position:relative;">
+                    <i class="fa fa-user-check" style="{% if admin_pending_sellers > 0 %}color:var(--amber);{% endif %}"></i>
+                    <span class="hide-mobile">Verify</span>
+                    
+                    {% if admin_pending_sellers > 0 %}
+                        <span class="cart-badge" 
+                            style="background:var(--amber);border-color:var(--white);animation:pulse 2s infinite;">
+                            {{ admin_pending_sellers }}
+                        </span>
+                    {% endif %}
+                </a>
+                
+                <!-- Optional: Show verified count in dropdown on hover -->
+                <div class="nav-dropdown" style="position:relative;">
+                    <div class="dropdown-menu" style="min-width:180px;right:0;top:calc(100% + 8px);">
+                        <div style="padding:8px 12px;font-size:0.8rem;color:var(--gray-600);">
+                            <strong>Seller Stats</strong>
+                        </div>
+                        <div style="padding:8px 12px;border-top:1px solid var(--gray-100);display:flex;justify-content:space-between;font-size:0.85rem;">
+                            <span>⏳ Pending</span>
+                            <strong style="color:var(--amber);">{{ admin_pending_sellers }}</strong>
+                        </div>
+                        <div style="padding:8px 12px;border-top:1px solid var(--gray-100);display:flex;justify-content:space-between;font-size:0.85rem;">
+                            <span>✅ Verified</span>
+                            <strong style="color:var(--green);">{{ admin_verified_sellers }}</strong>
+                        </div>
+                        <div style="padding:8px 12px;border-top:1px solid var(--gray-100);">
+                            <a href="{% url 'items:verify_sellers' %}" style="color:var(--blue-500);font-weight:600;">
+                                Manage Sellers →
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}    
             <!-- Cart -->
             {% if user.is_authenticated and user.role == 'customer' or not user.is_authenticated %}
                 <a href="{% url 'shop:cart' %}" class="nav-link nav-icon-btn cart-link" aria-label="Shopping cart">
-                    <i class="fa fa-shopping-bag"></i>
+                    <i class="fa fa-shopping-cart"></i>
                     <span class="cart-badge" id="cart-count">{{ cart_count|default:0 }}</span>
                 </a>
             {% endif %}
