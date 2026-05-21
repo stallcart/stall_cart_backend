@@ -1,6 +1,7 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -622,6 +623,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             if (data.status === 'success') {
                 showToast('Logged in! Redirecting…', 'success');
+                // 🔔 Trigger FCM registration AFTER login success
+                window.loginFlowHandledFCM = true;
+    
+                // Trigger FCM registration AFTER login success
+                if (window.manualFCMInit) {
+                    console.log('[Login] Triggering FCM registration...');
+                    window.manualFCMInit();
+                } else if (window.triggerFCMRegistration) {
+                    console.log('[Login] Re-using existing FCM registration...');
+                    window.triggerFCMRegistration();
+                }
+                
                 setTimeout(() => { window.location.href = data.redirect || '/'; }, 800);
             } else {
                 const uErr = document.getElementById('usernameError');
@@ -681,7 +694,98 @@ window.showToast = function(message, type = 'info') {
         setTimeout(() => toast.remove(), 300);
     }, 2800);
 };
+// 🔔 Global: Register FCM token after login & get welcome notification
+window.registerFCMOnLogin = async function() {
+    // Only proceed if Firebase config exists and notifications not denied
+    const firebaseConfigEl = document.querySelector('[data-firebase]');
+    if (!firebaseConfigEl || Notification.permission === 'denied') return;
 
+    try {
+        const firebaseConfig = JSON.parse(firebaseConfigEl.dataset.firebase || '{}');
+        const vapidKey = firebaseConfigEl.dataset.vapid;
+        const registerUrl = firebaseConfigEl.dataset.registerUrl;
+        const csrfToken = firebaseConfigEl.dataset.csrf;
+
+        if (!firebaseConfig.projectId || !registerUrl) return;
+
+        // Load Firebase SDKs dynamically
+        await loadScript('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
+        await loadScript('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
+
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const messaging = firebase.messaging();
+
+        // Register Service Worker
+        const registration = await navigator.serviceWorker.register(
+            '/firebase-messaging-sw.js', { scope: '/' }
+        );
+
+        // Request permission
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') return;
+
+        // Get FCM token
+        const token = await messaging.getToken({ 
+            vapidKey, 
+            serviceWorkerRegistration: registration 
+        });
+        if (!token) return;
+
+        // Send token to Django backend
+        const response = await fetch(registerUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+            },
+            body: JSON.stringify({
+                token: token,
+                device_id: getDeviceId(),
+                device_name: getDeviceName(),
+            }),
+        });
+
+        const result = await response.json();
+        if (result.notified) {
+            console.log('✅ Welcome notification sent!');
+        }
+
+    } catch (error) {
+        console.warn('⚠️ FCM registration skipped:', error);
+    }
+};
+
+// Helper: Load script dynamically
+function loadScript(src) {
+    return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = src;
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+    });
+}
+
+// Helper: Generate stable device ID
+function getDeviceId() {
+    let id = localStorage.getItem('sc_device_id');
+    if (!id) {
+        id = 'web_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+        localStorage.setItem('sc_device_id', id);
+    }
+    return id;
+}
+
+// Helper: Get readable device name
+function getDeviceName() {
+    const ua = navigator.userAgent;
+    if (/iPhone|iPad|iPod/.test(ua)) return 'iOS Safari';
+    if (/Android/.test(ua)) return 'Android Browser';
+    if (/Chrome/.test(ua) && !/Edg/.test(ua)) return 'Chrome';
+    if (/Firefox/.test(ua)) return 'Firefox';
+    if (/Safari/.test(ua)) return 'Safari';
+    return 'Web Browser';
+}
 // Password toggle
 window.togglePassword = function(inputId, btn) {
     const input = document.getElementById(inputId);
@@ -692,7 +796,50 @@ window.togglePassword = function(inputId, btn) {
     icon.className = isPassword ? 'fa fa-eye-slash' : 'fa fa-eye';
 };
 </script>
+<!-- Firebase Web Push — only for authenticated users -->
+<!-- Firebase Web Push — only for authenticated users -->
+{% if user.is_authenticated and firebase_config %}
 
+<!-- ✅ Hidden JSON config - using PRE-SERIALIZED JSON string -->
+<script type="application/json" id="firebase-config-data">
+{{ firebase_config_json }}
+</script>
+
+<script
+    id="sc-fcm"
+    src="{% static 'js/notifications.js' %}"
+    data-vapid="{{ FIREBASE_VAPID_PUBLIC_KEY }}"
+    data-url="{% url 'common:fcm_register' %}"
+    data-csrf="{{ csrf_token }}"
+    defer
+></script>
+
+<!-- ✅ UI hint if permission denied -->
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    if (Notification.permission === 'denied') {
+        const hint = document.createElement('div');
+        hint.id = 'notif-permission-hint';
+        hint.style.cssText = `
+            position:fixed;bottom:20px;right:20px;background:#fff3cd;
+            border:1px solid #ffc107;border-radius:8px;padding:12px 16px;
+            font-size:0.85rem;color:#856404;z-index:99999;max-width:300px;
+            box-shadow:0 4px 12px rgba(0,0,0,0.15);display:flex;align-items:center;gap:8px;
+        `;
+        hint.innerHTML = `
+            <i class="fa fa-bell-slash" style="font-size:1.2rem;"></i>
+            <div><strong>Notifications blocked</strong><br>
+            <small><a href="#" id="notif-help-toggle" style="color:#0066cc;">Enable in settings</a></small></div>
+        `;
+        document.body.appendChild(hint);
+        document.getElementById('notif-help-toggle')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            showToast('🔧 Chrome: 🔒 → Site settings → Notifications → Allow', 'info');
+        });
+    }
+});
+</script>
+{% endif %}
 {% block scripts %}{% endblock %}
 </body>
 </html>

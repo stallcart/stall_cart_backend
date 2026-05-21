@@ -18,7 +18,9 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from common.views import custom_404, custom_403, custom_500, custom_400
+from common.views import custom_404, custom_403, custom_500, custom_400,firebase_sw
+from django.views.static import serve
+
 handler404 = 'common.views.custom_404'
 handler403 = 'common.views.custom_403'
 handler500 ='common.views.custom_500'
@@ -32,6 +34,10 @@ urlpatterns = [
     path('delivery/', include('delivery.urls')), # ← Delivery app (this file)
     path('blog/', include('blog.urls')),       # Blog
     path('items/', include('items.urls')),     # Products
+    path('common/', include('common.urls')),   
+    path('firebase-messaging-sw.js', firebase_sw, name='firebase_sw'),
+
+
 ]
 
 
