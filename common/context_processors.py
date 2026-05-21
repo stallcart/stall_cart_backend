@@ -2,6 +2,8 @@ from .models import SiteSettings
 from django.core.cache import cache
 from items.models import Category,SellerProfile
 from shop.models import Cart 
+from django.conf import settings
+import json
 def site_settings(request):
     settings = SiteSettings.get_singleton()
     logo_url = settings.logo_primary.url if settings.logo_primary else ''
@@ -98,4 +100,23 @@ def cart_and_wishlist(request):
         'show_admin_verify_link': request.user.is_authenticated and (
             request.user.is_superuser or request.user.has_perm('items.verify_seller')
         ),
+    }
+
+
+# common/context_processors.py
+
+from django.utils.safestring import mark_safe
+
+def firebase_config(request):
+    config = getattr(settings, 'FIREBASE_FRONTEND_CONFIG', {}) or {}
+    
+    return {
+        # ✅ For HTML data attributes (already escaped)
+        'firebase_config': config,
+        
+        # ✅ For embedding in <script type="application/json"> - PRE-SERIALIZED
+        'firebase_config_json': mark_safe(json.dumps(config)),
+        
+        # ✅ VAPID key for web push
+        'FIREBASE_VAPID_PUBLIC_KEY': getattr(settings, 'FIREBASE_VAPID_PUBLIC_KEY', ''),
     }

@@ -231,3 +231,15 @@ class SiteSettings(models.Model):
         if self.social_youtube:
             links['youtube'] = {'url': self.social_youtube, 'icon': 'fab fa-youtube', 'color': '#FF0000', 'label': 'YouTube'}
         return links
+    
+
+class UserFCMToken(BaseModel):
+
+    user=models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE
+    )
+
+    token=models.TextField()
+
+    

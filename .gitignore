@@ -157,3 +157,11 @@ webpack-stats.json
 !static/.gitkeep
 !templates/.gitkeep
 !media/.gitkeep
+
+
+# Firebase secrets
+firebase_service_account.json
+*.p12
+*.pem
+.env
+!.env.example
