@@ -597,44 +597,52 @@ class CustomPasswordResetCompleteView(PasswordResetCompleteView):
 def profile_view(request):
     """User profile management - role-based sections with AJAX support"""
     
-    # Handle AJAX POST requests
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+    # ✅ Compatible AJAX detection for all Django versions
+    is_ajax = request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
+    
+    if is_ajax:
         try:
             data = json.loads(request.body)
             action = data.get('action')
             
             # ===== UPDATE PERSONAL PROFILE =====
             if action == 'update_profile':
-                # Get and validate input
-                new_full_name = data.get('full_name', request.user.full_name)
-                new_email = data.get('email', request.user.email)
+                # ✅ Always initialize variables FIRST to avoid UnboundLocalError
+                new_full_name = request.user.full_name  # Default to current value
+                new_email = request.user.email
                 
-                # Basic email validation
-                if new_email and '@' not in new_email:
+                # ✅ Safely extract from request data
+                if 'full_name' in data and data['full_name'] is not None:
+                    new_full_name = str(data['full_name']).strip()
+                if 'email' in data and data['email'] is not None:
+                    new_email = str(data['email']).strip().lower()
+                
+                # ✅ Validate email
+                if not new_email or '@' not in new_email or '.' not in new_email.split('@')[-1]:
                     return JsonResponse({'status': 'error', 'message': 'Invalid email format'}, status=400)
                 
-                # Check if email is already taken by another user
-                if new_email and new_email != request.user.email:
-                    if User.objects.filter(email=new_email).exclude(pk=request.user.pk).exists():
+                # ✅ Case-insensitive duplicate check
+                if new_email.lower() != request.user.email.lower():
+                    if User.objects.filter(email__iexact=new_email).exclude(pk=request.user.pk).exists():
                         return JsonResponse({'status': 'error', 'message': 'Email already registered'}, status=400)
                 
-                try:
-                    request.user.full_name = new_full_name.strip() if new_full_name else request.user.full_name
-                    request.user.email = new_email.strip().lower() if new_email else request.user.email
-                    request.user.save()
-                    return JsonResponse({'status': 'success', 'message': 'Profile updated'})
-                except Exception as e:
-                    return JsonResponse({'status': 'error', 'message': f'Update failed: {str(e)}'}, status=400)
+                # ✅ Update and save
+                request.user.full_name = new_full_name
+                request.user.email = new_email
+                request.user.save(update_fields=['full_name', 'email', 'updated_at'])
+                
+                return JsonResponse({
+                    'status': 'success', 
+                    'message': 'Profile updated',
+                    'email': request.user.email,
+                    'full_name': request.user.full_name
+                })
             
             # ===== ADDRESS MANAGEMENT (Customers Only) =====
             elif action in ['add_address', 'update_address']:
                 if request.user.role != 'customer':
-                    return JsonResponse(
-                        {'status': 'error', 'message': 'Only customers can manage addresses'}, 
-                        status=403
-                    )
+                    return JsonResponse({'status': 'error', 'message': 'Only customers can manage addresses'}, status=403)
                 
-                # Extract address fields (flat format for simplicity)
                 addr_data = {
                     'name': data.get('name'),
                     'phone': data.get('phone'),
@@ -648,14 +656,10 @@ def profile_view(request):
                     'is_default': data.get('is_default', False),
                 }
                 
-                # Validate required fields
                 required = ['name', 'phone', 'address_line1', 'city', 'state', 'postal_code']
                 missing = [f for f in required if not addr_data.get(f)]
                 if missing:
-                    return JsonResponse({
-                        'status': 'error', 
-                        'message': f'Missing required fields: {", ".join(missing)}'
-                    }, status=400)
+                    return JsonResponse({'status': 'error', 'message': f'Missing: {", ".join(missing)}'}, status=400)
                 
                 if action == 'add_address':
                     Address.objects.create(user=request.user, **addr_data)
@@ -664,25 +668,17 @@ def profile_view(request):
                 elif action == 'update_address':
                     addr_id = data.get('address_id')
                     if not addr_id:
-                        return JsonResponse(
-                            {'status': 'error', 'message': 'Address ID required'}, 
-                            status=400
-                        )
-                    
+                        return JsonResponse({'status': 'error', 'message': 'Address ID required'}, status=400)
                     address = get_object_or_404(Address, id=addr_id, user=request.user)
                     for key, value in addr_data.items():
                         setattr(address, key, value)
-                    address.save()  # Triggers model's save() logic for is_default
+                    address.save()
                     return JsonResponse({'status': 'success', 'message': 'Address updated'})
             
             # ===== DELETE ADDRESS =====
             elif action == 'delete_address':
                 if request.user.role != 'customer':
-                    return JsonResponse(
-                        {'status': 'error', 'message': 'Only customers can delete addresses'}, 
-                        status=403
-                    )
-                
+                    return JsonResponse({'status': 'error', 'message': 'Only customers can delete addresses'}, status=403)
                 addr_id = data.get('address_id')
                 address = get_object_or_404(Address, id=addr_id, user=request.user)
                 address.delete()
@@ -691,29 +687,21 @@ def profile_view(request):
             # ===== SET DEFAULT ADDRESS =====
             elif action == 'set_default_address':
                 if request.user.role != 'customer':
-                    return JsonResponse(
-                        {'status': 'error', 'message': 'Only customers can set default address'}, 
-                        status=403
-                    )
-                
+                    return JsonResponse({'status': 'error', 'message': 'Only customers can set default'}, status=403)
                 addr_id = data.get('address_id')
                 address = get_object_or_404(Address, id=addr_id, user=request.user)
                 address.is_default = True
-                address.save()  # Model's save() will unset others
-                return JsonResponse({'status': 'success', 'message': 'Default address updated'})
+                address.save()
+                return JsonResponse({'status': 'success', 'message': 'Default updated'})
             
             # ===== UPDATE SHOP ADDRESS (Sellers Only) =====
             elif action == 'update_shop_address':
                 if request.user.role != 'seller' or not hasattr(request.user, 'seller_profile'):
-                    return JsonResponse(
-                        {'status': 'error', 'message': 'Only sellers can update shop details'}, 
-                        status=403
-                    )
+                    return JsonResponse({'status': 'error', 'message': 'Only sellers can update shop'}, status=403)
                 
                 shop_data = data.get('shop_address', {})
                 seller = request.user.seller_profile
                 
-                # Get or create shop address
                 shop_address, created = SellerShopAddress.objects.get_or_create(
                     seller=seller,
                     defaults={
@@ -732,7 +720,6 @@ def profile_view(request):
                 )
                 
                 if not created:
-                    # Update existing
                     for key, value in shop_data.items():
                         if hasattr(shop_address, key):
                             setattr(shop_address, key, value)
@@ -740,22 +727,22 @@ def profile_view(request):
                 
                 return JsonResponse({'status': 'success', 'message': 'Shop address saved'})
             
-            # ===== INVALID ACTION =====
             return JsonResponse({'status': 'error', 'message': 'Invalid action'}, status=400)
             
         except json.JSONDecodeError:
             return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
         except Exception as e:
-            import traceback
-            traceback.print_exc()  # Log to console/server logs
-            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+            import logging, traceback
+            logger = logging.getLogger(__name__)
+            logger.error(f"Profile AJAX error: {str(e)}\n{traceback.format_exc()}")
+            return JsonResponse({'status': 'error', 'message': 'Server error'}, status=500)
     
     # ===== GET REQUEST: Render Profile Page =====
+    # ... (rest of your GET logic remains unchanged) ...
     is_customer = request.user.role == 'customer'
     is_seller = request.user.role == 'seller' and hasattr(request.user, 'seller_profile')
     is_admin = request.user.is_superuser
     
-    # Customer-specific data
     user_orders = []
     wishlist_count = 0
     customer_addresses = []
@@ -763,64 +750,35 @@ def profile_view(request):
     if is_customer:
         user_orders = Order.objects.filter(user=request.user).order_by('-created_at')[:5]
         customer_addresses = Address.objects.filter(user=request.user, is_active=True)
-        # wishlist_count = request.user.wishlist_items.count()  # Uncomment if you have wishlist
     
-    # Seller-specific data
     seller_stats = None
     seller_orders = []
     shop_address = None
     
     if is_seller:
         seller = request.user.seller_profile
-        order_ids = set(
-            OrderItem.objects.filter(product__seller=seller)
-            .values_list('order_id', flat=True)
-        )
-        total_orders_count = len(order_ids)
-        # Seller stats
+        order_ids = set(OrderItem.objects.filter(product__seller=seller).values_list('order_id', flat=True))
         seller_stats = {
             'total_products': seller.products.count(),
             'published': seller.products.filter(status='published').count(),
             'draft': seller.products.filter(status='draft').count(),
             'total_sales': seller.products.aggregate(total=Sum('sold_count'))['total'] or 0,
-            'total_revenue': OrderItem.objects.filter(
-                product__seller=seller,
-                order__status='delivered'
-            ).aggregate(total=Sum('total'))['total'] or 0,
-            'total_orders': total_orders_count,  # ✅ Fixed: SQLite compatible
+            'total_revenue': OrderItem.objects.filter(product__seller=seller, order__status='delivered').aggregate(total=Sum('total'))['total'] or 0,
+            'total_orders': len(order_ids),
         }
-
-        
-        # Seller's recent orders
-        seller_orders = OrderItem.objects.filter(
-            product__seller=seller
-        ).select_related('order', 'product', 'order__user').prefetch_related(
-            'order__items__product'
-        ).order_by('-order__created_at')[:5]
-        
-        # Shop address
+        seller_orders = OrderItem.objects.filter(product__seller=seller).select_related('order', 'product', 'order__user').prefetch_related('order__items__product').order_by('-order__created_at')[:5]
         try:
             shop_address = seller.shop_address
         except SellerShopAddress.DoesNotExist:
             shop_address = None
     
     context = {
-        'user': request.user,
-        'is_customer': is_customer,
-        'is_seller': is_seller,
-        'is_admin': is_admin,
-        # Customer data
-        'user_orders': user_orders,
-        'wishlist_count': wishlist_count,
-        'customer_addresses': customer_addresses,
-        # Seller data
-        'seller_stats': seller_stats,
-        'seller_profile': request.user.seller_profile if is_seller else None,
-        'seller_orders': seller_orders,
-        'shop_address': shop_address or None,
+        'user': request.user, 'is_customer': is_customer, 'is_seller': is_seller, 'is_admin': is_admin,
+        'user_orders': user_orders, 'wishlist_count': wishlist_count, 'customer_addresses': customer_addresses,
+        'seller_stats': seller_stats, 'seller_profile': request.user.seller_profile if is_seller else None,
+        'seller_orders': seller_orders, 'shop_address': shop_address,
     }
     return render(request, 'accounts/profile.html', context)
-
 def redirect_by_role(user):
     if user.is_admin:
         return redirect('admin_dashboard')
