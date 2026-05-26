@@ -76,9 +76,15 @@
         </div>
 
         <div class="order-actions">
-            <a href="{% url 'orders:seller_order_detail' order_group.grouper.unique_order_id %}" class="btn-outline">
-                View Details →
-            </a>
+            {% with order_id=order_group.grouper.unique_order_id|default:order_group.grouper.id %}
+                {% if order_id %}
+                    <a href="{% url 'orders:seller_order_detail' order_id %}" class="btn-outline">
+                        View Details →
+                    </a>
+                {% else %}
+                    <span class="text-muted" title="Order ID missing">⚠️ Invalid Order</span>
+                {% endif %}
+            {% endwith %}
             
             {% if order_group.grouper.status in 'pending,confirmed,processing' %}
             <button class="btn-primary btn-sm" onclick="openStatusModal('{{ order_group.grouper.unique_order_id }}')">

@@ -14,10 +14,10 @@
         const configScript = document.getElementById('firebase-config-data');
         if (configScript?.textContent?.trim()) {
             firebaseConfig = JSON.parse(configScript.textContent);
-            console.log('[SCNotif] ✅ Config loaded from #firebase-config-data', {
-                projectId: firebaseConfig.projectId,
-                appId: firebaseConfig.appId ? firebaseConfig.appId.substring(0, 10) + '...' : null
-            });
+            // console.log('[SCNotif] ✅ Config loaded from #firebase-config-data', {
+            //     projectId: firebaseConfig.projectId,
+            //     appId: firebaseConfig.appId ? firebaseConfig.appId.substring(0, 10) + '...' : null
+            // });
         } else {
             console.error('[SCNotif] ❌ #firebase-config-data is empty or missing');
             return;
@@ -34,9 +34,9 @@
     const csrfToken   = el.dataset.csrf   || '';
 
     console.log('[SCNotif] Initializing...', {
-        hasProjectId: !!firebaseConfig.projectId,
-        hasVapid: !!vapidKey,
-        hasUrl: !!registerUrl,
+        // hasProjectId: !!firebaseConfig.projectId,
+        // hasVapid: !!vapidKey,
+        // hasUrl: !!registerUrl,
         permission: Notification.permission
     });
 
@@ -114,7 +114,7 @@
                 vapidKey: vapidKey, 
                 serviceWorkerRegistration: sw 
             });
-            console.log('[SCNotif] 🔑 FCM Token:', token ? token.substring(0, 20) + '...' : 'NULL');
+            // console.log('[SCNotif] 🔑 FCM Token:', token ? token.substring(0, 20) + '...' : 'NULL');
             if (!token) {
                 console.warn('[SCNotif] No token received - stopping');
                 return;
@@ -136,7 +136,7 @@
             });
 
             const data = await resp.json();
-            console.log('[SCNotif] 📥 Server response:', data);
+            // console.log('[SCNotif] 📥 Server response:', data);
             
             if (!data.ok) {
                 console.warn('[SCNotif] ❌ Registration failed', data);
@@ -147,10 +147,10 @@
 
             // Handle foreground messages (tab is focused)
             messaging.onMessage((payload) => {
-                console.log('[SCNotif] 💬 Foreground message received', {
-                    title: payload.notification?.title,
-                    body: payload.notification?.body
-                });
+                // console.log('[SCNotif] 💬 Foreground message received', {
+                //     title: payload.notification?.title,
+                //     body: payload.notification?.body
+                // });
                 const n = payload.notification || {};
                 if (window.showToast) {
                     window.showToast(`🔔 ${n.title}: ${n.body}`, 'info');

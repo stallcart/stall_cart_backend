@@ -18,7 +18,7 @@ from django.db import transaction, models
 from django.http import JsonResponse
 from django.conf import settings
 from items.models import Product, ProductVariant
-
+from accounts.models import User
 logger = logging.getLogger(__name__)
 
 def home(request):
@@ -33,6 +33,7 @@ def home(request):
     categories = Category.objects.filter(is_active=True)
     cart_count = 0
     # Cart count from session (only for customers)
+    customer_count = User.objects.filter(is_active = True,role = 'customer').count()
     if request.user.is_authenticated and request.user.role == 'customer':
         try:
             cart = Cart.objects.get(user=request.user)
@@ -46,6 +47,8 @@ def home(request):
         'cart_count': cart_count,
         'user_role': request.user.role if request.user.is_authenticated else None,
         'show_category_nav': True,
+        'customer_count':customer_count,
+        'product_count':products.count() if products else 0
     }
     return render(request, 'shop/home.html', context)
 

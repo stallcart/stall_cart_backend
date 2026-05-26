@@ -21,8 +21,22 @@
             <span class="stat-value">{{ user.role|title }}</span>
             <span class="stat-label">Account Type</span>
         </div>
+        
+        <!-- ✅ FIXED: Status now uses seller_profile.is_verified for sellers -->
         <div class="stat-item">
-            <span class="stat-value">{{ user.is_verified|yesno:"Verified,Pending" }}</span>
+            {% if is_seller and seller_profile %}
+                <span class="stat-value {% if seller_profile.is_verified %}status-verified{% else %}status-pending{% endif %}">
+                    {{ seller_profile.is_verified|yesno:"Verified,Pending" }}
+                </span>
+            {% elif is_customer %}
+                <span class="stat-value {% if user.is_active %}status-active{% else %}status-inactive{% endif %}">
+                    {{ user.is_active|yesno:"Active,Suspended" }}
+                </span>
+            {% elif is_admin %}
+                <span class="stat-value status-admin">Admin</span>
+            {% else %}
+                <span class="stat-value">Pending</span>
+            {% endif %}
             <span class="stat-label">Status</span>
         </div>
         
@@ -49,7 +63,7 @@
         {% endif %}
     </div>
 
-    <!-- ✅ PERSONAL INFORMATION (All Roles) -->
+    <!-- ✅ PERSONAL INFORMATION (All Roles) - Email & Full Name ONLY editable -->
     <div class="profile-card">
         <div class="card-header">
             <h3>📝 Personal Information</h3>
@@ -64,13 +78,12 @@
                 <div class="form-group">
                     <label for="fullName">Full Name</label>
                     <input type="text" id="fullName" name="full_name" class="form-input" 
-                           value="{{ user.full_name|default:'' }}" 
-                           {% if not is_admin %}readonly{% endif %}>
+                           value="{{ user.full_name|default:'' }}" readonly>
                 </div>
                 <div class="form-group">
                     <label for="email">Email Address</label>
                     <input type="email" id="email" name="email" class="form-input" 
-                           value="{{ user.email|default:'' }}" required>
+                           value="{{ user.email|default:'' }}" required readonly>
                 </div>
             </div>
             
@@ -284,9 +297,15 @@
                             {{ order.order.get_status_display }}
                         </span>
                         <strong>₹{{ order.total|floatformat:2 }}</strong>
-                        <a href="{% url 'orders:seller_order_detail' order.order.unique_order_id|default:order.order.id %}" class="btn-outline btn-sm view-order-btn">
-                            View Details →
-                        </a>
+                        {% with order_id=order.order.unique_order_id|default:order.order.id %}
+                            {% if order_id %}
+                                <a href="{% url 'orders:seller_order_detail' order_id %}" class="btn-outline btn-sm view-order-btn">
+                                    View Details →
+                                </a>
+                            {% else %}
+                                <span class="text-muted">Invalid Order ID</span>
+                            {% endif %}
+                        {% endwith %}
                     </div>
                 </div>
                 {% endfor %}
@@ -510,39 +529,93 @@
 const csrfToken = '{{ csrf_token }}';
 const userRole = '{{ user.role }}';
 
-// ===== PROFILE EDIT TOGGLE =====
+// ===== PROFILE EDIT TOGGLE - Email & Full Name ONLY =====
 const editProfileBtn = document.getElementById('editProfileBtn');
 const cancelEditBtn = document.getElementById('cancelEditBtn');
 const saveProfileBtn = document.getElementById('saveProfileBtn');
-const profileInputs = document.querySelectorAll('#profileForm .form-input:not([readonly])');
+const profileForm = document.getElementById('profileForm');
+
+// Only these fields are editable
+const EDITABLE_FIELDS = ['fullName', 'email'];
+let originalValues = {};
+
+function storeOriginalValues() {
+    originalValues = {};
+    EDITABLE_FIELDS.forEach(id => {
+        const field = document.getElementById(id);
+        if (field) originalValues[id] = field.value;
+    });
+}
+
+function setFieldsReadOnly(readonly) {
+    EDITABLE_FIELDS.forEach(id => {
+        const field = document.getElementById(id);
+        if (field) field.readOnly = readonly;
+    });
+}
 
 editProfileBtn?.addEventListener('click', () => {
-    profileInputs.forEach(input => input.readOnly = false);
+    storeOriginalValues();
+    setFieldsReadOnly(false);
+    
     editProfileBtn.style.display = 'none';
     saveProfileBtn.style.display = 'inline-flex';
     cancelEditBtn.style.display = 'inline-flex';
+    
+    document.getElementById('fullName')?.focus();
 });
 
 cancelEditBtn?.addEventListener('click', () => {
-    profileInputs.forEach(input => input.readOnly = true);
+    // Restore original values
+    EDITABLE_FIELDS.forEach(id => {
+        const field = document.getElementById(id);
+        if (field && originalValues[id] !== undefined) {
+            field.value = originalValues[id];
+        }
+    });
+    
+    setFieldsReadOnly(true);
     editProfileBtn.style.display = 'inline-flex';
     saveProfileBtn.style.display = 'none';
     cancelEditBtn.style.display = 'none';
-    document.getElementById('profileForm').reset();
 });
 
-// Profile Form Submit (AJAX)
-document.getElementById('profileForm')?.addEventListener('submit', async (e) => {
+// Profile Form Submit (AJAX) - Email & Full Name ONLY
+profileForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    
     const btn = document.getElementById('saveProfileBtn');
     const originalText = btn.innerHTML;
+    const emailField = document.getElementById('email');
+    
+    // Clear previous errors
+    emailField?.classList.remove('error');
+    
     btn.disabled = true;
     btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving...';
     
     const formData = {
-        full_name: document.getElementById('fullName').value,
-        email: document.getElementById('email').value
+        action: 'update_profile',
+        full_name: document.getElementById('fullName').value.trim(),
+        email: document.getElementById('email').value.trim()
     };
+    
+    // Client-side validation
+    if (!formData.email) {
+        showToast('Email address is required', 'error');
+        emailField?.classList.add('error');
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        return;
+    }
+    
+    if (!formData.email.includes('@')) {
+        showToast('Please enter a valid email address', 'error');
+        emailField?.classList.add('error');
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        return;
+    }
     
     try {
         const res = await fetch("{% url 'accounts:profile' %}", {
@@ -554,88 +627,69 @@ document.getElementById('profileForm')?.addEventListener('submit', async (e) => 
             },
             body: JSON.stringify(formData)
         });
+        
         const data = await res.json();
         
         if (data.status === 'success') {
             showToast('Profile updated successfully!', 'success');
-            profileInputs.forEach(input => input.readOnly = true);
+            
+            // Lock fields after save
+            setFieldsReadOnly(true);
             editProfileBtn.style.display = 'inline-flex';
             saveProfileBtn.style.display = 'none';
             cancelEditBtn.style.display = 'none';
+            
+            // Update displayed values if backend returned new data
+            if (data.email) document.getElementById('email').value = data.email;
+            if (data.full_name) document.getElementById('fullName').value = data.full_name;
+            
         } else {
-            showToast(data.message || data.error || 'Failed to update profile', 'error');
+            showToast(data.message || 'Failed to update profile', 'error');
+            if (data.message && data.message.toLowerCase().includes('email')) {
+                emailField?.classList.add('error');
+                emailField?.focus();
+            }
         }
     } catch (err) {
-        showToast('Network error: ' + err.message, 'error');
+        console.error('Network error:', err);
+        showToast('Connection error. Please check your internet.', 'error');
     } finally {
         btn.disabled = false;
         btn.innerHTML = originalText;
     }
 });
 
-// ── Address Modal Functions (Complete Working Version) ─────────────────────────────
+// ── Address Modal Functions ─────────────────────────────
 const addressModal = document.getElementById('addressModal');
 const addressModalForm = document.getElementById('addressModalForm');
 const addAddressBtn = document.getElementById('addAddressBtn');
 const addFirstAddressBtn = document.getElementById('addFirstAddressBtn');
 
-// Global function for onclick handlers
-// Global function for onclick handlers
 window.openAddressModal = async function(mode = 'add', addressId = null) {
-    console.log('🔓 openAddressModal called:', { mode, addressId });
-    
     if (!addressModal) {
-        console.error('❌ addressModal element NOT found!');
         showToast('Modal not found - please refresh', 'error');
         return;
     }
     
-    // Reset form FIRST
     if (addressModalForm) addressModalForm.reset();
     document.getElementById('addressAction').value = mode === 'edit' ? 'update_address' : 'add_address';
     document.getElementById('addressId').value = addressId || '';
     document.getElementById('addressModalError').style.display = 'none';
     document.getElementById('modalTitleText').querySelector('span').textContent = mode === 'edit' ? 'Edit Address' : 'Add Address';
     
-    // If editing, fetch address data BEFORE showing modal
     if (mode === 'edit' && addressId) {
         try {
-            console.log('🔍 Fetching address:', addressId);
-            // ✅ Use direct URL - matches Django URL pattern
             const url = `/accounts/api/address/${addressId}/`;
-            console.log('🌐 Fetch URL:', url);
-            
             const res = await fetch(url, {
-                headers: {
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
             });
             
-            console.log('📡 Response status:', res.status, res.statusText);
-            
-            if (!res.ok) {
-                const errorText = await res.text();
-                console.error('❌ HTTP Error:', res.status, errorText);
-                throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-            }
-            
-            // Check content type
-            const contentType = res.headers.get('content-type');
-            if (!contentType || !contentType.includes('application/json')) {
-                console.error('❌ Non-JSON response:', contentType);
-                throw new Error('Server returned non-JSON response');
-            }
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
             
             const response = await res.json();
-            console.log('✅ API Response:', response);
             
-            // ✅ Handle wrapped response: {status: 'success', address: {...}}
             if (response.status === 'success' && response.address) {
-                const addr = response.address;  // ✅ Extract from 'address' key
-                console.log('📦 Address data:', addr);
-                
-                // Pre-fill form fields with null-coalescing
+                const addr = response.address;
                 document.getElementById('modalAddrName').value = addr.name || '';
                 document.getElementById('modalAddrPhone').value = addr.phone || '';
                 document.getElementById('modalAddrLine1').value = addr.address_line1 || '';
@@ -646,28 +700,19 @@ window.openAddressModal = async function(mode = 'add', addressId = null) {
                 document.getElementById('modalAddrCountry').value = addr.country || 'India';
                 document.getElementById('modalAddrType').value = addr.address_type || 'both';
                 document.getElementById('modalAddrDefault').checked = !!addr.is_default;
-                
-                console.log('✅ Form pre-filled successfully');
             } else {
-                console.error('❌ Invalid response format:', response);
-                throw new Error(response.message || 'Invalid API response format');
+                throw new Error(response.message || 'Invalid API response');
             }
-            
         } catch (err) {
-            console.error('❌ Failed to load address:', err);
+            console.error('Failed to load address:', err);
             showToast('Could not load address. Please try again.', 'error');
-            // Don't show modal if fetch failed
             return;
         }
     }
     
-    // ✅ Only show modal after successful fetch (or for 'add' mode)
-    console.log('✅ Showing modal');
     addressModal.classList.add('show');
     addressModal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
-    
-    // Focus first input after modal is visible
     setTimeout(() => document.getElementById('modalAddrName')?.focus(), 300);
 };
 
@@ -677,49 +722,38 @@ function closeAddressModal() {
     addressModal.style.display = 'none';
     document.body.style.overflow = '';
     if (addressModalForm) addressModalForm.reset();
-    console.log('✅ Modal closed');
 }
 
-// Button event listeners
 if (addAddressBtn) {
-    addAddressBtn.addEventListener('click', function(e) {
+    addAddressBtn.addEventListener('click', (e) => {
         e.preventDefault();
-        console.log('🖱️ Add Address button clicked');
         openAddressModal('add');
     });
 }
 
 if (addFirstAddressBtn) {
-    addFirstAddressBtn.addEventListener('click', function(e) {
+    addFirstAddressBtn.addEventListener('click', (e) => {
         e.preventDefault();
-        console.log('🖱️ Add First Address button clicked');
         openAddressModal('add');
     });
 }
 
-// Close button
 document.getElementById('closeAddressModal')?.addEventListener('click', closeAddressModal);
 document.getElementById('cancelAddressModalBtn')?.addEventListener('click', closeAddressModal);
 
-// Close when clicking outside modal
-addressModal?.addEventListener('click', function(e) {
-    if (e.target === addressModal) {
-        closeAddressModal();
-    }
+addressModal?.addEventListener('click', (e) => {
+    if (e.target === addressModal) closeAddressModal();
 });
 
-// Close on Escape key
-document.addEventListener('keydown', function(e) {
+document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && addressModal?.classList.contains('show')) {
         closeAddressModal();
     }
 });
 
-// Save Address Form (AJAX)
 if (addressModalForm) {
     addressModalForm.addEventListener('submit', async function(e) {
         e.preventDefault();
-        console.log('📤 Submitting address form');
         
         const btn = document.getElementById('saveAddressModalBtn');
         const errEl = document.getElementById('addressModalError');
@@ -729,7 +763,6 @@ if (addressModalForm) {
         btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving...';
         errEl.style.display = 'none';
         
-        // Build payload (flat format - matches what view expects)
         const payload = {
             action: document.getElementById('addressAction').value,
             address_id: document.getElementById('addressId').value || null,
@@ -745,8 +778,6 @@ if (addressModalForm) {
             is_default: document.getElementById('modalAddrDefault').checked,
         };
         
-        console.log('📦 Payload:', payload);
-        
         try {
             const res = await fetch("{% url 'accounts:profile' %}", {
                 method: 'POST',
@@ -759,7 +790,6 @@ if (addressModalForm) {
             });
             
             const data = await res.json();
-            console.log('📥 Response:', data);
             
             if (data.status === 'success') {
                 showToast('Address saved successfully!', 'success');
@@ -772,7 +802,7 @@ if (addressModalForm) {
                 btn.innerHTML = originalBtnText;
             }
         } catch (err) {
-            console.error('❌ Network error:', err);
+            console.error('Network error:', err);
             errEl.textContent = 'Network error: ' + err.message;
             errEl.style.display = 'block';
             btn.disabled = false;
@@ -781,7 +811,6 @@ if (addressModalForm) {
     });
 }
 
-// Delete Address
 window.deleteAddress = async function(addressId) {
     if (!confirm('Delete this address? This cannot be undone.')) return;
     
@@ -808,7 +837,6 @@ window.deleteAddress = async function(addressId) {
     }
 };
 
-// Set Default Address
 window.setDefaultAddress = async function(addressId) {
     try {
         const res = await fetch("{% url 'accounts:profile' %}", {
@@ -904,7 +932,6 @@ document.getElementById('shopAddressForm')?.addEventListener('submit', async (e)
 
 // ===== TOAST NOTIFICATION =====
 function showToast(message, type = 'info') {
-    // Remove existing toasts
     document.querySelectorAll('.toast').forEach(t => t.remove());
     
     const toast = document.createElement('div');
@@ -915,7 +942,6 @@ function showToast(message, type = 'info') {
     `;
     document.body.appendChild(toast);
     
-    // Auto remove after 3 seconds
     setTimeout(() => {
         toast.style.animation = 'toastOut 0.3s ease forwards';
         setTimeout(() => toast.remove(), 300);
