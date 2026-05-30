@@ -114,10 +114,10 @@ urlpatterns = [
          name='track_order_public'),
     
     # Order Success Page (after payment)
-    path('success/<str:order_id>/', 
-         views.order_success, 
-         name='order_success'),
-    
+#     path('success/<str:order_id>/', 
+#          views.order_success, 
+#          name='order_success'),
+     path('orders/success/<uuid:order_id>/', views.order_success, name='order_success'),
     # Order Failed Page
     path('failed/', 
          views.order_failed, 

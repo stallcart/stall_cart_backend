@@ -230,7 +230,7 @@ class OrderStatusLog(BaseModel):
         ordering = ['-timestamp']
     
     def __str__(self):
-        return f"{self.order.order_id}: {self.old_status} → {self.new_status}"
+        return f"{self.order.unique_order_id}: {self.old_status} → {self.new_status}"
 
 def validate_image_size(value):
     """Limit upload size to 5MB"""

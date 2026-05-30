@@ -133,55 +133,98 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <script>
 document.getElementById('placeOrderBtn').addEventListener('click', async function() {
     const btn = this;
+    
+    // Simple address validation
+    {% if not user.address %}
+        const nameVal = document.querySelector('[name="name"]').value.trim();
+        const phoneVal = document.querySelector('[name="phone"]').value.trim();
+        const addressVal = document.querySelector('[name="address"]').value.trim();
+        const cityVal = document.querySelector('[name="city"]').value.trim();
+        const stateVal = document.querySelector('[name="state"]').value.trim();
+        const postalCodeVal = document.querySelector('[name="postalCode"]').value.trim();
+
+        if (!nameVal || !phoneVal || !addressVal || !cityVal || !stateVal || !postalCodeVal) {
+            alert('Please fill out all address fields.');
+            return;
+        }
+    {% endif %}
+
     btn.disabled = true;
     btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Processing...';
 
-    // Collect Form Data
-    const formData = new FormData();
-    {% if not user.address %}
-        // If no saved address, grab inputs
-        formData.append('name', document.querySelector('[name="name"]').value);
-        formData.append('phone', document.querySelector('[name="phone"]').value);
-        formData.append('address', document.querySelector('[name="address"]').value);
-        formData.append('city', document.querySelector('[name="city"]').value);
-        formData.append('state', document.querySelector('[name="state"]').value);
-        formData.append('postalCode', document.querySelector('[name="postalCode"]').value);
-    {% else %}
-        // Use saved address structure (simplified for demo)
-        formData.append('name', '{{ user.full_name }}');
-        formData.append('phone', '{{ user.address.phone|default:user.phone }}');
-        formData.append('address', '{{ user.address.address }}');
-        formData.append('city', '{{ user.address.city }}');
-        formData.append('state', '{{ user.address.state }}');
-        formData.append('postalCode', '{{ user.address.postalCode }}');
-    {% endif %}
+    // Construct address dict matching backend expected schema
+    const address = {
+        name: {% if not user.address %}document.querySelector('[name="name"]').value.trim(){% else %}'{{ user.full_name|escapejs }}'{% endif %},
+        phone: {% if not user.address %}document.querySelector('[name="phone"]').value.trim(){% else %}'{{ user.address.phone|default:user.phone|escapejs }}'{% endif %},
+        address_line1: {% if not user.address %}document.querySelector('[name="address"]').value.trim(){% else %}'{{ user.address.address|escapejs }}'{% endif %},
+        city: {% if not user.address %}document.querySelector('[name="city"]').value.trim(){% else %}'{{ user.address.city|escapejs }}'{% endif %},
+        state: {% if not user.address %}document.querySelector('[name="state"]').value.trim(){% else %}'{{ user.address.state|escapejs }}'{% endif %},
+        postal_code: {% if not user.address %}document.querySelector('[name="postalCode"]').value.trim(){% else %}'{{ user.address.postalCode|escapejs }}'{% endif %},
+        country: 'India'
+    };
     
     const paymentMethod = document.querySelector('input[name="payment_method"]:checked').value;
-    formData.append('payment_method', paymentMethod);
 
     try {
         const res = await fetch("{% url 'shop:create_order' %}", {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
-            body: JSON.stringify(Object.fromEntries(formData.entries()))
+            body: JSON.stringify({
+                address: address,
+                payment_method: paymentMethod
+            })
         });
         const data = await res.json();
 
         if (data.status === 'success') {
             if (paymentMethod === 'razorpay' && data.razorpay_order_id) {
-                // Open Razorpay
+                // Open Razorpay Modal
                 var options = {
-                    "key": data.razorpay_key,
+                    "key": data.key,
                     "amount": data.amount,
                     "currency": data.currency,
                     "name": data.name,
                     "description": data.description,
                     "order_id": data.razorpay_order_id,
                     "handler": function (response) {
-                        window.location.href = `{% url 'orders:order_success' order_id='0' %}`.replace('0', data.order_id);
+                        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Verifying Payment...';
+                        
+                        // Send payment details to verification endpoint
+                        fetch("{% url 'shop:verify_payment' %}", {
+                            method: 'POST',
+                            headers: { 
+                                'Content-Type': 'application/json', 
+                                'X-CSRFToken': '{{ csrf_token }}',
+                                'X-Requested-With': 'XMLHttpRequest'
+                            },
+                            body: JSON.stringify({ 
+                                razorpay_order_id: data.razorpay_order_id,
+                                razorpay_payment_id: response.razorpay_payment_id, 
+                                razorpay_signature: response.razorpay_signature,
+                                cart_payload: JSON.stringify(data._cart_payload)
+                            })
+                        })
+                        .then(res => res.json())
+                        .then(verification => {
+                            if (verification.status === 'success') {
+                                // Redirect to Success page using orders:order_success
+                                window.location.href = `{% url 'orders:order_success' order_id='0' %}`.replace('0', verification.order_id);
+                            } else {
+                                alert(verification.message || 'Payment verification failed.');
+                                btn.disabled = false;
+                                btn.innerHTML = 'PLACE ORDER';
+                            }
+                        })
+                        .catch(err => {
+                            console.error('Verification error:', err);
+                            alert('Network error during verification. Please contact support.');
+                            btn.disabled = false;
+                            btn.innerHTML = 'PLACE ORDER';
+                        });
                     },
                     "prefill": data.prefill,
                     "theme": { "color": "#2874f0" }
@@ -194,7 +237,7 @@ document.getElementById('placeOrderBtn').addEventListener('click', async functio
                 });
                 rzp1.open();
             } else {
-                // COD Success
+                // COD Success redirect using orders:order_success
                 window.location.href = `{% url 'orders:order_success' order_id='0' %}`.replace('0', data.order_id);
             }
         } else {
@@ -203,6 +246,7 @@ document.getElementById('placeOrderBtn').addEventListener('click', async functio
             btn.innerHTML = 'PLACE ORDER';
         }
     } catch (err) {
+        console.error('Error placing order:', err);
         alert('Network Error. Please check your connection.');
         btn.disabled = false;
         btn.innerHTML = 'PLACE ORDER';
