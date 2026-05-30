@@ -1,0 +1,461 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Order Placed Successfully | StallCart{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Modern Elegant Theme variables matching style.css */
+:root {
+    --success-green: #10B981;
+    --success-bg: #ECFDF5;
+    --primary-blue: #2874F0;
+    --glass-bg: rgba(255, 255, 255, 0.85);
+    --glass-border: rgba(226, 232, 240, 0.8);
+    --text-muted: #64748B;
+    --text-dark: #1E293B;
+}
+
+.success-container {
+    max-width: 800px;
+    margin: 40px auto;
+    padding: 0 20px 80px;
+    font-family: 'DM Sans', sans-serif;
+    color: var(--text-dark);
+}
+
+/* Glassmorphism Header Section */
+.success-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+    border-radius: 24px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04), 0 1px 8px rgba(0, 0, 0, 0.02);
+    padding: 40px;
+    text-align: center;
+    margin-bottom: 30px;
+    position: relative;
+    overflow: hidden;
+}
+
+.success-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 6px;
+    background: linear-gradient(90deg, #10B981, #34D399);
+}
+
+/* Success Checkmark Animation */
+.checkmark-wrapper {
+    width: 100px;
+    height: 100px;
+    margin: 0 auto 24px;
+    position: relative;
+}
+
+.checkmark-circle {
+    width: 100px;
+    height: 100px;
+    background: var(--success-bg);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: scaleIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.checkmark-circle i {
+    font-size: 3.5rem;
+    color: var(--success-green);
+    animation: bounceIcon 0.6s 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes scaleIn {
+    0% { transform: scale(0); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes bounceIcon {
+    0% { transform: scale(0); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+.success-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: clamp(1.8rem, 4vw, 2.4rem);
+    margin-bottom: 8px;
+    background: linear-gradient(135deg, #1E293B, #0F172A);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.success-subtitle {
+    color: var(--text-muted);
+    font-size: 1.05rem;
+    margin-bottom: 32px;
+}
+
+/* Order Quick Meta */
+.order-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 16px;
+    background: #F8FAFC;
+    border-radius: 16px;
+    padding: 20px;
+    border: 1px solid #E2E8F0;
+    margin-bottom: 24px;
+}
+
+.meta-item {
+    text-align: left;
+}
+
+.meta-item span {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+}
+
+.meta-item strong {
+    font-size: 0.95rem;
+    color: var(--text-dark);
+    font-weight: 700;
+}
+
+/* Section Card */
+.details-card {
+    background: #FFFFFF;
+    border-radius: 20px;
+    border: 1px solid #E2E8F0;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02);
+    margin-bottom: 24px;
+    overflow: hidden;
+}
+
+.details-header {
+    background: #F8FAFC;
+    padding: 16px 24px;
+    border-bottom: 1px solid #E2E8F0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.details-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-dark);
+}
+
+.details-header i {
+    color: var(--primary-blue);
+    font-size: 1.1rem;
+}
+
+.details-body {
+    padding: 24px;
+}
+
+/* Order Item Row */
+.product-row {
+    display: flex;
+    gap: 16px;
+    padding: 16px 0;
+    border-bottom: 1px solid #F1F5F9;
+    align-items: center;
+}
+
+.product-row:first-child {
+    padding-top: 0;
+}
+
+.product-row:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.product-image {
+    width: 64px;
+    height: 64px;
+    object-fit: cover;
+    border-radius: 12px;
+    background: #F1F5F9;
+    border: 1px solid #E2E8F0;
+    flex-shrink: 0;
+}
+
+.product-placeholder {
+    width: 64px;
+    height: 64px;
+    border-radius: 12px;
+    background: #F1F5F9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94A3B8;
+    flex-shrink: 0;
+}
+
+.product-details {
+    flex: 1;
+    min-width: 0;
+}
+
+.product-details h4 {
+    margin: 0 0 4px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-dark);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.product-details p {
+    margin: 0;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+
+.product-price {
+    text-align: right;
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--text-dark);
+}
+
+/* Shipping address & payment summary styles */
+.info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+@media (max-width: 640px) {
+    .info-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+}
+
+.address-block p {
+    margin: 4px 0;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.price-summary-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    font-size: 0.9rem;
+}
+
+.price-summary-row:first-child {
+    padding-top: 0;
+}
+
+.price-summary-row.total {
+    border-top: 1px solid #E2E8F0;
+    padding-top: 12px;
+    margin-top: 8px;
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--text-dark);
+}
+
+.text-success {
+    color: var(--success-green);
+    font-weight: 600;
+}
+
+/* Action Buttons */
+.action-buttons {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 32px;
+}
+
+.btn-success-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px 28px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    border-radius: 14px;
+    transition: all 0.2s ease;
+    text-decoration: none !important;
+    cursor: pointer;
+    border: none;
+}
+
+.btn-primary-action {
+    background: var(--primary-blue);
+    color: #FFFFFF !important;
+    box-shadow: 0 4px 14px rgba(40, 116, 240, 0.25);
+}
+
+.btn-primary-action:hover {
+    background: #1a62d6;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(40, 116, 240, 0.35);
+}
+
+.btn-secondary-action {
+    background: #FFFFFF;
+    color: var(--text-dark) !important;
+    border: 1px solid #CBD5E1;
+}
+
+.btn-secondary-action:hover {
+    background: #F8FAFC;
+    transform: translateY(-2px);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="success-container">
+
+    <!-- ── Main Glassmorphic Header Card ──────────────────────── -->
+    <div class="success-card">
+        <div class="checkmark-wrapper">
+            <div class="checkmark-circle">
+                <i class="fa fa-circle-check"></i>
+            </div>
+        </div>
+        <h1 class="success-title">Order Confirmed!</h1>
+        <p class="success-subtitle">Thank you for shopping with StallCart. Your payment is verified and order is placed.</p>
+
+        <!-- Order Meta Summary -->
+        <div class="order-meta-grid">
+            <div class="meta-item">
+                <span>Order ID</span>
+                <strong>{{ order.unique_order_id }}</strong>
+            </div>
+            <div class="meta-item">
+                <span>Date</span>
+                <strong>{{ order.created_at|date:"d M Y, g:i A" }}</strong>
+            </div>
+            <div class="meta-item">
+                <span>Payment</span>
+                <strong>{{ order.get_payment_method_display }}</strong>
+            </div>
+            <div class="meta-item">
+                <span>Amount Paid</span>
+                <strong>₹{{ order.total_amount|floatformat:2 }}</strong>
+            </div>
+        </div>
+
+        <!-- Action Links -->
+        <div class="action-buttons">
+            <a href="{% url 'orders:order_detail' order_id=order.unique_order_id %}" class="btn-success-action btn-primary-action">
+                <i class="fa fa-route"></i> Track Order
+            </a>
+            <a href="{% url 'shop:home' %}" class="btn-success-action btn-secondary-action">
+                <i class="fa fa-shopping-bag"></i> Continue Shopping
+            </a>
+        </div>
+    </div>
+
+    <!-- ── Order Details Cards ────────────────────────────────── -->
+    <div class="details-card">
+        <div class="details-header">
+            <i class="fa fa-box-open"></i>
+            <h3>Items Purchased</h3>
+        </div>
+        <div class="details-body">
+            {% for item in order.items.all %}
+            <div class="product-row">
+                {% if item.product.primary_image %}
+                    <img src="{{ item.product.primary_image.url }}" alt="{{ item.product.name }}" class="product-image">
+                {% else %}
+                    <div class="product-placeholder">
+                        <i class="fa fa-image"></i>
+                    </div>
+                {% endif %}
+                <div class="product-details">
+                    <h4>{{ item.product.name }}</h4>
+                    <p>Seller: {{ item.seller.shop_name }}</p>
+                    <p>Qty: {{ item.quantity }} × ₹{{ item.price|floatformat:2 }}</p>
+                </div>
+                <div class="product-price">
+                    ₹{{ item.total|floatformat:2 }}
+                </div>
+            </div>
+            {% empty %}
+            <p style="color: var(--text-muted); text-align: center; margin: 0;">No items found.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Address & Invoice Details Info Section -->
+    <div class="info-grid">
+        <!-- 1. Shipping Address -->
+        <div class="details-card">
+            <div class="details-header">
+                <i class="fa fa-map-marker-alt"></i>
+                <h3>Delivery Address</h3>
+            </div>
+            <div class="details-body address-block">
+                {% with addr=order.shipping_address %}
+                {% if addr %}
+                    <p><strong>{{ addr.name }}</strong></p>
+                    <p>{{ addr.address_line1 }}{% if addr.address_line2 %}, {{ addr.address_line2 }}{% endif %}</p>
+                    <p>{{ addr.city }}, {{ addr.state }} - {{ addr.postal_code }}</p>
+                    <p style="margin-top: 10px; color: var(--text-muted);">📞 {{ addr.phone }}</p>
+                {% else %}
+                    <p style="color: var(--text-muted);">No shipping address recorded.</p>
+                {% endif %}
+                {% endwith %}
+            </div>
+        </div>
+
+        <!-- 2. Billing Details Summary -->
+        <div class="details-card">
+            <div class="details-header">
+                <i class="fa fa-file-invoice-dollar"></i>
+                <h3>Billing Summary</h3>
+            </div>
+            <div class="details-body">
+                <div class="price-summary-row">
+                    <span>Subtotal</span>
+                    <span>₹{{ order.total_amount|floatformat:2 }}</span>
+                </div>
+                <div class="price-summary-row">
+                    <span>Delivery Charges</span>
+                    <span>
+                        {% if order.delivery_charge == 0 %}
+                            <span class="text-success">FREE</span>
+                        {% else %}
+                            ₹{{ order.delivery_charge|floatformat:2 }}
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="price-summary-row total">
+                    <span>Grand Total</span>
+                    <span>₹{{ order.total_amount|floatformat:2 }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

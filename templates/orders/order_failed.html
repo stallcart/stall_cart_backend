@@ -1,0 +1,225 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Payment Failed | StallCart{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Modern Elegant Theme variables matching style.css */
+:root {
+    --error-red: #EF4444;
+    --error-bg: #FEF2F2;
+    --primary-blue: #2874F0;
+    --glass-bg: rgba(255, 255, 255, 0.85);
+    --glass-border: rgba(226, 232, 240, 0.8);
+    --text-muted: #64748B;
+    --text-dark: #1E293B;
+}
+
+.failure-container {
+    max-width: 600px;
+    margin: 60px auto 100px;
+    padding: 0 20px;
+    font-family: 'DM Sans', sans-serif;
+    color: var(--text-dark);
+}
+
+/* Glassmorphism Header Section */
+.failure-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+    border-radius: 24px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04), 0 1px 8px rgba(0, 0, 0, 0.02);
+    padding: 40px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.failure-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 6px;
+    background: linear-gradient(90deg, #EF4444, #F87171);
+}
+
+/* Failure Icon Animation */
+.error-icon-wrapper {
+    width: 100px;
+    height: 100px;
+    margin: 0 auto 24px;
+    position: relative;
+}
+
+.error-icon-circle {
+    width: 100px;
+    height: 100px;
+    background: var(--error-bg);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: scaleIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.error-icon-circle i {
+    font-size: 3.5rem;
+    color: var(--error-red);
+    animation: shakeIcon 0.6s 0.4s ease-in-out both;
+}
+
+@keyframes scaleIn {
+    0% { transform: scale(0); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes shakeIcon {
+    0%, 100% { transform: rotate(0deg); }
+    20%, 60% { transform: rotate(-10deg); }
+    40%, 80% { transform: rotate(10deg); }
+}
+
+.failure-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: clamp(1.8rem, 4vw, 2.4rem);
+    margin-bottom: 12px;
+    color: #1E293B;
+}
+
+.failure-subtitle {
+    color: var(--text-muted);
+    font-size: 1.05rem;
+    line-height: 1.6;
+    margin-bottom: 32px;
+}
+
+/* Help Box */
+.help-box {
+    text-align: left;
+    background: #F8FAFC;
+    border-radius: 16px;
+    padding: 20px 24px;
+    border: 1px solid #E2E8F0;
+    margin-bottom: 32px;
+}
+
+.help-box h3 {
+    margin: 0 0 10px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-dark);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.help-box h3 i {
+    color: #F59E0B;
+}
+
+.help-box ul {
+    margin: 0;
+    padding-left: 20px;
+    color: #475569;
+    font-size: 0.88rem;
+    line-height: 1.6;
+}
+
+.help-box ul li {
+    margin-bottom: 6px;
+}
+
+.help-box ul li:last-child {
+    margin-bottom: 0;
+}
+
+/* Action Buttons */
+.action-buttons {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.btn-failed-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px 28px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    border-radius: 14px;
+    transition: all 0.2s ease;
+    text-decoration: none !important;
+    cursor: pointer;
+    border: none;
+}
+
+.btn-primary-action {
+    background: var(--primary-blue);
+    color: #FFFFFF !important;
+    box-shadow: 0 4px 14px rgba(40, 116, 240, 0.25);
+}
+
+.btn-primary-action:hover {
+    background: #1a62d6;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(40, 116, 240, 0.35);
+}
+
+.btn-secondary-action {
+    background: #FFFFFF;
+    color: var(--text-dark) !important;
+    border: 1px solid #CBD5E1;
+}
+
+.btn-secondary-action:hover {
+    background: #F8FAFC;
+    transform: translateY(-2px);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="failure-container">
+
+    <!-- ── Main Failure Info Card ────────────────────────── -->
+    <div class="failure-card">
+        <div class="error-icon-wrapper">
+            <div class="error-icon-circle">
+                <i class="fa fa-circle-exclamation"></i>
+            </div>
+        </div>
+        <h1 class="failure-title">Payment Failed</h1>
+        <p class="failure-subtitle">We couldn't process your payment. If any amount has been deducted, it will be automatically refunded to your original source within 3–5 working days.</p>
+
+        <!-- Troubleshooting Box -->
+        <div class="help-box">
+            <h3><i class="fa fa-circle-info"></i> What can you do?</h3>
+            <ul>
+                <li>Check if you have sufficient funds in your bank account / card.</li>
+                <li>Double check card expiration date, CVV, and OTP details.</li>
+                <li>Try checking out again using a different UPI ID, card, or net banking.</li>
+            </ul>
+        </div>
+
+        <!-- Redirect buttons -->
+        <div class="action-buttons">
+            <a href="{% url 'shop:cart' %}" class="btn-failed-action btn-primary-action">
+                <i class="fa fa-shopping-cart"></i> Return to Cart
+            </a>
+            <a href="{% url 'shop:home' %}" class="btn-failed-action btn-secondary-action">
+                <i class="fa fa-home"></i> Go to Homepage
+            </a>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

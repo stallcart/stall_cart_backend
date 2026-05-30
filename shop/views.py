@@ -686,16 +686,6 @@ def _deduct_stock_for_order_items(cart_items):
 #         return redirect('shop:home')
 
 
-@login_required
-def order_success(request, order_id):
-    """Order confirmation"""
-    try:
-        order = Order.objects.get(unique_order_id=order_id, user=request.user)
-        return render(request, 'shop/order_success.html', {'order': order})
-    except Order.DoesNotExist:
-        return redirect('shop:home')
-    
-
 # shop/views.py - Add this new view
 
 # @customer_only

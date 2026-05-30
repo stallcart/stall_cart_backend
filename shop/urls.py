@@ -12,6 +12,5 @@ urlpatterns = [
     path('cart/update/', views.update_cart, name='update_cart'), # ✅ AJAX update/remove
     path('checkout/', views.checkout, name='checkout'),       # ✅ Checkout page
     path('orders/create/', views.create_order, name='create_order'), # ✅ Place order
-    path('orders/success/<uuid:order_id>/', views.order_success, name='order_success'),
     path('shop/verify-payment/', views.verify_payment, name='verify_payment'),
 ]
