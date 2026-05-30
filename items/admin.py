@@ -483,22 +483,25 @@ class ProductAdmin(admin.ModelAdmin):
     price_display.short_description = "Price"
 
     def stock_status(self, obj):
-
+        from django.utils.safestring import mark_safe
+        
         total_stock = obj.total_stock
 
         if total_stock <= 0:
-            return format_html(
+            # ✅ Use mark_safe for static HTML
+            return mark_safe(
                 '<span style="color:#c62828;font-weight:700;">OUT OF STOCK</span>'
             )
 
         if total_stock <= obj.low_stock_threshold:
+            # ✅ format_html with argument interpolation
             return format_html(
                 '''
                 <span style="color:#f57f17;font-weight:700;">
                     ⚠ LOW STOCK ({})
                 </span>
                 ''',
-                total_stock
+                total_stock  # ✅ Argument provided
             )
 
         return format_html(
@@ -507,7 +510,7 @@ class ProductAdmin(admin.ModelAdmin):
                 {} in stock
             </span>
             ''',
-            total_stock
+            total_stock  # ✅ Argument provided
         )
 
     stock_status.short_description = "Stock"
