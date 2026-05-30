@@ -246,81 +246,6 @@ def checkout(request):
     return render(request, 'shop/checkout.html', context)
 
 
-# shop/views.py
-
-# shop/views.py - create_order function
-
-# @customer_only
-# @require_POST
-# def create_order(request):
-#     """Create order - CUSTOMERS ONLY"""
-#     import json
-#     from django.db import transaction
-    
-#     try:
-#         data = json.loads(request.body)
-#         address = data.get('address', {})
-#         payment_method = data.get('payment_method', 'cod').lower()
-        
-#         # Get cart from DB
-#         try:
-#             cart = Cart.objects.get(user=request.user)
-#         except Cart.DoesNotExist:
-#             return JsonResponse({'error': 'Cart not found'}, status=400)
-        
-#         if not cart.items.exists():
-#             return JsonResponse({'error': 'Cart is empty'}, status=400)
-        
-#         cart_items = cart.items.select_related('product', 'product__seller')
-        
-#         # Stock validation
-#         for item in cart_items:
-#             if item.quantity > item.product.stock:
-#                 return JsonResponse({'error': f'Not enough stock for {item.product.name}'}, status=400)
-        
-#         total = sum(item.subtotal for item in cart_items)
-        
-#         with transaction.atomic():
-#             order = Order.objects.create(
-#                 user=request.user, total_amount=total,
-#                 shipping_address=address, payment_method=payment_method,
-#                 payment_status='pending',
-#             )
-            
-#             for item in cart_items:
-#                 OrderItem.objects.create(
-#                     order=order, product=item.product, seller=item.product.seller,
-#                     quantity=item.quantity, price=item.unit_price, total=item.subtotal
-#                 )
-#                 item.product.stock -= item.quantity
-#                 item.product.save()
-            
-#             cart.items.all().delete()
-        
-#         # Razorpay for non-COD
-#         if payment_method != 'cod':
-#             import razorpay
-#             razorpay_client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
-#             razorpay_order = razorpay_client.order.create({
-#                 'amount': int(total * 100), 'currency': 'INR',
-#                 'receipt': order.unique_order_id, 'payment_capture': 1
-#             })
-#             order.razorpay_order_id = razorpay_order['id']
-#             order.save()
-            
-#             return JsonResponse({
-#                 'status': 'success', 'order_id': order.unique_order_id,
-#                 'razorpay_order_id': razorpay_order['id'],
-#                 'key': settings.RAZORPAY_KEY_ID, 'amount': int(total * 100), 'currency': 'INR',
-#             })
-        
-#         return JsonResponse({'status': 'success', 'order_id': order.unique_order_id})
-        
-#     except Exception as e:
-#         import traceback
-#         traceback.print_exc()
-#         return JsonResponse({'error': str(e)}, status=500)
-# shop/views.py
 
 @customer_only
 @require_POST
@@ -564,6 +489,206 @@ def create_order(request):
             'status': 'error',
             'message': 'Order creation failed. Please try again.'
         }, status=500)
+
+
+
+# @customer_only
+# @require_POST
+# def create_order(request):
+#     """
+#     Create an order from the cart.
+ 
+#     COD  → stock deducted immediately, cart cleared, order confirmed.
+#     Online (Razorpay) → order row created with status=pending,
+#                         stock NOT deducted yet (happens in verify_payment/webhook),
+#                         returns Razorpay config for frontend modal.
+#     """
+#     try:
+#         data = json.loads(request.body)
+#     except json.JSONDecodeError:
+#         return JsonResponse({'status': 'error', 'message': 'Invalid JSON data'}, status=400)
+ 
+#     address = data.get('address', {})
+#     payment_method = data.get('payment_method', 'cod').lower()
+ 
+#     # ── Fetch cart ────────────────────────────────────────────────────────────
+#     try:
+#         cart = Cart.objects.select_related('user').get(user=request.user)
+#     except Cart.DoesNotExist:
+#         return JsonResponse({'status': 'error', 'message': 'Cart not found'}, status=400)
+ 
+#     if not cart.items.exists():
+#         return JsonResponse({'status': 'error', 'message': 'Cart is empty'}, status=400)
+ 
+#     cart_items = cart.items.select_related(
+#         'product', 'product__seller', 'product__category', 'variant'
+#     ).all()
+ 
+#     # ── Stock validation (pre-check) ─────────────────────────────────────────
+#     unavailable = []
+#     for item in cart_items:
+#         product = item.product
+#         variant = item.variant
+ 
+#         if product.status != 'published' or not product.is_active:
+#             unavailable.append({
+#                 'name': product.name,
+#                 'reason': 'Product is no longer available',
+#                 'requested': item.quantity,
+#                 'available': 0,
+#             })
+#             continue
+ 
+#         available_stock = variant.stock if variant else product.stock
+#         if available_stock < item.quantity:
+#             unavailable.append({
+#                 'name': product.name,
+#                 'variant': f"{variant.size_value} / {variant.color}".strip(' /') if variant else None,
+#                 'reason': 'Insufficient stock',
+#                 'requested': item.quantity,
+#                 'available': available_stock,
+#             })
+ 
+#     if unavailable:
+#         if len(unavailable) == 1:
+#             item_info = unavailable[0]
+#             msg = f"'{item_info['name']}'"
+#             if item_info.get('variant'):
+#                 msg += f" ({item_info['variant']})"
+#             msg += f" — Only {item_info['available']} available (you requested {item_info['requested']})"
+#         else:
+#             msg = f"{len(unavailable)} items are no longer available. Please review your cart."
+#         return JsonResponse({'status': 'error', 'message': msg, 'unavailable_items': unavailable}, status=400)
+ 
+#     # ── Totals ────────────────────────────────────────────────────────────────
+#     subtotal = sum(Decimal(str(item.subtotal)) for item in cart_items)
+#     delivery_charge = Decimal('0') if subtotal >= Decimal('499') else Decimal('40')
+#     total_amount = subtotal + delivery_charge
+ 
+#     # ── Razorpay order (for online payments) ─────────────────────────────────
+#     razorpay_order = None
+#     if payment_method != 'cod':
+#         try:
+#             client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+#             razorpay_order = client.order.create({
+#                 'amount': int(total_amount * 100),
+#                 'currency': 'INR',
+#                 'payment_capture': 1,
+#                 'notes': {
+#                     'user_id': str(request.user.id),
+#                     'email': request.user.email or '',
+#                 }
+#             })
+#         except Exception as e:
+#             logger.error(f"Razorpay order creation failed: {e}", exc_info=True)
+#             return JsonResponse({'status': 'error', 'message': 'Unable to initialize payment gateway'}, status=500)
+ 
+#     # ── Atomic order creation ─────────────────────────────────────────────────
+#     try:
+#         with transaction.atomic():
+#             # Re-check stock inside transaction (race-condition guard)
+#             for item in cart_items:
+#                 available_stock = item.variant.stock if item.variant else item.product.stock
+#                 if available_stock < item.quantity:
+#                     raise ValueError(
+#                         f"Stock changed for {item.product.name}. Only {available_stock} available."
+#                     )
+ 
+#             order = Order.objects.create(
+#                 user=request.user,
+#                 total_amount=total_amount,
+#                 delivery_charge=delivery_charge,
+#                 shipping_address=address,
+#                 payment_method='razorpay' if payment_method != 'cod' else 'cod',
+#                 payment_status='pending',
+#                 status='pending',
+#                 razorpay_order_id=razorpay_order['id'] if razorpay_order else None,
+#                 notes=json.dumps({
+#                     'subtotal': float(subtotal),
+#                     'delivery_charge': float(delivery_charge),
+#                     'total_amount': float(total_amount),
+#                 })
+#             )
+ 
+#             # Create order items
+#             for item in cart_items:
+#                 item_price = getattr(item, 'price', None) or item.unit_price
+#                 OrderItem.objects.create(
+#                     order=order,
+#                     product=item.product,
+#                     seller=item.product.seller,
+#                     variant=item.variant,
+#                     quantity=item.quantity,
+#                     price=item_price,
+#                     total=item.subtotal,
+#                 )
+ 
+#             # COD: deduct stock + confirm immediately
+#             if payment_method == 'cod':
+#                 _deduct_stock_for_order_items(cart_items)
+#                 cart.items.all().delete()
+#                 order.payment_status = 'pending'
+#                 order.status = 'confirmed'
+#                 order.save(update_fields=['payment_status', 'status'])
+#                 OrderStatusLog.objects.create(
+#                     order=order, old_status='pending', new_status='confirmed',
+#                     changed_by=request.user, remarks='COD order confirmed'
+#                 )
+ 
+#             # Online: DO NOT deduct stock yet. verify_payment / webhook handles it.
+ 
+#     except ValueError as e:
+#         logger.warning(f"Stock changed during order creation: {e}")
+#         return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+#     except Exception as e:
+#         logger.error(f"Order creation failed: {e}", exc_info=True)
+#         return JsonResponse({'status': 'error', 'message': 'Order creation failed. Please try again.'}, status=500)
+ 
+#     # ── Response ──────────────────────────────────────────────────────────────
+#     if payment_method != 'cod':
+#         return JsonResponse({
+#             'status': 'success',
+#             'payment_method': 'razorpay',
+#             'order_id': order.unique_order_id,
+#             'razorpay_order_id': razorpay_order['id'],
+#             'key': settings.RAZORPAY_KEY_ID,
+#             'amount': int(total_amount * 100),
+#             'currency': 'INR',
+#             'name': getattr(settings, 'SITE_NAME', 'StallCart'),
+#             'description': f'Order #{order.unique_order_id}',
+#             'prefill': {
+#                 'name': getattr(request.user, 'full_name', '') or '',
+#                 'email': request.user.email or '',
+#                 'contact': getattr(request.user, 'phone', '') or '',
+#             },
+#             'theme': {'color': '#2874F0'},
+#         })
+ 
+#     return JsonResponse({
+#         'status': 'success',
+#         'payment_method': 'cod',
+#         'order_id': order.unique_order_id,
+#         'message': 'Order placed successfully.',
+#     })
+ 
+ 
+def _deduct_stock_for_order_items(cart_items):
+    """Deduct stock from a list of CartItem objects (call inside atomic transaction)."""
+    from django.db.models import Sum
+    for item in cart_items:
+        product = item.product
+        variant = item.variant
+        if variant:
+            variant.stock = max(0, variant.stock - item.quantity)
+            variant.save(update_fields=['stock'])
+            product.stock = product.variants.filter(is_active=True).aggregate(
+                total=Sum('stock')
+            )['total'] or 0
+            product.save(update_fields=['stock'])
+        else:
+            product.stock = max(0, product.stock - item.quantity)
+            product.save(update_fields=['stock'])
+
 # @login_required
 # def order_success(request, order_id):
 #     """Order confirmation page"""

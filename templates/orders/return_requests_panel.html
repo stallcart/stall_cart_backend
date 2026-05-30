@@ -1,0 +1,294 @@
+{% comment %}
+Return Requests Panel — For Seller/Admin Dashboards
+Include with: {% include "orders/_return_requests_panel.html" with pending_returns=pending_returns order=order %}
+{% endcomment %}
+
+{% if pending_returns %}
+<div class="return-requests-panel" style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border: 1.5px solid #fcd34d; border-radius: var(--r-xl); padding: 16px 20px; margin: 20px 0;">
+    
+    <!-- Header -->
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+        <h4 style="margin: 0; font-size: 1rem; font-weight: 700; color: #92400e; display: flex; align-items: center; gap: 8px; font-family: 'Syne', sans-serif;">
+            <i class="fa fa-undo-alt" style="color: #f59e0b;"></i>
+            Return Requests
+            <span class="badge" style="background: #f59e0b; color: white; font-size: 0.7rem; padding: 2px 8px; border-radius: 12px; margin-left: 8px;">{{ pending_returns|length }}</span>
+        </h4>
+        <small style="color: #92400e; font-weight: 500;">Awaiting your approval</small>
+    </div>
+
+    <!-- Return Items List -->
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+        {% for return_req in pending_returns %}
+        <div class="return-item-card" 
+             data-return-id="{{ return_req.id }}"
+             data-order-item-id="{{ return_req.order_item.id }}"
+             data-refund-amount="{{ return_req.refund_amount }}"
+             data-payment-method="{{ return_req.order_item.order.payment_method }}"
+             style="background: white; border: 1.5px solid #fde68a; border-radius: var(--r-lg); padding: 14px 16px; display: grid; grid-template-columns: 60px 1fr auto; gap: 14px; align-items: start;">
+            
+            <!-- Product Image -->
+            <div style="width: 60px; height: 60px; border-radius: var(--r-md); overflow: hidden; background: var(--gray-50); border: 1px solid var(--gray-200); flex-shrink: 0;">
+                {% if return_req.order_item.product.primary_image %}
+                    <img src="{{ return_req.order_item.product.primary_image.url }}" 
+                         alt="{{ return_req.order_item.product.name }}" 
+                         style="width: 100%; height: 100%; object-fit: cover;">
+                {% else %}
+                    <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: var(--gray-300);">
+                        <i class="fa fa-image"></i>
+                    </div>
+                {% endif %}
+            </div>
+            
+            <!-- Return Details -->
+            <div style="min-width: 0;">
+                <p style="margin: 0 0 4px; font-weight: 600; font-size: 0.9rem; color: var(--gray-800);">
+                    {{ return_req.order_item.product.name|truncatechars:40 }}
+                </p>
+                {% if return_req.order_item.variant %}
+                    <p style="margin: 0 0 4px; font-size: 0.8rem; color: var(--blue-600);">
+                        <i class="fa fa-tag"></i> {{ return_req.order_item.variant.name }}
+                    </p>
+                {% endif %}
+                <p style="margin: 0 0 8px; font-size: 0.8rem; color: var(--gray-500);">
+                    <a href="{% url 'orders:order_detail' return_req.order_item.order.id %}" 
+                       style="color: var(--blue-500); text-decoration: none;">
+                        Order #{{ return_req.order_item.order.id }}
+                    </a> • {{ return_req.order_item.order.customer.get_full_name|default:return_req.order_item.order.customer.username }}
+                    • Qty: {{ return_req.quantity }}
+                </p>
+                <p style="margin: 0 0 8px; font-size: 0.85rem; color: var(--gray-700);">
+                    <strong>Reason:</strong> {{ return_req.reason }}
+                    {% if return_req.remarks %}<br><small style="color: var(--gray-500);">Note: {{ return_req.remarks|truncatechars:80 }}</small>{% endif %}
+                </p>
+                <p style="margin: 0; font-size: 0.9rem; font-weight: 700; color: var(--green);">
+                    Refund: ₹{{ return_req.refund_amount|floatformat:2 }}
+                    {% if return_req.order_item.order.payment_method == 'ONLINE' %}
+                        <span style="font-size: 0.75rem; font-weight: 500; color: var(--gray-500); margin-left: 6px;">• Auto to source</span>
+                    {% else %}
+                        <span style="font-size: 0.75rem; font-weight: 500; color: var(--amber); margin-left: 6px;">• Manual bank transfer</span>
+                    {% endif %}
+                </p>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-end;">
+                <button class="btn-sm btn-success" 
+                        onclick="openApproveModal({{ return_req.id }}, '{{ return_req.order_item.product.name|escapejs }}', {{ return_req.refund_amount }})"
+                        style="padding: 6px 14px; font-size: 0.8rem; font-weight: 600;">
+                    <i class="fa fa-check"></i> Approve
+                </button>
+                <button class="btn-sm btn-outline" 
+                        onclick="openRejectModal({{ return_req.id }}, '{{ return_req.order_item.product.name|escapejs }}')"
+                        style="padding: 6px 14px; font-size: 0.8rem; font-weight: 600; border-color: var(--red); color: var(--red);">
+                    <i class="fa fa-times"></i> Reject
+                </button>
+                <small style="font-size: 0.7rem; color: var(--gray-400); text-align: right;">
+                    {{ return_req.created_at|timesince }} ago
+                </small>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- ✅ Approve Return Modal -->
+<div id="approveReturnModal" class="modal-overlay" style="display: none; z-index: 2000;" role="dialog" aria-modal="true">
+    <div class="modal-content" style="background: white; border-radius: var(--r-2xl); width: 100%; max-width: 420px; box-shadow: var(--sh-xl);">
+        <div style="padding: 20px 24px; border-bottom: 1px solid var(--gray-100); display: flex; align-items: center; justify-content: space-between;">
+            <h4 style="margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--gray-900); font-family: 'Syne', sans-serif;">
+                <i class="fa fa-check-circle" style="color: var(--green); margin-right: 6px;"></i> Approve Return?
+            </h4>
+            <button onclick="closeApproveModal()" style="background: none; border: none; font-size: 1.2rem; color: var(--gray-400); cursor: pointer; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: var(--r-md); transition: all var(--tr);">
+                <i class="fa fa-times"></i>
+            </button>
+        </div>
+        <div style="padding: 20px 24px;">
+            <p style="margin: 0 0 16px; font-size: 0.95rem; color: var(--gray-700);">
+                Approving will:
+            </p>
+            <ul style="margin: 0 0 20px 20px; font-size: 0.9rem; color: var(--gray-600); line-height: 1.6;">
+                <li>Restock <strong id="approveProductName"></strong> (Qty: <span id="approveQty"></span>)</li>
+                <li>Mark item as returned in order</li>
+                <li>
+                    Initiate refund of <strong id="approveRefundAmount"></strong>
+                    <span id="refundMethodNote" style="font-size: 0.85rem; color: var(--gray-500); display: block; margin-top: 4px;"></span>
+                </li>
+            </ul>
+            <div style="background: var(--amber-light); border: 1px solid #fcd34d; border-radius: var(--r-md); padding: 12px; font-size: 0.85rem; color: #92400e; margin-bottom: 20px;">
+                <i class="fa fa-info-circle"></i> This action cannot be undone.
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button onclick="closeApproveModal()" class="btn-outline" style="padding: 10px 18px; font-weight: 600;">Cancel</button>
+                <button onclick="submitReturnAction('approve')" class="btn-success" style="padding: 10px 18px; font-weight: 600;">
+                    <i class="fa fa-check"></i> Yes, Approve & Refund
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ✅ Reject Return Modal -->
+<div id="rejectReturnModal" class="modal-overlay" style="display: none; z-index: 2000;" role="dialog" aria-modal="true">
+    <div class="modal-content" style="background: white; border-radius: var(--r-2xl); width: 100%; max-width: 420px; box-shadow: var(--sh-xl);">
+        <div style="padding: 20px 24px; border-bottom: 1px solid var(--gray-100); display: flex; align-items: center; justify-content: space-between;">
+            <h4 style="margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--gray-900); font-family: 'Syne', sans-serif;">
+                <i class="fa fa-times-circle" style="color: var(--red); margin-right: 6px;"></i> Reject Return?
+            </h4>
+            <button onclick="closeRejectModal()" style="background: none; border: none; font-size: 1.2rem; color: var(--gray-400); cursor: pointer; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: var(--r-md); transition: all var(--tr);">
+                <i class="fa fa-times"></i>
+            </button>
+        </div>
+        <div style="padding: 20px 24px;">
+            <p style="margin: 0 0 12px; font-size: 0.95rem; color: var(--gray-700);">
+                Rejecting return for: <strong id="rejectProductName"></strong>
+            </p>
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label class="form-label" for="rejectReason" style="font-size: 0.9rem; font-weight: 600; color: var(--gray-700); margin-bottom: 6px; display: block;">
+                    Reason for rejection <span style="color: var(--red);">*</span>
+                </label>
+                <textarea id="rejectReason" class="form-input" rows="3" placeholder="e.g., Product not in original condition, return window expired..." required style="width: 100%; padding: 10px 12px; border: 1.5px solid var(--gray-200); border-radius: var(--r-md); font-size: 0.9rem; resize: vertical;"></textarea>
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button onclick="closeRejectModal()" class="btn-outline" style="padding: 10px 18px; font-weight: 600;">Cancel</button>
+                <button onclick="submitReturnAction('reject')" class="btn-danger" style="padding: 10px 18px; font-weight: 600; background: var(--red); color: white; border: none; border-radius: var(--r-md); cursor: pointer;">
+                    <i class="fa fa-times"></i> Reject Return
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Modal State
+let currentReturnId = null;
+
+// Open Approve Modal
+function openApproveModal(returnId, productName, refundAmount) {
+    currentReturnId = returnId;
+    document.getElementById('approveProductName').textContent = productName;
+    document.getElementById('approveRefundAmount').textContent = '₹' + refundAmount.toFixed(2);
+    
+    // Show refund method note
+    const card = document.querySelector(`[data-return-id="${returnId}"]`);
+    const paymentMethod = card?.dataset.paymentMethod;
+    const noteEl = document.getElementById('refundMethodNote');
+    if (paymentMethod === 'ONLINE') {
+        noteEl.textContent = '→ Auto-refunded to customer\'s original payment method via Razorpay';
+        noteEl.style.color = 'var(--green)';
+    } else {
+        noteEl.textContent = '→ Manual bank transfer required (COD orders)';
+        noteEl.style.color = 'var(--amber)';
+    }
+    
+    document.getElementById('approveReturnModal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeApproveModal() {
+    document.getElementById('approveReturnModal').style.display = 'none';
+    document.body.style.overflow = '';
+    currentReturnId = null;
+}
+
+// Open Reject Modal
+function openRejectModal(returnId, productName) {
+    currentReturnId = returnId;
+    document.getElementById('rejectProductName').textContent = productName;
+    document.getElementById('rejectReason').value = '';
+    document.getElementById('rejectReturnModal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeRejectModal() {
+    document.getElementById('rejectReturnModal').style.display = 'none';
+    document.body.style.overflow = '';
+    currentReturnId = null;
+}
+
+// Close modals on overlay click
+document.getElementById('approveReturnModal')?.addEventListener('click', (e) => { if (e.target.id === 'approveReturnModal') closeApproveModal(); });
+document.getElementById('rejectReturnModal')?.addEventListener('click', (e) => { if (e.target.id === 'rejectReturnModal') closeRejectModal(); });
+
+// Submit Return Action (Approve/Reject)
+async function submitReturnAction(action) {
+    if (!currentReturnId) return;
+    
+    const payload = { action: action };
+    if (action === 'reject') {
+        const reason = document.getElementById('rejectReason').value.trim();
+        if (!reason) {
+            alert('Please provide a reason for rejection');
+            return;
+        }
+        payload.rejection_reason = reason;
+    }
+    
+    const btn = event?.target;
+    const originalText = btn?.innerHTML;
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Processing...'; }
+    
+    try {
+        const res = await fetch(`/orders/return/${currentReturnId}/approve/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        
+        if (data.status === 'success') {
+            // Remove the row with animation
+            const row = document.querySelector(`[data-return-id="${currentReturnId}"]`);
+            if (row) {
+                row.style.transition = 'opacity 0.3s, transform 0.3s';
+                row.style.opacity = '0';
+                row.style.transform = 'translateX(20px)';
+                setTimeout(() => {
+                    row.remove();
+                    // Update badge count
+                    const badge = document.querySelector('.return-requests-panel .badge');
+                    if (badge) {
+                        const count = parseInt(badge.textContent) - 1;
+                        if (count <= 0) {
+                            document.querySelector('.return-requests-panel').remove();
+                        } else {
+                            badge.textContent = count;
+                        }
+                    }
+                }, 300);
+            }
+            
+            // Show toast
+            if (typeof window.showToast === 'function') {
+                window.showToast(`Return ${action === 'approve' ? 'approved' : 'rejected'} successfully!`, 'success');
+            } else {
+                alert(`Return ${action === 'approve' ? 'approved' : 'rejected'}!`);
+            }
+            
+            // Close modal
+            if (action === 'approve') closeApproveModal();
+            else closeRejectModal();
+            
+        } else {
+            alert(data.message || `Failed to ${action} return`);
+            if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
+        }
+    } catch (err) {
+        console.error('Return action error:', err);
+        alert('Network error. Please try again.');
+        if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
+    }
+}
+
+// Close modals on Escape key
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        closeApproveModal();
+        closeRejectModal();
+    }
+});
+</script>
+{% endif %}
