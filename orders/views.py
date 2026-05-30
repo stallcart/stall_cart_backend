@@ -17,6 +17,8 @@ from .models import Order, OrderItem, ReturnRequest, OrderStatusLog, OrderReturn
 from items.models import Product, SellerProfile
 from delivery.models import DeliveryPartner
 from django.conf import settings
+import hmac, hashlib, json
+from django.views.decorators.csrf import csrf_exempt
 logger = logging.getLogger(__name__)
 User = get_user_model()
 
@@ -548,43 +550,108 @@ def admin_update_status(request, order_id):
 
 # ==================== WEBHOOKS ====================
 
-@require_POST
+# @require_POST
+# def razorpay_webhook(request):
+#     """Handle Razorpay payment events"""
+#     signature = request.META.get('HTTP_X_RAZORPAY_SIGNATURE')
+#     body = request.body
+    
+#     try:
+#         razorpay_client.utility.verify_webhook_signature(
+#             body.decode('utf-8'), signature, settings.RAZORPAY_WEBHOOK_SECRET
+#         )
+        
+#         event = json.loads(body)
+#         if event.get('event') == 'payment.captured':
+#             payment = event['payload']['payment']['entity']
+#             order = Order.objects.filter(razorpay_payment_id=payment['id']).first()
+            
+#             if order:
+#                 with transaction.atomic():
+#                     order.payment_status = 'paid'
+#                     if order.status == 'pending':
+#                         order.status = 'confirmed'
+#                         order.status_updated_at = timezone.now()
+#                         OrderStatusLog.objects.create(
+#                             order=order, old_status='pending', new_status='confirmed',
+#                             remarks='Payment captured via Razorpay'
+#                         )
+#                     order.save()
+                    
+#                     for item in order.items.all():
+#                         item.product.stock -= item.quantity
+#                         item.product.save()
+        
+#         return HttpResponse(status=200)
+#     except Exception as e:
+#         logger.error(f"Razorpay webhook error: {e}")
+#         return HttpResponse(status=400)
+
+
+@csrf_exempt  # Razorpay webhooks don't send CSRF
 def razorpay_webhook(request):
-    """Handle Razorpay payment events"""
+    """
+    Handle Razorpay webhook events:
+    - payment.captured (for order confirmation fallback)
+    - refund.processed (mark refund as completed)
+    - refund.failed (alert admin)
+    """
+    
+    
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    # Verify webhook signature
     signature = request.META.get('HTTP_X_RAZORPAY_SIGNATURE')
-    body = request.body
+    if not signature or not hasattr(settings, 'RAZORPAY_WEBHOOK_SECRET'):
+        return JsonResponse({'error': 'Missing signature or secret'}, status=400)
+    
+    expected_signature = hmac.new(
+        settings.RAZORPAY_WEBHOOK_SECRET.encode(),
+        request.body,
+        hashlib.sha256
+    ).hexdigest()
+    
+    if not hmac.compare_digest(signature, expected_signature):
+        logger.warning("Razorpay webhook signature mismatch")
+        return JsonResponse({'error': 'Invalid signature'}, status=400)
     
     try:
-        razorpay_client.utility.verify_webhook_signature(
-            body.decode('utf-8'), signature, settings.RAZORPAY_WEBHOOK_SECRET
-        )
+        event = json.loads(request.body)
+        entity = event.get('payload', {}).get('refund', {}).get('entity', {})
+        event_type = event.get('event', '')
         
-        event = json.loads(body)
-        if event.get('event') == 'payment.captured':
-            payment = event['payload']['payment']['entity']
-            order = Order.objects.filter(razorpay_payment_id=payment['id']).first()
+        if event_type == 'refund.processed' and entity.get('status') == 'processed':
+            razorpay_refund_id = entity.get('id')
+            return_req = ReturnRequest.objects.filter(
+                razorpay_refund_id=razorpay_refund_id
+            ).first()
             
-            if order:
-                with transaction.atomic():
-                    order.payment_status = 'paid'
-                    if order.status == 'pending':
-                        order.status = 'confirmed'
-                        order.status_updated_at = timezone.now()
-                        OrderStatusLog.objects.create(
-                            order=order, old_status='pending', new_status='confirmed',
-                            remarks='Payment captured via Razorpay'
-                        )
-                    order.save()
-                    
-                    for item in order.items.all():
-                        item.product.stock -= item.quantity
-                        item.product.save()
+            if return_req:
+                return_req.refund_status = 'completed'
+                return_req.save(update_fields=['refund_status', 'updated_at'])
+                logger.info(f"Refund {razorpay_refund_id} marked as completed")
+                # Optional: Notify customer refund completed
+                # send_refund_completed_notification(return_req)
         
-        return HttpResponse(status=200)
+        elif event_type == 'refund.failed':
+            razorpay_refund_id = entity.get('id')
+            return_req = ReturnRequest.objects.filter(
+                razorpay_refund_id=razorpay_refund_id
+            ).first()
+            if return_req:
+                return_req.refund_status = 'failed'
+                return_req.refund_failure_reason = entity.get('error', {}).get('description', 'Unknown error')
+                return_req.save(update_fields=['refund_status', 'refund_failure_reason', 'updated_at'])
+                logger.error(f"Refund {razorpay_refund_id} failed: {return_req.refund_failure_reason}")
+                # Optional: Alert admin
+                # send_admin_alert(f"Refund failed for Return #{return_req.id}")
+        
+        return JsonResponse({'status': 'ok'}, status=200)
+        
     except Exception as e:
-        logger.error(f"Razorpay webhook error: {e}")
-        return HttpResponse(status=400)
-
+        logger.exception(f"Error processing Razorpay webhook: {e}")
+        return JsonResponse({'error': 'Internal error'}, status=500)
 @require_POST
 def shiprocket_webhook(request):
     """Handle Shiprocket delivery tracking updates"""
@@ -625,3 +692,277 @@ def order_success(request, order_id):
 def order_failed(request):
     """Order failed/cancelled page"""
     return render(request, 'orders/order_failed.html')
+
+
+
+# Initialize Razorpay client (lazy load to avoid startup errors)
+def get_razorpay_client():
+    if not hasattr(settings, 'RAZORPAY_KEY_ID') or not settings.RAZORPAY_KEY_ID:
+        return None
+    return razorpay.Client(
+        auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET),
+        timeout=30
+    )
+
+
+def is_seller_or_admin(user):
+    """Check if user is admin or seller"""
+    return user.is_authenticated and (user.is_staff or user.is_superuser or getattr(user, 'role', None) == 'seller')
+
+
+@login_required
+@user_passes_test(is_seller_or_admin)
+@require_POST
+def approve_return(request, return_id):
+    """
+    Approve or reject a return request.
+    
+    POST payload:
+    {
+        "action": "approve" | "reject",
+        "rejection_reason": "string (required if action=reject)"
+    }
+    
+    On approve:
+    - Restocks the product/variant
+    - Marks order item as returned
+    - Initiates Razorpay refund for ONLINE payments
+    - Marks COD for manual bank transfer
+    
+    Returns JSON response for frontend integration.
+    """
+    try:
+        import json
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': 'Invalid JSON payload'}, status=400)
+    
+    action = data.get('action', '').lower()
+    if action not in ['approve', 'reject']:
+        return JsonResponse({'status': 'error', 'message': 'Invalid action. Use "approve" or "reject"'}, status=400)
+    
+    # Get return request with related objects
+    return_req = get_object_or_404(
+        ReturnRequest.objects.select_related(
+            'order_item', 
+            'order_item__order',
+            'order_item__product',
+            'order_item__variant'
+        ),
+        id=return_id
+    )
+    
+    # Permission check: seller can only approve returns for their own products
+    if not request.user.is_staff and not request.user.is_superuser:
+        if return_req.order_item.product.seller != request.user:
+            return JsonResponse(
+                {'status': 'error', 'message': 'You can only manage returns for your own products'}, 
+                status=403
+            )
+    
+    # Only pending returns can be actioned
+    if return_req.status != 'pending':
+        return JsonResponse(
+            {'status': 'error', 'message': f'Return request is already {return_req.status}'}, 
+            status=400
+        )
+    
+    order_item = return_req.order_item
+    order = order_item.order
+    product = order_item.product
+    variant = order_item.variant
+    
+    # === REJECT FLOW ===
+    if action == 'reject':
+        rejection_reason = data.get('rejection_reason', '').strip()
+        if not rejection_reason:
+            return JsonResponse(
+                {'status': 'error', 'message': 'Rejection reason is required'}, 
+                status=400
+            )
+        
+        return_req.status = 'rejected'
+        return_req.rejection_reason = rejection_reason
+        return_req.actioned_by = request.user
+        return_req.actioned_at = timezone.now()
+        return_req.save(update_fields=['status', 'rejection_reason', 'actioned_by', 'actioned_at', 'updated_at'])
+        
+        # Optional: Notify customer of rejection (implement your notification system)
+        # send_return_rejected_notification(return_req, rejection_reason)
+        
+        logger.info(f"Return #{return_id} rejected by {request.user}: {rejection_reason}")
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Return request rejected',
+            'return_id': return_req.id,
+            'new_status': 'rejected'
+        })
+    
+    # === APPROVE FLOW ===
+    with transaction.atomic():
+        # 1. Restock the product/variant
+        qty_to_restock = return_req.quantity
+        
+        if variant:
+            # Restock specific variant
+            variant.stock = (variant.stock or 0) + qty_to_restock
+            variant.save(update_fields=['stock', 'updated_at'])
+            logger.info(f"Restocked {qty_to_restock} units of variant #{variant.id}")
+        else:
+            # Restock base product
+            product.stock = (product.stock or 0) + qty_to_restock
+            product.save(update_fields=['stock', 'updated_at'])
+            logger.info(f"Restocked {qty_to_restock} units of product #{product.id}")
+        
+        # 2. Mark order item as returned
+        order_item.is_returned = True
+        order_item.returned_quantity = (order_item.returned_quantity or 0) + qty_to_restock
+        order_item.save(update_fields=['is_returned', 'returned_quantity', 'updated_at'])
+        
+        # 3. Update return request
+        return_req.status = 'approved'
+        return_req.actioned_by = request.user
+        return_req.actioned_at = timezone.now()
+        return_req.refund_initiated_at = timezone.now()
+        return_req.save(update_fields=[
+            'status', 'actioned_by', 'actioned_at', 
+            'refund_initiated_at', 'updated_at'
+        ])
+        
+        # 4. Process refund based on payment method
+        refund_result = _process_refund(order, return_req, qty_to_restock)
+        
+        # 5. Update order status if all items are returned
+        _update_order_status_if_fully_returned(order)
+    
+    logger.info(f"Return #{return_id} approved by {request.user}, refund: {refund_result}")
+    
+    return JsonResponse({
+        'status': 'success',
+        'message': 'Return approved & refund initiated',
+        'return_id': return_req.id,
+        'new_status': 'approved',
+        'refund': refund_result,
+        'restocked': {
+            'product': product.name,
+            'variant': variant.name if variant else None,
+            'quantity': qty_to_restock
+        }
+    })
+
+
+def _process_refund(order, return_req, qty_to_restock):
+    """
+    Internal helper: Process refund via Razorpay or mark for manual transfer.
+    Returns dict with refund details.
+    """
+    refund_amount_paise = int(return_req.refund_amount * 100)  # Razorpay uses paise
+    payment_method = order.payment_method
+    razorpay_payment_id = order.razorpay_payment_id
+    
+    result = {
+        'amount': float(return_req.refund_amount),
+        'currency': 'INR',
+        'method': payment_method,
+        'status': 'pending',
+        'razorpay_refund_id': None
+    }
+    
+    # ONLINE payments: Auto-refund via Razorpay API
+    if payment_method == 'ONLINE' and razorpay_payment_id:
+        client = get_razorpay_client()
+        if not client:
+            logger.error(f"Razorpay client not configured. Cannot process refund for order #{order.id}")
+            return_req.refund_status = 'failed'
+            return_req.refund_failure_reason = 'Razorpay configuration missing'
+            return_req.save(update_fields=['refund_status', 'refund_failure_reason', 'updated_at'])
+            result['status'] = 'failed'
+            result['error'] = 'Payment gateway not configured'
+            return result
+        
+        try:
+            # Create refund via Razorpay API
+            refund_data = {
+                'payment_id': razorpay_payment_id,
+                'amount': refund_amount_paise,
+                'notes': {
+                    'return_id': return_req.id,
+                    'order_id': order.id,
+                    'reason': return_req.reason,
+                    'initiated_by': return_req.actioned_by.username if return_req.actioned_by else 'system'
+                }
+            }
+            
+            # Optional: partial refund notes
+            if qty_to_restock < return_req.order_item.quantity:
+                refund_data['notes']['partial_refund'] = f'{qty_to_restock}/{return_req.order_item.quantity} items'
+            
+            razorpay_refund = client.refund.create(refund_data)
+            
+            # Update return request with Razorpay refund ID
+            return_req.razorpay_refund_id = razorpay_refund.get('id')
+            return_req.refund_status = 'processing'  # Razorpay processes async
+            return_req.save(update_fields=['razorpay_refund_id', 'refund_status', 'updated_at'])
+            
+            result['status'] = 'processing'
+            result['razorpay_refund_id'] = razorpay_refund.get('id')
+            result['razorpay_status'] = razorpay_refund.get('status')
+            logger.info(f"Razorpay refund initiated: {razorpay_refund.get('id')} for order #{order.id}")
+            
+        except razorpay.errors.BadRequestError as e:
+            logger.error(f"Razorpay refund failed (bad request) for order #{order.id}: {str(e)}")
+            return_req.refund_status = 'failed'
+            return_req.refund_failure_reason = f'Razorpay API error: {str(e)}'
+            return_req.save(update_fields=['refund_status', 'refund_failure_reason', 'updated_at'])
+            result['status'] = 'failed'
+            result['error'] = 'Invalid refund request'
+            
+        except razorpay.errors.ServerError as e:
+            logger.error(f"Razorpay server error for order #{order.id}: {str(e)}")
+            # Don't mark as failed - could be temporary. Keep as 'pending' for webhook to resolve.
+            return_req.refund_status = 'pending'
+            return_req.save(update_fields=['refund_status', 'updated_at'])
+            result['status'] = 'pending'
+            result['error'] = 'Payment gateway temporary error - will retry'
+            
+        except Exception as e:
+            logger.exception(f"Unexpected error processing Razorpay refund for order #{order.id}")
+            return_req.refund_status = 'failed'
+            return_req.refund_failure_reason = f'Unexpected error: {str(e)}'
+            return_req.save(update_fields=['refund_status', 'refund_failure_reason', 'updated_at'])
+            result['status'] = 'failed'
+            result['error'] = 'Refund processing failed'
+    
+    # COD payments: Mark for manual bank transfer
+    elif payment_method == 'COD':
+        return_req.refund_status = 'manual_pending'
+        return_req.refund_instructions = 'Manual bank transfer required. Contact customer for UPI/bank details.'
+        return_req.save(update_fields=['refund_status', 'refund_instructions', 'updated_at'])
+        result['status'] = 'manual_pending'
+        result['note'] = 'COD order: Please process refund via bank transfer manually'
+        logger.info(f"COD refund marked for manual processing: Return #{return_req.id}")
+    
+    else:
+        # Fallback for unknown payment methods
+        return_req.refund_status = 'failed'
+        return_req.refund_failure_reason = f'Unsupported payment method: {payment_method}'
+        return_req.save(update_fields=['refund_status', 'refund_failure_reason', 'updated_at'])
+        result['status'] = 'failed'
+        result['error'] = f'Cannot refund via {payment_method}'
+    
+    return result
+
+
+def _update_order_status_if_fully_returned(order):
+    """
+    Internal helper: If all items in an order are returned, 
+    update order status to 'returned'.
+    """
+    total_items = order.items.count()
+    returned_items = order.items.filter(is_returned=True).count()
+    
+    if total_items > 0 and total_items == returned_items:
+        old_status = order.status
+        order.status = 'returned'
+        order.save(update_fields=['status', 'updated_at'])
+        logger.info(f"Order #{order.id} status updated: {old_status} → returned (all items returned)")

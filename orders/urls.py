@@ -122,4 +122,8 @@ urlpatterns = [
     path('failed/', 
          views.order_failed, 
          name='order_failed'),
+
+     # Return management
+    path('return/<int:return_id>/approve/', views.approve_return, name='approve_return'),
+        
 ]

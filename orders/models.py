@@ -18,6 +18,8 @@ class Order(BaseModel):
         ('cancelled', '🔴 Cancelled'),
         ('returned', '🔄 Returned'),
         ('refund_initiated', '💰 Refund Initiated'),
+        ('refunded', '✅ Refunded'),
+
     ]
     
     # Payment Status
@@ -85,6 +87,8 @@ class Order(BaseModel):
     courier_name = models.CharField(max_length=100, blank=True, null=True)
     estimated_delivery = models.DateField(null=True, blank=True)
     delivered_at = models.DateTimeField(null=True, blank=True)
+    shipped_at = models.DateTimeField(null=True, blank=True)
+
     
     # Cancellation & Returns
     cancelled_at = models.DateTimeField(null=True, blank=True)
@@ -95,16 +99,13 @@ class Order(BaseModel):
     return_reason = models.CharField(max_length=50, choices=RETURN_REASONS, blank=True, null=True)
     return_remarks = models.TextField(blank=True)
     refund_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    
+    refund_at = models.DateTimeField(null=True, blank=True)
+    razorpay_refund_id = models.CharField(max_length=100, blank=True, null=True)
+ 
+   
     # Metadata
     notes = models.TextField(blank=True)
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, 
-        on_delete=models.SET_NULL, 
-        null=True, 
-        blank=True,
-        related_name='created_orders'
-    )
+    
     
     class Meta:
         ordering = ['-created_at']
@@ -142,25 +143,45 @@ class Order(BaseModel):
     
     @property
     def is_returnable(self):
-        """Check if order can be returned (7 days after delivery)"""
+        """Returns allowed within 7 days of delivery, only if delivered."""
         if self.status != 'delivered' or not self.delivered_at:
             return False
-        return (timezone.now().date() - self.delivered_at.date()).days <= 7
-    
+        return (timezone.now() - self.delivered_at).days <= 7
+ 
     @property
     def tracking_url(self):
-        """Generate tracking URL for courier"""
         if self.courier_name == 'Shiprocket' and self.tracking_number:
             return f"https://track.shiprocket.in/tracking/{self.tracking_number}"
         elif self.courier_name == 'Delhivery' and self.tracking_number:
             return f"https://tracking.delhivery.com/{self.tracking_number}"
         return None
+ 
+    @property
+    def can_be_refunded(self):
+        """True when payment was made via Razorpay and not yet refunded."""
+        return (
+            self.payment_method == 'razorpay'
+            and self.payment_status == 'paid'
+            and self.razorpay_payment_id
+            and self.status not in ('refund_initiated', 'refunded')
+        )
+
 
 
 class OrderItem(BaseModel):
     """Individual items in an order"""
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
     product = models.ForeignKey('items.Product', on_delete=models.PROTECT)
+    
+    # ✅ ADD THIS LINE — Variant support (nullable for products without variants)
+    variant = models.ForeignKey(
+        'items.ProductVariant', 
+        on_delete=models.PROTECT, 
+        null=True, 
+        blank=True, 
+        related_name='order_items'
+    )
+    
     seller = models.ForeignKey('items.SellerProfile', on_delete=models.PROTECT)  # Denormalized for performance
     
     quantity = models.PositiveIntegerField(default=1)
@@ -175,12 +196,25 @@ class OrderItem(BaseModel):
         ordering = ['id']
     
     def __str__(self):
-        return f"{self.product.name} x{self.quantity} in {self.order.unique_order_id}"
+        variant_str = f" ({self.variant.size_value})" if self.variant else ""
+        return f"{self.product.name}{variant_str} x{self.quantity} in {self.order.unique_order_id}"
     
     @property
     def remaining_quantity(self):
         """Quantity not yet returned"""
         return self.quantity - self.returned_quantity
+    
+    @property
+    def variant_display(self):
+        """Human-readable variant info for templates"""
+        if not self.variant:
+            return None
+        parts = []
+        if self.variant.size_value:
+            parts.append(self.variant.size_value)
+        if self.variant.color:
+            parts.append(self.variant.color)
+        return ' • '.join(parts) if parts else None
 
 
 class OrderStatusLog(BaseModel):
@@ -207,53 +241,75 @@ def validate_image_size(value):
 
 
 class ReturnRequest(BaseModel):
-    """Manage return requests separately for better tracking"""
+    """Return request raised by customer after delivery."""
+ 
     RETURN_STATUS_CHOICES = [
         ('requested', '🟡 Return Requested'),
-        ('approved', '🔵 Approved'),
+        ('approved', '🔵 Approved'),           # seller or admin approved
+        ('rejected', '❌ Rejected'),            # seller or admin rejected
         ('pickup_scheduled', '🟠 Pickup Scheduled'),
         ('picked_up', '🟣 Picked Up'),
         ('received', '🟢 Received at Warehouse'),
         ('refund_initiated', '💰 Refund Initiated'),
         ('completed', '✅ Completed'),
-        ('rejected', '❌ Rejected'),
     ]
-    
+ 
     order_item = models.ForeignKey(OrderItem, on_delete=models.CASCADE, related_name='return_requests')
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    
+ 
     quantity = models.PositiveIntegerField(default=1)
     reason = models.CharField(max_length=50, choices=Order.RETURN_REASONS)
     remarks = models.TextField(blank=True)
-    images = models.ManyToManyField('OrderReturnImage', blank=True)
-    
+ 
     status = models.CharField(max_length=30, choices=RETURN_STATUS_CHOICES, default='requested')
     pickup_date = models.DateField(null=True, blank=True)
-    pickup_address = models.JSONField(default=dict)  # Copy of shipping address
-    
+    pickup_address = models.JSONField(default=dict)
+ 
     refund_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    refund_status = models.CharField(
+        max_length=20, 
+        choices=[
+            ('pending', 'Pending'),
+            ('processing', 'Processing'),
+            ('completed', 'Completed'),
+            ('failed', 'Failed'),
+            ('manual_pending', 'Manual Transfer Pending'),
+        ],
+        default='pending'
+    )
     refund_method = models.CharField(max_length=50, blank=True, choices=[
         ('original', 'Original Payment Method'),
         ('wallet', 'StallCart Wallet'),
         ('bank', 'Bank Transfer'),
     ])
+    razorpay_refund_id = models.CharField(max_length=100, blank=True, null=True)
+    refund_initiated_at = models.DateTimeField(null=True, blank=True)
+    refund_failure_reason = models.TextField(blank=True)
+    refund_instructions = models.TextField(blank=True, help_text="For manual COD refunds")
     
-  
-    
+    # Who actioned it
+    actioned_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='actioned_returns'
+    )
+    actioned_at = models.DateTimeField(null=True, blank=True)
+    rejection_reason = models.TextField(blank=True)
+ 
     class Meta:
         ordering = ['-created_at']
-    
+ 
     def __str__(self):
         return f"Return #{self.id} for {self.order_item.product.name}"
-    
+ 
 
 class OrderReturnImage(BaseModel):
-    """Customer-uploaded evidence images for return requests"""
+    """Customer-uploaded evidence images for return requests."""
     return_request = models.ForeignKey(
         'orders.ReturnRequest',
         on_delete=models.CASCADE,
         related_name='return_images',
-        help_text="The return request this image belongs to"
     )
     image = models.ImageField(
         upload_to='returns/%Y/%m/',
@@ -261,35 +317,23 @@ class OrderReturnImage(BaseModel):
             FileExtensionValidator(['jpg', 'jpeg', 'png', 'webp']),
             validate_image_size
         ],
-        help_text="Upload clear photos showing damage/defect (Max 5MB)"
     )
-    caption = models.CharField(
-        max_length=255,
-        blank=True,
-        help_text="Brief description of the issue shown (e.g., 'Torn seam on left sleeve')"
-    )
-    is_primary = models.BooleanField(
-        default=False,
-        help_text="Mark as main evidence image for this return"
-    )
-
+    caption = models.CharField(max_length=255, blank=True)
+    is_primary = models.BooleanField(default=False)
+ 
     class Meta:
         ordering = ['-created_at', '-is_primary']
         verbose_name = "Return Evidence Image"
         verbose_name_plural = "Return Evidence Images"
-        indexes = [
-            models.Index(fields=['return_request', '-created_at']),
-        ]
-
+ 
     def __str__(self):
         filename = self.image.name.split('/')[-1] if self.image else 'No Image'
         unique_order_id = getattr(self.return_request.order_item.order, 'unique_order_id', 'N/A')
         return f"Return #{unique_order_id} - {filename}"
-
+ 
     def save(self, *args, **kwargs):
-        # Ensure only one primary image per return request
         if self.is_primary:
             OrderReturnImage.objects.filter(
                 return_request=self.return_request
             ).exclude(pk=self.pk).update(is_primary=False)
-        super().save(*args, **kwargs)    
+        super().save(*args, **kwargs)
