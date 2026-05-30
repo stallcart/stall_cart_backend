@@ -324,7 +324,7 @@ def create_order(request):
         
         # ── Calculate Totals ───────────────────────────────
         subtotal = sum(Decimal(str(item.subtotal)) for item in cart_items)
-        delivery_charge = Decimal('0') if subtotal >= Decimal('499') else Decimal('40')
+        delivery_charge = Decimal('0') if subtotal >= Decimal('499') else Decimal('0')
         total_amount = subtotal + delivery_charge
         
         # ── Handle Payment Methods ─────────────────────────
