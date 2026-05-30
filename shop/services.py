@@ -347,7 +347,7 @@ class CartService:
         
         # Free delivery threshold
         FREE_DELIVERY_THRESHOLD = Decimal('499')
-        delivery_charge = Decimal('0') if subtotal >= FREE_DELIVERY_THRESHOLD else Decimal('40')
+        delivery_charge = Decimal('0') if subtotal >= FREE_DELIVERY_THRESHOLD else Decimal('0')
         grand_total = subtotal + delivery_charge
         
         return {
