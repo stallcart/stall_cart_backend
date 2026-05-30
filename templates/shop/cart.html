@@ -524,7 +524,6 @@
                         <span>Pay Securely Online</span>
                         <small>UPI • GPay • PhonePe • Cards • NetBanking</small>
                     </div>
-                    <!-- <span class="offer-badge">🎁 FLAT ₹50 OFF</span> -->
                 </label>
             </div>
             <div class="payment-security">
@@ -599,9 +598,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const CSRF = '{{ csrf_token }}';
     const UPDATE_CART_URL = "{% url 'shop:update_cart' %}";
     const CREATE_ORDER_URL = "{% url 'shop:create_order' %}";
+    const VERIFY_PAYMENT_URL = "{% url 'shop:verify_payment' %}";
     const SAVE_ADDRESS_URL = "{% url 'accounts:profile' %}";
     const GET_ADDRESS_BASE = "{% url 'accounts:api_address_detail' 1 %}".replace('/1/', '/');        
     
+    // ── Toast Helper ──
     function toast(msg, type = 'info') {
         if (typeof window.showToast === 'function') { window.showToast(msg, type); return; }
         const t = document.createElement('div');
@@ -612,6 +613,7 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => { t.style.animation = 'toastFade 0.3s ease forwards'; setTimeout(() => t.remove(), 300); }, 2800);
     }
     
+    // ── Get Cart Item Data ──
     function getCartItemData(itemEl) {
         const variantId = itemEl.dataset.variantId;
         return {
@@ -624,6 +626,7 @@ document.addEventListener('DOMContentLoaded', function() {
         };
     }
     
+    // ── Update Cart Item (AJAX) ──
     async function updateCartItem(itemEl, quantity, action = 'update') {
         const data = getCartItemData(itemEl);
         const { product_id, variant_id, stock, unitPrice, quantityInput, subtotalEl } = data;
@@ -654,6 +657,7 @@ document.addEventListener('DOMContentLoaded', function() {
         finally { itemEl.classList.remove('updating'); itemEl.style.pointerEvents = 'auto'; }
     }
     
+    // ── Quantity Button Handlers ──
     document.querySelectorAll('.qty-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             e.preventDefault();
@@ -670,6 +674,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
+    // ── Quantity Input Change Handler ──
     document.querySelectorAll('.qty-input').forEach(input => {
         input.addEventListener('change', async (e) => {
             const itemEl = input.closest('.cart-item');
@@ -686,6 +691,7 @@ document.addEventListener('DOMContentLoaded', function() {
         input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } });
     });
     
+    // ── Remove Button Handler ──
     document.querySelectorAll('.remove-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             e.preventDefault();
@@ -695,6 +701,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
+    // ── Address Dropdown Handler ──
     const addressSelector = document.getElementById('addressSelector');
     if (addressSelector) {
         addressSelector.addEventListener('change', async (e) => {
@@ -731,6 +738,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
         
+    // ── Set Default Address ──
     window.setDefaultAddress = async (addressId) => {
         if (!confirm('Set this as your default address?')) return;
         try {
@@ -741,6 +749,7 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (err) { toast('Network error', 'error'); }
     };
     
+    // ── Address Modal Functions ──
     const addressModal = document.getElementById('addressModal');
     const addressModalForm = document.getElementById('addressModalForm');
     const addAddressBtn = document.getElementById('addAddressBtn');
@@ -813,19 +822,51 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // ✨ PLACE ORDER — Razorpay Flow ✨
+    // ✨ VERIFY PAYMENT — Server-side signature check + cart clearing ✨
+    async function verifyPayment(orderId, razorpayOrderId, paymentId, signature, cartPayload) {
+        try {
+            const res = await fetch(VERIFY_PAYMENT_URL, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'X-CSRFToken': CSRF,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ 
+                    razorpay_order_id: razorpayOrderId,
+                    razorpay_payment_id: paymentId, 
+                    razorpay_signature: signature,
+                    cart_payload: JSON.stringify(cartPayload)  // Send cart data
+                })
+            });
+            const data = await res.json();
+            
+            if (data.status === 'success') {
+                return { success: true, message: data.message, order_id: data.order_id };
+            } else {
+                return { success: false, message: data.message || 'Verification failed' };
+            }
+        } catch (err) {
+            console.error('Verification error:', err);
+            return { success: false, message: 'Network error during verification' };
+        }
+    }
+
+    
+    // ✨ PLACE ORDER — Razorpay Flow with Proper Error Handling ✨
     const placeOrderBtn = document.getElementById('placeOrderBtn');
     if (placeOrderBtn) {
         placeOrderBtn.addEventListener('click', async () => {
+            // Validate address
             if (!document.querySelector('.address-info')) { 
                 toast('Please add a delivery address first', 'error');
                 if (typeof openAddressModal === 'function') openAddressModal();
                 return; 
             }
             
-            // Always use ONLINE payment (COD removed)
-            const paymentMethod = 'ONLINE';
+            const paymentMethod = 'ONLINE'; // COD removed
             
+            // Extract address from DOM
             const address = {
                 name: document.getElementById('addrName')?.textContent?.trim() || '{{ user.full_name|escapejs }}',
                 phone: document.getElementById('addrPhone')?.textContent?.trim() || '{{ user.phone|escapejs }}',
@@ -841,26 +882,45 @@ document.addEventListener('DOMContentLoaded', function() {
             placeOrderBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Processing...';
             
             try {
+                // Collect cart items
                 const cartItems = Array.from(document.querySelectorAll('.cart-item')).map(item => {
                     const data = getCartItemData(item);
-                    return { product_id: data.product_id, variant_id: data.variant_id, quantity: parseInt(item.querySelector('.qty-input').value) };
+                    return { 
+                        product_id: data.product_id, 
+                        variant_id: data.variant_id, 
+                        quantity: parseInt(item.querySelector('.qty-input').value) 
+                    };
                 });
                 
+                // Create order
                 const res = await fetch(CREATE_ORDER_URL, {
                     method: 'POST', 
-                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF, 'X-Requested-With': 'XMLHttpRequest' },
-                    body: JSON.stringify({ address: address, payment_method: paymentMethod, cart_items: cartItems })
+                    headers: { 
+                        'Content-Type': 'application/json', 
+                        'X-CSRFToken': CSRF,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({ 
+                        address: address, 
+                        payment_method: paymentMethod,
+                        cart_items: cartItems 
+                    })
                 });
                 const result = await res.json();
                 
                 if (result.status === 'success') {
-                    // Razorpay Payment Flow
+                    // Check Razorpay SDK loaded
                     if (typeof Razorpay === 'undefined') {
                         toast('Loading payment gateway...', 'info');
-                        setTimeout(() => { placeOrderBtn.disabled = false; placeOrderBtn.innerHTML = originalHTML; placeOrderBtn.click(); }, 1000);
+                        setTimeout(() => { 
+                            placeOrderBtn.disabled = false; 
+                            placeOrderBtn.innerHTML = originalHTML; 
+                            placeOrderBtn.click(); 
+                        }, 1000);
                         return;
                     }
                     
+                    // Razorpay options
                     const options = {
                         key: result.key,
                         amount: result.amount,
@@ -872,24 +932,43 @@ document.addEventListener('DOMContentLoaded', function() {
                         theme: { color: '#2874F0' },
                         modal: {
                             ondismiss: function() { 
+                                // User closed/cancelled payment modal
                                 toast('Payment cancelled', 'error'); 
                                 placeOrderBtn.disabled = false; 
-                                placeOrderBtn.innerHTML = originalHTML; 
+                                placeOrderBtn.innerHTML = originalHTML;
+                                // Optional: Show retry prompt
+                                setTimeout(() => {
+                                    if (confirm('Payment was cancelled. Would you like to try again?')) {
+                                        placeOrderBtn.click();
+                                    }
+                                }, 500);
                             }
                         },
                         handler: function(response) { 
-                            // ✅ Verify payment server-side before redirect
-                            verifyPayment(result.order_id, response.razorpay_payment_id, response.razorpay_signature)
-                                .then(success => {
-                                    if (success) {
-                                        toast('Payment successful! 🎉', 'success');
-                                        window.location.href = `/orders/success/${result.order_id}/?payment_id=${response.razorpay_payment_id}`;
-                                    } else {
-                                        toast('Payment verification failed', 'error');
-                                        placeOrderBtn.disabled = false;
-                                        placeOrderBtn.innerHTML = originalHTML;
-                                    }
-                                });
+                            toast('Verifying payment...', 'info');
+                            
+                            // Send cart payload that was received from create_order
+                            verifyPayment(
+                                null,  // No DB order_id yet
+                                result.razorpay_order_id,
+                                response.razorpay_payment_id, 
+                                response.razorpay_signature,
+                                result._cart_payload  // Cart data from create_order response
+                            ).then(verification => {
+                                if (verification.success) {
+                                    toast('Payment successful! 🎉', 'success');
+                                    window.location.href = `/orders/success/${verification.order_id}/?payment_id=${response.razorpay_payment_id}`;
+                                } else {
+                                    toast(verification.message || 'Payment verification failed', 'error');
+                                    placeOrderBtn.disabled = false;
+                                    placeOrderBtn.innerHTML = originalHTML;
+                                    setTimeout(() => {
+                                        if (confirm('Payment could not be verified. Would you like to try again?')) {
+                                            placeOrderBtn.click();
+                                        }
+                                    }, 1500);
+                                }
+                            });
                         },
                         prefill: {
                             name: address.name,
@@ -898,9 +977,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     };
                     
+                    // Open Razorpay modal
                     const rzp = new Razorpay(options);
                     rzp.open();
+                    
                 } else {
+                    // Order creation failed
                     toast(result.message || result.error || 'Order failed. Please try again.', 'error');
                     placeOrderBtn.disabled = false;
                     placeOrderBtn.innerHTML = originalHTML;
@@ -912,22 +994,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 placeOrderBtn.innerHTML = originalHTML;
             }
         });
-    }
-    
-    // ✨ Verify Payment with Backend ✨
-    async function verifyPayment(orderId, paymentId, signature) {
-        try {
-            const res = await fetch("{% url 'shop:verify_payment' %}", {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
-                body: JSON.stringify({ order_id: orderId, razorpay_payment_id: paymentId, razorpay_signature: signature })
-            });
-            const data = await res.json();
-            return data.status === 'success';
-        } catch (err) {
-            console.error('Verification error:', err);
-            return false;
-        }
     }
     
     // Login to Order
