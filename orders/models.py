@@ -140,7 +140,8 @@ class Order(BaseModel):
     @property
     def is_cancellable(self):
         """Check if order can be cancelled (only before shipped)"""
-        return self.status in ['pending', 'confirmed', 'processing']
+        # return self.status in ['pending', 'confirmed', 'processing']
+        return False
     
     @property
     def is_returnable(self):
@@ -151,11 +152,12 @@ class Order(BaseModel):
  
     @property
     def tracking_url(self):
-        if self.courier_name == 'Shiprocket' and self.tracking_number:
-            return f"https://track.shiprocket.in/tracking/{self.tracking_number}"
-        elif self.courier_name == 'Delhivery' and self.tracking_number:
+        if not self.tracking_number:
+            return None
+        # Default to Shiprocket tracking if tracking number is present
+        if self.courier_name == 'Delhivery':
             return f"https://tracking.delhivery.com/{self.tracking_number}"
-        return None
+        return f"https://track.shiprocket.in/tracking/{self.tracking_number}"
  
     @property
     def can_be_refunded(self):

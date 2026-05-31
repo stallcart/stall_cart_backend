@@ -463,7 +463,7 @@
 
 </div><!-- /.od-container -->
 
-<!-- ── Cancel Modal ──────────────────────────────────────── -->
+<!-- ── Cancel Modal (Commented Out) ──
 <div class="od-modal-overlay" id="cancelModalOverlay">
     <div class="od-modal-box">
         <button class="od-modal-close" onclick="closeCancelModal()"><i class="fa fa-times"></i></button>
@@ -497,6 +497,7 @@
         </div>
     </div>
 </div>
+-->
 
 {% endblock %}
 
@@ -518,7 +519,7 @@ function odToast(msg, type = 'info') {
     }, 2800);
 }
 
-// ── Cancel Modal ─────────────────────────────────────────
+/* ── Cancel Modal (Commented Out) ──
 function openCancelModal() {
     document.getElementById('od_cancelRemarks').value = '';
     document.getElementById('od_cancelError').style.display = 'none';
@@ -544,7 +545,6 @@ async function submitCancellation() {
     errEl.style.display = 'none';
 
     try {
-        // ✅ Correct URL: matches path('cancel/<str:order_id>/', cancel_order, name='cancel_order')
         const res = await fetch(`/orders/cancel/${ORDER_ID}/`, {
             method: 'POST',
             headers: {
@@ -554,12 +554,10 @@ async function submitCancellation() {
             body: JSON.stringify({ reason, remarks })
         });
 
-        // Guard against HTML error pages
         const contentType = res.headers.get('content-type') || '';
         if (!contentType.includes('application/json')) {
             throw new Error(
-                `Server returned status ${res.status}. ` +
-                `Check that your urls.py has: path('cancel/<str:order_id>/', cancel_order)`
+                `Server returned status ${res.status}.`
             );
         }
 
@@ -585,12 +583,12 @@ async function submitCancellation() {
     }
 }
 
-// ── Modal: backdrop click & Escape ───────────────────────
 document.getElementById('cancelModalOverlay').addEventListener('click', function(e) {
     if (e.target === this) closeCancelModal();
 });
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') closeCancelModal();
 });
+*/
 </script>
 {% endblock %}
