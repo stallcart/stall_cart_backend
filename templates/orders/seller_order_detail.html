@@ -67,14 +67,34 @@
         <h3>Price Details (Your Items)</h3>
         <div class="summary-row">
             <span>Items Total</span>
-            <span>₹{% for item in seller_items %}{{ item.total|floatformat:2 }}{% endfor %}</span>
+            <span>₹{{ seller_items_total|floatformat:2 }}</span>
         </div>
-        <div class="summary-row total">
-            <strong>Your Earnings</strong>
-            <strong>₹{% for item in seller_items %}{{ item.total|floatformat:2 }}{% endfor %}</strong>
+        <div class="summary-row" style="color: #666;">
+            <span>Platform Commission</span>
+            <span>− ₹{{ seller_commission_total|floatformat:2 }}</span>
         </div>
         
-        <div class="order-actions">
+        {% if order.status == 'delivered' and not order.is_returned %}
+        <div class="summary-row total">
+            <strong>Your Earnings (Delivered)</strong>
+            <strong style="color: #2e7d32; font-size: 1.25rem;">₹{{ seller_earnings_total|floatformat:2 }}</strong>
+        </div>
+        {% elif order.status == 'cancelled' %}
+        <div class="summary-row total">
+            <strong>Your Earnings (Cancelled)</strong>
+            <strong style="color: #c62828; font-size: 1.25rem;">₹0.00</strong>
+        </div>
+        {% else %}
+        <div class="summary-row total">
+            <strong>Your Earnings (Estimated)</strong>
+            <strong style="color: #2874f0; font-size: 1.25rem;">₹{{ seller_earnings_total|floatformat:2 }}</strong>
+        </div>
+        <div style="font-size: 0.8rem; color: #888; margin-top: 8px; font-style: italic;">
+            <i class="fa fa-info-circle"></i> Commission is deducted and earnings are finalized upon successful delivery.
+        </div>
+        {% endif %}
+        
+        <div class="order-actions" style="margin-top: 20px;">
             <a href="{% url 'orders:seller_orders' %}" class="btn-outline">← Back to Orders</a>
             {% if order.status == 'delivered' %}
             <button class="btn-primary">📝 Rate This Order</button>

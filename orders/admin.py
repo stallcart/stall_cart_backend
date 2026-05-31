@@ -7,7 +7,7 @@ from common.admin import BaseModelAdmin
 class OrderItemInline(admin.TabularInline):
     model = OrderItem
     extra = 0
-    readonly_fields = ('product', 'variant_display', 'quantity', 'price', 'subtotal', 'total_display')
+    readonly_fields = ('product', 'variant_display', 'quantity', 'price', 'subtotal', 'total_display', 'commission_display', 'earnings_display')
     
     def subtotal(self, obj):
         """Calculate subtotal with None-safe handling"""
@@ -33,6 +33,18 @@ class OrderItemInline(admin.TabularInline):
             return ' • '.join(parts) if parts else '—'
         return '—'
     variant_display.short_description = "Variant"
+
+    def commission_display(self, obj):
+        """Show the commission amount and percentage"""
+        pct = obj.product.category.commision_percentage if obj.product and obj.product.category else 0
+        return f"₹{obj.admin_commission:.2f} ({pct}%)"
+    commission_display.short_description = "Admin Commission"
+
+    def earnings_display(self, obj):
+        """Show net seller earnings"""
+        return f"₹{obj.seller_earnings:.2f}"
+    earnings_display.short_description = "Seller Earnings"
+
 
 @admin.register(Order)
 class OrderAdmin(BaseModelAdmin):

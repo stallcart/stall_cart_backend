@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load custom_filters %}
 
 {% block title %}{{ product.name }} | {{ site_settings.site_name|default:"StallCart" }}{% endblock %}
 {% block meta_description %}{{ product.meta_description|default:product.short_description|default:"Buy this product at best price. Free delivery & secure checkout." }}{% endblock %}
@@ -229,11 +230,13 @@
                 <!-- Action Icons -->
                 <div class="action-icons">
                     <!-- Wishlist -->
-                    <button class="btn-icon wishlist-btn"
-                            title="Add to Wishlist"
-                            aria-label="Add to Wishlist">
-                        <i class="fa fa-heart"></i>
+                    {% if not user.role or user.role == 'customer' %}
+                    <button class="btn-icon wishlist-btn {% if user.is_authenticated and product|is_in_wishlist:user %}active{% endif %}"
+                            title="{% if user.is_authenticated and product|is_in_wishlist:user %}Remove from Wishlist{% else %}Add to Wishlist{% endif %}"
+                            aria-label="Wishlist">
+                        <i class="{% if user.is_authenticated and product|is_in_wishlist:user %}fa{% else %}far{% endif %} fa-heart"></i>
                     </button>
+                    {% endif %}
 
                     <!-- Share -->
                     <button class="btn-icon share-btn"
@@ -520,6 +523,13 @@
         <article class="related-product-card" data-product-id="{{ p.id }}">
             <a href="{% url 'items:product_detail' p.slug %}" class="related-product-link">
                 <div class="related-image-wrapper">
+                    <!-- Wishlist Toggle (Heart Button) -->
+                    {% if not user.role or user.role == 'customer' %}
+                    <button type="button" class="btn-wishlist-toggle {% if user.is_authenticated and p|is_in_wishlist:user %}active{% endif %}" data-product-id="{{ p.id }}" aria-label="Wishlist">
+                        <i class="{% if user.is_authenticated and p|is_in_wishlist:user %}fa{% else %}far{% endif %} fa-heart"></i>
+                    </button>
+                    {% endif %}
+                    
                     {% if p.primary_image %}
                         <img src="{{ p.primary_image.url }}" 
                              alt="{{ p.name }}" 
@@ -1031,21 +1041,9 @@ function copyToClipboard(text) {
 // ── Wishlist Button ──────────────────────────────────────────────
 function setupWishlist() {
     const wishlistBtn = document.querySelector('.wishlist-btn');
-    
-    // On page load, check if already in wishlist
-    (async function checkWishlistState() {
-        if (!wishlistBtn || userRole !== 'customer') return;
-        try {
-            const res = await fetch(`/items/wishlist/status/{{ product.id }}/`);
-            const data = await res.json();
-            if (data.in_wishlist) {
-                wishlistBtn.classList.add('active');
-                wishlistBtn.innerHTML = '<i class="fa fa-heart"></i>';
-            }
-        } catch (e) { /* silent fail */ }
-    })();
+    if (!wishlistBtn) return;
 
-    wishlistBtn?.addEventListener('click', async function () {
+    wishlistBtn.addEventListener('click', async function () {
         if (userRole !== 'customer') {
             showToast('Please login to use wishlist', 'error');
             return;
@@ -1057,9 +1055,10 @@ function setupWishlist() {
 
         // Optimistic UI
         const isNowActive = btn.classList.toggle('active');
-        btn.innerHTML = isNowActive
-            ? '<i class="fa fa-heart"></i>'
-            : '<i class="fa fa-heart-o"></i>';
+        const icon = btn.querySelector('i');
+        if (icon) {
+            icon.className = isNowActive ? 'fa fa-heart' : 'far fa-heart';
+        }
 
         try {
             const res = await fetch(`/items/wishlist/toggle/${productId}/`, {
@@ -1086,9 +1085,9 @@ function setupWishlist() {
             showToast('Failed to update wishlist', 'error');
             // Revert optimistic update
             const reverted = btn.classList.toggle('active');
-            btn.innerHTML = reverted
-                ? '<i class="fa fa-heart"></i>'
-                : '<i class="fa fa-heart-o"></i>';
+            if (icon) {
+                icon.className = reverted ? 'fa fa-heart' : 'far fa-heart';
+            }
         }
     });
 }

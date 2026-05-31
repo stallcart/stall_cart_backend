@@ -218,6 +218,42 @@ class OrderItem(BaseModel):
     def remaining_quantity(self):
         """Quantity not yet returned"""
         return self.quantity - self.returned_quantity
+
+    @property
+    def commission_rate(self):
+        """Commission rate from the product's category as a Decimal (e.g. 0.05 for 5%)"""
+        if self.product and self.product.category:
+            pct = self.product.category.commision_percentage
+            if pct:
+                return Decimal(str(pct)) / Decimal('100')
+        return Decimal('0')
+
+    @property
+    def commission_amount(self):
+        """Total commission for this order item"""
+        price = self.price if self.price is not None else Decimal('0.00')
+        quantity = self.quantity or 0
+        return (price * self.commission_rate * quantity).quantize(Decimal('0.01'))
+
+    @property
+    def seller_earnings(self):
+        """
+        Seller's net earnings for this item.
+        If order is cancelled or item is returned/refunded, earnings are 0.
+        Otherwise, it is total - commission.
+        """
+        if self.order.status == 'cancelled' or self.is_returned:
+            return Decimal('0.00')
+        
+        active_qty = self.remaining_quantity
+        if active_qty <= 0:
+            return Decimal('0.00')
+            
+        price = self.price if self.price is not None else Decimal('0.00')
+        item_total = price * active_qty
+        commission = (item_total * self.commission_rate).quantize(Decimal('0.01'))
+        return (item_total - commission).quantize(Decimal('0.01'))
+
     
     @property
     def variant_display(self):
