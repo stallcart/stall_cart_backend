@@ -6,6 +6,7 @@ from common.models import BaseModel
 import uuid
 from django.core.validators import FileExtensionValidator
 from django.core.exceptions import ValidationError
+
 class Order(BaseModel):
     
     STATUS_CHOICES = [
