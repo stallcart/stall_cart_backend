@@ -269,7 +269,7 @@
 
 </div>
 
-<!-- ── Cancel Modal ──────────────────────────────────────── -->
+<!-- ── Cancel Modal (Commented Out) ──
 <div class="oc-modal" id="cancelModal">
     <div class="oc-modal-box">
         <button class="oc-close" onclick="closeCancelModal()">&times;</button>
@@ -304,6 +304,7 @@
         </div>
     </div>
 </div>
+-->
 
 <!-- ── Return Modal ──────────────────────────────────────── -->
 <div class="oc-modal" id="returnModal">
@@ -345,7 +346,7 @@ function ocToast(msg, type = 'info') {
     }, 2800);
 }
 
-// ── Cancel Modal ─────────────────────────────────────────
+/* ── Cancel Modal (Commented Out) ──
 function openCancelModal(orderId) {
     document.getElementById('cancelOrderId').value = orderId;
     document.getElementById('cancelOrderLabel').textContent = orderId;
@@ -373,8 +374,7 @@ async function submitCancellation() {
     errEl.style.display = 'none';
 
     try {
-        // ✅ Correct URL matches orders/urls.py: path('cancel/<order_id>/', cancel_order)
-        const res = await fetch(`/orders/order/${orderId}/cancel/`, {  // ✅ Correct!
+        const res = await fetch(`/orders/order/${orderId}/cancel/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -383,7 +383,6 @@ async function submitCancellation() {
             body: JSON.stringify({ reason, remarks })
         });
 
-        // Handle non-JSON responses (404 page, etc.)
         const contentType = res.headers.get('content-type') || '';
         if (!contentType.includes('application/json')) {
             throw new Error(`Server returned ${res.status}. Check cancel URL in urls.py.`);
@@ -408,6 +407,7 @@ async function submitCancellation() {
         btn.textContent = 'Confirm Cancellation';
     }
 }
+*/
 
 // ── Return Modal ─────────────────────────────────────────
 function openReturnModal(orderId) {
@@ -483,9 +483,11 @@ async function reorderOrder(orderId, btn) {
 }
 
 // ── Close modals on backdrop click / Escape ───────────────
+/*
 document.getElementById('cancelModal').addEventListener('click', function(e) {
     if (e.target === this) closeCancelModal();
 });
+*/
 document.getElementById('returnModal').addEventListener('click', function(e) {
     if (e.target === this) closeReturnModal();
 });
