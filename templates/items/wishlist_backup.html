@@ -523,7 +523,7 @@
                 <a href="{% url 'items:product_detail' item.product.slug %}"
                    class="wl-btn-cart {% if not item.is_available %}wl-btn-oos{% endif %}">
                     <i class="fa fa-{% if item.is_available %}eye{% else %}clock{% endif %}"></i>
-                    {% if item.is_available %}View Product {% else %} Out of Stock{% endif %}
+                    {% if item.is_available %}View {% else %} Out of Stock{% endif %}
                 </a>
                 <!-- <button class="wl-remove-action"
                         data-product-id="{{ item.product.id }}"

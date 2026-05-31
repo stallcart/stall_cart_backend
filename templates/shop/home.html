@@ -634,12 +634,6 @@
 
                 <a href="{% url 'items:product_detail' product.slug %}">
                     <div class="img-wrap">
-                        <!-- Wishlist Toggle (Heart Button) -->
-                        {% if not user.role or user.role == 'customer' %}
-                        <button type="button" class="btn-wishlist-toggle {% if user.is_authenticated and product|is_in_wishlist:user %}active{% endif %}" data-product-id="{{ product.id }}" aria-label="Wishlist">
-                            <i class="{% if user.is_authenticated and product|is_in_wishlist:user %}fa{% else %}far{% endif %} fa-heart"></i>
-                        </button>
-                        {% endif %}
                         
                         {% if product.primary_image %}
                             <img src="{{ product.primary_image.url }}"
@@ -696,12 +690,21 @@
                         </div>
                     {% endif %}
 
-                    <a href="{% url 'items:product_detail' product.slug %}"
-                       class="btn-view"
-                       {% if product.stock == 0 %}style="opacity:0.55;pointer-events:none;"{% endif %}>
-                        <i class="fa fa-eye"></i>
-                        {% if product.stock > 0 %}View Product{% else %}Out of Stock{% endif %}
-                    </a>
+                    <!-- Actions Row -->
+                    <div style="display: flex; gap: 8px; margin-top: auto; width: 100%;">
+                        <a href="{% url 'items:product_detail' product.slug %}"
+                           class="btn-view"
+                           style="flex: 1; margin-top: 0; min-height: 38px;"
+                           {% if product.stock == 0 %}style="opacity:0.55;pointer-events:none;"{% endif %}>
+                            <i class="fa fa-eye"></i>
+                            {% if product.stock > 0 %}View Product{% else %}Out of Stock{% endif %}
+                        </a>
+                        {% if not user.role or user.role == 'customer' %}
+                        <button type="button" class="btn-wishlist-toggle {% if user.is_authenticated and product|is_in_wishlist:user %}active{% endif %}" data-product-id="{{ product.id }}" aria-label="Wishlist" style="position: static; margin-top: 0; width: 38px; height: 38px; flex-shrink: 0; background: var(--gray-50); border: 1.5px solid var(--gray-200); border-radius: var(--r-md); color: {% if user.is_authenticated and product|is_in_wishlist:user %}#ef4444{% else %}#94a3b8{% endif %}; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; cursor: pointer; transition: all 0.2s;">
+                            <i class="{% if user.is_authenticated and product|is_in_wishlist:user %}fa{% else %}far{% endif %} fa-heart"></i>
+                        </button>
+                        {% endif %}
+                    </div>
 
                     <button class="btn-share"
                             data-name="{{ product.name }}"
@@ -800,12 +803,6 @@
             {% for product in hot_products %}
             <div class="deal-card">
                 <a href="{% url 'items:product_detail' product.slug %}" class="deal-card-img">
-                    <!-- Wishlist Toggle (Heart Button) -->
-                    {% if not user.role or user.role == 'customer' %}
-                    <button type="button" class="btn-wishlist-toggle {% if user.is_authenticated and product|is_in_wishlist:user %}active{% endif %}" data-product-id="{{ product.id }}" aria-label="Wishlist" style="top:6px;right:6px;width:28px;height:28px;">
-                        <i class="{% if user.is_authenticated and product|is_in_wishlist:user %}fa{% else %}far{% endif %} fa-heart" style="font-size:0.85rem;"></i>
-                    </button>
-                    {% endif %}
                     
                     {% if product.primary_image %}
                         <img src="{{ product.primary_image.url }}" alt="{{ product.name }}" loading="lazy">
@@ -837,22 +834,31 @@
                             <span class="price-current" style="font-size:0.92rem;">₹{{ product.price|floatformat:0 }}</span>
                         {% endif %}
                     </div>
-                    {% if user.role == 'customer' or not user.is_authenticated %}
-                        <button class="btn-quick-add"
-                                data-product-id="{{ product.id }}"
-                                data-stock="{{ product.stock }}"
-                                {% if product.stock == 0 %}disabled{% endif %}>
-                            {% if product.stock > 0 %}
-                                <i class="fa fa-cart-plus"></i> Add to Cart
-                            {% else %}
-                                Out of Stock
-                            {% endif %}
+                    
+                    <div style="display: flex; gap: 6px; width: 100%;">
+                        {% if user.role == 'customer' or not user.is_authenticated %}
+                            <button class="btn-quick-add"
+                                    style="flex: 1; padding: 6px 8px; font-size: 0.8rem; margin: 0;"
+                                    data-product-id="{{ product.id }}"
+                                    data-stock="{{ product.stock }}"
+                                    {% if product.stock == 0 %}disabled{% endif %}>
+                                {% if product.stock > 0 %}
+                                    <i class="fa fa-cart-plus"></i> Add
+                                {% else %}
+                                    Out
+                                {% endif %}
+                            </button>
+                        {% else %}
+                            <a href="{% url 'items:product_detail' product.slug %}" class="btn-quick-add" style="flex: 1; text-align: center; line-height: 28px; height: 32px; padding: 0; margin: 0;">
+                                View
+                            </a>
+                        {% endif %}
+                        {% if not user.role or user.role == 'customer' %}
+                        <button type="button" class="btn-wishlist-toggle {% if user.is_authenticated and product|is_in_wishlist:user %}active{% endif %}" data-product-id="{{ product.id }}" aria-label="Wishlist" style="position: static; margin: 0; width: 32px; height: 32px; flex-shrink: 0; background: var(--gray-50); border: 1.5px solid var(--gray-200); border-radius: var(--r-md); color: {% if user.is_authenticated and product|is_in_wishlist:user %}#ef4444{% else %}#94a3b8{% endif %}; display: flex; align-items: center; justify-content: center; font-size: 0.95rem; cursor: pointer; transition: all 0.2s;">
+                            <i class="{% if user.is_authenticated and product|is_in_wishlist:user %}fa{% else %}far{% endif %} fa-heart"></i>
                         </button>
-                    {% else %}
-                        <a href="{% url 'items:product_detail' product.slug %}" class="btn-quick-add">
-                            View →
-                        </a>
-                    {% endif %}
+                        {% endif %}
+                    </div>
                 </div>
             </div>
             {% endfor %}

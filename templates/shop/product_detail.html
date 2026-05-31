@@ -129,8 +129,8 @@
             <p class="short-desc">{{ product.short_description }}</p>
             {% endif %}
 
-            <!-- Variant Selector -->
-            {% if has_variants %}
+            <!-- Variant Selector (Customer-Only) / Inventory Status (Seller-Only) -->
+            {% if not can_manage and has_variants %}
             <div class="variant-selector" id="variantSelector" data-variants='{{ variants_json|escapejs }}'>
                 <label class="variant-label">
                     <i class="fa fa-ruler-combined"></i> Select Variant:
@@ -170,20 +170,42 @@
                     <i class="fa fa-exclamation-circle"></i> Please select a variant before adding to cart.
                 </div>
             </div>
+            {% elif can_manage and has_variants %}
+            <div class="seller-inventory-overview" style="margin-top: 15px; margin-bottom: 20px; padding: 16px; background: var(--gray-50); border: 1.5px solid var(--gray-200); border-radius: var(--r-md);">
+                <strong style="display:block; margin-bottom:10px; font-size:0.95rem; color:var(--gray-800);"><i class="fa fa-boxes"></i> Variant Inventory Status</strong>
+                <ul style="margin: 0; padding-left: 20px; font-size: 0.9rem; color: var(--gray-600); line-height: 1.6;">
+                    {% for variant in variants %}
+                    <li style="margin-bottom: 6px;">
+                        Size: <strong>{{ variant.size_value }}</strong>
+                        {% if variant.color %}| Color: <strong>{{ variant.color }}</strong>{% endif %}
+                        — Stock: <strong>{{ variant.stock }}</strong> left
+                        {% if not variant.is_in_stock %}<span style="color: var(--red); margin-left: 5px; font-weight: 600;">(Out of Stock)</span>{% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
             {% endif %}
 
             <!-- Stock & Delivery -->
             <div class="stock-delivery">
-                {% if has_variants %}
-                    <span class="stock-status" id="stockStatus">
-                        <i class="fa fa-hand-pointer"></i> Select a variant to check availability
+                {% if can_manage %}
+                    <span class="stock-badge {% if is_in_stock %}in-stock{% else %}out-of-stock{% endif %}">
+                        <i class="fa {% if is_in_stock %}fa-check-circle{% else %}fa-times-circle{% endif %}"></i>
+                        Total Inventory: {{ total_stock }} units available
                     </span>
-                {% elif is_in_stock %}
-                    <span class="stock-badge in-stock"><i class="fa fa-check-circle"></i> In Stock ({{ total_stock }} available)</span>
                 {% else %}
-                    <span class="stock-badge out-of-stock"><i class="fa fa-times-circle"></i> Out of Stock</span>
+                    {% if has_variants %}
+                        <span class="stock-status" id="stockStatus">
+                            <i class="fa fa-hand-pointer"></i> Select a variant to check availability
+                        </span>
+                    {% elif is_in_stock %}
+                        <span class="stock-badge in-stock"><i class="fa fa-check-circle"></i> In Stock ({{ total_stock }} available)</span>
+                    {% else %}
+                        <span class="stock-badge out-of-stock"><i class="fa fa-times-circle"></i> Out of Stock</span>
+                    {% endif %}
                 {% endif %}
 
+                {% if not can_manage %}
                 <div class="delivery-info">
                     <i class="fa fa-truck"></i>
                     <span>
@@ -191,6 +213,7 @@
                         <small>Estimated delivery: 3–5 business days</small>
                     </span>
                 </div>
+                {% endif %}
             </div>
 
             <!-- Action Buttons -->
@@ -252,11 +275,13 @@
             </div>
 
             <!-- Trust Badges -->
+            {% if not can_manage %}
             <div class="trust-badges">
                 <span><i class="fa fa-shield-alt"></i> Secure Payment</span>
                 <span><i class="fa fa-undo"></i> 7 Days Return</span>
                 <span><i class="fa fa-medal"></i> 100% Original</span>
             </div>
+            {% endif %}
 
             <!-- Profit Info (Seller / Admin only) -->
             {% if can_manage and product.cost_price %}
@@ -523,12 +548,6 @@
         <article class="related-product-card" data-product-id="{{ p.id }}">
             <a href="{% url 'items:product_detail' p.slug %}" class="related-product-link">
                 <div class="related-image-wrapper">
-                    <!-- Wishlist Toggle (Heart Button) -->
-                    {% if not user.role or user.role == 'customer' %}
-                    <button type="button" class="btn-wishlist-toggle {% if user.is_authenticated and p|is_in_wishlist:user %}active{% endif %}" data-product-id="{{ p.id }}" aria-label="Wishlist">
-                        <i class="{% if user.is_authenticated and p|is_in_wishlist:user %}fa{% else %}far{% endif %} fa-heart"></i>
-                    </button>
-                    {% endif %}
                     
                     {% if p.primary_image %}
                         <img src="{{ p.primary_image.url }}" 
@@ -588,12 +607,18 @@
             </a>
             
             <!-- Quick action button -->
-            <div class="related-product-actions">
-                <a href="{% url 'items:product_detail' p.slug %}" class="btn-view-details">
+            <div class="related-product-actions" style="display: flex; gap: 6px; align-items: center; width: 100%;">
+                <a href="{% url 'items:product_detail' p.slug %}" class="btn-view-details" style="flex: 1; margin: 0; text-align: center;">
                     <i class="fa fa-eye"></i> View
                 </a>
+                {% if not user.role or user.role == 'customer' %}
+                <button type="button" class="btn-wishlist-toggle {% if user.is_authenticated and p|is_in_wishlist:user %}active{% endif %}" data-product-id="{{ p.id }}" aria-label="Wishlist" style="position: static; margin: 0; width: 34px; height: 34px; flex-shrink: 0; background: var(--gray-50); border: 1.5px solid var(--gray-200); border-radius: var(--r-md); color: {% if user.is_authenticated and p|is_in_wishlist:user %}#ef4444{% else %}#94a3b8{% endif %}; display: flex; align-items: center; justify-content: center; font-size: 1rem; cursor: pointer; transition: all 0.2s;">
+                    <i class="{% if user.is_authenticated and p|is_in_wishlist:user %}fa{% else %}far{% endif %} fa-heart"></i>
+                </button>
+                {% endif %}
                 <button type="button" 
                         class="btn-share-related" 
+                        style="width: 34px; height: 34px; flex-shrink: 0; margin: 0; padding: 0; display: flex; align-items: center; justify-content: center;"
                         onclick="shareProduct('{{ p.name|escapejs }}', '{{ request.build_absolute_uri|escapejs }}')"
                         title="Share this product"
                         aria-label="Share {{ p.name }}">

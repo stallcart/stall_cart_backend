@@ -5,6 +5,12 @@
 
 {% block content %}
 <div class="admin-dashboard">
+    <div style="margin-bottom: 20px;">
+        <a href="{% url 'shop:home' %}" style="display: inline-flex; align-items: center; gap: 8px; color: var(--gray-600); text-decoration: none; font-weight: 600; font-size: 0.9rem; transition: color 0.2s;" onmouseover="this.style.color='var(--blue-500)'" onmouseout="this.style.color='var(--gray-600)'">
+            <i class="fa fa-arrow-left"></i> Back to Store
+        </a>
+    </div>
+
     <!-- Header -->
     <div class="dash-header">
         <div>
