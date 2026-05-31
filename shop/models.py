@@ -91,3 +91,28 @@ class CartItem(BaseModel):
         if self.product.mrp and self.product.mrp > self.unit_price:
             return (self.product.mrp - self.unit_price) * self.quantity
         return 0
+
+
+class HomepageBanner(BaseModel):
+    BANNER_TYPE_CHOICES = [
+        ('main_slider', '✨ Top Main Slider/Hero Banner'),
+        ('festive_sale', '🎉 Festive Sale Banner'),
+        ('coming_soon', '⏰ Coming Soon Banner'),
+    ]
+    
+    title = models.CharField(max_length=200, help_text="For internal tracking/admin use or overlay title")
+    subtitle = models.CharField(max_length=300, blank=True, null=True, help_text="Subtitle or description text")
+    image = models.ImageField(upload_to='banners/', help_text="Upload premium high-resolution banner image")
+    mobile_image = models.ImageField(upload_to='banners/mobile/', blank=True, null=True, help_text="Optional mobile-optimized image (falls back to main image if blank)")
+    link_url = models.CharField(max_length=500, blank=True, default='#', help_text="URL redirect link (e.g. /items/?category=sarees)")
+    banner_type = models.CharField(max_length=30, choices=BANNER_TYPE_CHOICES, default='main_slider')
+    is_active = models.BooleanField(default=True, help_text="Only show active banners on home page")
+    order = models.PositiveIntegerField(default=0, help_text="Display priority (lower numbers shown first)")
+    
+    class Meta:
+        ordering = ['order', '-created_at']
+        verbose_name = 'Homepage Banner'
+        verbose_name_plural = 'Homepage Banners'
+        
+    def __str__(self):
+        return f"[{self.get_banner_type_display()}] {self.title}"

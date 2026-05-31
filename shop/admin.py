@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models import Cart, CartItem
+from django.utils.html import format_html
+from .models import Cart, CartItem, HomepageBanner
 
 
 class CartItemInline(admin.TabularInline):
@@ -84,3 +85,18 @@ class CartItemAdmin(admin.ModelAdmin):
     def savings_display(self, obj):
         return f"₹{obj.savings:.2f}"
     savings_display.short_description = "Savings"
+
+
+@admin.register(HomepageBanner)
+class HomepageBannerAdmin(admin.ModelAdmin):
+    list_display = ('image_preview', 'title', 'banner_type', 'link_url', 'order', 'is_active', 'created_at')
+    list_editable = ('order', 'is_active')
+    list_filter = ('banner_type', 'is_active', 'created_at')
+    search_fields = ('title', 'subtitle', 'link_url')
+    ordering = ('order', '-created_at')
+    
+    def image_preview(self, obj):
+        if obj.image:
+            return format_html('<img src="{}" style="max-height: 50px; max-width: 120px; border-radius: 4px;" />', obj.image.url)
+        return "No Image"
+    image_preview.short_description = 'Preview'
