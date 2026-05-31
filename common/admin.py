@@ -57,6 +57,10 @@ class SiteSettingsAdmin(admin.ModelAdmin):
         ('🌐 Social Links', {
             'fields': ('social_instagram', 'social_facebook', 'social_twitter')
         }),
+        ('📜 Site Policies', {
+            'fields': ('cancellation_policy', 'return_policy', 'terms_conditions', 'privacy_policy'),
+            'description': 'Manage site-wide legal policies. Content supports rich text and HTML.'
+        }),
         ('⚙️ Site Status', {
             'fields': ('is_maintenance_mode',),
             'classes': ('collapse',)
@@ -66,6 +70,9 @@ class SiteSettingsAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+
+    class Media:
+        js = ('js/admin_richtext.js',)
     
     # Show image preview in admin list
     def logo_preview(self, obj):

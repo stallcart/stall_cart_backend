@@ -405,6 +405,8 @@
                 <div class="footer-brand-col">
                     <a href="{% url 'shop:home' %}" class="footer-logo">Stall<span>Cart</span></a>
                     <p>{{ site_settings.about_us|default:"Your one-stop destination for premium fashion at unbeatable prices. Quality products, fast delivery, excellent service." }}</p>
+                    {% if site_settings.social_instagram or site_settings.social_facebook or site_settings.social_twitter or site_settings.social_youtube %}
+                    <h5 class="footer-social-title">Follow Us</h5>
                     <div class="footer-social">
                         {% if site_settings.social_instagram %}
                         <a href="{{ site_settings.social_instagram }}" target="_blank" rel="noopener" aria-label="Instagram" class="social-btn ig">
@@ -427,16 +429,17 @@
                         </a>
                         {% endif %}
                     </div>
+                    {% endif %}
                 </div>
 
                 <!-- Policies -->
                 <div class="footer-col">
                     <h5>Policies</h5>
                     <ul>
-                        <li><a href="#">Cancellation Policy</a></li>
-                        <li><a href="#">Return Policy</a></li>
-                        <li><a href="#">Terms &amp; Conditions</a></li>
-                        <li><a href="#">Privacy Policy</a></li>
+                        <li><a href="#" onclick="openPolicyModal('cancellation'); return false;">Cancellation Policy</a></li>
+                        <li><a href="#" onclick="openPolicyModal('return'); return false;">Return Policy</a></li>
+                        <li><a href="#" onclick="openPolicyModal('terms'); return false;">Terms &amp; Conditions</a></li>
+                        <li><a href="#" onclick="openPolicyModal('privacy'); return false;">Privacy Policy</a></li>
                     </ul>
                 </div>
 
@@ -508,6 +511,12 @@
         <i class="fa fa-heart"></i>
         <span>Wishlist</span>
         {% if wishlist_count > 0 %}<span class="bottom-nav-badge" style="background:#e53935;">{{ wishlist_count }}</span>{% endif %}
+    </a>
+    {% endif %}
+    {% if user.is_authenticated and user.is_seller or user.is_superuser %}
+    <a href="{% url 'items:admin_dashboard' %}" class="bottom-nav-item {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}">
+        <i class="fa fa-store"></i>
+        <span>Dashboard</span>
     </a>
     {% endif %}
     {% if user.is_authenticated %}
@@ -740,11 +749,13 @@ document.addEventListener('click', async (e) => {
         
         if (data.status === 'added') {
             btn.classList.add('active');
+            btn.style.color = '#ef4444';
             if (icon) icon.className = 'fa fa-heart';
             if (window.updateWishlistCount) window.updateWishlistCount(+1);
             if (window.showToast) showToast('Added to wishlist ❤️', 'success');
         } else if (data.status === 'removed') {
             btn.classList.remove('active');
+            btn.style.color = '#94a3b8';
             if (icon) icon.className = 'far fa-heart';
             if (window.updateWishlistCount) window.updateWishlistCount(-1);
             if (window.showToast) showToast('Removed from wishlist', 'info');
@@ -914,6 +925,94 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 {% endif %}
+
+<!-- Policy Modal Overlay -->
+<div id="policyModal" class="policy-modal-overlay" role="dialog" aria-modal="true" aria-hidden="true" style="display:none;">
+    <div class="policy-modal-content">
+        <div class="policy-modal-header">
+            <h3 id="policyModalTitle">Policy Title</h3>
+            <button class="policy-close" id="closePolicyModal" aria-label="Close" type="button">&times;</button>
+        </div>
+        <div class="policy-modal-body" id="policyModalBody">
+            <!-- Content loaded dynamically -->
+        </div>
+        <div class="policy-modal-footer">
+            <button type="button" class="btn-primary" id="footerClosePolicyModal" style="width:auto; padding:8px 20px; font-size:0.9rem;">Close</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const POLICY_CONTENT = {
+    cancellation: {
+        title: "Cancellation Policy",
+        body: `{{ site_settings.cancellation_policy|safe|escapejs }}`
+    },
+    'return': {
+        title: "Return Policy",
+        body: `{{ site_settings.return_policy|safe|escapejs }}`
+    },
+    terms: {
+        title: "Terms & Conditions",
+        body: `{{ site_settings.terms_conditions|safe|escapejs }}`
+    },
+    privacy: {
+        title: "Privacy Policy",
+        body: `{{ site_settings.privacy_policy|safe|escapejs }}`
+    }
+};
+
+function openPolicyModal(policyKey) {
+    const policy = POLICY_CONTENT[policyKey];
+    if (!policy) return;
+
+    const modal = document.getElementById('policyModal');
+    const titleEl = document.getElementById('policyModalTitle');
+    const bodyEl = document.getElementById('policyModalBody');
+
+    if (!modal || !titleEl || !bodyEl) return;
+
+    titleEl.textContent = policy.title;
+    bodyEl.innerHTML = policy.body;
+
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    
+    // Smooth fade in
+    setTimeout(() => {
+        modal.classList.add('show');
+    }, 10);
+}
+
+function closePolicyModal() {
+    const modal = document.getElementById('policyModal');
+    if (!modal) return;
+
+    modal.classList.remove('show');
+    document.body.style.overflow = '';
+    
+    // Hide display after transition completes
+    setTimeout(() => {
+        modal.style.display = 'none';
+    }, 300);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('closePolicyModal')?.addEventListener('click', closePolicyModal);
+    document.getElementById('footerClosePolicyModal')?.addEventListener('click', closePolicyModal);
+    document.getElementById('policyModal')?.addEventListener('click', (e) => {
+        if (e.target === document.getElementById('policyModal')) {
+            closePolicyModal();
+        }
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && document.getElementById('policyModal')?.classList.contains('show')) {
+            closePolicyModal();
+        }
+    });
+});
+</script>
+
 {% block scripts %}{% endblock %}
 </body>
 </html>

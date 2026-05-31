@@ -110,6 +110,109 @@ class SiteSettings(models.Model):
     # Site Status
     is_maintenance_mode = models.BooleanField(default=False, help_text='Enable maintenance mode for non-admins')
 
+    # Policies (Rich Text managed via Admin)
+    cancellation_policy = models.TextField(
+        blank=True, 
+        null=True, 
+        verbose_name="Cancellation Policy",
+        default="""
+            <h4>1. Order Cancellation by Customer</h4>
+            <p>You can cancel your order at any time before it has been shipped by the seller. To cancel, please visit the "My Orders" section in your Profile panel, locate the order, and click the "Cancel Order" button. Once an order is marked as "Shipped" or "Out for Delivery", cancellation is not permitted. However, you can refuse to accept the shipment at the time of delivery.</p>
+
+            <h4>2. Refund on Cancellation</h4>
+            <p>For prepaid orders cancelled before shipping, the full transaction amount (including delivery charges) will be refunded to the original payment source (credit/debit card, UPI, net banking) within 3-5 business days from the cancellation date.</p>
+
+            <h4>3. Order Cancellation by Seller / StallCart</h4>
+            <p>Occasionally, an order may be cancelled by the seller or StallCart due to unforeseen reasons such as:</p>
+            <ul>
+              <li>Product being out of stock or inventory discrepancies.</li>
+              <li>Errors in product information or listed pricing.</li>
+              <li>Inability to deliver to the customer's PIN code by courier partners.</li>
+              <li>Identification of fraudulent transactions or security flags.</li>
+            </ul>
+            <p>In all such cases, a complete refund will be automatically processed back to your source account.</p>
+        """
+    )
+    return_policy = models.TextField(
+        blank=True, 
+        null=True, 
+        verbose_name="Return Policy",
+        default="""
+            <h4>1. 7-Day Easy Returns</h4>
+            <p>We want you to love your fashion choices! Items purchased on StallCart are eligible for return <strong>within 7 days of delivery</strong>. To initiate a return, go to your "My Orders" section under your Profile and create a return request.</p>
+
+            <h4>2. Return Conditions</h4>
+            <p>To ensure a successful pickup and refund, please keep the following conditions in mind:</p>
+            <ul>
+              <li><strong>Tags & Labels:</strong> Brand tags, price labels, and barcodes must remain intact and attached to the product.</li>
+              <li><strong>Unused Condition:</strong> Products must be unworn, unwashed, unaltered, and without any stains or odors.</li>
+              <li><strong>Original Packaging:</strong> The item must be returned in its original brand box/packaging along with any manuals or freebies.</li>
+            </ul>
+            <p>Our courier agent will perform a quality check at the time of pickup.</p>
+
+            <h4>3. Return Exceptions (Hygiene Products)</h4>
+            <p>For hygiene and health safety reasons, the following categories are strictly non-returnable:</p>
+            <ul>
+              <li>Innerwear, lingerie, swimwear, and socks.</li>
+              <li>Cosmetics and personal care items.</li>
+              <li>Custom-made or personalized clothing.</li>
+            </ul>
+            <p>If you receive a defective or damaged product in these categories, please contact support within 24 hours of delivery.</p>
+
+            <h4>4. Refunds & Replacements</h4>
+            <p>Once the product is successfully picked up and passes quality checks at our warehouse, the refund will be credited back to your original payment source within 5-7 business days.</p>
+        """
+    )
+    terms_conditions = models.TextField(
+        blank=True, 
+        null=True, 
+        verbose_name="Terms & Conditions",
+        default="""
+            <h4>1. StallCart Platform Usage</h4>
+            <p>Welcome to StallCart. These Terms and Conditions govern your use of our platform, website, and services. By accessing or using StallCart, you agree to comply with and be bound by these terms. Please read them carefully.</p>
+
+            <h4>2. User Accounts</h4>
+            <p>You are responsible for maintaining the confidentiality of your account credentials, password, and mobile number. You agree to accept responsibility for all activities that occur under your account.</p>
+
+            <h4>3. Pricing and Listings</h4>
+            <p>Sellers on StallCart strive to provide accurate product information, including sizing, description, images, and pricing. However, typographical errors or technical glitches can occur. In the event of a price mismatch, the seller reserves the right to cancel the order. All prices are displayed in Indian Rupees (INR) and are inclusive of GST unless specified otherwise.</p>
+
+            <h4>4. Payments & Transactions</h4>
+            <p>All online payments are securely processed via Razorpay. StallCart does not store credit/debit card numbers or UPI PINs. You agree to use valid payment instruments and authorize deductions for orders placed on the platform.</p>
+
+            <h4>5. Limitation of Liability</h4>
+            <p>StallCart acts as a marketplace platform connecting independent sellers with customers. StallCart is not directly liable for quality variations, logistics delays by third-party courier services, or seller-side contract breaches, but we will mediate to resolve disputes under our return and refund policies.</p>
+        """
+    )
+    privacy_policy = models.TextField(
+        blank=True, 
+        null=True, 
+        verbose_name="Privacy Policy",
+        default="""
+            <h4>1. Information Collection</h4>
+            <p>StallCart collects personal information when you register, place an order, or browse our site. This includes your name, delivery address, phone number, email address, and device metadata. This information is essential to fulfill orders, process payments, and improve your shopping experience.</p>
+
+            <h4>2. Use of Information</h4>
+            <p>We use your personal data to:</p>
+            <ul>
+              <li>Deliver products and send shipping updates.</li>
+              <li>Secure transactions and prevent fraudulent activity.</li>
+              <li>Send promotional offers, recommendations, and newsletters (with your consent, which you can opt-out of at any time).</li>
+              <li>Provide customer support and resolve order disputes.</li>
+            </ul>
+
+            <h4>3. Information Sharing</h4>
+            <p>We do not sell or rent your personal information to third parties. We only share necessary details with trusted partners who assist in our operations:</p>
+            <ul>
+              <li><strong>Payment Gateways:</strong> Sharing order totals and transaction markers with Razorpay to secure checkouts.</li>
+              <li><strong>Logistics Partners:</strong> Sharing your name, phone number, and address with courier agents to deliver your shipments.</li>
+            </ul>
+
+            <h4>4. Data Security</h4>
+            <p>Your data is protected using secure server architectures and SSL encryption. We implement industrial-grade safeguards to protect against unauthorized access, loss, or alteration of user records.</p>
+        """
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
