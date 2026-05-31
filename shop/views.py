@@ -324,6 +324,7 @@ def create_order(request):
         
         # ── Calculate Totals ───────────────────────────────
         subtotal = sum(Decimal(str(item.subtotal)) for item in cart_items)
+        total_savings = sum(Decimal(str(item.savings)) for item in cart_items)
         delivery_charge = Decimal('0') if subtotal >= Decimal('499') else Decimal('0')
         total_amount = subtotal + delivery_charge
         
@@ -373,6 +374,7 @@ def create_order(request):
                     '_cart_payload': {
                         'address': address,
                         'subtotal': float(subtotal),
+                        'discount_amount': float(total_savings),
                         'delivery_charge': float(delivery_charge),
                         'total_amount': float(total_amount),
                         'items': [{
@@ -407,6 +409,7 @@ def create_order(request):
                 order = Order.objects.create(
                     user=request.user,
                     total_amount=total_amount,
+                    discount_amount=total_savings,
                     delivery_charge=delivery_charge,
                     shipping_address=address,
                     payment_method='cod',
@@ -759,6 +762,7 @@ def verify_payment(request):
         payload = json.loads(cart_payload)
         address = payload.get('address', {})
         subtotal = Decimal(str(payload.get('subtotal', 0)))
+        discount_amount = Decimal(str(payload.get('discount_amount', 0)))
         delivery_charge = Decimal(str(payload.get('delivery_charge', 0)))
         total_amount = Decimal(str(payload.get('total_amount', 0)))
         items = payload.get('items', [])
@@ -771,6 +775,7 @@ def verify_payment(request):
             order = Order.objects.create(
                 user=request.user,
                 total_amount=total_amount,
+                discount_amount=discount_amount,
                 delivery_charge=delivery_charge,
                 shipping_address=address,
                 payment_method='razorpay',

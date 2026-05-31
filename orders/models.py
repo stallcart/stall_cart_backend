@@ -6,6 +6,7 @@ from common.models import BaseModel
 import uuid
 from django.core.validators import FileExtensionValidator
 from django.core.exceptions import ValidationError
+from decimal import Decimal
 
 class Order(BaseModel):
     
@@ -142,6 +143,11 @@ class Order(BaseModel):
         """Check if order can be cancelled (only before shipped)"""
         # return self.status in ['pending', 'confirmed', 'processing']
         return False
+    
+    @property
+    def subtotal(self):
+        """Calculate subtotal from items"""
+        return sum((item.total for item in self.items.all()), Decimal('0.00'))
     
     @property
     def is_returnable(self):

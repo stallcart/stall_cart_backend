@@ -88,20 +88,22 @@
                     <h3>💰 Price Details</h3>
                     <div class="price-row">
                         <span>Price ({{ cart_items|length }} items)</span>
-                        <span>₹{{ total|floatformat:2 }}</span>
+                        <span>₹{{ subtotal|add:total_savings|floatformat:2 }}</span>
                     </div>
+                    {% if total_savings > 0 %}
                     <div class="price-row">
                         <span>Discount</span>
-                        <span class="text-green">-₹0.00</span>
+                        <span class="text-green">-₹{{ total_savings|floatformat:2 }}</span>
                     </div>
+                    {% endif %}
                     <div class="price-row">
                         <span>Delivery Charges</span>
-                        <span>{% if delivery_charge == 0 %}<span class="text-green">FREE</span>{% else %}₹{{ delivery_charge }}{% endif %}</span>
+                        <span>{% if delivery_charge == 0 %}<span class="text-green">FREE</span>{% else %}₹{{ delivery_charge|floatformat:2 }}{% endif %}</span>
                     </div>
                     <hr>
                     <div class="price-row total-row">
                         <strong>Total Amount</strong>
-                        <strong>₹{{ total|add:delivery_charge|floatformat:2 }}</strong>
+                        <strong>₹{{ grand_total|floatformat:2 }}</strong>
                     </div>
 
                     <!-- 4. Payment Method -->
