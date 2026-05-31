@@ -213,12 +213,25 @@ def download_invoice(request, order_id):
     Generate & download PDF invoice using xhtml2pdf (macOS compatible).
     Falls back to HTML download if PDF generation fails.
     """
-    # 1. Fetch order with related data (prevent N+1)
-    order = get_object_or_404(
-        Order.objects.prefetch_related('items__product', 'items__seller'),
-        unique_order_id=order_id,
-        user=request.user
-    )
+    # 1. Fetch order with related data based on user role (prevent N+1)
+    role = getattr(request.user, 'role', 'customer')
+    if role == 'seller':
+        order = get_object_or_404(
+            Order.objects.prefetch_related('items__product', 'items__seller'),
+            unique_order_id=order_id,
+            items__seller__user=request.user
+        )
+    elif request.user.is_staff or request.user.is_superuser:
+        order = get_object_or_404(
+            Order.objects.prefetch_related('items__product', 'items__seller'),
+            unique_order_id=order_id
+        )
+    else:
+        order = get_object_or_404(
+            Order.objects.prefetch_related('items__product', 'items__seller'),
+            unique_order_id=order_id,
+            user=request.user
+        )
     
     # 2. Render template WITH request for context processors
     try:
@@ -331,11 +344,24 @@ def preview_invoice(request, order_id):
     Preview invoice in browser (HTML) for client-side PDF export.
     Add ?print=1 to URL to auto-open print dialog.
     """
-    order = get_object_or_404(
-        Order.objects.prefetch_related('items__product'),
-        unique_order_id=order_id,
-        user=request.user
-    )
+    role = getattr(request.user, 'role', 'customer')
+    if role == 'seller':
+        order = get_object_or_404(
+            Order.objects.prefetch_related('items__product'),
+            unique_order_id=order_id,
+            items__seller__user=request.user
+        )
+    elif request.user.is_staff or request.user.is_superuser:
+        order = get_object_or_404(
+            Order.objects.prefetch_related('items__product'),
+            unique_order_id=order_id
+        )
+    else:
+        order = get_object_or_404(
+            Order.objects.prefetch_related('items__product'),
+            unique_order_id=order_id,
+            user=request.user
+        )
     
     html_string = render_to_string(
         'orders/invoice.html',
@@ -352,7 +378,13 @@ def debug_invoice(request, order_id):
     Debug endpoint to test invoice generation.
     Access: /orders/order/ORD-XXXXXX/invoice/debug/
     """
-    order = get_object_or_404(Order, unique_order_id=order_id, user=request.user)
+    role = getattr(request.user, 'role', 'customer')
+    if role == 'seller':
+        order = get_object_or_404(Order, unique_order_id=order_id, items__seller__user=request.user)
+    elif request.user.is_staff or request.user.is_superuser:
+        order = get_object_or_404(Order, unique_order_id=order_id)
+    else:
+        order = get_object_or_404(Order, unique_order_id=order_id, user=request.user)
     
     # Test 1: Template render
     try:
