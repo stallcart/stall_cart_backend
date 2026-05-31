@@ -241,21 +241,13 @@
 
         <div class="mobile-nav-section-label">Navigation</div>
 
-        <a href="{% url 'shop:home' %}" class="mobile-nav-item">
-            <span class="mobile-nav-icon"><i class="fa fa-home"></i></span>
-            Home
-        </a>
         <a href="{% url 'items:product_list' %}" class="mobile-nav-item">
             <span class="mobile-nav-icon"><i class="fa fa-th-large"></i></span>
             All Products
         </a>
 
         {% if user.is_authenticated %}
-            <div class="mobile-nav-section-label">Account</div>
-            <a href="{% url 'accounts:profile' %}" class="mobile-nav-item">
-                <span class="mobile-nav-icon"><i class="fa fa-user-circle"></i></span>
-                My Profile
-            </a>
+            <div class="mobile-nav-section-label">Account Options</div>
             {% if user.role == 'customer' %}
                 <a href="{% url 'orders:my_orders' %}" class="mobile-nav-item">
                     <span class="mobile-nav-icon"><i class="fa fa-box"></i></span>
@@ -268,26 +260,6 @@
                     Seller Panel
                 </a>
             {% endif %}
-        {% endif %}
-
-        {% if not user.is_authenticated or user.role == 'customer' %}
-            <div class="mobile-nav-section-label">Shopping</div>
-            <a href="{% url 'shop:cart' %}" class="mobile-nav-item">
-                <span class="mobile-nav-icon"><i class="fa fa-shopping-bag"></i></span>
-                Cart
-                <span class="mobile-badge" id="cart-count-mobile">{{ cart_count|default:0 }}</span>
-            </a>
-        {% endif %}
-        {% if user.is_authenticated and user.role == 'customer' %}
-            <a href="{% url 'items:wishlist' %}" class="mobile-nav-item">
-                <span class="mobile-nav-icon" style="color:#e53935;"><i class="fa fa-heart"></i></span>
-                Wishlist
-                {% if wishlist_count > 0 %}
-                    <span class="mobile-badge wishlist-m-badge" id="wishlist-count-mobile">{{ wishlist_count }}</span>
-                {% else %}
-                    <span class="mobile-badge wishlist-m-badge" id="wishlist-count-mobile" style="display:none;">0</span>
-                {% endif %}
-            </a>
         {% endif %}
 
         {% if user.is_authenticated %}
