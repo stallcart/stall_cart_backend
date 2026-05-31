@@ -428,7 +428,7 @@
             <!-- ── Right: Price Details (Sticky) ──────────────────── -->
             <aside class="price-details">
                 <h3>Price Details</h3>
-                <div class="price-row"><span>Price ({{ cart_items|length }} item{{ cart_items|length|pluralize }})</span><span>₹{{ subtotal|add:total_savings|floatformat:2 }}</span></div>
+                <div class="price-row"><span>Price ({{ cart_items|length }} item{{ cart_items|length|pluralize }})</span><span>₹{{ mrp_subtotal|floatformat:2 }}</span></div>
                 <div class="price-row"><span>Discount</span><span class="discount">−₹{{ total_savings|floatformat:2 }}</span></div>
                 <div class="price-row"><span>Delivery Charges</span><span class="{% if delivery_charge == 0 %}free{% endif %}">{% if delivery_charge == 0 %}<i class="fa fa-check-circle"></i> FREE{% else %}₹{{ delivery_charge }}{% endif %}</span></div>
                 

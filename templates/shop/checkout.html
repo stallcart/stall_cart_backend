@@ -88,7 +88,7 @@
                     <h3>💰 Price Details</h3>
                     <div class="price-row">
                         <span>Price ({{ cart_items|length }} items)</span>
-                        <span>₹{{ subtotal|add:total_savings|floatformat:2 }}</span>
+                        <span>₹{{ mrp_subtotal|floatformat:2 }}</span>
                     </div>
                     {% if total_savings > 0 %}
                     <div class="price-row">

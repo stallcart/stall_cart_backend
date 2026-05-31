@@ -500,7 +500,7 @@
             <table class="pricing-table">
                 <tr>
                     <td class="label">Subtotal ({{ order.items.count }} item{{ order.items.count|pluralize }})</td>
-                    <td class="value">₹{{ order.subtotal|add:order.discount_amount|floatformat:2 }}</td>
+                    <td class="value">₹{{ order.mrp_subtotal|floatformat:2 }}</td>
                 </tr>
                 {% if order.discount_amount and order.discount_amount > 0 %}
                 <tr>
