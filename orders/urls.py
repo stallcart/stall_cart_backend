@@ -123,6 +123,8 @@ urlpatterns = [
          name='order_failed'),
 
      # Return management
-    path('return/<int:return_id>/approve/', views.approve_return, name='approve_return'),
-        
+     path('return/<int:return_id>/approve/', views.approve_return, name='approve_return'),
+     path('return/<int:return_id>/', customer_only(views.return_detail), name='return_detail'),
+     path('order/<str:order_id>/confirm-rto/', views.confirm_rto_refund, name='confirm_rto_refund'),
+         
 ]

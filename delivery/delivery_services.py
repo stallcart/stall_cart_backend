@@ -237,3 +237,79 @@ class ShiprocketService:
         except Exception as e:
             logger.error(f"Shiprocket label error: {e}")
             return None
+
+    # ── Check Serviceability ──────────────────────────────────────────────────
+
+    def check_serviceability(self, delivery_postcode, pickup_postcode="110001", weight=0.5, cod=True):
+        """
+        Check courier serviceability and get estimated delivery days.
+        Returns dict with:
+          - 'success': bool
+          - 'delivery_days': int
+          - 'courier_name': str
+          - 'etd': str
+          - 'rate': float
+        """
+        try:
+            params = {
+                "pickup_postcode": pickup_postcode,
+                "delivery_postcode": delivery_postcode,
+                "weight": weight,
+                "cod": 1 if cod else 0,
+            }
+            res = requests.get(
+                f"{SHIPROCKET_API}/courier/serviceability/",
+                params=params,
+                headers=self._headers(),
+                timeout=10,
+            )
+            res.raise_for_status()
+            data = res.json()
+            
+            company_data = data.get("data", {}).get("available_courier_companies", [])
+            if not company_data:
+                raise ValueError("No courier company available for this pincode")
+                
+            best_courier = company_data[0]
+            etd = best_courier.get("etd")
+            
+            delivery_days = 4
+            if etd:
+                from datetime import datetime
+                try:
+                    etd_date = datetime.strptime(etd, "%Y-%m-%d").date()
+                    delta = (etd_date - timezone.now().date()).days
+                    if delta > 0:
+                        delivery_days = delta
+                except Exception:
+                    pass
+                    
+            return {
+                "success": True,
+                "delivery_days": delivery_days,
+                "courier_name": best_courier.get("courier_company_name", best_courier.get("courier_name")),
+                "etd": etd,
+                "rate": float(best_courier.get("rate", 0)),
+            }
+        except Exception as e:
+            logger.warning(f"Shiprocket serviceability query failed for {delivery_postcode}: {e}")
+            # Fallback estimation based on India's pincode zones
+            try:
+                pin_prefix = int(str(delivery_postcode)[:2])
+            except Exception:
+                pin_prefix = 11
+                
+            # Rule-based calculation (Delhi region = 3 days, Metros = 4 days, others = 6 days)
+            if pin_prefix in [11, 12, 13, 20, 21, 22, 23, 24, 25, 26, 27, 28, 30]:
+                delivery_days = 3
+            elif pin_prefix in [40, 41, 42, 56, 57, 58, 60, 61, 62, 70]:
+                delivery_days = 4
+            else:
+                delivery_days = 6
+                
+            return {
+                "success": False,
+                "delivery_days": delivery_days,
+                "estimated_date": (timezone.now() + timedelta(days=delivery_days)).strftime("%d %b"),
+                "is_fallback": True
+            }

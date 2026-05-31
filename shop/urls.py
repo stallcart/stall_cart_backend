@@ -13,4 +13,5 @@ urlpatterns = [
     path('checkout/', views.checkout, name='checkout'),       # ✅ Checkout page
     path('orders/create/', views.create_order, name='create_order'), # ✅ Place order
     path('shop/verify-payment/', views.verify_payment, name='verify_payment'),
+    path('check-pincode/', views.check_pincode, name='check_pincode'),
 ]

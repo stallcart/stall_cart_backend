@@ -2,6 +2,7 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, Permis
 from django.db import models
 from django.conf import settings
 from common.models import BaseModel
+from decimal import Decimal
 class UserManager(BaseUserManager):
     def create_user(self, phone, password=None, **extra_fields):
         if not phone:
@@ -153,4 +154,59 @@ class SellerShopAddress(BaseModel):
         verbose_name_plural = 'Seller Shop Addresses'
     
     def __str__(self):
-        return f"{self.shop_name} - {self.city}, {self.state}"    
+        return f"{self.shop_name} - {self.city}, {self.state}"
+
+
+class Wallet(BaseModel):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='wallet')
+    balance = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+
+    def __str__(self):
+        return f"{self.user.phone}'s Wallet - Bal: ₹{self.balance}"
+
+    def deposit(self, amount, reference_id=None, description=""):
+        from decimal import Decimal
+        amount_dec = Decimal(str(amount))
+        self.balance += amount_dec
+        self.save()
+        return WalletTransaction.objects.create(
+            wallet=self,
+            transaction_type='credit',
+            amount=amount_dec,
+            reference_id=reference_id,
+            description=description
+        )
+
+    def withdraw(self, amount, reference_id=None, description=""):
+        from decimal import Decimal
+        amount_dec = Decimal(str(amount))
+        if self.balance < amount_dec:
+            raise ValueError("Insufficient wallet balance")
+        self.balance -= amount_dec
+        self.save()
+        return WalletTransaction.objects.create(
+            wallet=self,
+            transaction_type='debit',
+            amount=amount_dec,
+            reference_id=reference_id,
+            description=description
+        )
+
+
+class WalletTransaction(BaseModel):
+    TRANSACTION_TYPES = [
+        ('credit', 'Credit (Refund/Deposit)'),
+        ('debit', 'Debit (Purchase)'),
+    ]
+    wallet = models.ForeignKey(Wallet, on_delete=models.CASCADE, related_name='transactions')
+    transaction_type = models.CharField(max_length=10, choices=TRANSACTION_TYPES)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    reference_id = models.CharField(max_length=100, blank=True, null=True, help_text="Order or Return ID")
+    description = models.CharField(max_length=255, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"{self.wallet.user.phone} | {self.transaction_type} | {self.amount}"

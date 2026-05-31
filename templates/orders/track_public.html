@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Track Order #{{ order.unique_order_id }} | StallCart{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 800px; margin: 40px auto; padding: 0 20px;">
+    <!-- Order Card Header -->
+    <div style="background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 25px; text-align: center;">
+        <h1 style="font-family: 'Syne', sans-serif; font-size: 1.8rem; margin: 0 0 10px; color: #1e293b;">Track Your Order</h1>
+        <p style="color: #64748b; font-size: 1rem; margin: 0 0 15px;">Order ID: <strong>#{{ order.unique_order_id }}</strong></p>
+        <span style="display: inline-block; padding: 6px 16px; border-radius: 20px; font-weight: 700; font-size: 0.85rem; background: #e3f2fd; color: #1d4ed8; text-transform: uppercase;">
+            Status: {{ order.get_status_display }}
+        </span>
+    </div>
+
+    <!-- Static Tracking Timeline (DB Logs) -->
+    <div style="background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 25px;">
+        <h3 style="margin: 0 0 20px; font-size: 1.2rem; color: #1e293b; display: flex; align-items: center; gap: 8px;">
+            <i class="fa fa-history" style="color: #2874f0;"></i> Status Updates
+        </h3>
+        <div style="display: flex; flex-direction: column; gap: 20px; padding-left: 10px; border-left: 2px solid #e2e8f0; margin-left: 10px; position: relative;">
+            {% for step in timeline %}
+            <div style="position: relative;">
+                <div style="position: absolute; left: -16px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: #2874f0; border: 2px solid white; box-shadow: 0 0 0 2px rgba(40,116,240,0.2);"></div>
+                <div>
+                    <strong style="color: #1e293b; font-size: 0.95rem;">{{ step.get_new_status_display }}</strong>
+                    <span style="font-size: 0.8rem; color: #64748b; margin-left: 8px;">{{ step.timestamp|date:"d M Y, h:i A" }}</span>
+                    {% if step.remarks %}
+                    <p style="margin: 4px 0 0; color: #64748b; font-size: 0.85rem; line-height: 1.4;">{{ step.remarks }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% empty %}
+            <p style="color: #64748b; text-align: center; margin: 0;">No updates logged yet.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Shiprocket Real-time Live Tracking Timeline -->
+    {% if shiprocket_tracking and shiprocket_tracking.activities %}
+    <div style="background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 25px;">
+        <h3 style="margin: 0 0 20px; font-size: 1.2rem; color: #1e293b; display: flex; align-items: center; gap: 8px;">
+            <i class="fa fa-route" style="color: #059669;"></i> Live Tracking History (Shiprocket)
+        </h3>
+        <div style="display: flex; flex-direction: column; gap: 20px; padding-left: 10px; border-left: 2px solid #e2e8f0; margin-left: 10px; position: relative;">
+            {% for act in shiprocket_tracking.activities %}
+            <div style="position: relative;">
+                <div style="position: absolute; left: -16px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: {% if forloop.first %}#059669{% else %}#cbd5e1{% endif %}; border: 2px solid white; box-shadow: 0 0 0 2px {% if forloop.first %}rgba(5, 150, 105, 0.2){% else %}transparent{% endif %};"></div>
+                <div>
+                    <strong style="color: #1e293b; font-size: 0.95rem;">{{ act.activity }}</strong>
+                    {% if act.location %}
+                    <span style="font-size: 0.8rem; background: #f1f5f9; color: #475569; padding: 2px 6px; border-radius: 4px; margin-left: 8px;">{{ act.location }}</span>
+                    {% endif %}
+                    <p style="margin: 4px 0 0; color: #64748b; font-size: 0.82rem;">
+                        <i class="fa fa-calendar-alt"></i> {{ act.date }}
+                        {% if act.status %}
+                        • Status: <span style="font-weight: 600;">{{ act.status }}</span>
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div style="text-align: center; margin-top: 30px;">
+        <a href="{% url 'shop:home' %}" style="display: inline-block; background: #2874f0; color: white; padding: 12px 30px; border-radius: 8px; font-weight: 600; text-decoration: none; box-shadow: 0 4px 6px -1px rgba(40,116,240,0.2);">
+            Continue Shopping
+        </a>
+    </div>
+</div>
+{% endblock %}

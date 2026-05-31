@@ -345,9 +345,13 @@ class CartService:
         total_savings = sum(item['savings'] for item in items)
         item_count = sum(item['quantity'] for item in items)
         
-        # Free delivery threshold
-        FREE_DELIVERY_THRESHOLD = Decimal('499')
-        delivery_charge = Decimal('0') if subtotal >= FREE_DELIVERY_THRESHOLD else Decimal('0')
+        # Free delivery threshold & charge from site settings
+        from common.models import SiteSettings
+        site_config = SiteSettings.get_singleton()
+        free_threshold = Decimal(str(site_config.free_delivery_threshold))
+        flat_charge = Decimal(str(site_config.delivery_charge))
+        
+        delivery_charge = Decimal('0') if subtotal >= free_threshold else flat_charge
         grand_total = subtotal + delivery_charge
         
         return {
@@ -356,8 +360,8 @@ class CartService:
             'delivery_charge': delivery_charge,
             'grand_total': grand_total,
             'item_count': item_count,
-            'free_delivery_eligible': subtotal >= FREE_DELIVERY_THRESHOLD,
-            'remaining_for_free': max(Decimal('0'), FREE_DELIVERY_THRESHOLD - subtotal),
+            'free_delivery_eligible': subtotal >= free_threshold,
+            'remaining_for_free': max(Decimal('0'), free_threshold - subtotal),
         }
     
     # ─────────────────────────────────────────────────────────────

@@ -92,6 +92,9 @@ def update_task_status(request, task_id):
                 if task.partner:
                     task.partner.delivered_count += 1
                     task.partner.save()
+            elif action in ('return_to_source', 'fail', 'rto'):
+                task.status = 'Returned to Source'
+                new_status = 'returned_to_source'
             
             task.save()
             

@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.translation import gettext_lazy as _
 
-from .models import User, Address, SellerShopAddress
+from .models import User, Address, SellerShopAddress, Wallet, WalletTransaction
 
 
 # ===============================
@@ -97,3 +97,29 @@ class SellerShopAddressAdmin(admin.ModelAdmin):
     )
 
     readonly_fields = ('created_at', 'updated_at')
+
+
+# ===============================
+# ✅ WALLET ADMIN
+# ===============================
+class WalletTransactionInline(admin.TabularInline):
+    model = WalletTransaction
+    extra = 0
+    readonly_fields = ('transaction_type', 'amount', 'reference_id', 'description', 'timestamp')
+    can_delete = False
+
+
+@admin.register(Wallet)
+class WalletAdmin(admin.ModelAdmin):
+    list_display = ('user', 'balance', 'created_at', 'updated_at')
+    search_fields = ('user__phone', 'user__full_name')
+    readonly_fields = ('created_at', 'updated_at')
+    inlines = [WalletTransactionInline]
+
+
+@admin.register(WalletTransaction)
+class WalletTransactionAdmin(admin.ModelAdmin):
+    list_display = ('wallet', 'transaction_type', 'amount', 'reference_id', 'description', 'timestamp')
+    list_filter = ('transaction_type', 'timestamp')
+    search_fields = ('wallet__user__phone', 'wallet__user__full_name', 'reference_id')
+    readonly_fields = ('timestamp',)

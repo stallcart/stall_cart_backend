@@ -1,6 +1,7 @@
 # common/models.py
 import os
 import threading
+from decimal import Decimal
 from django.db import models
 from django.conf import settings
 from django.core.validators import FileExtensionValidator 
@@ -109,6 +110,20 @@ class SiteSettings(models.Model):
 
     # Site Status
     is_maintenance_mode = models.BooleanField(default=False, help_text='Enable maintenance mode for non-admins')
+
+    # Delivery Settings
+    delivery_charge = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        default=Decimal('40.00'), 
+        help_text="Flat delivery charge for orders under threshold (₹)"
+    )
+    free_delivery_threshold = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        default=Decimal('499.00'), 
+        help_text="Minimum order amount to qualify for free delivery (₹)"
+    )
 
     # Policies (Rich Text managed via Admin)
     cancellation_policy = models.TextField(
@@ -330,7 +345,7 @@ class SiteSettings(models.Model):
         if self.social_facebook:
             links['facebook'] = {'url': self.social_facebook, 'icon': 'fab fa-facebook', 'color': '#1877F2', 'label': 'Facebook'}
         if self.social_twitter:
-            links['twitter'] = {'url': self.social_twitter, 'icon': 'fab fa-twitter', 'color': '#1DA1F2', 'label': 'Twitter'}
+            links['twitter'] = {'url': self.social_twitter, 'icon': 'fab fa-x-twitter', 'color': '#000000', 'label': 'X'}
         if self.social_youtube:
             links['youtube'] = {'url': self.social_youtube, 'icon': 'fab fa-youtube', 'color': '#FF0000', 'label': 'YouTube'}
         return links

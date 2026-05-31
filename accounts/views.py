@@ -746,10 +746,15 @@ def profile_view(request):
     user_orders = []
     wishlist_count = 0
     customer_addresses = []
+    wallet = None
+    wallet_transactions = []
     
     if is_customer:
         user_orders = Order.objects.filter(user=request.user).order_by('-created_at')[:5]
         customer_addresses = Address.objects.filter(user=request.user, is_active=True)
+        from accounts.models import Wallet
+        wallet, _ = Wallet.objects.get_or_create(user=request.user)
+        wallet_transactions = wallet.transactions.all()[:10]
     
     seller_stats = None
     seller_orders = []
@@ -777,6 +782,7 @@ def profile_view(request):
         'user_orders': user_orders, 'wishlist_count': wishlist_count, 'customer_addresses': customer_addresses,
         'seller_stats': seller_stats, 'seller_profile': request.user.seller_profile if is_seller else None,
         'seller_orders': seller_orders, 'shop_address': shop_address,
+        'wallet': wallet, 'wallet_transactions': wallet_transactions,
     }
     return render(request, 'accounts/profile.html', context)
 def redirect_by_role(user):
