@@ -686,6 +686,12 @@ def track_order_public(request, order_id):
 def order_success(request, order_id):
     """Order success page after payment"""
     order = get_object_or_404(Order, unique_order_id=order_id)
+    
+    # Optional: Log payment_id from query param for audit
+    payment_id = request.GET.get('payment_id')
+    if payment_id and order.razorpay_payment_id != payment_id:
+        logger.warning(f"Payment ID mismatch for order {order_id}: DB={order.razorpay_payment_id}, URL={payment_id}")
+    
     context = {'order': order}
     return render(request, 'orders/order_success.html', context)
 

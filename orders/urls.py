@@ -117,8 +117,7 @@ urlpatterns = [
 #     path('success/<str:order_id>/', 
 #          views.order_success, 
 #          name='order_success'),
-     path('orders/success/<uuid:order_id>/', views.order_success, name='order_success'),
-    # Order Failed Page
+     path('orders/success/<str:order_id>/', views.order_success, name='order_success'),    # Order Failed Page
     path('failed/', 
          views.order_failed, 
          name='order_failed'),

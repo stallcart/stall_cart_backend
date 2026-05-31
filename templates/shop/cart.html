@@ -957,7 +957,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             ).then(verification => {
                                 if (verification.success) {
                                     toast('Payment successful! 🎉', 'success');
-                                    window.location.href = `/orders/success/${verification.order_id}/?payment_id=${response.razorpay_payment_id}`;
+                                    const successUrl = `{% url 'orders:order_success' order_id='PLACEHOLDER' %}`.replace('PLACEHOLDER', verification.order_id);
+                                    window.location.href = `${successUrl}?payment_id=${response.razorpay_payment_id}`;
                                 } else {
                                     toast(verification.message || 'Payment verification failed', 'error');
                                     placeOrderBtn.disabled = false;
