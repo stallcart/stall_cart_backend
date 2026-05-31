@@ -55,8 +55,8 @@ class Product(BaseModel):
     GENDER_CHOICES = [
         ('men', '👨 Men'),
         ('women', '👩 Women'),
-        ('boys', '👦 Boys'),
-        ('girls', '👧 Girls'),
+        # ('boys', '👦 Boys'),
+        # ('girls', '👧 Girls'),
         ('unisex', '👫 Unisex'),
         ('kids', '🧒 Kids (2-12)'),
         ('teen', '🧑 Teen (13-19)'),
