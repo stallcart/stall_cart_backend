@@ -406,7 +406,7 @@ h4 { font-size: 1rem; font-weight: 600; }
     transition: all var(--tr);
 }
 .mobile-menu-btn:hover .hamburger-line { background: var(--blue-600); }
-@media (min-width: 900px) { .mobile-menu-btn { display: none; } }
+@media (min-width: 768px) { .mobile-menu-btn { display: none; } }
 
 /* ══════════════════════════════════════════════
    MOBILE DRAWER
@@ -1128,6 +1128,47 @@ h4 { font-size: 1rem; font-weight: 600; }
     gap: 3px;
 }
 
+.product-actions-row {
+    display: flex;
+    gap: 8px;
+    margin-top: auto;
+    width: 100%;
+    align-items: center;
+}
+.product-actions-row .btn-view {
+    flex: 1;
+    margin-top: 0;
+}
+
+.btn-wishlist-card {
+    position: static;
+    margin-top: 0;
+    width: 38px;
+    height: 38px;
+    flex-shrink: 0;
+    background: var(--gray-50);
+    border: 1.5px solid var(--gray-200);
+    border-radius: var(--r-md);
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 0;
+}
+.btn-wishlist-card.active {
+    color: #ef4444;
+    background: var(--white);
+    border-color: rgba(239, 68, 68, 0.2);
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.08);
+}
+.btn-wishlist-card:hover {
+    transform: scale(1.05);
+    color: #ef4444;
+}
+
 .btn-view {
     display: flex;
     align-items: center;
@@ -1731,6 +1772,16 @@ h4 { font-size: 1rem; font-weight: 600; }
     .footer-social {
         justify-content: center;
     }
+    .contact-list li {
+        justify-content: center;
+    }
+    .footer-bottom-inner {
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        text-align: center;
+    }
 }
 
 .footer-col h5 {
@@ -1845,6 +1896,23 @@ h4 { font-size: 1rem; font-weight: 600; }
 @media (max-width: 767px) {
     .nav-actions {
         display: none !important;
+    }
+}
+
+/* Responsive card buttons for mobile */
+@media (max-width: 576px) {
+    .product-actions-row {
+        gap: 6px;
+    }
+    .btn-view {
+        min-height: 34px !important;
+        padding: 6px 8px !important;
+        font-size: 0.78rem !important;
+    }
+    .btn-wishlist-card {
+        width: 34px !important;
+        height: 34px !important;
+        font-size: 0.95rem !important;
     }
 }
 
