@@ -381,7 +381,10 @@
             <div class="invoice-logo">
                 {% if site_settings.logo_url %}
                     <!-- xhtml2pdf: Use absolute URL for images -->
-                    <img src="{{ request.scheme }}://{{ request.get_host }}{{ site_settings.logo_url }}" alt="{{ site_settings.site_name }}">
+                    <img src="{{ request.scheme }}://{{ request.get_host }}{{ site_settings.logo_url }}" alt="{{ site_settings.site_name }}"><br>
+                    <div style="font-size: 12pt; font-weight: bold; color: #475569; margin-top: 4pt;">
+                        {{ site_settings.site_name }}
+                    </div>
                 {% else %}
                     <div class="invoice-logo-text">{{ site_settings.site_name }}</div>
                 {% endif %}
