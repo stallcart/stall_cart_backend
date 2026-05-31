@@ -237,8 +237,45 @@
                     </div>
                     <div class="form-group">
                         <label for="shopAddrState">State *</label>
-                        <input type="text" id="shopAddrState" name="state" class="form-input" 
-                            value="{{ shop_address.state }}" required>
+                        <select id="shopAddrState" name="state" class="form-input" style="width: 100%; height: 40px; background: white; padding: 0 10px;" required>
+                            <option value="" disabled>Select State</option>
+                            <option value="Andaman and Nicobar Islands" {% if shop_address.state == "Andaman and Nicobar Islands" %}selected{% endif %}>Andaman and Nicobar Islands</option>
+                            <option value="Andhra Pradesh" {% if shop_address.state == "Andhra Pradesh" %}selected{% endif %}>Andhra Pradesh</option>
+                            <option value="Arunachal Pradesh" {% if shop_address.state == "Arunachal Pradesh" %}selected{% endif %}>Arunachal Pradesh</option>
+                            <option value="Assam" {% if shop_address.state == "Assam" %}selected{% endif %}>Assam</option>
+                            <option value="Bihar" {% if shop_address.state == "Bihar" %}selected{% endif %}>Bihar</option>
+                            <option value="Chandigarh" {% if shop_address.state == "Chandigarh" %}selected{% endif %}>Chandigarh</option>
+                            <option value="Chhattisgarh" {% if shop_address.state == "Chhattisgarh" %}selected{% endif %}>Chhattisgarh</option>
+                            <option value="Dadra and Nagar Haveli and Daman and Diu" {% if shop_address.state == "Dadra and Nagar Haveli and Daman and Diu" %}selected{% endif %}>Dadra and Nagar Haveli and Daman and Diu</option>
+                            <option value="Delhi" {% if shop_address.state == "Delhi" %}selected{% endif %}>Delhi</option>
+                            <option value="Goa" {% if shop_address.state == "Goa" %}selected{% endif %}>Goa</option>
+                            <option value="Gujarat" {% if shop_address.state == "Gujarat" %}selected{% endif %}>Gujarat</option>
+                            <option value="Haryana" {% if shop_address.state == "Haryana" %}selected{% endif %}>Haryana</option>
+                            <option value="Himachal Pradesh" {% if shop_address.state == "Himachal Pradesh" %}selected{% endif %}>Himachal Pradesh</option>
+                            <option value="Jammu and Kashmir" {% if shop_address.state == "Jammu and Kashmir" %}selected{% endif %}>Jammu and Kashmir</option>
+                            <option value="Jharkhand" {% if shop_address.state == "Jharkhand" %}selected{% endif %}>Jharkhand</option>
+                            <option value="Karnataka" {% if shop_address.state == "Karnataka" %}selected{% endif %}>Karnataka</option>
+                            <option value="Kerala" {% if shop_address.state == "Kerala" %}selected{% endif %}>Kerala</option>
+                            <option value="Ladakh" {% if shop_address.state == "Ladakh" %}selected{% endif %}>Ladakh</option>
+                            <option value="Lakshadweep" {% if shop_address.state == "Lakshadweep" %}selected{% endif %}>Lakshadweep</option>
+                            <option value="Madhya Pradesh" {% if shop_address.state == "Madhya Pradesh" %}selected{% endif %}>Madhya Pradesh</option>
+                            <option value="Maharashtra" {% if shop_address.state == "Maharashtra" %}selected{% endif %}>Maharashtra</option>
+                            <option value="Manipur" {% if shop_address.state == "Manipur" %}selected{% endif %}>Manipur</option>
+                            <option value="Meghalaya" {% if shop_address.state == "Meghalaya" %}selected{% endif %}>Meghalaya</option>
+                            <option value="Mizoram" {% if shop_address.state == "Mizoram" %}selected{% endif %}>Mizoram</option>
+                            <option value="Nagaland" {% if shop_address.state == "Nagaland" %}selected{% endif %}>Nagaland</option>
+                            <option value="Odisha" {% if shop_address.state == "Odisha" %}selected{% endif %}>Odisha</option>
+                            <option value="Puducherry" {% if shop_address.state == "Puducherry" %}selected{% endif %}>Puducherry</option>
+                            <option value="Punjab" {% if shop_address.state == "Punjab" %}selected{% endif %}>Punjab</option>
+                            <option value="Rajasthan" {% if shop_address.state == "Rajasthan" %}selected{% endif %}>Rajasthan</option>
+                            <option value="Sikkim" {% if shop_address.state == "Sikkim" %}selected{% endif %}>Sikkim</option>
+                            <option value="Tamil Nadu" {% if shop_address.state == "Tamil Nadu" %}selected{% endif %}>Tamil Nadu</option>
+                            <option value="Telangana" {% if shop_address.state == "Telangana" %}selected{% endif %}>Telangana</option>
+                            <option value="Tripura" {% if shop_address.state == "Tripura" %}selected{% endif %}>Tripura</option>
+                            <option value="Uttar Pradesh" {% if shop_address.state == "Uttar Pradesh" or not shop_address.state %}selected{% endif %}>Uttar Pradesh</option>
+                            <option value="Uttarakhand" {% if shop_address.state == "Uttarakhand" %}selected{% endif %}>Uttarakhand</option>
+                            <option value="West Bengal" {% if shop_address.state == "West Bengal" %}selected{% endif %}>West Bengal</option>
+                        </select>
                     </div>
                 </div>
                 
@@ -370,6 +407,44 @@
         </div>
     </div>
 
+    <!-- ✅ CUSTOMER: Wallet & Credit History (Only for customers) -->
+    {% if is_customer %}
+    <div class="profile-card">
+        <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <h3>👛 StallCart Wallet</h3>
+            <span style="font-size: 1.25rem; font-weight: 700; color: var(--green);">₹{{ wallet.balance|default:"0.00"|floatformat:2 }}</span>
+        </div>
+        
+        <div class="wallet-body" style="padding-top: 10px;">
+            <p class="text-muted" style="margin-bottom: 16px;">
+                Your refund amounts are credited directly to your wallet for quick checkout on future orders.
+            </p>
+            
+            <h4 style="font-size: 0.95rem; font-weight: 600; color: var(--gray-700); margin-bottom: 10px;">Transaction History</h4>
+            {% if wallet_transactions %}
+                <div class="transaction-list" style="display:flex; flex-direction:column; gap:12px; margin-top:10px;">
+                    {% for txn in wallet_transactions %}
+                    <div class="transaction-item" style="display:flex; justify-content:space-between; align-items:center; padding:12px 14px; background:var(--gray-50); border: 1.5px solid var(--gray-100); border-radius:var(--r-md);">
+                        <div>
+                            <strong style="display:block; font-size:0.9rem; color:var(--gray-800);">{{ txn.description|default:"Wallet Credit" }}</strong>
+                            <small class="text-muted" style="font-size: 0.75rem;">{{ txn.timestamp|date:"d M Y, h:i A" }}</small>
+                            {% if txn.reference_id %}
+                                <span style="font-size: 0.75rem; color: var(--blue-500); display: block; margin-top: 2px;">Ref: {{ txn.reference_id }}</span>
+                            {% endif %}
+                        </div>
+                        <div style="font-weight:700; font-size:1rem; {% if txn.transaction_type == 'credit' %}color:var(--green);{% else %}color:var(--gray-800);{% endif %}">
+                            {% if txn.transaction_type == 'credit' %}+{% else %}−{% endif %} ₹{{ txn.amount|floatformat:2 }}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p style="font-size: 0.875rem; color: var(--gray-400); font-style: italic; margin-top: 10px;">No transactions recorded yet.</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
     <!-- ✅ CUSTOMER: Order History (Only for customers) -->
     {% if is_customer %}
     <div class="profile-card">
@@ -471,7 +546,45 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label" for="modalAddrState">State *</label>
-                        <input type="text" id="modalAddrState" name="state" class="form-input" required>
+                        <select id="modalAddrState" name="state" class="form-input" style="width: 100%; height: 40px; background: white; padding: 0 10px;" required>
+                            <option value="" disabled selected>Select State</option>
+                            <option value="Andaman and Nicobar Islands">Andaman and Nicobar Islands</option>
+                            <option value="Andhra Pradesh">Andhra Pradesh</option>
+                            <option value="Arunachal Pradesh">Arunachal Pradesh</option>
+                            <option value="Assam">Assam</option>
+                            <option value="Bihar">Bihar</option>
+                            <option value="Chandigarh">Chandigarh</option>
+                            <option value="Chhattisgarh">Chhattisgarh</option>
+                            <option value="Dadra and Nagar Haveli and Daman and Diu">Dadra and Nagar Haveli and Daman and Diu</option>
+                            <option value="Delhi">Delhi</option>
+                            <option value="Goa">Goa</option>
+                            <option value="Gujarat">Gujarat</option>
+                            <option value="Haryana">Haryana</option>
+                            <option value="Himachal Pradesh">Himachal Pradesh</option>
+                            <option value="Jammu and Kashmir">Jammu and Kashmir</option>
+                            <option value="Jharkhand">Jharkhand</option>
+                            <option value="Karnataka">Karnataka</option>
+                            <option value="Kerala">Kerala</option>
+                            <option value="Ladakh">Ladakh</option>
+                            <option value="Lakshadweep">Lakshadweep</option>
+                            <option value="Madhya Pradesh">Madhya Pradesh</option>
+                            <option value="Maharashtra">Maharashtra</option>
+                            <option value="Manipur">Manipur</option>
+                            <option value="Meghalaya">Meghalaya</option>
+                            <option value="Mizoram">Mizoram</option>
+                            <option value="Nagaland">Nagaland</option>
+                            <option value="Odisha">Odisha</option>
+                            <option value="Puducherry">Puducherry</option>
+                            <option value="Punjab">Punjab</option>
+                            <option value="Rajasthan">Rajasthan</option>
+                            <option value="Sikkim">Sikkim</option>
+                            <option value="Tamil Nadu">Tamil Nadu</option>
+                            <option value="Telangana">Telangana</option>
+                            <option value="Tripura">Tripura</option>
+                            <option value="Uttar Pradesh">Uttar Pradesh</option>
+                            <option value="Uttarakhand">Uttarakhand</option>
+                            <option value="West Bengal">West Bengal</option>
+                        </select>
                     </div>
                 </div>
                 

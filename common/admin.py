@@ -57,6 +57,10 @@ class SiteSettingsAdmin(admin.ModelAdmin):
         ('🌐 Social Links', {
             'fields': ('social_instagram', 'social_facebook', 'social_twitter')
         }),
+        ('🚚 Delivery Settings', {
+            'fields': ('delivery_charge', 'free_delivery_threshold'),
+            'description': 'Configure delivery fees and the free delivery minimum threshold amount (₹).'
+        }),
         ('📜 Site Policies', {
             'fields': ('cancellation_policy', 'return_policy', 'terms_conditions', 'privacy_policy'),
             'description': 'Manage site-wide legal policies. Content supports rich text and HTML.'

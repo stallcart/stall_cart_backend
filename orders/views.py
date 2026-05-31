@@ -62,17 +62,83 @@ def my_orders(request):
     }
     return render(request, 'orders/my_orders.html', context)
 
+def sync_shiprocket_tracking(order):
+    """
+    Sync order status dynamically from Shiprocket live tracking.
+    Returns shiprocket_tracking dict or None.
+    """
+    shiprocket_tracking = None
+    if order.tracking_number and order.status not in ('delivered', 'cancelled', 'returned'):
+        from delivery.delivery_services import ShiprocketService
+        from orders.models import OrderStatusLog
+        from django.utils import timezone
+        try:
+            srv = ShiprocketService()
+            shiprocket_tracking = srv.get_tracking(order.tracking_number)
+            if shiprocket_tracking and shiprocket_tracking.get('current_status'):
+                sr_status = shiprocket_tracking['current_status'].strip()
+                # Status mapping to local db status
+                status_map = {
+                    'AWB Assigned': 'confirmed',
+                    'Manifested': 'processing',
+                    'In Transit': 'shipped',
+                    'Shipped': 'shipped',
+                    'Out for Delivery': 'out_for_delivery',
+                    'Delivered': 'delivered',
+                    'RTO': 'returned_to_source',
+                    'Returned to Source': 'returned_to_source',
+                    'Cancelled': 'cancelled'
+                }
+                new_local_status = status_map.get(sr_status)
+                if new_local_status and new_local_status != order.status:
+                    old_status = order.status
+                    order.status = new_local_status
+                    if new_local_status == 'delivered':
+                        order.delivered_at = timezone.now()
+                    order.save(update_fields=['status', 'delivered_at', 'updated_at'])
+                    
+                    # Create status change log
+                    OrderStatusLog.objects.create(
+                        order=order,
+                        old_status=old_status,
+                        new_status=new_local_status,
+                        remarks=f"Automatic synchronization from Shiprocket (Status: {sr_status})"
+                    )
+        except Exception as e:
+            logger.warning(f"Shiprocket live status synchronization failed for order {order.id}: {e}")
+            
+    # If terminal status (or fallback case), but tracking number exists, try to get live cached tracking anyway
+    elif order.tracking_number:
+        from delivery.delivery_services import ShiprocketService
+        try:
+            srv = ShiprocketService()
+            shiprocket_tracking = srv.get_tracking(order.tracking_number)
+        except Exception:
+            pass
+            
+    return shiprocket_tracking
+
+
 @customer_only
 def order_detail(request, order_id):
     """Customer: View single order with tracking timeline"""
     order = get_object_or_404(Order, unique_order_id=order_id, user=request.user)
     
+    # Live Shiprocket sync
+    shiprocket_tracking = sync_shiprocket_tracking(order)
+    
     timeline = []
     status_logs = order.status_logs.select_related('changed_by').order_by('timestamp')
     status_labels = {
-        'pending': 'Order Placed', 'confirmed': 'Order Confirmed',
-        'processing': 'Processing', 'shipped': 'Shipped',
-        'out_for_delivery': 'Out for Delivery', 'delivered': 'Delivered',
+        'pending': 'Order Placed', 
+        'confirmed': 'Order Confirmed',
+        'processing': 'Processing', 
+        'shipped': 'Shipped',
+        'out_for_delivery': 'Out for Delivery', 
+        'delivered': 'Delivered',
+        'returned_to_source': 'Returned to Source (RTO)',
+        'returned': 'Returned & Refunded',
+        'cancelled': 'Cancelled',
     }
     
     for log in status_logs:
@@ -87,6 +153,7 @@ def order_detail(request, order_id):
         'order': order,
         'timeline': timeline,
         'delivery': getattr(order, 'delivery_assignment', None),
+        'shiprocket_tracking': shiprocket_tracking,
     }
     return render(request, 'orders/order_detail.html', context)
 
@@ -145,17 +212,46 @@ def request_return(request, order_item_id):
         return redirect('orders:order_detail', order_id=order_item.order.unique_order_id)
     
     if request.method == 'POST':
-        data = json.loads(request.body)
-        return_req = ReturnRequest.objects.create(
-            order_item=order_item, user=request.user,
-            quantity=data.get('quantity', 1), reason=data.get('reason'),
-            remarks=data.get('remarks', ''),
-            refund_amount=order_item.price * data.get('quantity', 1),
-        )
-        messages.success(request, "Return request submitted. We'll contact you within 24 hours.")
-        return JsonResponse({'status': 'success', 'return_id': return_req.id})
-    
-    context = {'order_item': order_item, 'reasons': Order.RETURN_REASONS}
+        try:
+            quantity = int(request.POST.get('quantity', 1))
+        except ValueError:
+            quantity = 1
+            
+        reason = request.POST.get('reason')
+        remarks = request.POST.get('remarks', '')
+        
+        if quantity < 1 or quantity > order_item.remaining_quantity:
+            messages.error(request, "Invalid return quantity")
+            return redirect('orders:order_detail', order_id=order_item.order.unique_order_id)
+            
+        with transaction.atomic():
+            return_req = ReturnRequest.objects.create(
+                order_item=order_item,
+                user=request.user,
+                quantity=quantity,
+                reason=reason,
+                remarks=remarks,
+                refund_amount=order_item.price * quantity,
+            )
+            
+            # Save uploaded images
+            files = request.FILES.getlist('images')
+            for i, f in enumerate(files[:3]):  # Limit to 3 images
+                OrderReturnImage.objects.create(
+                    return_request=return_req,
+                    image=f,
+                    caption=f"Evidence {i+1}",
+                    is_primary=(i == 0)
+                )
+                
+        messages.success(request, "Return request submitted successfully.")
+        return redirect('orders:return_detail', return_id=return_req.id)
+        
+    context = {
+        'order_item': order_item,
+        'reasons': Order.RETURN_REASONS,
+        'remaining_quantity': order_item.remaining_quantity
+    }
     return render(request, 'orders/return_form.html', context)
 
 @login_required
@@ -447,11 +543,15 @@ def seller_orders(request):
         order_items = order_items.filter(order__status=status_filter)
     pending_count = order_items.filter(order__status='pending').count()
     delivered_count = order_items.filter(order__status='delivered').count()
+    pending_returns = ReturnRequest.objects.filter(
+        order_item__product__seller=seller,
+        status='requested'
+    ).select_related('order_item__product', 'order_item__order', 'order_item__variant').order_by('-created_at')
 
     context = {'order_items': order_items, 'seller': seller, 'filters': request.GET.dict(),
             'pending_count': pending_count,
             'delivered_count':delivered_count,
-
+            'pending_returns': pending_returns,
             }
     return render(request, 'orders/seller_order.html', context)
 
@@ -486,6 +586,7 @@ def seller_order_detail(request, order_id):
         'pending': 'Order Placed', 'confirmed': 'Order Confirmed',
         'processing': 'Processing', 'shipped': 'Shipped',
         'out_for_delivery': 'Out for Delivery', 'delivered': 'Delivered',
+        'returned_to_source': 'Returned to Source', 'returned': 'Returned',
     }
     for log in status_logs:
         timeline.append({
@@ -494,12 +595,19 @@ def seller_order_detail(request, order_id):
             'timestamp': log.timestamp, 'remarks': log.remarks,
         })
     
+    pending_returns = ReturnRequest.objects.filter(
+        order_item__order=order,
+        order_item__product__seller=seller,
+        status='requested'
+    ).select_related('order_item__product', 'order_item__order', 'order_item__variant')
+    
     context = {
         'order': order, 'seller_items': seller_items, 'timeline': timeline,
         'delivery': getattr(order, 'delivery_assignment', None),
         'seller_items_total': seller_items_total,
         'seller_commission_total': seller_commission_total,
         'seller_earnings_total': seller_earnings_total,
+        'pending_returns': pending_returns,
     }
     return render(request, 'orders/seller_order_detail.html', context)
 
@@ -751,8 +859,15 @@ def track_order_public(request, order_id):
         if order.guest_email and order.guest_email != request.GET.get('email'):
             return render(request, 'orders/tracking_not_found.html', {'order_id': order_id})
     
+    # Live Shiprocket sync
+    shiprocket_tracking = sync_shiprocket_tracking(order)
+    
     timeline = OrderStatusLog.objects.filter(order=order).order_by('timestamp')
-    context = {'order': order, 'timeline': timeline}
+    context = {
+        'order': order, 
+        'timeline': timeline,
+        'shiprocket_tracking': shiprocket_tracking
+    }
     return render(request, 'orders/track_public.html', context)
 
 def order_success(request, order_id):
@@ -838,8 +953,8 @@ def approve_return(request, return_id):
                 status=403
             )
     
-    # Only pending returns can be actioned
-    if return_req.status != 'pending':
+    # Only pending/requested returns can be actioned
+    if return_req.status != 'requested':
         return JsonResponse(
             {'status': 'error', 'message': f'Return request is already {return_req.status}'}, 
             status=400
@@ -931,104 +1046,101 @@ def approve_return(request, return_id):
 
 def _process_refund(order, return_req, qty_to_restock):
     """
-    Internal helper: Process refund via Razorpay or mark for manual transfer.
-    Returns dict with refund details.
+    Internal helper: Process refund via Razorpay, Wallet, or credit to Wallet for COD.
     """
-    refund_amount_paise = int(return_req.refund_amount * 100)  # Razorpay uses paise
-    payment_method = order.payment_method
+    payment_method = order.payment_method.lower()
     razorpay_payment_id = order.razorpay_payment_id
+    refund_amount = return_req.refund_amount
     
     result = {
-        'amount': float(return_req.refund_amount),
+        'amount': float(refund_amount),
         'currency': 'INR',
         'method': payment_method,
         'status': 'pending',
         'razorpay_refund_id': None
     }
     
-    # ONLINE payments: Auto-refund via Razorpay API
-    if payment_method == 'ONLINE' and razorpay_payment_id:
-        client = get_razorpay_client()
-        if not client:
-            logger.error(f"Razorpay client not configured. Cannot process refund for order #{order.id}")
-            return_req.refund_status = 'failed'
-            return_req.refund_failure_reason = 'Razorpay configuration missing'
-            return_req.save(update_fields=['refund_status', 'refund_failure_reason', 'updated_at'])
-            result['status'] = 'failed'
-            result['error'] = 'Payment gateway not configured'
-            return result
+    from accounts.models import Wallet
+    
+    # 1. Wallet Payment: Refund directly to Wallet
+    if payment_method == 'wallet':
+        wallet, _ = Wallet.objects.get_or_create(user=order.user)
+        wallet.deposit(
+            amount=refund_amount,
+            reference_id=f"RTN-{return_req.id}",
+            description=f"Refund for returned item in Order #{order.unique_order_id}"
+        )
+        return_req.refund_status = 'completed'
+        return_req.save(update_fields=['refund_status', 'updated_at'])
+        result['status'] = 'completed'
+        result['note'] = 'Refunded to customer wallet'
+        return result
         
-        try:
-            # Create refund via Razorpay API
-            refund_data = {
-                'payment_id': razorpay_payment_id,
-                'amount': refund_amount_paise,
-                'notes': {
-                    'return_id': return_req.id,
-                    'order_id': order.id,
-                    'reason': return_req.reason,
-                    'initiated_by': return_req.actioned_by.username if return_req.actioned_by else 'system'
+    # 2. Razorpay Payment: Try Razorpay API refund, fallback to Wallet on failure
+    elif payment_method == 'razorpay' and razorpay_payment_id:
+        client = get_razorpay_client()
+        if client:
+            try:
+                refund_data = {
+                    'payment_id': razorpay_payment_id,
+                    'amount': int(refund_amount * 100),
+                    'notes': {
+                        'return_id': return_req.id,
+                        'order_id': order.id,
+                        'reason': return_req.reason,
+                        'initiated_by': return_req.actioned_by.phone if return_req.actioned_by else 'system'
+                    }
                 }
-            }
-            
-            # Optional: partial refund notes
-            if qty_to_restock < return_req.order_item.quantity:
-                refund_data['notes']['partial_refund'] = f'{qty_to_restock}/{return_req.order_item.quantity} items'
-            
-            razorpay_refund = client.refund.create(refund_data)
-            
-            # Update return request with Razorpay refund ID
-            return_req.razorpay_refund_id = razorpay_refund.get('id')
-            return_req.refund_status = 'processing'  # Razorpay processes async
-            return_req.save(update_fields=['razorpay_refund_id', 'refund_status', 'updated_at'])
-            
-            result['status'] = 'processing'
-            result['razorpay_refund_id'] = razorpay_refund.get('id')
-            result['razorpay_status'] = razorpay_refund.get('status')
-            logger.info(f"Razorpay refund initiated: {razorpay_refund.get('id')} for order #{order.id}")
-            
-        except razorpay.errors.BadRequestError as e:
-            logger.error(f"Razorpay refund failed (bad request) for order #{order.id}: {str(e)}")
-            return_req.refund_status = 'failed'
-            return_req.refund_failure_reason = f'Razorpay API error: {str(e)}'
-            return_req.save(update_fields=['refund_status', 'refund_failure_reason', 'updated_at'])
-            result['status'] = 'failed'
-            result['error'] = 'Invalid refund request'
-            
-        except razorpay.errors.ServerError as e:
-            logger.error(f"Razorpay server error for order #{order.id}: {str(e)}")
-            # Don't mark as failed - could be temporary. Keep as 'pending' for webhook to resolve.
-            return_req.refund_status = 'pending'
-            return_req.save(update_fields=['refund_status', 'updated_at'])
-            result['status'] = 'pending'
-            result['error'] = 'Payment gateway temporary error - will retry'
-            
-        except Exception as e:
-            logger.exception(f"Unexpected error processing Razorpay refund for order #{order.id}")
-            return_req.refund_status = 'failed'
-            return_req.refund_failure_reason = f'Unexpected error: {str(e)}'
-            return_req.save(update_fields=['refund_status', 'refund_failure_reason', 'updated_at'])
-            result['status'] = 'failed'
-            result['error'] = 'Refund processing failed'
-    
-    # COD payments: Mark for manual bank transfer
-    elif payment_method == 'COD':
-        return_req.refund_status = 'manual_pending'
-        return_req.refund_instructions = 'Manual bank transfer required. Contact customer for UPI/bank details.'
-        return_req.save(update_fields=['refund_status', 'refund_instructions', 'updated_at'])
-        result['status'] = 'manual_pending'
-        result['note'] = 'COD order: Please process refund via bank transfer manually'
-        logger.info(f"COD refund marked for manual processing: Return #{return_req.id}")
-    
+                razorpay_refund = client.refund.create(refund_data)
+                return_req.razorpay_refund_id = razorpay_refund.get('id')
+                return_req.refund_status = 'processing'
+                return_req.save(update_fields=['razorpay_refund_id', 'refund_status', 'updated_at'])
+                result['status'] = 'processing'
+                result['razorpay_refund_id'] = razorpay_refund.get('id')
+                return result
+            except Exception as e:
+                logger.error(f"Razorpay refund failed: {e}. Falling back to Wallet credit.")
+                
+        # Fallback to wallet deposit on failure/missing client
+        wallet, _ = Wallet.objects.get_or_create(user=order.user)
+        wallet.deposit(
+            amount=refund_amount,
+            reference_id=f"RTN-{return_req.id}",
+            description=f"Refund (prepaid fallback) for returned item in Order #{order.unique_order_id}"
+        )
+        return_req.refund_status = 'completed'
+        return_req.save(update_fields=['refund_status', 'updated_at'])
+        result['status'] = 'completed'
+        result['note'] = 'Razorpay refund failed/skipped; refunded to customer wallet'
+        return result
+        
+    # 3. COD Payment: Refund directly to Wallet
+    elif payment_method == 'cod':
+        wallet, _ = Wallet.objects.get_or_create(user=order.user)
+        wallet.deposit(
+            amount=refund_amount,
+            reference_id=f"RTN-{return_req.id}",
+            description=f"Refund (COD) for returned item in Order #{order.unique_order_id}"
+        )
+        return_req.refund_status = 'completed'
+        return_req.save(update_fields=['refund_status', 'updated_at'])
+        result['status'] = 'completed'
+        result['note'] = 'COD order: Refunded to customer wallet'
+        return result
+        
     else:
-        # Fallback for unknown payment methods
-        return_req.refund_status = 'failed'
-        return_req.refund_failure_reason = f'Unsupported payment method: {payment_method}'
-        return_req.save(update_fields=['refund_status', 'refund_failure_reason', 'updated_at'])
-        result['status'] = 'failed'
-        result['error'] = f'Cannot refund via {payment_method}'
-    
-    return result
+        # Unknown payment method fallback to wallet
+        wallet, _ = Wallet.objects.get_or_create(user=order.user)
+        wallet.deposit(
+            amount=refund_amount,
+            reference_id=f"RTN-{return_req.id}",
+            description=f"Refund (unsupported fallback) for returned item in Order #{order.unique_order_id}"
+        )
+        return_req.refund_status = 'completed'
+        return_req.save(update_fields=['refund_status', 'updated_at'])
+        result['status'] = 'completed'
+        result['note'] = 'Unsupported payment method; refunded to customer wallet'
+        return result
 
 
 def _update_order_status_if_fully_returned(order):
@@ -1044,3 +1156,72 @@ def _update_order_status_if_fully_returned(order):
         order.status = 'returned'
         order.save(update_fields=['status', 'updated_at'])
         logger.info(f"Order #{order.id} status updated: {old_status} → returned (all items returned)")
+
+
+@login_required
+@user_passes_test(is_seller_or_admin)
+@require_POST
+def confirm_rto_refund(request, order_id):
+    """
+    Seller/Admin: Confirm returned items receipt at source and process refund to customer wallet.
+    """
+    order = get_object_or_404(Order, unique_order_id=order_id)
+    
+    # Permission check: seller can only manage their own products in that order
+    if not request.user.is_staff and not request.user.is_superuser:
+        if not hasattr(request.user, 'seller_profile'):
+            return JsonResponse({'status': 'error', 'message': 'Unauthorized'}, status=403)
+        has_product = order.items.filter(product__seller=request.user.seller_profile).exists()
+        if not has_product:
+            return JsonResponse({'status': 'error', 'message': 'Unauthorized'}, status=403)
+            
+    if order.status != 'returned_to_source':
+        return JsonResponse({'status': 'error', 'message': f'Order is in {order.status} state, not returned_to_source'}, status=400)
+        
+    with transaction.atomic():
+        # 1. Restock products/variants
+        for item in order.items.all():
+            if not item.is_returned:
+                qty = item.quantity
+                if item.variant:
+                    item.variant.stock = (item.variant.stock or 0) + qty
+                    item.variant.save(update_fields=['stock', 'updated_at'])
+                else:
+                    item.product.stock = (item.product.stock or 0) + qty
+                    item.product.save(update_fields=['stock', 'updated_at'])
+                    
+                item.is_returned = True
+                item.returned_quantity = qty
+                item.save(update_fields=['is_returned', 'returned_quantity', 'updated_at'])
+                
+        # 2. Refund to customer wallet
+        from accounts.models import Wallet
+        wallet, _ = Wallet.objects.get_or_create(user=order.user)
+        wallet.deposit(
+            amount=order.total_amount,
+            reference_id=f"RTO-{order.unique_order_id}",
+            description=f"RTO Refund for Order #{order.unique_order_id}"
+        )
+        
+        # 3. Update Order Status
+        old_status = order.status
+        order.status = 'returned'
+        order.payment_status = 'refunded'
+        order.refund_amount = order.total_amount
+        order.refund_at = timezone.now()
+        order.save(update_fields=['status', 'payment_status', 'refund_amount', 'refund_at', 'updated_at'])
+        
+        # 4. Log status change
+        OrderStatusLog.objects.create(
+            order=order,
+            old_status=old_status,
+            new_status='returned',
+            changed_by=request.user,
+            remarks='RTO delivery receipt confirmed & refunded to customer wallet'
+        )
+        
+    return JsonResponse({
+        'status': 'success',
+        'message': 'RTO receipt confirmed and refund processed to customer wallet.',
+        'new_status': 'Returned'
+    })

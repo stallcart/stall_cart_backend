@@ -129,6 +129,31 @@
                                 </div>
                             </label>
                             
+                            <!-- StallCart Wallet -->
+                            {% if wallet_balance >= grand_total %}
+                            <label class="payment-option" id="walletPaymentOption">
+                                <input type="radio" name="payment_method" value="wallet">
+                                <span class="radio-indicator"></span>
+                                <div class="payment-icon" style="color: #059669; display: flex; align-items: center; justify-content: center; height: 32px; width: 32px;">
+                                    <i class="fa fa-wallet" style="font-size: 1.5rem;"></i>
+                                </div>
+                                <div class="payment-text">
+                                    <span>StallCart Wallet Balance</span>
+                                    <small>Available Balance: <strong>₹{{ wallet_balance|floatformat:2 }}</strong></small>
+                                </div>
+                            </label>
+                            {% else %}
+                            <div class="payment-option disabled" style="opacity: 0.6; cursor: not-allowed; display: flex; gap: 10px; align-items: center; border: 1.5px dashed var(--gray-300); padding: 12px; border-radius: var(--r-md); background: #f8fafc;">
+                                <div class="payment-icon" style="color: #94a3b8; display: flex; align-items: center; justify-content: center; height: 32px; width: 32px;">
+                                    <i class="fa fa-wallet" style="font-size: 1.5rem;"></i>
+                                </div>
+                                <div class="payment-text">
+                                    <span style="color: #64748b; font-weight: 600; display: block;">StallCart Wallet Balance (Insufficient)</span>
+                                    <small style="color: #94a3b8; display: block; margin-top: 2px;">Available: ₹{{ wallet_balance|floatformat:2 }} • Needs: ₹{{ grand_total|floatformat:2 }}</small>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
                             <!-- Cash on Delivery
                             <label class="payment-option" id="codPaymentOption">
                                 <input type="radio" name="payment_method" value="cod">
@@ -185,7 +210,48 @@
                 
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                     <div class="form-group"><label class="form-label" for="modalAddrCity">City *</label><input type="text" id="modalAddrCity" name="city" class="form-input" required></div>
-                    <div class="form-group"><label class="form-label" for="modalAddrState">State *</label><input type="text" id="modalAddrState" name="state" class="form-input" required></div>
+                    <div class="form-group">
+                        <label class="form-label" for="modalAddrState">State *</label>
+                        <select id="modalAddrState" name="state" class="form-input" style="width: 100%; height: 40px; background: white; padding: 0 10px;" required>
+                            <option value="" disabled selected>Select State</option>
+                            <option value="Andaman and Nicobar Islands">Andaman and Nicobar Islands</option>
+                            <option value="Andhra Pradesh">Andhra Pradesh</option>
+                            <option value="Arunachal Pradesh">Arunachal Pradesh</option>
+                            <option value="Assam">Assam</option>
+                            <option value="Bihar">Bihar</option>
+                            <option value="Chandigarh">Chandigarh</option>
+                            <option value="Chhattisgarh">Chhattisgarh</option>
+                            <option value="Dadra and Nagar Haveli and Daman and Diu">Dadra and Nagar Haveli and Daman and Diu</option>
+                            <option value="Delhi">Delhi</option>
+                            <option value="Goa">Goa</option>
+                            <option value="Gujarat">Gujarat</option>
+                            <option value="Haryana">Haryana</option>
+                            <option value="Himachal Pradesh">Himachal Pradesh</option>
+                            <option value="Jammu and Kashmir">Jammu and Kashmir</option>
+                            <option value="Jharkhand">Jharkhand</option>
+                            <option value="Karnataka">Karnataka</option>
+                            <option value="Kerala">Kerala</option>
+                            <option value="Ladakh">Ladakh</option>
+                            <option value="Lakshadweep">Lakshadweep</option>
+                            <option value="Madhya Pradesh">Madhya Pradesh</option>
+                            <option value="Maharashtra">Maharashtra</option>
+                            <option value="Manipur">Manipur</option>
+                            <option value="Meghalaya">Meghalaya</option>
+                            <option value="Mizoram">Mizoram</option>
+                            <option value="Nagaland">Nagaland</option>
+                            <option value="Odisha">Odisha</option>
+                            <option value="Puducherry">Puducherry</option>
+                            <option value="Punjab">Punjab</option>
+                            <option value="Rajasthan">Rajasthan</option>
+                            <option value="Sikkim">Sikkim</option>
+                            <option value="Tamil Nadu">Tamil Nadu</option>
+                            <option value="Telangana">Telangana</option>
+                            <option value="Tripura">Tripura</option>
+                            <option value="Uttar Pradesh">Uttar Pradesh</option>
+                            <option value="Uttarakhand">Uttarakhand</option>
+                            <option value="West Bengal">West Bengal</option>
+                        </select>
+                    </div>
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                     <div class="form-group"><label class="form-label" for="modalAddrPostal">PIN Code *</label><input type="text" id="modalAddrPostal" name="postal_code" class="form-input" placeholder="6-digit PIN" pattern="[0-9]{6}" maxlength="6" required></div>
@@ -389,6 +455,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Payment Option Visual Feedback
     document.querySelectorAll('.payment-option').forEach(option => {
         option.addEventListener('click', function() {
+            if (this.classList.contains('disabled')) return;
             document.querySelectorAll('.payment-option').forEach(o => o.classList.remove('active'));
             this.classList.add('active');
             const radioInput = this.querySelector('input[type="radio"]');

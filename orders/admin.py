@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from decimal import Decimal
-from .models import Order, OrderItem
+from .models import Order, OrderItem, ReturnRequest, OrderReturnImage
 from common.admin import BaseModelAdmin
 
 class OrderItemInline(admin.TabularInline):
@@ -83,4 +83,32 @@ class OrderAdmin(BaseModelAdmin):
         # Sellers see only orders containing their products
         if not request.user.is_superuser and hasattr(request.user, 'seller_profile'):
             return qs.filter(items__product__seller=request.user.seller_profile).distinct()
+        return qs
+
+
+class OrderReturnImageInline(admin.TabularInline):
+    model = OrderReturnImage
+    extra = 0
+    readonly_fields = ('image_preview',)
+    
+    def image_preview(self, obj):
+        if obj.image:
+            return format_html('<img src="{}" style="max-height: 100px; max-width: 100px; object-fit: contain;" />', obj.image.url)
+        return "No Image"
+    image_preview.short_description = "Preview"
+
+
+@admin.register(ReturnRequest)
+class ReturnRequestAdmin(BaseModelAdmin):
+    list_display = ('id', 'order_item', 'user', 'quantity', 'reason', 'status', 'refund_amount', 'refund_status', 'created_at')
+    list_filter = ('status', 'refund_status', 'refund_method', 'created_at')
+    search_fields = ('id', 'user__phone', 'user__full_name', 'order_item__order__unique_order_id', 'order_item__product__name')
+    readonly_fields = ('created_at', 'updated_at', 'created_by', 'updated_by')
+    inlines = [OrderReturnImageInline]
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request).select_related('user', 'order_item__product', 'order_item__order')
+        # Sellers see only return requests for their own products
+        if not request.user.is_superuser and hasattr(request.user, 'seller_profile'):
+            return qs.filter(order_item__product__seller=request.user.seller_profile)
         return qs

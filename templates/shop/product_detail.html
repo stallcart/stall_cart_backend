@@ -206,12 +206,24 @@
                 {% endif %}
 
                 {% if not can_manage %}
-                <div class="delivery-info">
-                    <i class="fa fa-truck"></i>
-                    <span>
-                        <strong>Free Delivery</strong> on orders above ₹499<br>
-                        <small>Estimated delivery: 3–5 business days</small>
-                    </span>
+                <div class="delivery-info" style="margin-top: 15px; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; background: #f8fafc; display: block; border-left: 4px solid #2874f0;">
+                    <div style="display: flex; align-items: flex-start; gap: 12px;">
+                        <i class="fa fa-truck" style="font-size: 1.25rem; color: #2874f0; margin-top: 2px;"></i>
+                        <div style="flex: 1;">
+                            <strong style="display: block; color: #1e293b; font-size: 0.95rem; font-family: 'Syne', sans-serif;">Delivery & Services</strong>
+                            
+                            <!-- PIN Code checker widget -->
+                            <div class="pincode-check-widget" style="display: flex; gap: 8px; margin-top: 8px; max-width: 320px;">
+                                <input type="text" id="pincodeInput" placeholder="Enter Delivery PIN Code" maxlength="6" style="flex: 1; padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem; outline: none; font-family: inherit;">
+                                <button type="button" id="pincodeCheckBtn" style="background: #2874f0; color: white; border: none; padding: 6px 16px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 700; transition: background 0.2s;">Check</button>
+                            </div>
+                            
+                            <!-- Delivery status text -->
+                            <div id="pincodeDeliveryStatus" style="margin-top: 8px; font-size: 0.82rem; color: #64748b; line-height: 1.4;">
+                                Enter your PIN code to check delivery details.
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 {% endif %}
             </div>
@@ -709,6 +721,66 @@ let isPageLoad        = true;
 
 // ── DOM Ready ────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function () {
+
+    // ── PIN Code Checker logic ──
+    const pincodeInput = document.getElementById('pincodeInput');
+    const pincodeCheckBtn = document.getElementById('pincodeCheckBtn');
+    const pincodeDeliveryStatus = document.getElementById('pincodeDeliveryStatus');
+
+    if (pincodeInput && pincodeCheckBtn) {
+        // Load saved pincode from localStorage
+        const savedPincode = localStorage.getItem('stallcart_pincode');
+        if (savedPincode) {
+            pincodeInput.value = savedPincode;
+            performPincodeCheck(savedPincode);
+        }
+
+        pincodeCheckBtn.addEventListener('click', function() {
+            const pincode = pincodeInput.value.trim();
+            if (pincode.length !== 6 || isNaN(pincode)) {
+                pincodeDeliveryStatus.innerHTML = '<span style="color: #ef4444;"><i class="fa fa-exclamation-circle"></i> Please enter a valid 6-digit PIN code.</span>';
+                return;
+            }
+            performPincodeCheck(pincode);
+        });
+
+        pincodeInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                pincodeCheckBtn.click();
+            }
+        });
+    }
+
+    function performPincodeCheck(pincode) {
+        pincodeDeliveryStatus.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Checking availability...';
+        pincodeCheckBtn.disabled = true;
+
+        fetch(`/check-pincode/?pincode=${pincode}`)
+            .then(res => {
+                if (!res.ok) {
+                    return res.json().then(data => { throw data; });
+                }
+                return res.json();
+            })
+            .then(data => {
+                pincodeCheckBtn.disabled = false;
+                if (data.status === 'success') {
+                    localStorage.setItem('stallcart_pincode', pincode);
+                    let text = `<span style="color: #059669; font-weight: 600;"><i class="fa fa-check-circle"></i> Delivery Available</span><br>`;
+                    text += `Expected Delivery: <strong>${data.estimated_date}</strong> (in ${data.delivery_days} days)<br>`;
+                    if (data.courier_name) {
+                        text += `<small style="color: #64748b;">Shipped via ${data.courier_name}</small>`;
+                    }
+                    pincodeDeliveryStatus.innerHTML = text;
+                } else {
+                    pincodeDeliveryStatus.innerHTML = `<span style="color: #ef4444;"><i class="fa fa-times-circle"></i> ${data.message || 'Service unavailable'}</span>`;
+                }
+            })
+            .catch(err => {
+                pincodeCheckBtn.disabled = false;
+                pincodeDeliveryStatus.innerHTML = `<span style="color: #ef4444;"><i class="fa fa-times-circle"></i> ${err.message || 'Service unavailable for this PIN code.'}</span>`;
+            });
+    }
 
     // 1. Parse variant JSON if variants exist
     if (hasVariants) {

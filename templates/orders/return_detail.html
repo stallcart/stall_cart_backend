@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Return Request #{{ return_request.id }} | {{ site_settings.site_name }}{% endblock %}
+
+{% block content %}
+<div class="return-detail-container" style="max-width: 800px; margin: 40px auto; padding: 0 20px;">
+    
+    <!-- Header -->
+    <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <a href="{% url 'orders:order_detail' return_request.order_item.order.unique_order_id %}" style="text-decoration: none; color: var(--blue-500); font-weight: 600; display: inline-flex; align-items: center; gap: 6px; font-size: 0.9rem;">
+            <i class="fa fa-arrow-left"></i> Order Details
+        </a>
+        <span style="font-size: 0.85rem; color: var(--gray-400);">Requested on {{ return_request.created_at|date:"d M Y, h:i A" }}</span>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr; gap: 24px;">
+        
+        <!-- Return Status Banner -->
+        <div style="background: white; border-radius: var(--r-2xl); border: 1.5px solid var(--gray-100); box-shadow: var(--sh-md); padding: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 16px; margin-bottom: 20px;">
+                <div>
+                    <h2 style="margin: 0 0 4px; font-family: 'Syne', sans-serif; font-size: 1.25rem; font-weight: 800; color: var(--gray-900);">
+                        Return Request #{{ return_request.id }}
+                    </h2>
+                    <p style="margin: 0; font-size: 0.9rem; color: var(--gray-500);">
+                        For {{ return_request.order_item.product.name }}
+                    </p>
+                </div>
+                <div class="badge-status" style="padding: 6px 14px; border-radius: var(--r-xl); font-weight: 700; font-size: 0.85rem; 
+                    {% if return_request.status == 'requested' %}background:#fffbeb; color:#d97706; border:1px solid #fde68a;
+                    {% elif return_request.status == 'approved' or return_request.status == 'completed' %}background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0;
+                    {% elif return_request.status == 'rejected' %}background:#fef2f2; color:#b91c1c; border:1px solid #fca5a5;
+                    {% else %}background:#f0fdfa; color:#0f766e; border:1px solid #99f6e4;{% endif %}">
+                    {{ return_request.get_status_display }}
+                </div>
+            </div>
+
+            <!-- Rejection Notice -->
+            {% if return_request.status == 'rejected' %}
+            <div style="background: #fef2f2; border: 1px solid #fca5a5; border-radius: var(--r-lg); padding: 14px 16px; color: #991b1b; font-size: 0.9rem; margin-bottom: 24px; display: flex; gap: 10px; align-items: start;">
+                <i class="fa fa-exclamation-circle" style="font-size: 1.15rem; margin-top: 2px;"></i>
+                <div>
+                    <strong style="display: block; margin-bottom: 2px;">Return Request Rejected</strong>
+                    {{ return_request.rejection_reason|default:"Your request does not meet our return policy guidelines." }}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Return Progress Timeline -->
+            {% if return_request.status != 'rejected' %}
+            <h3 style="font-size: 0.95rem; font-weight: 700; color: var(--gray-800); margin-bottom: 16px;">Return Status Timeline</h3>
+            <div style="display: flex; flex-direction: column; gap: 0; padding-left: 10px; border-left: 2px solid var(--gray-200); margin-left: 10px; margin-bottom: 20px;">
+                
+                <!-- Request Submitted -->
+                <div style="position: relative; padding-left: 20px; padding-bottom: 20px;">
+                    <div style="position: absolute; left: -17px; top: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--green); border: 2px solid white;"></div>
+                    <strong style="display: block; font-size: 0.875rem; color: var(--gray-800);">Return Request Raised</strong>
+                    <span style="font-size: 0.75rem; color: var(--gray-500);">Awaiting seller/admin confirmation</span>
+                </div>
+
+                <!-- Approval Status -->
+                <div style="position: relative; padding-left: 20px; padding-bottom: 20px;">
+                    <div style="position: absolute; left: -17px; top: 2px; width: 12px; height: 12px; border-radius: 50%; 
+                        {% if return_request.status in 'approved,pickup_scheduled,picked_up,received,refund_initiated,completed' %}background: var(--green);{% else %}background: var(--gray-300);{% endif %} border: 2px solid white;"></div>
+                    <strong style="display: block; font-size: 0.875rem; {% if return_request.status in 'approved,pickup_scheduled,picked_up,received,refund_initiated,completed' %}color: var(--gray-800);{% else %}color: var(--gray-400);{% endif %}">Request Approved</strong>
+                    <span style="font-size: 0.75rem; color: var(--gray-500);">Restocked & refund authorization initiated</span>
+                </div>
+
+                <!-- Refund Completed -->
+                <div style="position: relative; padding-left: 20px; padding-bottom: 4px;">
+                    <div style="position: absolute; left: -17px; top: 2px; width: 12px; height: 12px; border-radius: 50%; 
+                        {% if return_request.refund_status == 'completed' %}background: var(--green);{% else %}background: var(--gray-300);{% endif %} border: 2px solid white;"></div>
+                    <strong style="display: block; font-size: 0.875rem; {% if return_request.refund_status == 'completed' %}color: var(--gray-800);{% else %}color: var(--gray-400);{% endif %}">Refund Processed</strong>
+                    {% if return_request.refund_status == 'completed' %}
+                        <span style="font-size: 0.75rem; color: var(--green); font-weight: 600;">Refunded to StallCart Wallet</span>
+                    {% else %}
+                        <span style="font-size: 0.75rem; color: var(--gray-500);">Processing refund amount</span>
+                    {% endif %}
+                </div>
+
+            </div>
+            {% endif %}
+
+            <!-- Refund summary details -->
+            <div style="border-top: 1px solid var(--gray-100); padding-top: 16px; margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; background: var(--gray-50); margin: 0 -24px -24px; padding: 20px 24px; border-bottom-left-radius: var(--r-2xl); border-bottom-right-radius: var(--r-2xl);">
+                <div>
+                    <span style="font-size: 0.8rem; color: var(--gray-500); display: block;">Returned Qty</span>
+                    <strong style="font-size: 1rem; color: var(--gray-900);">{{ return_request.quantity }} unit{{ return_request.quantity|pluralize }}</strong>
+                </div>
+                <div style="text-align: right;">
+                    <span style="font-size: 0.8rem; color: var(--gray-500); display: block;">Refund Amount</span>
+                    <strong style="font-size: 1.15rem; color: var(--green);">₹{{ return_request.refund_amount|floatformat:2 }}</strong>
+                </div>
+            </div>
+        </div>
+
+        <!-- Evidence Images Gallery -->
+        {% if return_request.return_images.exists %}
+        <div style="background: white; border-radius: var(--r-2xl); border: 1.5px solid var(--gray-100); box-shadow: var(--sh-md); padding: 24px;">
+            <h3 style="font-family: 'Syne', sans-serif; font-size: 1.05rem; font-weight: 800; color: var(--gray-900); margin: 0 0 16px;">
+                📸 Evidence Uploaded
+            </h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 14px;">
+                {% for img in return_request.return_images.all %}
+                <a href="{{ img.image.url }}" target="_blank" style="display: block; aspect-ratio: 1; border-radius: var(--r-lg); overflow: hidden; border: 1px solid var(--gray-200); position: relative; cursor: zoom-in;">
+                    <img src="{{ img.image.url }}" alt="{{ img.caption }}" style="width: 100%; height: 100%; object-fit: cover;">
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Return Reason details -->
+        <div style="background: white; border-radius: var(--r-2xl); border: 1.5px solid var(--gray-100); box-shadow: var(--sh-md); padding: 24px;">
+            <h3 style="font-family: 'Syne', sans-serif; font-size: 1.05rem; font-weight: 800; color: var(--gray-900); margin: 0 0 16px;">
+                📋 Return Request Details
+            </h3>
+            <div style="display: flex; flex-direction: column; gap: 14px;">
+                <div>
+                    <span style="font-size: 0.8rem; color: var(--gray-500); display: block; margin-bottom: 2px;">Reason</span>
+                    <span style="font-size: 0.95rem; font-weight: 600; color: var(--gray-800);">{{ return_request.get_reason_display }}</span>
+                </div>
+                {% if return_request.remarks %}
+                <div>
+                    <span style="font-size: 0.8rem; color: var(--gray-500); display: block; margin-bottom: 2px;">Remarks</span>
+                    <span style="font-size: 0.9rem; color: var(--gray-700); line-height: 1.5; display: block; background: var(--gray-50); padding: 10px 14px; border-radius: var(--r-md); border: 1px solid var(--gray-100);">
+                        {{ return_request.remarks }}
+                    </span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

@@ -19,6 +19,7 @@ class Order(BaseModel):
         ('delivered', '🟢 Delivered'),
         ('cancelled', '🔴 Cancelled'),
         ('returned', '🔄 Returned'),
+        ('returned_to_source', '🔄 Returned to Source (RTO)'),
         ('refund_initiated', '💰 Refund Initiated'),
         ('refunded', '✅ Refunded'),
 
@@ -242,7 +243,7 @@ class OrderItem(BaseModel):
         If order is cancelled or item is returned/refunded, earnings are 0.
         Otherwise, it is total - commission.
         """
-        if self.order.status == 'cancelled' or self.is_returned:
+        if self.order.status in ('cancelled', 'returned', 'returned_to_source', 'refund_initiated', 'refunded') or self.is_returned:
             return Decimal('0.00')
         
         active_qty = self.remaining_quantity

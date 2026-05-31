@@ -27,6 +27,9 @@
         </div>
     </div>
 
+    <!-- Return Requests Section -->
+    {% include "orders/return_requests_panel.html" with pending_returns=pending_returns %}
+
     <!-- Filter Bar -->
     <div class="filter-bar">
         <form method="get" class="filter-form">

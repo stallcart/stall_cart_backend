@@ -15,6 +15,9 @@
         <p class="text-muted">Customer: {{ order.user.full_name|default:order.guest_email }}</p>
     </div>
 
+    <!-- Return Requests Section -->
+    {% include "orders/return_requests_panel.html" with pending_returns=pending_returns %}
+
     <!-- Tracking Timeline -->
     <div class="tracking-timeline">
         {% for step in timeline %}
@@ -94,6 +97,21 @@
         </div>
         {% endif %}
         
+        {% if order.status == 'returned_to_source' %}
+        <div style="background: #fffbeb; border: 1.5px solid #fcd34d; border-radius: var(--r-lg); padding: 16px; margin-top: 20px;">
+            <h4 style="margin: 0 0 8px; color: #92400e; font-size: 0.95rem; font-weight: 700; display: flex; align-items: center; gap: 8px; font-family: 'Syne', sans-serif;">
+                <i class="fa fa-undo-alt" style="color: #f59e0b;"></i>
+                Returned to Source (RTO)
+            </h4>
+            <p style="font-size: 0.85rem; color: #78350f; line-height: 1.5; margin-bottom: 14px;">
+                This shipment could not be delivered to the customer (e.g. wrong address/delivery failure) and has been returned back to you. Please confirm receipt to refund the customer's wallet.
+            </p>
+            <button class="btn-primary" id="confirmRtoBtn" onclick="confirmRtoReceipt('{{ order.unique_order_id }}')" style="background: #d97706; border: none; width: 100%; font-weight: 700; font-size: 0.9rem; padding: 10px; border-radius: var(--r-md); color: white; cursor: pointer;">
+                ✓ Confirm Receipt & Process Refund
+            </button>
+        </div>
+        {% endif %}
+        
         <div class="order-actions" style="margin-top: 20px;">
             <a href="{% url 'orders:seller_orders' %}" class="btn-outline">← Back to Orders</a>
             {% if order.status == 'delivered' %}
@@ -140,4 +158,57 @@
     .btn-outline, .btn-primary { width: 100%; }
 }
 </style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function confirmRtoReceipt(orderId) {
+    if (!confirm("Are you sure you have received this returned-to-source shipment and want to process the refund?")) {
+        return;
+    }
+    
+    const url = `/orders/order/${orderId}/confirm-rto/`;
+    const csrfToken = '{{ csrf_token }}';
+    
+    const btn = document.getElementById('confirmRtoBtn');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerText = "Processing Refund...";
+    }
+    
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(err => { throw err; });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.status === 'success') {
+            alert(data.message);
+            window.location.reload();
+        } else {
+            alert("Error: " + data.message);
+            if (btn) {
+                btn.disabled = false;
+                btn.innerText = "✓ Confirm Receipt & Process Refund";
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert("An error occurred: " + (error.message || "Unknown error"));
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = "✓ Confirm Receipt & Process Refund";
+        }
+    });
+}
+</script>
 {% endblock %}

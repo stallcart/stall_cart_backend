@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_GET
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 import json
@@ -242,6 +242,9 @@ def checkout(request):
     if not selected_address and user_addresses:
         selected_address = user_addresses.first()
     
+    from accounts.models import Wallet
+    wallet, _ = Wallet.objects.get_or_create(user=request.user)
+
     from django.conf import settings
     context = {
         'cart_items': cart_items,
@@ -254,6 +257,7 @@ def checkout(request):
         'grand_total': summary['grand_total'],
         'remaining_for_free_delivery': summary['remaining_for_free'],
         'razorpay_key': getattr(settings, 'RAZORPAY_KEY_ID', ''),
+        'wallet_balance': wallet.balance,
     }
     return render(request, 'shop/checkout.html', context)
 
@@ -336,13 +340,120 @@ def create_order(request):
         # ── Calculate Totals ───────────────────────────────
         subtotal = sum(Decimal(str(item.subtotal)) for item in cart_items)
         total_savings = sum(Decimal(str(item.savings)) for item in cart_items)
-        delivery_charge = Decimal('0') if subtotal >= Decimal('499') else Decimal('0')
+        
+        from common.models import SiteSettings
+        site_config = SiteSettings.get_singleton()
+        free_threshold = Decimal(str(site_config.free_delivery_threshold))
+        flat_charge = Decimal(str(site_config.delivery_charge))
+        
+        delivery_charge = Decimal('0') if subtotal >= free_threshold else flat_charge
         total_amount = subtotal + delivery_charge
         
         # ── Handle Payment Methods ─────────────────────────
         
+        # === WALLET PAYMENT ===
+        if payment_method == 'wallet':
+            from accounts.models import Wallet
+            import time
+            
+            with transaction.atomic():
+                # Re-check stock within transaction
+                for item in cart_items:
+                    product = item.product
+                    variant = item.variant
+                    available_stock = variant.stock if variant else product.stock
+                    if available_stock < item.quantity:
+                        raise ValueError(f"Stock changed for {product.name}. Only {available_stock} available.")
+                
+                # Fetch wallet and lock for update
+                wallet, _ = Wallet.objects.select_for_update().get_or_create(user=request.user)
+                if wallet.balance < total_amount:
+                    raise ValueError(f"Insufficient wallet balance. Total: ₹{total_amount:.2f}, Balance: ₹{wallet.balance:.2f}")
+                
+                # Withdraw from wallet
+                wallet.withdraw(
+                    amount=total_amount,
+                    reference_id=f"PAY-{request.user.id}-{int(time.time())}",
+                    description=f"Paid for checkout order"
+                )
+                
+                # Create the order (Paid via Wallet)
+                order = Order.objects.create(
+                    user=request.user,
+                    total_amount=total_amount,
+                    discount_amount=total_savings,
+                    delivery_charge=delivery_charge,
+                    shipping_address=address,
+                    payment_method='wallet',
+                    payment_status='paid',
+                    status='confirmed',  # Wallet orders are paid and confirmed immediately
+                    notes=json.dumps({
+                        'cart_items': [{
+                            'product': item.product.name,
+                            'qty': item.quantity,
+                            'price': float(item.price if hasattr(item, 'price') else item.unit_price),
+                            'subtotal': float(item.subtotal)
+                        } for item in cart_items],
+                        'subtotal': float(subtotal),
+                        'delivery_charge': float(delivery_charge),
+                        'total_amount': float(total_amount)
+                    })
+                )
+                
+                # Create order items
+                for item in cart_items:
+                    item_price = item.price if hasattr(item, 'price') else item.unit_price
+                    OrderItem.objects.create(
+                        order=order,
+                        product=item.product,
+                        seller=item.product.seller,
+                        variant=item.variant,
+                        quantity=item.quantity,
+                        price=item_price,
+                        total=item.subtotal
+                    )
+                
+                # Deduct stock
+                for item in cart_items:
+                    product = item.product
+                    variant = item.variant
+                    if variant:
+                        variant.stock = max(0, variant.stock - item.quantity)
+                        variant.save(update_fields=['stock'])
+                        product.stock = product.variants.filter(is_active=True).aggregate(
+                            total=models.Sum('stock')
+                        )['total'] or 0
+                        product.save(update_fields=['stock'])
+                    else:
+                        product.stock = max(0, product.stock - item.quantity)
+                        product.save(update_fields=['stock'])
+                
+                # Clear cart
+                cart.items.all().delete()
+                
+                # Log status change
+                from orders.models import OrderStatusLog
+                OrderStatusLog.objects.create(
+                    order=order, old_status='pending', new_status='confirmed',
+                    changed_by=request.user, remarks='Wallet payment successful'
+                )
+                
+                # Send Push Notification
+                try:
+                    from common.notification_service import notify_order_placed
+                    notify_order_placed(order)
+                except Exception as ne:
+                    logger.error(f"[FCM] Wallet placement notification failed: {ne}")
+            
+            return JsonResponse({
+                'status': 'success',
+                'payment_method': 'wallet',
+                'order_id': order.unique_order_id,
+                'message': 'Order placed successfully. Paid using StallCart Wallet.'
+            })
+            
         # === ONLINE PAYMENT (Razorpay) ===
-        if payment_method != 'cod':
+        elif payment_method != 'cod':
             try:
                 client = razorpay.Client(auth=(
                     settings.RAZORPAY_KEY_ID,
@@ -956,5 +1067,47 @@ def _cancel_pending_order(order_unique_id, user):
         logger.info(f"Order {order_unique_id} cancelled due to payment failure")
         
     except Exception as e:
-        logger.error(f"Failed to cancel order {order_unique_id}: {e}", exc_info=True)
+        logger.info(f"Failed to cancel order {order_unique_id}: {e}", exc_info=True)
         # Don't raise — better to have a pending order than crash
+
+
+@require_GET
+def check_pincode(request):
+    """
+    API view: Check pincode serviceability and estimated delivery date.
+    Returns JSON response.
+    """
+    pincode = request.GET.get('pincode', '').strip()
+    if not pincode or not pincode.isdigit() or len(pincode) != 6:
+        return JsonResponse({'status': 'error', 'message': 'Invalid PIN code. Please enter a 6-digit number.'}, status=400)
+    
+    from delivery.delivery_services import ShiprocketService
+    from django.utils import timezone
+    from datetime import timedelta
+    
+    srv = ShiprocketService()
+    res = srv.check_serviceability(delivery_postcode=pincode)
+    
+    delivery_days = res.get('delivery_days', 4)
+    etd_date = None
+    
+    # Calculate delivery date
+    if res.get('etd'):
+        from datetime import datetime
+        try:
+            etd_date = datetime.strptime(res['etd'], "%Y-%m-%d").date()
+        except Exception:
+            pass
+            
+    if not etd_date:
+        etd_date = timezone.now().date() + timedelta(days=delivery_days)
+        
+    formatted_date = etd_date.strftime("%A, %b %d")
+    
+    return JsonResponse({
+        'status': 'success',
+        'delivery_days': delivery_days,
+        'estimated_date': formatted_date,
+        'courier_name': res.get('courier_name', ''),
+        'is_fallback': res.get('is_fallback', False)
+    })

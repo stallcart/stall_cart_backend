@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Request Return | {{ site_settings.site_name }}{% endblock %}
+
+{% block content %}
+<div class="return-form-container" style="max-width: 600px; margin: 40px auto; padding: 0 20px;">
+    
+    <!-- Breadcrumb & Back Link -->
+    <div style="margin-bottom: 20px;">
+        <a href="{% url 'orders:order_detail' order_item.order.unique_order_id %}" style="text-decoration: none; color: var(--blue-500); font-weight: 600; display: inline-flex; align-items: center; gap: 6px; font-size: 0.9rem;">
+            <i class="fa fa-arrow-left"></i> Back to Order Details
+        </a>
+    </div>
+
+    <!-- Main Card -->
+    <div style="background: white; border-radius: var(--r-2xl); border: 1.5px solid var(--gray-100); box-shadow: var(--sh-md); overflow: hidden;">
+        
+        <!-- Header -->
+        <div style="padding: 24px; border-bottom: 1px solid var(--gray-100); background: linear-gradient(135deg, var(--gray-50) 0%, white 100%);">
+            <h2 style="margin: 0; font-family: 'Syne', sans-serif; font-size: 1.3rem; font-weight: 800; color: var(--gray-900);">
+                🔄 Request a Return
+            </h2>
+            <p class="text-muted" style="margin: 4px 0 0; font-size: 0.85rem;">
+                Please select the item details and upload evidence images.
+            </p>
+        </div>
+
+        <div style="padding: 24px;">
+            <!-- Product Preview Card -->
+            <div style="display: flex; gap: 16px; align-items: center; padding: 14px; background: var(--gray-50); border: 1.5px solid var(--gray-100); border-radius: var(--r-xl); margin-bottom: 24px;">
+                <div style="width: 70px; height: 70px; border-radius: var(--r-md); overflow: hidden; background: white; border: 1px solid var(--gray-200); flex-shrink: 0;">
+                    {% if order_item.product.primary_image %}
+                        <img src="{{ order_item.product.primary_image.url }}" alt="{{ order_item.product.name }}" style="width: 100%; height: 100%; object-fit: cover;">
+                    {% else %}
+                        <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: var(--gray-300);">
+                            <i class="fa fa-image" style="font-size: 1.5rem;"></i>
+                        </div>
+                    {% endif %}
+                </div>
+                <div style="min-width: 0;">
+                    <h4 style="margin: 0 0 4px; font-size: 0.95rem; font-weight: 700; color: var(--gray-900);">{{ order_item.product.name }}</h4>
+                    {% if order_item.variant %}
+                        <p style="margin: 0 0 4px; font-size: 0.8rem; color: var(--blue-600); font-weight: 600;">
+                            <i class="fa fa-tag"></i> {{ order_item.variant_display }}
+                        </p>
+                    {% endif %}
+                    <p style="margin: 0; font-size: 0.85rem; color: var(--gray-500);">
+                        Purchased Qty: {{ order_item.quantity }} • Price: ₹{{ order_item.price|floatformat:2 }}
+                    </p>
+                </div>
+            </div>
+
+            <!-- Form -->
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+
+                <!-- Quantity -->
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label class="form-label" for="returnQty" style="font-weight: 600; color: var(--gray-700); margin-bottom: 6px; display: block;">
+                        Quantity to Return *
+                    </label>
+                    <select id="returnQty" name="quantity" class="form-input" style="width: 100%; padding: 10px 12px; border: 1.5px solid var(--gray-200); border-radius: var(--r-md); font-size: 0.9rem;" required>
+                        {% for i in "x"|rjust:remaining_quantity %}
+                            <option value="{{ forloop.counter }}">{{ forloop.counter }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Reason -->
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label class="form-label" for="returnReason" style="font-weight: 600; color: var(--gray-700); margin-bottom: 6px; display: block;">
+                        Reason for Return *
+                    </label>
+                    <select id="returnReason" name="reason" class="form-input" style="width: 100%; padding: 10px 12px; border: 1.5px solid var(--gray-200); border-radius: var(--r-md); font-size: 0.9rem;" required>
+                        <option value="" disabled selected>Select a reason...</option>
+                        {% for val, label in reasons %}
+                            <option value="{{ val }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Remarks -->
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label class="form-label" for="returnRemarks" style="font-weight: 600; color: var(--gray-700); margin-bottom: 6px; display: block;">
+                        Detailed Remarks (Optional)
+                    </label>
+                    <textarea id="returnRemarks" name="remarks" class="form-input" rows="4" placeholder="Please describe any issues in detail (e.g. fit problems, damages, wrong color)..." style="width: 100%; padding: 10px 12px; border: 1.5px solid var(--gray-200); border-radius: var(--r-md); font-size: 0.9rem; resize: vertical;"></textarea>
+                </div>
+
+                <!-- Evidence Images -->
+                <div class="form-group" style="margin-bottom: 24px;">
+                    <label class="form-label" style="font-weight: 600; color: var(--gray-700); margin-bottom: 4px; display: block;">
+                        Upload Evidence Images (Max 3)
+                    </label>
+                    <p class="text-muted" style="margin: 0 0 10px; font-size: 0.75rem;">
+                        Add photos of the tag, packaging, or damage to speed up your return approval.
+                    </p>
+                    <input type="file" name="images" id="evidenceImages" multiple accept="image/*" class="form-input" style="width: 100%; padding: 8px 10px; border: 1.5px solid var(--gray-200); border-radius: var(--r-md); font-size: 0.85rem;">
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" class="btn-primary" style="width: 100%; padding: 12px 20px; font-weight: 700; border-radius: var(--r-lg); font-size: 0.95rem; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <i class="fa fa-paper-plane"></i> Submit Return Request
+                </button>
+
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Limit file upload count to 3 on frontend side
+const fileInput = document.getElementById('evidenceImages');
+fileInput?.addEventListener('change', (e) => {
+    if (fileInput.files.length > 3) {
+        alert('You can only upload a maximum of 3 images.');
+        fileInput.value = ''; // clear selection
+    }
+});
+</script>
+{% endblock %}
