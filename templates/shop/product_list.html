@@ -151,27 +151,26 @@
                         </div>
                     {% endif %}
                     
+                    <a href="{% url 'items:product_detail' product.slug %}"
+                       class="btn-view"
+                       style="{% if product.stock <= 0 %}opacity:0.6;pointer-events:none;{% endif %}">
+                        <i class="fa fa-eye"></i>
+                        {% if product.stock > 0 %}View{% else %}Out of Stock{% endif %}
+                    </a>
+
                     <!-- Actions Row -->
                     <div class="product-actions-row">
-                        <a href="{% url 'items:product_detail' product.slug %}"
-                           class="btn-view"
-                           style="{% if product.stock <= 0 %}opacity:0.6;pointer-events:none;{% endif %}">
-                            <i class="fa fa-eye"></i>
-                            {% if product.stock > 0 %}View{% else %}Out of Stock{% endif %}
-                        </a>
+                        <button class="btn-share"
+                                data-name="{{ product.name }}"
+                                data-url="{{ request.scheme }}://{{ request.get_host }}{% url 'items:product_detail' product.slug %}">
+                            <i class="fa fa-share-alt"></i> Share
+                        </button>
                         {% if not user.role or user.role == 'customer' %}
-                        <button type="button" class="btn-wishlist-card {% if user.is_authenticated and product|is_in_wishlist:user %}active{% endif %}" data-product-id="{{ product.id }}" aria-label="Wishlist">
+                        <button type="button" class="btn-wishlist-toggle {% if user.is_authenticated and product|is_in_wishlist:user %}active{% endif %}" data-product-id="{{ product.id }}" aria-label="Wishlist">
                             <i class="{% if user.is_authenticated and product|is_in_wishlist:user %}fa{% else %}far{% endif %} fa-heart"></i>
                         </button>
                         {% endif %}
                     </div>
-                    
-                    <!-- Share Button (using style.css .btn-share) -->
-                    <button class="btn-share"
-                            data-name="{{ product.name }}"
-                            data-url="{{ request.scheme }}://{{ request.get_host }}{% url 'items:product_detail' product.slug %}">
-                        <i class="fa fa-share-alt"></i> Share
-                    </button>
                 </div>
                 
             </article>

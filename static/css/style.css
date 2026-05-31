@@ -1135,12 +1135,12 @@ h4 { font-size: 1rem; font-weight: 600; }
     width: 100%;
     align-items: center;
 }
-.product-actions-row .btn-view {
+.product-actions-row .btn-share {
     flex: 1;
     margin-top: 0;
 }
 
-.btn-wishlist-card {
+.product-actions-row .btn-wishlist-toggle {
     position: static;
     margin-top: 0;
     width: 38px;
@@ -1157,14 +1157,15 @@ h4 { font-size: 1rem; font-weight: 600; }
     cursor: pointer;
     transition: all 0.2s ease;
     padding: 0;
+    box-shadow: none;
 }
-.btn-wishlist-card.active {
+.product-actions-row .btn-wishlist-toggle.active {
     color: #ef4444;
     background: var(--white);
     border-color: rgba(239, 68, 68, 0.2);
     box-shadow: 0 2px 8px rgba(239, 68, 68, 0.08);
 }
-.btn-wishlist-card:hover {
+.product-actions-row .btn-wishlist-toggle:hover {
     transform: scale(1.05);
     color: #ef4444;
 }
@@ -1186,6 +1187,7 @@ h4 { font-size: 1rem; font-weight: 600; }
     transition: all var(--tr);
     text-decoration: none;
     margin-top: auto;
+    margin-bottom: 8px;
 }
 .btn-view:hover {
     background: var(--blue-500);
@@ -1759,30 +1761,6 @@ h4 { font-size: 1rem; font-weight: 600; }
     transform: scale(1.15);
 }
 
-@media (max-width: 576px) {
-    .footer-grid {
-        grid-template-columns: 1fr !important;
-        gap: 32px;
-        text-align: center;
-    }
-    .footer-brand-col p {
-        margin-left: auto;
-        margin-right: auto;
-    }
-    .footer-social {
-        justify-content: center;
-    }
-    .contact-list li {
-        justify-content: center;
-    }
-    .footer-bottom-inner {
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        gap: 8px;
-        text-align: center;
-    }
-}
 
 .footer-col h5 {
     color: var(--white);
@@ -1908,8 +1886,14 @@ h4 { font-size: 1rem; font-weight: 600; }
         min-height: 34px !important;
         padding: 6px 8px !important;
         font-size: 0.78rem !important;
+        margin-bottom: 6px !important;
     }
-    .btn-wishlist-card {
+    .btn-share {
+        min-height: 34px !important;
+        padding: 6px 8px !important;
+        font-size: 0.78rem !important;
+    }
+    .product-actions-row .btn-wishlist-toggle {
         width: 34px !important;
         height: 34px !important;
         font-size: 0.95rem !important;
