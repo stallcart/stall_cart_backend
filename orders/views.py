@@ -22,6 +22,13 @@ from django.views.decorators.csrf import csrf_exempt
 logger = logging.getLogger(__name__)
 User = get_user_model()
 
+from common.notification_service import (
+    notify_order_placed,
+    notify_order_shipped,
+    notify_order_out_for_delivery,
+    notify_order_delivered
+)
+
 # ==================== RAZORPAY CLIENT ====================
 razorpay_client = razorpay.Client(auth=(
     settings.RAZORPAY_KEY_ID,
@@ -515,6 +522,12 @@ def seller_update_status(request, order_id):
             changed_by=request.user, remarks='Updated by seller'
         )
     
+    if new_status == 'shipped':
+        try:
+            notify_order_shipped(order, order.tracking_number)
+        except Exception as e:
+            logger.error(f"[FCM] Seller update shipped notification failed for order {order.id}: {e}")
+    
     return JsonResponse({'status': 'success', 'new_status': order.get_status_display()})
 
 @require_POST
@@ -577,6 +590,19 @@ def admin_update_status(request, order_id):
             order=order, old_status=old_status, new_status=new_status,
             changed_by=request.user, remarks='Updated by admin'
         )
+    
+    if new_status != old_status:
+        try:
+            if new_status in ['pending', 'confirmed']:
+                notify_order_placed(order)
+            elif new_status == 'shipped':
+                notify_order_shipped(order, order.tracking_number)
+            elif new_status == 'out_for_delivery':
+                notify_order_out_for_delivery(order)
+            elif new_status == 'delivered':
+                notify_order_delivered(order)
+        except Exception as e:
+            logger.error(f"[FCM] Admin update notification failed for order {order.id} (status: {new_status}): {e}")
     
     return JsonResponse({'status': 'success'})
 

@@ -134,6 +134,17 @@ def notify_order_shipped(order, tracking_id=None):
     return send_to_user(order.user, payload)
 
 
+def notify_order_out_for_delivery(order):
+    payload = NotificationPayload(
+        title='🛵 Out for Delivery!',
+        body=f'Your order #{order.id} is out for delivery. Keep your phone handy!',
+        click_action=f'/orders/{order.id}/',
+        tag=f'order-{order.id}',
+        data={'order_id': order.id},
+    )
+    return send_to_user(order.user, payload)
+
+
 def notify_order_delivered(order):
     payload = NotificationPayload(
         title='✅ Delivered!',

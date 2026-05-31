@@ -41,6 +41,12 @@ def home(request):
             cart_count = cart.total_items   # uses @property from model
         except Cart.DoesNotExist:
             cart_count = 0
+            
+    # Query and partition Banners
+    active_banners = HomepageBanner.objects.filter(is_active=True).order_by('order', '-created_at')
+    slider_banners = [b for b in active_banners if b.banner_type == 'main_slider']
+    festive_banners = [b for b in active_banners if b.banner_type == 'festive_sale']
+    coming_soon_banners = [b for b in active_banners if b.banner_type == 'coming_soon']
     
     context = {
         'products': products,
@@ -48,8 +54,11 @@ def home(request):
         'cart_count': cart_count,
         'user_role': request.user.role if request.user.is_authenticated else None,
         'show_category_nav': True,
-        'customer_count':customer_count,
-        'product_count':products.count() if products else 0
+        'customer_count': customer_count,
+        'product_count': products.count() if products else 0,
+        'slider_banners': slider_banners,
+        'festive_banners': festive_banners,
+        'coming_soon_banners': coming_soon_banners,
     }
     return render(request, 'shop/home.html', context)
 
@@ -467,6 +476,13 @@ def create_order(request):
                     order=order, old_status='pending', new_status='confirmed',
                     changed_by=request.user, remarks='COD order confirmed'
                 )
+                
+                # Send Push Notification
+                try:
+                    from common.notification_service import notify_order_placed
+                    notify_order_placed(order)
+                except Exception as ne:
+                    logger.error(f"[FCM] COD placement notification failed: {ne}")
             
             return JsonResponse({
                 'status': 'success',
@@ -855,6 +871,13 @@ def verify_payment(request):
                 changed_by=request.user,
                 remarks='Payment verified via Razorpay - order created'
             )
+        
+        # Send Push Notification
+        try:
+            from common.notification_service import notify_order_placed
+            notify_order_placed(order)
+        except Exception as ne:
+            logger.error(f"[FCM] Online order placement notification failed: {ne}")
         
         logger.info(f"Order created & payment verified: {order.unique_order_id}, Payment {payment_id}")
         return JsonResponse({

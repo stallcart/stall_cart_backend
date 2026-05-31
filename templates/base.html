@@ -817,7 +817,7 @@ window.togglePassword = function(inputId, btn) {
 <!-- ✅ UI hint if permission denied -->
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    if (Notification.permission === 'denied') {
+    if (Notification.permission === 'denied' && localStorage.getItem('sc_notif_hint_dismissed') !== 'true') {
         const hint = document.createElement('div');
         hint.id = 'notif-permission-hint';
         hint.style.cssText = `
@@ -827,14 +827,23 @@ document.addEventListener('DOMContentLoaded', () => {
             box-shadow:0 4px 12px rgba(0,0,0,0.15);display:flex;align-items:center;gap:8px;
         `;
         hint.innerHTML = `
-            <i class="fa fa-bell-slash" style="font-size:1.2rem;"></i>
-            <div><strong>Notifications blocked</strong><br>
-            <small><a href="#" id="notif-help-toggle" style="color:#0066cc;">Enable in settings</a></small></div>
+            <i class="fa fa-bell-slash" style="font-size:1.2rem;flex-shrink:0;"></i>
+            <div style="flex-grow:1;padding-right:8px;">
+                <strong>Notifications blocked</strong><br>
+                <small><a href="#" id="notif-help-toggle" style="color:#0066cc;">Enable in settings</a></small>
+            </div>
+            <button id="notif-hint-close" style="background:none;border:none;color:#856404;font-size:1.2rem;cursor:pointer;line-height:1;padding:0;font-weight:bold;margin-left:auto;flex-shrink:0;">&times;</button>
         `;
         document.body.appendChild(hint);
         document.getElementById('notif-help-toggle')?.addEventListener('click', (e) => {
             e.preventDefault();
-            showToast('🔧 Chrome: 🔒 → Site settings → Notifications → Allow', 'info');
+            if (window.showToast) {
+                showToast('🔧 Chrome: 🔒 → Site settings → Notifications → Allow', 'info');
+            }
+        });
+        document.getElementById('notif-hint-close')?.addEventListener('click', () => {
+            hint.remove();
+            localStorage.setItem('sc_notif_hint_dismissed', 'true');
         });
     }
 });
