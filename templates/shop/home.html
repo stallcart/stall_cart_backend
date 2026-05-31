@@ -634,6 +634,13 @@
 
                 <a href="{% url 'items:product_detail' product.slug %}">
                     <div class="img-wrap">
+                        <!-- Wishlist Toggle (Heart Button) -->
+                        {% if not user.role or user.role == 'customer' %}
+                        <button type="button" class="btn-wishlist-toggle {% if user.is_authenticated and product|is_in_wishlist:user %}active{% endif %}" data-product-id="{{ product.id }}" aria-label="Wishlist">
+                            <i class="{% if user.is_authenticated and product|is_in_wishlist:user %}fa{% else %}far{% endif %} fa-heart"></i>
+                        </button>
+                        {% endif %}
+                        
                         {% if product.primary_image %}
                             <img src="{{ product.primary_image.url }}"
                                  alt="{{ product.name }}"
@@ -793,6 +800,13 @@
             {% for product in hot_products %}
             <div class="deal-card">
                 <a href="{% url 'items:product_detail' product.slug %}" class="deal-card-img">
+                    <!-- Wishlist Toggle (Heart Button) -->
+                    {% if not user.role or user.role == 'customer' %}
+                    <button type="button" class="btn-wishlist-toggle {% if user.is_authenticated and product|is_in_wishlist:user %}active{% endif %}" data-product-id="{{ product.id }}" aria-label="Wishlist" style="top:6px;right:6px;width:28px;height:28px;">
+                        <i class="{% if user.is_authenticated and product|is_in_wishlist:user %}fa{% else %}far{% endif %} fa-heart" style="font-size:0.85rem;"></i>
+                    </button>
+                    {% endif %}
+                    
                     {% if product.primary_image %}
                         <img src="{{ product.primary_image.url }}" alt="{{ product.name }}" loading="lazy">
                     {% else %}

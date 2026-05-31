@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load custom_filters %}
 
 {% block title %}{{ site_settings.site_name|default:"StallCart" }} Blog{% endblock %}
 
@@ -37,6 +38,13 @@
         {% for product in hot_products %}
         <div class="product-card-interactive" data-product-id="{{ product.id }}">
             <a href="{% url 'items:product_detail' product.slug %}" class="product-link">
+                <!-- Wishlist Toggle (Heart Button) -->
+                {% if not user.role or user.role == 'customer' %}
+                <button type="button" class="btn-wishlist-toggle {% if user.is_authenticated and product|is_in_wishlist:user %}active{% endif %}" data-product-id="{{ product.id }}" aria-label="Wishlist" style="top:10px;right:10px;width:32px;height:32px;">
+                    <i class="{% if user.is_authenticated and product|is_in_wishlist:user %}fa{% else %}far{% endif %} fa-heart"></i>
+                </button>
+                {% endif %}
+                
                 {% if product.primary_image %}
                     <img src="{{ product.primary_image.url }}" alt="{{ product.name }}" loading="lazy">
                 {% else %}
@@ -88,7 +96,14 @@
         {% for product in trending_products %}
         <div class="product-card-interactive" data-product-id="{{ product.id }}">
             <a href="{% url 'items:product_detail' product.slug %}" class="product-link">
-                <div class="image-wrapper">
+                <div class="image-wrapper" style="position: relative;">
+                    <!-- Wishlist Toggle (Heart Button) -->
+                    {% if not user.role or user.role == 'customer' %}
+                    <button type="button" class="btn-wishlist-toggle {% if user.is_authenticated and product|is_in_wishlist:user %}active{% endif %}" data-product-id="{{ product.id }}" aria-label="Wishlist" style="top:10px;right:10px;width:32px;height:32px;">
+                        <i class="{% if user.is_authenticated and product|is_in_wishlist:user %}fa{% else %}far{% endif %} fa-heart"></i>
+                    </button>
+                    {% endif %}
+                    
                     {% if product.primary_image %}
                         <img src="{{ product.primary_image.url }}" alt="{{ product.name }}" loading="lazy">
                     {% else %}

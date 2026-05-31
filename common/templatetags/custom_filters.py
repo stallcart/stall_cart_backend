@@ -30,3 +30,14 @@ def split(value, arg):
     if not value:
         return []
     return value.split(arg)
+
+
+@register.filter
+def is_in_wishlist(product, user):
+    """Check if the product is in the user's wishlist"""
+    if not user or not user.is_authenticated:
+        return False
+    try:
+        return product.is_in_user_wishlist(user)
+    except Exception:
+        return False

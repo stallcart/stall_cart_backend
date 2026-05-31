@@ -694,6 +694,71 @@ window.showToast = function(message, type = 'info') {
         setTimeout(() => toast.remove(), 300);
     }, 2800);
 };
+
+// Global Wishlist Toggle Logic
+document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.btn-wishlist-toggle');
+    if (!btn) return;
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const isAuthenticated = {% if user.is_authenticated %}true{% else %}false{% endif %};
+    const userRole = '{{ user.role|default:"" }}';
+    
+    if (!isAuthenticated) {
+        if (window.openLoginModal) {
+            openLoginModal();
+        } else {
+            window.location.href = "{% url 'accounts:login' %}?next=" + encodeURIComponent(window.location.pathname);
+        }
+        return;
+    }
+    
+    if (userRole !== 'customer') {
+        if (window.showToast) {
+            showToast('Only customers can manage wishlist.', 'error');
+        }
+        return;
+    }
+    
+    const productId = btn.dataset.productId;
+    if (!productId) return;
+    
+    const icon = btn.querySelector('i');
+    btn.disabled = true;
+    
+    try {
+        const res = await fetch(`/items/wishlist/toggle/${productId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        const data = await res.json();
+        
+        if (data.status === 'added') {
+            btn.classList.add('active');
+            if (icon) icon.className = 'fa fa-heart';
+            if (window.updateWishlistCount) window.updateWishlistCount(+1);
+            if (window.showToast) showToast('Added to wishlist ❤️', 'success');
+        } else if (data.status === 'removed') {
+            btn.classList.remove('active');
+            if (icon) icon.className = 'far fa-heart';
+            if (window.updateWishlistCount) window.updateWishlistCount(-1);
+            if (window.showToast) showToast('Removed from wishlist', 'info');
+        } else {
+            if (window.showToast) showToast(data.message || 'Error updating wishlist', 'error');
+        }
+    } catch (err) {
+        console.error('Wishlist toggle error:', err);
+        if (window.showToast) showToast('Network error. Try again.', 'error');
+    } finally {
+        btn.disabled = false;
+    }
+});
+
 // 🔔 Global: Register FCM token after login & get welcome notification
 window.registerFCMOnLogin = async function() {
     // Only proceed if Firebase config exists and notifications not denied

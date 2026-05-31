@@ -1728,3 +1728,41 @@ h4 { font-size: 1rem; font-weight: 600; }
 ══════════════════════════════════════════════ */
 .text-center { text-align: center; }
 .text-muted { color: var(--gray-500); }
+
+/* Wishlist Toggle Button (Heart) */
+.btn-wishlist-toggle {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 10;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(4px);
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transition: all 0.2s ease;
+    color: #94a3b8;
+    padding: 0;
+}
+.btn-wishlist-toggle:hover {
+    transform: scale(1.1);
+    background: #fff;
+    color: #ef4444;
+}
+.btn-wishlist-toggle.active {
+    color: #ef4444;
+    background: #fff;
+}
+.btn-wishlist-toggle i {
+    font-size: 1rem;
+    transition: transform 0.2s ease;
+}
+.btn-wishlist-toggle.active i {
+    transform: scale(1.1);
+}

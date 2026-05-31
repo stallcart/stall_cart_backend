@@ -481,7 +481,18 @@ document.addEventListener('DOMContentLoaded', function() {
                             });
                         },
                         "prefill": data.prefill,
-                        "theme": { "color": "#2874f0" }
+                        "theme": { "color": "#2874f0" },
+                        "modal": {
+                            "ondismiss": function() {
+                                if (window.toast) {
+                                    toast('Payment cancelled', 'error');
+                                } else if (window.showToast) {
+                                    showToast('Payment cancelled', 'error');
+                                }
+                                btn.disabled = false;
+                                btn.innerHTML = 'PLACE ORDER';
+                            }
+                        }
                     };
                     var rzp1 = new Razorpay(options);
                     rzp1.on('payment.failed', function (response){

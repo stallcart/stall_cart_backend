@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load custom_filters %}
 
 {% block title %}Shop | {{ site_settings.site_name|default:"StallCart" }}{% endblock %}
 {% block meta_description %}Browse our premium collection. Free delivery, secure payments, and 100% original products.{% endblock %}
@@ -87,6 +88,13 @@
                 <!-- Product Image Link -->
                 <a href="{% url 'items:product_detail' product.slug %}" style="display:block;">
                     <div class="img-wrap">
+                        <!-- Wishlist Toggle (Heart Button) -->
+                        {% if not user.role or user.role == 'customer' %}
+                        <button type="button" class="btn-wishlist-toggle {% if user.is_authenticated and product|is_in_wishlist:user %}active{% endif %}" data-product-id="{{ product.id }}" aria-label="Wishlist">
+                            <i class="{% if user.is_authenticated and product|is_in_wishlist:user %}fa{% else %}far{% endif %} fa-heart"></i>
+                        </button>
+                        {% endif %}
+                        
                         {% if product.primary_image %}
                             <img src="{{ product.primary_image.url }}" 
                                  alt="{{ product.name }}" 

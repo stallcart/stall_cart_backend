@@ -470,6 +470,16 @@ def seller_order_detail(request, order_id):
     
     seller_items = order.items.filter(product__seller=seller).select_related('product')
     
+    # Calculate financial totals for the seller
+    seller_items_total = Decimal('0.00')
+    seller_commission_total = Decimal('0.00')
+    seller_earnings_total = Decimal('0.00')
+    
+    for item in seller_items:
+        seller_items_total += item.total
+        seller_commission_total += item.commission_amount
+        seller_earnings_total += item.seller_earnings
+
     timeline = []
     status_logs = order.status_logs.select_related('changed_by').order_by('timestamp')
     status_labels = {
@@ -487,8 +497,12 @@ def seller_order_detail(request, order_id):
     context = {
         'order': order, 'seller_items': seller_items, 'timeline': timeline,
         'delivery': getattr(order, 'delivery_assignment', None),
+        'seller_items_total': seller_items_total,
+        'seller_commission_total': seller_commission_total,
+        'seller_earnings_total': seller_earnings_total,
     }
     return render(request, 'orders/seller_order_detail.html', context)
+
 
 @require_POST
 @login_required
