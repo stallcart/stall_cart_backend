@@ -733,6 +733,9 @@ function setupVariantSelection() {
         btn.addEventListener('click', function () {
             if (this.disabled) return;
 
+            const variantSelector = document.getElementById('variantSelector');
+            if (variantSelector) variantSelector.classList.remove('highlight-pulse');
+
             variantBtns.forEach(b => b.classList.remove('active'));
             this.classList.add('active');
 
@@ -829,8 +832,13 @@ function setupAddToCart() {
         if (hasVariants && !selectedVariantId) {
             const variantError = document.getElementById('variantError');
             if (variantError) variantError.style.display = 'block';
-            document.getElementById('variantSelector')
-                ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            const selector = document.getElementById('variantSelector');
+            if (selector) {
+                selector.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                selector.classList.remove('highlight-pulse');
+                void selector.offsetWidth; // trigger reflow
+                selector.classList.add('highlight-pulse');
+            }
             showToast('Please select a variant first', 'error');
             return;
         }
@@ -915,9 +923,16 @@ function setupBuyNow() {
         }
 
         if (hasVariants && !selectedVariantId) {
+            const variantError = document.getElementById('variantError');
+            if (variantError) variantError.style.display = 'block';
+            const selector = document.getElementById('variantSelector');
+            if (selector) {
+                selector.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                selector.classList.remove('highlight-pulse');
+                void selector.offsetWidth; // trigger reflow
+                selector.classList.add('highlight-pulse');
+            }
             showToast('Please select a variant first', 'error');
-            document.getElementById('variantSelector')
-                ?.scrollIntoView({ behavior: 'smooth' });
             return;
         }
 
@@ -1527,6 +1542,19 @@ async function loadMoreReviews() {
     background: var(--blue-50);
     border-radius: var(--r-xl);
     border-left: 4px solid var(--blue-500);
+    transition: all 0.3s ease;
+}
+.variant-selector.highlight-pulse {
+    animation: highlightPulse 0.8s ease-in-out;
+    border: 2px solid var(--red) !important;
+    border-left: 6px solid var(--red) !important;
+}
+@keyframes highlightPulse {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+    25% { transform: translateX(-4px); }
+    50% { transform: translateX(4px); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+    75% { transform: translateX(-2px); }
+    100% { transform: scale(1); }
 }
 .variant-label {
     display: block;
