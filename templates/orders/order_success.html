@@ -437,7 +437,7 @@
             <div class="details-body">
                 <div class="price-summary-row">
                     <span>Subtotal</span>
-                    <span>₹{{ order.subtotal|add:order.discount_amount|floatformat:2 }}</span>
+                    <span>₹{{ order.mrp_subtotal|floatformat:2 }}</span>
                 </div>
                 {% if order.discount_amount and order.discount_amount > 0 %}
                 <div class="price-summary-row">

@@ -150,6 +150,12 @@ class Order(BaseModel):
         return sum((item.total for item in self.items.all()), Decimal('0.00'))
     
     @property
+    def mrp_subtotal(self):
+        """Calculate original subtotal before discounts (MRP subtotal)"""
+        discount = self.discount_amount or Decimal('0.00')
+        return self.subtotal + discount
+    
+    @property
     def is_returnable(self):
         """Returns allowed within 7 days of delivery, only if delivered."""
         if self.status != 'delivered' or not self.delivered_at:
