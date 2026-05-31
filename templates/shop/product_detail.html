@@ -139,7 +139,7 @@
                 <div class="variant-options" id="variantOptions">
                     {% for variant in variants %}
                     <button type="button"
-                            class="variant-btn {% if not variant.is_in_stock %}disabled{% endif %}"
+                            class="variant-btn {% if not variant.is_in_stock %}disabled{% endif %} {% if variants|length == 1 and variant.is_in_stock %}active{% endif %}"
                             data-variant-id="{{ variant.id }}"
                             data-size="{{ variant.size_value }}"
                             data-color="{{ variant.color }}"
@@ -211,11 +211,9 @@
                     <button class="btn-primary btn-lg" id="addToCartBtn"
                             data-product-id="{{ product.id }}"
                             data-stock="{{ total_stock }}"
-                            {% if has_variants %}disabled{% elif not is_in_stock %}disabled{% endif %}>
+                            {% if not is_in_stock %}disabled{% endif %}>
                         <i class="fa fa-cart-plus"></i>
-                        {% if has_variants %}
-                            Select Variant
-                        {% elif is_in_stock %}
+                        {% if is_in_stock %}
                             Add to Cart
                         {% else %}
                             Out of Stock
@@ -223,7 +221,7 @@
                     </button>
 
                     <button class="btn-outline btn-lg" id="buyNowBtn"
-                            {% if not is_in_stock and not has_variants %}disabled{% endif %}>
+                            {% if not is_in_stock %}disabled{% endif %}>
                         <i class="fa fa-bolt"></i> Buy Now
                     </button>
                 {% endif %}
@@ -672,6 +670,7 @@ const baseMrp     = {{ product.mrp|default:product.price }};
 
 let selectedVariantId = null;
 let variantsData      = [];
+let isPageLoad        = true;
 
 // ── DOM Ready ────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function () {
@@ -699,6 +698,15 @@ document.addEventListener('DOMContentLoaded', function () {
     setupAddToCart();
     setupBuyNow();
     setupWishlist();
+
+    // Auto-select single variant if available and in stock on page load
+    if (hasVariants) {
+        const activeBtn = document.querySelector('.variant-btn.active');
+        if (activeBtn && !activeBtn.disabled) {
+            activeBtn.click();
+        }
+    }
+    isPageLoad = false;
 });
 
 // ── Image Gallery ────────────────────────────────────────────────
@@ -781,7 +789,9 @@ function setupVariantSelection() {
                 }
             }
 
-            showToast('Selected: ' + size + (color ? ' / ' + color : ''), 'success');
+            if (!isPageLoad) {
+                showToast('Selected: ' + size + (color ? ' / ' + color : ''), 'success');
+            }
         });
     });
 }

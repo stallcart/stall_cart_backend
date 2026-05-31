@@ -552,12 +552,12 @@
             </table>
         </div>
         
-        <!-- Payment & Status -->
+        <!-- Payment Details -->
         <div class="invoice-section">
-            <div class="section-title">Payment & Status</div>
+            <div class="section-title">Payment Details</div>
             <table style="width:100%;font-size:11pt;">
                 <tr>
-                    <td style="width:50%;vertical-align:top;padding-right:15pt;">
+                    <td style="width:100%;vertical-align:top;">
                         <div class="address-label mb-6">Payment Method</div>
                         <div class="payment-box">
                             <div class="payment-method">
@@ -580,22 +580,6 @@
                             </div>
                             {% endif %}
                         </div>
-                    </td>
-                    <td style="width:50%;vertical-align:top;">
-                        <div class="address-label mb-6">Order Status</div>
-                        <span class="status-badge status-{{ order.status|lower }}">
-                            {{ order.get_status_display }}
-                        </span>
-                        {% if order.delivered_at %}
-                        <div style="font-size:10pt;color:#64748b;margin-top:6pt;">
-                            Delivered: {{ order.delivered_at|date:"M d, Y h:i A" }}
-                        </div>
-                        {% endif %}
-                        {% if order.tracking_number and order.courier_name %}
-                        <div style="font-size:10pt;color:#64748b;margin-top:6pt;">
-                            {{ order.courier_name }}: {{ order.tracking_number }}
-                        </div>
-                        {% endif %}
                     </td>
                 </tr>
             </table>
