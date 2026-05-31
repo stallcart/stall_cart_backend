@@ -393,18 +393,40 @@
             </div>
         </div>
         
-        <!-- Company Info -->
+        <!-- Company Info / Seller Info -->
         <div class="invoice-section">
             <div class="address-label">From</div>
-            <div class="address-name">{{ site_settings.site_name }}</div>
-            <div class="address-line">{{ site_settings.contact_address|default:"123 Commerce Street" }}</div>
-            <div class="address-line">
-                {{ site_settings.contact_city|default:"Mumbai" }}, 
-                {{ site_settings.contact_state|default:"MH" }} 
-                {{ site_settings.contact_pin|default:"400001" }}
-            </div>
-            <div class="address-phone">📞 {{ site_settings.contact_phone|default:"+91 98765 43210" }}</div>
-            <div class="address-phone">✉️ {{ site_settings.contact_email|default:"support@stallcart.com" }}</div>
+            {% with seller=order.items.first.seller %}
+            {% if seller %}
+                <div class="address-name">{{ seller.shop_name }}</div>
+                {% if seller.address.address %}
+                    <div class="address-line">{{ seller.address.address }}</div>
+                {% endif %}
+                <div class="address-line">
+                    {{ seller.address.city|default:"" }}{% if seller.address.state %}, {{ seller.address.state }}{% endif %} 
+                    {% if seller.address.postalCode %} - {{ seller.address.postalCode }}{% endif %}
+                </div>
+                {% if seller.phone %}
+                    <div class="address-phone">📞 {{ seller.phone }}</div>
+                {% endif %}
+                {% if seller.user.email %}
+                    <div class="address-phone">✉️ {{ seller.user.email }}</div>
+                {% endif %}
+                {% if seller.gst_number %}
+                    <div class="address-phone" style="margin-top: 4pt; font-weight: bold; color: #475569;">GSTIN: {{ seller.gst_number }}</div>
+                {% endif %}
+            {% else %}
+                <div class="address-name">{{ site_settings.site_name }}</div>
+                <div class="address-line">{{ site_settings.contact_address|default:"123 Commerce Street" }}</div>
+                <div class="address-line">
+                    {{ site_settings.contact_city|default:"Mumbai" }}, 
+                    {{ site_settings.contact_state|default:"MH" }} 
+                    {{ site_settings.contact_pin|default:"400001" }}
+                </div>
+                <div class="address-phone">📞 {{ site_settings.contact_phone|default:"+91 98765 43210" }}</div>
+                <div class="address-phone">✉️ {{ site_settings.contact_email|default:"support@stallcart.com" }}</div>
+            {% endif %}
+            {% endwith %}
         </div>
         
         <!-- Addresses (JSON Fields - Safe Access) -->
