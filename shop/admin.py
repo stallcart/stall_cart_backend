@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import Cart, CartItem, HomepageBanner
+from .models import Cart, CartItem, HomepageBanner, AnnouncementBanner
 
 
 class CartItemInline(admin.TabularInline):
@@ -100,3 +100,11 @@ class HomepageBannerAdmin(admin.ModelAdmin):
             return format_html('<img src="{}" style="max-height: 50px; max-width: 120px; border-radius: 4px;" />', obj.image.url)
         return "No Image"
     image_preview.short_description = 'Preview'
+
+
+@admin.register(AnnouncementBanner)
+class AnnouncementBannerAdmin(admin.ModelAdmin):
+    list_display = ('title', 'coupon_code', 'end_datetime', 'is_active', 'created_at')
+    list_editable = ('is_active',)
+    list_filter = ('is_active', 'created_at')
+    search_fields = ('title', 'subtitle', 'coupon_code')

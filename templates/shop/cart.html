@@ -49,7 +49,23 @@
     background: var(--gray-50); border: 1.5px solid var(--gray-200);
     display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
-.item-image img { width: 100%; height: 100%; object-fit: cover; }
+.item-image-link {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+}
+.item-image-link img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform var(--tr);
+}
+.item-image-link:hover img {
+    transform: scale(1.08);
+}
 .no-image { color: var(--gray-300); font-size: 1.5rem; }
 
 .item-details { display: flex; flex-direction: column; gap: 8px; }
@@ -366,11 +382,13 @@
                     
                     <!-- Product Image -->
                     <div class="item-image">
-                        {% if item.product.primary_image %}
-                            <img src="{{ item.product.primary_image.url }}" alt="{{ item.product.name }}" loading="lazy">
-                        {% else %}
-                            <div class="no-image"><i class="fa fa-image"></i></div>
-                        {% endif %}
+                        <a href="{% url 'items:product_detail' item.product.slug %}" class="item-image-link" title="View details for {{ item.product.name }}">
+                            {% if item.product.primary_image %}
+                                <img src="{{ item.product.primary_image.url }}" alt="{{ item.product.name }}" loading="lazy">
+                            {% else %}
+                                <div class="no-image"><i class="fa fa-image"></i></div>
+                            {% endif %}
+                        </a>
                     </div>
                     
                     <!-- Product Details -->

@@ -42,6 +42,19 @@
                         <span class="badge badge-gender">{{ product.get_gender_display }}</span>
                     {% endif %}
                 </div>
+
+                <!-- Floating Zoom Controls -->
+                <div class="zoom-controls">
+                    <button type="button" class="zoom-control-btn" id="zoomInBtn" title="Zoom In" aria-label="Zoom In">
+                        <i class="fa fa-search-plus"></i>
+                    </button>
+                    <button type="button" class="zoom-control-btn" id="zoomOutBtn" title="Zoom Out" aria-label="Zoom Out">
+                        <i class="fa fa-search-minus"></i>
+                    </button>
+                    <button type="button" class="zoom-control-btn" id="zoomResetBtn" title="Reset Zoom" aria-label="Reset Zoom">
+                        <i class="fa fa-sync-alt"></i>
+                    </button>
+                </div>
                 
                 {% if not is_in_stock %}
                     <div class="out-of-stock-overlay">
@@ -789,6 +802,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     setupImageGallery();
+    setupImageZoom();
     setupTabs();
     setupQtySelector();
     setupAddToCart();
@@ -822,6 +836,114 @@ function setupImageGallery() {
             }
         });
     });
+}
+
+// ── Interactive Image Zoom ───────────────────────────────────────
+function setupImageZoom() {
+    const wrapper = document.querySelector('.main-image-wrapper');
+    const mainImg = document.getElementById('mainImg');
+    const zoomInBtn = document.getElementById('zoomInBtn');
+    const zoomOutBtn = document.getElementById('zoomOutBtn');
+    const zoomResetBtn = document.getElementById('zoomResetBtn');
+
+    if (!wrapper || !mainImg) return;
+
+    let scale = 1;
+    const minScale = 1;
+    const maxScale = 3;
+    const step = 0.5;
+
+    function applyZoom(x = 50, y = 50, transition = true) {
+        if (scale > 1) {
+            wrapper.classList.add('zoomed');
+            mainImg.style.transition = transition ? 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), transform-origin 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none';
+            mainImg.style.transformOrigin = `${x}% ${y}%`;
+            mainImg.style.transform = `scale(${scale})`;
+        } else {
+            resetZoom();
+        }
+    }
+
+    function resetZoom() {
+        scale = 1;
+        wrapper.classList.remove('zoomed');
+        mainImg.style.transition = 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), transform-origin 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+        mainImg.style.transformOrigin = 'center center';
+        mainImg.style.transform = 'scale(1)';
+    }
+
+    // Panning based on mouse moves
+    wrapper.addEventListener('mousemove', function (e) {
+        if (scale <= 1) return;
+
+        const rect = wrapper.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width) * 100;
+        const y = ((e.clientY - rect.top) / rect.height) * 100;
+
+        applyZoom(x, y, false);
+    });
+
+    // Reset zoom when mouse leaves
+    wrapper.addEventListener('mouseleave', function () {
+        resetZoom();
+    });
+
+    // Click to toggle zoom level between 1x and 2x
+    wrapper.addEventListener('click', function (e) {
+        if (e.target.closest('.zoom-controls') || e.target.closest('.out-of-stock-overlay')) {
+            return;
+        }
+
+        if (scale > 1) {
+            resetZoom();
+        } else {
+            scale = 2.0;
+            const rect = wrapper.getBoundingClientRect();
+            const x = ((e.clientX - rect.left) / rect.width) * 100;
+            const y = ((e.clientY - rect.top) / rect.height) * 100;
+            applyZoom(x, y);
+        }
+    });
+
+    // Zoom In
+    if (zoomInBtn) {
+        zoomInBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (scale < maxScale) {
+                scale = Math.min(scale + step, maxScale);
+                applyZoom();
+            }
+        });
+    }
+
+    // Zoom Out
+    if (zoomOutBtn) {
+        zoomOutBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (scale > minScale) {
+                scale = Math.max(scale - step, minScale);
+                applyZoom();
+            }
+        });
+    }
+
+    // Reset Zoom Button
+    if (zoomResetBtn) {
+        zoomResetBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            resetZoom();
+        });
+    }
+
+    // Observe image source changes (thumbnail clicks) and reset zoom
+    const observer = new MutationObserver(function (mutations) {
+        mutations.forEach(function (mutation) {
+            if (mutation.attributeName === 'src') {
+                resetZoom();
+            }
+        });
+    });
+    observer.observe(mainImg, { attributes: true });
 }
 
 // ── Variant Selection ────────────────────────────────────────────
@@ -1442,16 +1564,81 @@ async function loadMoreReviews() {
     overflow: hidden;
     aspect-ratio: 1/1;
     border: 1.5px solid var(--gray-100);
+    cursor: zoom-in;
+}
+.main-image-wrapper.zoomed {
+    cursor: zoom-out;
 }
 .main-image {
     width: 100%;
     height: 100%;
     object-fit: contain;
     display: block;
-    transition: transform 0.3s ease;
+    transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), transform-origin 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
-.main-image-wrapper:hover .main-image {
-    transform: scale(1.02);
+.main-image-wrapper:not(.zoomed):hover .main-image {
+    transform: scale(1.05);
+}
+
+/* Floating Zoom Controls */
+.zoom-controls {
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
+    display: flex;
+    gap: 8px;
+    z-index: 10;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1.5px solid rgba(255, 255, 255, 0.6);
+    padding: 6px;
+    border-radius: var(--r-xl);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.main-image-wrapper:hover .zoom-controls {
+    opacity: 1;
+    transform: translateY(0);
+}
+.zoom-control-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: var(--r-lg);
+    border: none;
+    background: transparent;
+    color: var(--gray-800);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1.05rem;
+    transition: all 0.2s ease;
+}
+.zoom-control-btn:hover {
+    background: var(--blue-500);
+    color: white;
+    transform: translateY(-2px);
+}
+.zoom-control-btn:active {
+    transform: translateY(0);
+}
+
+@media (max-width: 768px) {
+    .zoom-controls {
+        opacity: 1;
+        transform: translateY(0);
+        bottom: 12px;
+        right: 12px;
+        padding: 4px;
+    }
+    .zoom-control-btn {
+        width: 34px;
+        height: 34px;
+        font-size: 0.95rem;
+    }
 }
 
 /* Image Badges */

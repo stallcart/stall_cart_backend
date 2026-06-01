@@ -386,10 +386,285 @@
     color: #0f172a;
     box-shadow: 0 0 15px rgba(56, 189, 248, 0.4);
 }
+
+/* ── Grand Launch Sale Banner Styles ── */
+.launch-sale-banner {
+    position: relative;
+    width: 100%;
+    background: linear-gradient(135deg, #090d16 0%, #1e1b4b 50%, #2e1065 100%);
+    border-bottom: 2px solid rgba(56, 189, 248, 0.2);
+    overflow: hidden;
+    transform-origin: top;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.launch-banner-container {
+    position: relative;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px 48px 24px 24px;
+}
+.launch-banner-glow {
+    position: absolute;
+    top: 50%;
+    left: 20%;
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(168, 85, 247, 0.15) 0%, transparent 70%);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+.launch-banner-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 32px;
+    position: relative;
+    z-index: 2;
+}
+.launch-banner-left {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.sale-badge {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #ef4444;
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 20px;
+    letter-spacing: 0.5px;
+}
+.pulse-dot {
+    width: 6px;
+    height: 6px;
+    background: #fff;
+    border-radius: 50%;
+    display: inline-block;
+    animation: livePulse 1.5s infinite;
+}
+@keyframes livePulse {
+    0% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(255,255,255,0.7); }
+    70% { transform: scale(1.4); opacity: 0.5; box-shadow: 0 0 0 6px rgba(255,255,255,0); }
+    100% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(255,255,255,0); }
+}
+.sale-title {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(1.4rem, 3.5vw, 2.2rem);
+    font-weight: 800;
+    color: #fff;
+    margin: 0;
+    line-height: 1.2;
+}
+.neon-text {
+    color: #eab308;
+    text-shadow: 0 0 12px rgba(234, 179, 8, 0.4);
+}
+.sale-subtitle {
+    font-size: clamp(0.85rem, 1.8vw, 0.95rem);
+    color: #cbd5e1;
+    margin: 0;
+    line-height: 1.5;
+    max-width: 700px;
+}
+.sale-features-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-top: 6px;
+}
+.sale-feat-item {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #38bdf8;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.launch-banner-right {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    flex-shrink: 0;
+}
+.countdown-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+.countdown-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #94a3b8;
+    letter-spacing: 1px;
+}
+.countdown-timer {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 8px 12px;
+    border-radius: var(--r-lg, 10px);
+}
+.timer-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 32px;
+}
+.timer-num {
+    font-family: monospace;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1;
+}
+.timer-lbl {
+    font-size: 0.55rem;
+    font-weight: 600;
+    color: #64748b;
+    margin-top: 2px;
+}
+.timer-sep {
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 1rem;
+    padding-bottom: 8px;
+}
+.btn-launch-shop {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #eab308;
+    color: #0f172a;
+    padding: 12px 24px;
+    border-radius: var(--r-md, 8px);
+    font-weight: 700;
+    font-size: 0.9rem;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 15px rgba(234, 179, 8, 0.3);
+}
+.btn-launch-shop:hover {
+    background: #facc15;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(234, 179, 8, 0.4);
+}
+.btn-close-launch-banner {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: transparent;
+    border: none;
+    color: #64748b;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: color 0.2s ease;
+    z-index: 10;
+}
+.btn-close-launch-banner:hover {
+    color: #ef4444;
+}
+
+@media (max-width: 992px) {
+    .launch-banner-content {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 20px;
+    }
+    .launch-banner-right {
+        justify-content: space-between;
+    }
+}
+@media (max-width: 768px) {
+    .launch-banner-container {
+        padding: 20px 16px;
+    }
+    .sale-features-strip {
+        gap: 12px;
+    }
+    .launch-banner-right {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 16px;
+    }
+    .countdown-timer {
+        justify-content: center;
+    }
+    .btn-launch-shop {
+        justify-content: center;
+    }
+    .btn-close-launch-banner {
+        top: 10px;
+        right: 10px;
+    }
+}
 </style>
 {% endblock %}
 
 {% block content %}
+
+{% if announcement_banner %}
+<!-- ══════════════════════════════════════
+     PROMOTIONAL ANNOUNCEMENT BANNER
+══════════════════════════════════════ -->
+<section class="launch-sale-banner" data-end-time="{{ announcement_banner.end_datetime.isoformat }}" data-banner-id="{{ announcement_banner.id }}">
+    <div class="launch-banner-container">
+        <div class="launch-banner-glow"></div>
+        <div class="launch-banner-content">
+            <div class="launch-banner-left">
+                <span class="sale-badge"><span class="pulse-dot"></span> LIVE NOW</span>
+                <h2 class="sale-title">{{ announcement_banner.title|safe }}</h2>
+                <p class="sale-subtitle">{{ announcement_banner.subtitle }}</p>
+                <div class="sale-features-strip">
+                    <span class="sale-feat-item"><i class="fa fa-truck"></i> Free Delivery</span>
+                    <span class="sale-feat-item"><i class="fa fa-undo"></i> 7-Day Easy Returns</span>
+                    {% if announcement_banner.coupon_code %}
+                    <span class="sale-feat-item"><i class="fa fa-gift"></i> Use Coupon: <strong>{{ announcement_banner.coupon_code }}</strong></span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="launch-banner-right">
+                <div class="countdown-container">
+                    <span class="countdown-label">ENDS IN</span>
+                    <div class="countdown-timer" id="launchCountdown">
+                        <div class="timer-box">
+                            <span class="timer-num" id="launchHours">00</span>
+                            <span class="timer-lbl">Hrs</span>
+                        </div>
+                        <span class="timer-sep">:</span>
+                        <div class="timer-box">
+                            <span class="timer-num" id="launchMinutes">00</span>
+                            <span class="timer-lbl">Mins</span>
+                        </div>
+                        <span class="timer-sep">:</span>
+                        <div class="timer-box">
+                            <span class="timer-num" id="launchSeconds">00</span>
+                            <span class="timer-lbl">Secs</span>
+                        </div>
+                    </div>
+                </div>
+                <a href="{{ announcement_banner.link_url }}" class="btn-launch-shop">
+                    {{ announcement_banner.btn_text }} <i class="fa fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+        
+        <button type="button" class="btn-close-launch-banner" id="closeLaunchBanner" aria-label="Close Announcement">
+            <i class="fa fa-times"></i>
+        </button>
+    </div>
+</section>
+{% endif %}
 
 {% if slider_banners %}
 <!-- ══════════════════════════════════════
@@ -1103,6 +1378,65 @@ document.querySelectorAll('.btn-share').forEach(btn => {
     });
     
     startTimer();
+})();
+
+// ── Grand Launch Sale Banner ───────────────────────────────────
+(function() {
+    const launchBanner = document.querySelector('.launch-sale-banner');
+    if (!launchBanner) return;
+
+    const closeBtn = document.getElementById('closeLaunchBanner');
+    const bannerId = launchBanner.dataset.bannerId;
+    const localStorageKey = `stallcart_announcement_banner_dismissed_${bannerId}`;
+    
+    if (closeBtn) {
+        if (localStorage.getItem(localStorageKey) === 'true') {
+            launchBanner.style.display = 'none';
+            return;
+        } else {
+            closeBtn.addEventListener('click', function () {
+                launchBanner.style.opacity = '0';
+                launchBanner.style.transform = 'scaleY(0)';
+                launchBanner.style.transition = 'opacity 0.4s ease, transform 0.4s ease, margin 0.4s ease';
+                launchBanner.style.margin = '0';
+                setTimeout(() => {
+                    launchBanner.style.display = 'none';
+                }, 400);
+                localStorage.setItem(localStorageKey, 'true');
+            });
+        }
+    }
+
+    const endTimeStr = launchBanner.dataset.endTime;
+    if (!endTimeStr) return;
+
+    const targetTime = new Date(endTimeStr).getTime();
+    const hoursEl = document.getElementById('launchHours');
+    const minutesEl = document.getElementById('launchMinutes');
+    const secondsEl = document.getElementById('launchSeconds');
+    
+    if (hoursEl && minutesEl && secondsEl) {
+        function updateCountdown() {
+            const now = new Date().getTime();
+            const distance = targetTime - now;
+
+            if (distance < 0) {
+                launchBanner.style.display = 'none';
+                return;
+            }
+
+            const totalHours = Math.floor(distance / (1000 * 60 * 60));
+            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+            hoursEl.textContent = String(totalHours).padStart(2, '0');
+            minutesEl.textContent = String(minutes).padStart(2, '0');
+            secondsEl.textContent = String(seconds).padStart(2, '0');
+        }
+
+        updateCountdown();
+        setInterval(updateCountdown, 1000);
+    }
 })();
 </script>
 {% endblock %}

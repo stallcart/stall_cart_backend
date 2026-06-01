@@ -116,3 +116,47 @@ class HomepageBanner(BaseModel):
         
     def __str__(self):
         return f"[{self.get_banner_type_display()}] {self.title}"
+
+
+class AnnouncementBanner(BaseModel):
+    title = models.CharField(
+        max_length=200, 
+        default="Newly Launched Sale is LIVE!", 
+        help_text="Banner headline (supports HTML, e.g. Diwali Sale is <span class='neon-text'>LIVE!</span>)"
+    )
+    subtitle = models.TextField(
+        default="Celebrate with premium fashion at unbeatable prices! Minimum 40% to 80% OFF across the store!",
+        help_text="Subheading description text"
+    )
+    coupon_code = models.CharField(
+        max_length=50, 
+        blank=True, 
+        null=True, 
+        default="DIWALI2026", 
+        help_text="Voucher coupon code to display (optional, leave blank to hide)"
+    )
+    btn_text = models.CharField(
+        max_length=100, 
+        default="Shop the Sale",
+        help_text="Button text label"
+    )
+    link_url = models.CharField(
+        max_length=500, 
+        default="/items/", 
+        help_text="Redirect path for CTA button"
+    )
+    end_datetime = models.DateTimeField(
+        help_text="Time when the sale / countdown ends (timezone-aware)"
+    )
+    is_active = models.BooleanField(
+        default=True, 
+        help_text="Uncheck to hide the banner from the home page"
+    )
+
+    class Meta:
+        verbose_name = "Announcement Banner"
+        verbose_name_plural = "Announcement Banners"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.title} (Active: {self.is_active})"
