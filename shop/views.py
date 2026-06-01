@@ -48,6 +48,8 @@ def home(request):
     festive_banners = [b for b in active_banners if b.banner_type == 'festive_sale']
     coming_soon_banners = [b for b in active_banners if b.banner_type == 'coming_soon']
     
+    launch_banner = AnnouncementBanner.objects.filter(is_active=True).first()
+    
     context = {
         'products': products,
         'categories': categories,
@@ -59,6 +61,7 @@ def home(request):
         'slider_banners': slider_banners,
         'festive_banners': festive_banners,
         'coming_soon_banners': coming_soon_banners,
+        'announcement_banner': launch_banner,
     }
     return render(request, 'shop/home.html', context)
 
