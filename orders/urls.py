@@ -1,7 +1,7 @@
 # orders/urls.py
 from django.urls import path
 from . import views
-from common.decorators import customer_only, seller_only, admin_only
+from common.decorators import customer_only, seller_only, admin_only, seller_or_admin_only
 
 app_name = 'orders'
 
@@ -69,12 +69,12 @@ urlpatterns = [
     
     # Seller: Update Order Status
     path('seller/order/<str:order_id>/update-status/', 
-         seller_only(views.seller_update_status), 
+         seller_or_admin_only(views.seller_update_status), 
          name='seller_update_status'),
     
     # Seller: Add Tracking Number
     path('seller/order/<str:order_id>/add-tracking/', 
-         seller_only(views.seller_add_tracking), 
+         seller_or_admin_only(views.seller_add_tracking), 
          name='seller_add_tracking'),
     
     # ==================== ✅ ADMIN URLS (Restricted to superusers only) ====================

@@ -37,7 +37,7 @@ class OrderItemInline(admin.TabularInline):
     def commission_display(self, obj):
         """Show the commission amount and percentage"""
         pct = obj.product.category.commision_percentage if obj.product and obj.product.category else 0
-        return f"₹{obj.admin_commission:.2f} ({pct}%)"
+        return f"₹{obj.commission_amount:.2f} ({pct}%)"
     commission_display.short_description = "Admin Commission"
 
     def earnings_display(self, obj):

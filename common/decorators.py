@@ -2,6 +2,7 @@
 from django.contrib.auth.decorators import user_passes_test
 from django.shortcuts import redirect
 from django.contrib import messages
+from django.http import JsonResponse
 from functools import wraps
 
 def is_customer(user):
@@ -17,6 +18,13 @@ def is_admin(user):
     """Check if user is a superuser"""
     return user.is_superuser
 
+def _is_json_request(request):
+    return (
+        request.headers.get('Accept') == 'application/json' or
+        request.content_type == 'application/json' or
+        request.headers.get('x-requested-with') == 'XMLHttpRequest'
+    )
+
 def customer_only(view_func):
     """
     Decorator to restrict view to customers only.
@@ -25,9 +33,13 @@ def customer_only(view_func):
     @wraps(view_func)
     def _wrapped_view(request, *args, **kwargs):
         if not request.user.is_authenticated:
+            if _is_json_request(request):
+                return JsonResponse({'error': 'Authentication required.'}, status=401)
             return redirect('accounts:login')
         
         if not is_customer(request.user):
+            if _is_json_request(request):
+                return JsonResponse({'error': '🔐 Customer access required.'}, status=403)
             messages.error(request, "🔐 This page is for customers only.")
             if request.user.is_seller:
                 return redirect('items:admin_dashboard')
@@ -43,9 +55,13 @@ def seller_only(view_func):
     @wraps(view_func)
     def _wrapped_view(request, *args, **kwargs):
         if not request.user.is_authenticated:
+            if _is_json_request(request):
+                return JsonResponse({'error': 'Authentication required.'}, status=401)
             return redirect('accounts:login')
         
         if not is_seller(request.user):
+            if _is_json_request(request):
+                return JsonResponse({'error': '🔐 Seller access required.'}, status=403)
             messages.error(request, "🔐 Seller access required.")
             if request.user.role == 'customer':
                 return redirect('shop:home')
@@ -61,6 +77,8 @@ def admin_only(view_func):
     @wraps(view_func)
     def _wrapped_view(request, *args, **kwargs):
         if not request.user.is_authenticated or not request.user.is_superuser:
+            if _is_json_request(request):
+                return JsonResponse({'error': '🔐 Admin access required.'}, status=403)
             messages.error(request, "🔐 Admin access required.")
             return redirect('shop:home')
         
@@ -82,9 +100,13 @@ def seller_or_admin_only(view_func):
     @wraps(view_func)
     def _wrapped_view(request, *args, **kwargs):
         if not request.user.is_authenticated:
+            if _is_json_request(request):
+                return JsonResponse({'error': 'Authentication required.'}, status=401)
             return redirect('accounts:login')
         
         if not is_seller_or_admin(request.user):
+            if _is_json_request(request):
+                return JsonResponse({'error': '🔐 Seller or Admin access required.'}, status=403)
             messages.error(request, "🔐 This page is for sellers and admins only.")
             return redirect('shop:home')
         
