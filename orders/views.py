@@ -206,20 +206,10 @@ def cancel_order(request, order_id):
             else:
                 logger.error(f"Razorpay client not configured for cancellation refund of {order.unique_order_id}")
         elif order.payment_method == 'wallet':
-            try:
-                from accounts.models import Wallet
-                wallet, _ = Wallet.objects.get_or_create(user=order.user)
-                wallet.deposit(
-                    amount=order.total_amount,
-                    reference_id=f"CNL-{order.unique_order_id}",
-                    description=f"Refund for cancelled Order #{order.unique_order_id}"
-                )
-                order.payment_status = 'refunded'
-                order.refund_amount = order.total_amount
-                order.refund_at = timezone.now()
-                order.save()
-            except Exception as e:
-                logger.error(f"Wallet refund failed for cancelled Order {order.unique_order_id}: {e}")
+            order.payment_status = 'refund_pending'
+            order.refund_amount = order.total_amount
+            order.save()
+            logger.info(f"Wallet payment: marked cancellation of {order.unique_order_id} for manual refund.")
     
     messages.success(request, f"Order {order.unique_order_id} cancelled successfully")
     return JsonResponse({'status': 'success', 'redirect': '/orders/'})
@@ -945,21 +935,78 @@ def razorpay_webhook(request):
     except Exception as e:
         logger.exception(f"Error processing Razorpay webhook: {e}")
         return JsonResponse({'error': 'Internal error'}, status=500)
+@csrf_exempt
 @require_POST
 def shiprocket_webhook(request):
     """Handle Shiprocket delivery tracking updates"""
     try:
         data = json.loads(request.body)
-        # Example: Update delivery assignment status/location
-        # awb = data.get('awb')
-        # delivery = DeliveryAssignment.objects.filter(tracking_number=awb).first()
-        # if delivery:
-        #     delivery.current_location = data.get('current_location')
-        #     delivery.save()
-        return HttpResponse(status=200)
+        
+        # Extract AWB and Order ID
+        awb = data.get('awb')
+        order_id = data.get('order_id')
+        sr_status = data.get('current_status')
+        
+        if not awb and not order_id:
+            logger.warning("Shiprocket webhook received with no AWB or Order ID.")
+            return HttpResponse("Missing AWB or Order ID", status=400)
+            
+        if not sr_status:
+            logger.warning("Shiprocket webhook received with no current_status.")
+            return HttpResponse("Missing current_status", status=400)
+            
+        # Find Order
+        order = None
+        if awb:
+            order = Order.objects.filter(tracking_number=awb).first()
+        if not order and order_id:
+            order = Order.objects.filter(unique_order_id=order_id).first()
+            
+        if not order:
+            logger.warning(f"Shiprocket webhook: Order not found for AWB={awb}, OrderID={order_id}")
+            return HttpResponse("Order not found", status=404)
+            
+        sr_status = sr_status.strip()
+        status_map = {
+            'AWB Assigned': 'confirmed',
+            'Manifested': 'processing',
+            'In Transit': 'shipped',
+            'Shipped': 'shipped',
+            'Out for Delivery': 'out_for_delivery',
+            'Delivered': 'delivered',
+            'RTO': 'returned_to_source',
+            'Returned to Source': 'returned_to_source',
+            'Cancelled': 'cancelled'
+        }
+        
+        new_local_status = status_map.get(sr_status)
+        if new_local_status and new_local_status != order.status:
+            old_status = order.status
+            order.status = new_local_status
+            if new_local_status == 'delivered':
+                order.delivered_at = timezone.now()
+            elif new_local_status == 'shipped' and not order.shipped_at:
+                order.shipped_at = timezone.now()
+                
+            order.save(update_fields=['status', 'delivered_at', 'shipped_at', 'updated_at'])
+            
+            # Log status change in OrderStatusLog
+            OrderStatusLog.objects.create(
+                order=order,
+                old_status=old_status,
+                new_status=new_local_status,
+                remarks=f"Automatic update via Shiprocket Webhook (Status: {sr_status})"
+            )
+            logger.info(f"Shiprocket Webhook: Updated order {order.unique_order_id} status from {old_status} to {new_local_status}")
+            
+        return HttpResponse("OK", status=200)
+        
+    except json.JSONDecodeError:
+        logger.error("Shiprocket webhook: Invalid JSON payload received.")
+        return HttpResponse("Invalid JSON", status=400)
     except Exception as e:
-        logger.error(f"Shiprocket webhook error: {e}")
-        return HttpResponse(status=400)
+        logger.exception(f"Shiprocket webhook error: {e}")
+        return HttpResponse(f"Internal Error: {e}", status=500)
 
 # ==================== PUBLIC/UTILITY ====================
 
@@ -1173,21 +1220,14 @@ def _process_refund(order, return_req, qty_to_restock):
         'razorpay_refund_id': None
     }
     
-    from accounts.models import Wallet
-    
-    # 1. Wallet Payment: Refund directly to Wallet (the original source)
+    # 1. Wallet Payment: Wallet concept is commented out/disabled; redirect to manual bank transfer
     if payment_method == 'wallet':
-        wallet, _ = Wallet.objects.get_or_create(user=order.user)
-        wallet.deposit(
-            amount=refund_amount,
-            reference_id=f"RTN-{return_req.id}",
-            description=f"Refund for returned item in Order #{order.unique_order_id}"
-        )
-        return_req.refund_status = 'completed'
-        return_req.refund_method = 'wallet'
+        return_req.refund_status = 'manual_pending'
+        return_req.refund_method = 'bank'
         return_req.save(update_fields=['refund_status', 'refund_method', 'updated_at'])
-        result['status'] = 'completed'
-        result['note'] = 'Refunded to customer wallet'
+        result['status'] = 'manual_pending'
+        result['method'] = 'bank'
+        result['note'] = 'Wallet payments are disabled; refund marked for manual bank transfer'
         return result
         
     # 2. Razorpay Payment: Try Razorpay API refund to source. Do NOT fallback to Wallet.
@@ -1298,17 +1338,10 @@ def confirm_rto_refund(request, order_id):
         refund_note = ""
         payment_method = order.payment_method.lower()
         if payment_method == 'wallet':
-            from accounts.models import Wallet
-            wallet, _ = Wallet.objects.get_or_create(user=order.user)
-            wallet.deposit(
-                amount=order.total_amount,
-                reference_id=f"RTO-{order.unique_order_id}",
-                description=f"RTO Refund for Order #{order.unique_order_id}"
-            )
             order.payment_status = 'refunded'
             order.refund_amount = order.total_amount
             order.refund_at = timezone.now()
-            refund_note = "refunded to customer wallet"
+            refund_note = "RTO Refund: pending manual bank transfer (wallet disabled)"
         elif payment_method == 'razorpay' and order.razorpay_payment_id:
             client = get_razorpay_client()
             if client:

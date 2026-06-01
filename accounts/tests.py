@@ -1,0 +1,356 @@
+from django.test import TestCase
+from django.utils import timezone
+from datetime import timedelta
+from .models import User, OTPRequest
+
+class OTPRequestTests(TestCase):
+    def setUp(self):
+        self.phone = "9876543210"
+        self.user = User.objects.create_user(
+            phone=self.phone,
+            password="testpassword123",
+            full_name="Test User"
+        )
+
+    def test_create_otp_success(self):
+        otp_req, err = OTPRequest.check_and_create_otp(self.phone, 'change_password')
+        self.assertIsNone(err)
+        self.assertIsNotNone(otp_req)
+        self.assertEqual(len(otp_req.otp), 6)
+        self.assertEqual(otp_req.phone, self.phone)
+        self.assertFalse(otp_req.is_expired())
+
+    def test_daily_rate_limit(self):
+        # Generate 5 OTP requests
+        for i in range(5):
+            otp_req, err = OTPRequest.check_and_create_otp(self.phone, 'forgot_password')
+            self.assertIsNone(err)
+            self.assertIsNotNone(otp_req)
+
+        # 6th request should fail
+        otp_req, err = OTPRequest.check_and_create_otp(self.phone, 'forgot_password')
+        self.assertIsNotNone(err)
+        self.assertIn("exceeded the limit of 5 OTP requests per day", err)
+        self.assertIsNone(otp_req)
+
+    def test_rolling_rate_limit(self):
+        # Generate 5 OTP requests, but set 3 of them to 25 hours ago
+        for i in range(3):
+            otp_req, err = OTPRequest.check_and_create_otp(self.phone, 'forgot_password')
+            otp_req.created_at = timezone.now() - timedelta(hours=25)
+            otp_req.save()
+
+        # We can still make 5 more requests (as only those 5 will be in the last 24 hours)
+        for i in range(5):
+            otp_req, err = OTPRequest.check_and_create_otp(self.phone, 'forgot_password')
+            self.assertIsNone(err)
+
+        # 6th active request in the rolling 24 hour period should fail
+        otp_req, err = OTPRequest.check_and_create_otp(self.phone, 'forgot_password')
+        self.assertIsNotNone(err)
+        self.assertIsNone(otp_req)
+
+    def test_otp_expiry(self):
+        otp_req, err = OTPRequest.check_and_create_otp(self.phone, 'change_password', expiry_minutes=-1)
+        self.assertTrue(otp_req.is_expired())
+
+
+from django.urls import reverse
+import json
+
+class ProfileUpdateOTPTests(TestCase):
+    def setUp(self):
+        self.phone = "9876543210"
+        self.user = User.objects.create_user(
+            phone=self.phone,
+            password="testpassword123",
+            full_name="Test User",
+            email="test@example.com"
+        )
+        self.client.login(phone=self.phone, password="testpassword123")
+
+    def test_profile_update_trigger_otp(self):
+        """Requesting to change email or phone triggers OTP send."""
+        url = reverse('accounts:profile')
+        payload = {
+            "action": "send_profile_update_otps",
+            "email": "newemail@example.com",
+            "phone": "9998887776"
+        }
+        response = self.client.post(
+            url,
+            data=json.dumps(payload),
+            content_type="application/json",
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest"
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['status'], 'success')
+        self.assertTrue(data['email_sent'])
+        self.assertTrue(data['phone_sent'])
+
+        # Verify OTP requests created
+        email_otp = OTPRequest.objects.filter(phone="newemail@example.com", purpose="update_email").first()
+        phone_otp = OTPRequest.objects.filter(phone="9998887776", purpose="update_phone").first()
+        self.assertIsNotNone(email_otp)
+        self.assertIsNotNone(phone_otp)
+
+    def test_profile_update_verification_failure(self):
+        """Updating email/phone fails if incorrect/missing OTP is provided."""
+        url = reverse('accounts:profile')
+        payload = {
+            "action": "update_profile",
+            "full_name": "Test User Updated",
+            "email": "newemail@example.com",
+            "phone": "9998887776",
+            "email_otp": "000000",
+            "phone_otp": "000000"
+        }
+        # First trigger OTP sending to create request objects in DB
+        self.client.post(
+            url,
+            data=json.dumps({"action": "send_profile_update_otps", "email": "newemail@example.com", "phone": "9998887776"}),
+            content_type="application/json",
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest"
+        )
+
+        response = self.client.post(
+            url,
+            data=json.dumps(payload),
+            content_type="application/json",
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest"
+        )
+        self.assertEqual(response.status_code, 400)
+        data = response.json()
+        self.assertEqual(data['status'], 'error')
+
+    def test_profile_update_verification_success(self):
+        """Updating email/phone succeeds with correct OTPs."""
+        url = reverse('accounts:profile')
+        # First trigger OTP sending
+        self.client.post(
+            url,
+            data=json.dumps({"action": "send_profile_update_otps", "email": "newemail@example.com", "phone": "9998887776"}),
+            content_type="application/json",
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest"
+        )
+
+        # Retrieve generated OTPs
+        email_otp = OTPRequest.objects.filter(phone="newemail@example.com", purpose="update_email").first().otp
+        phone_otp = OTPRequest.objects.filter(phone="9998887776", purpose="update_phone").first().otp
+
+        payload = {
+            "action": "update_profile",
+            "full_name": "Test User Updated",
+            "email": "newemail@example.com",
+            "phone": "9998887776",
+            "email_otp": email_otp,
+            "phone_otp": phone_otp
+        }
+        response = self.client.post(
+            url,
+            data=json.dumps(payload),
+            content_type="application/json",
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest"
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['status'], 'success')
+
+        # Verify fields updated in db
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.full_name, "Test User Updated")
+        self.assertEqual(self.user.email, "newemail@example.com")
+        self.assertEqual(self.user.phone, "9998887776")
+
+    def test_profile_update_only_email(self):
+        """Updating only the email requires email OTP; phone OTP is not required."""
+        url = reverse('accounts:profile')
+        # Trigger sending OTP for email change only
+        self.client.post(
+            url,
+            data=json.dumps({"action": "send_profile_update_otps", "email": "onlyemail@example.com", "phone": self.phone}),
+            content_type="application/json",
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest"
+        )
+        
+        email_otp = OTPRequest.objects.filter(phone="onlyemail@example.com", purpose="update_email").first().otp
+        
+        payload = {
+            "action": "update_profile",
+            "full_name": "Test User",
+            "email": "onlyemail@example.com",
+            "phone": self.phone,
+            "email_otp": email_otp
+        }
+        response = self.client.post(
+            url,
+            data=json.dumps(payload),
+            content_type="application/json",
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.email, "onlyemail@example.com")
+        self.assertEqual(self.user.phone, self.phone)
+
+    def test_profile_update_only_phone(self):
+        """Updating only the phone requires phone OTP; email OTP is not required."""
+        url = reverse('accounts:profile')
+        # Trigger sending OTP for phone change only
+        self.client.post(
+            url,
+            data=json.dumps({"action": "send_profile_update_otps", "email": "test@example.com", "phone": "9991112223"}),
+            content_type="application/json",
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest"
+        )
+        
+        phone_otp = OTPRequest.objects.filter(phone="9991112223", purpose="update_phone").first().otp
+        
+        payload = {
+            "action": "update_profile",
+            "full_name": "Test User",
+            "email": "test@example.com",
+            "phone": "9991112223",
+            "phone_otp": phone_otp
+        }
+        response = self.client.post(
+            url,
+            data=json.dumps(payload),
+            content_type="application/json",
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.email, "test@example.com")
+        self.assertEqual(self.user.phone, "9991112223")
+
+    def test_profile_update_name_only_no_otp(self):
+        """Updating only non-restricted fields (like full_name) does not require any OTP."""
+        url = reverse('accounts:profile')
+        payload = {
+            "action": "update_profile",
+            "full_name": "Just Name Updated",
+            "email": "test@example.com",
+            "phone": self.phone
+        }
+        response = self.client.post(
+            url,
+            data=json.dumps(payload),
+            content_type="application/json",
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.full_name, "Just Name Updated")
+        self.assertEqual(self.user.email, "test@example.com")
+        self.assertEqual(self.user.phone, self.phone)
+
+
+class UserRegistrationOTPTests(TestCase):
+    def setUp(self):
+        self.phone = "9876543210"
+        self.email = "test@example.com"
+
+    def test_registration_trigger_otp(self):
+        """Triggering registration OTP works successfully and creates OTP requests in db."""
+        url = reverse('accounts:register')
+        payload = {
+            "action": "send_register_otps",
+            "phone": "9998887776",
+            "email": "newreg@example.com",
+            "full_name": "New Registrant",
+            "password1": "testpass123",
+            "password2": "testpass123",
+            "user_role": "customer"
+        }
+        response = self.client.post(
+            url,
+            data=json.dumps(payload),
+            content_type="application/json",
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest"
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['status'], 'success')
+        
+        # Verify OTPRequest instances exist
+        phone_otp = OTPRequest.objects.filter(phone="9998887776", purpose="register_phone").first()
+        email_otp = OTPRequest.objects.filter(phone="newreg@example.com", purpose="register_email").first()
+        self.assertIsNotNone(phone_otp)
+        self.assertIsNotNone(email_otp)
+
+    def test_registration_validation_fails(self):
+        """Form validation failures (e.g. mismatched passwords) return 400 and form errors."""
+        url = reverse('accounts:register')
+        payload = {
+            "action": "send_register_otps",
+            "phone": "9998887776",
+            "email": "newreg@example.com",
+            "full_name": "New Registrant",
+            "password1": "testpass123",
+            "password2": "differentpass",
+            "user_role": "customer"
+        }
+        response = self.client.post(
+            url,
+            data=json.dumps(payload),
+            content_type="application/json",
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest"
+        )
+        self.assertEqual(response.status_code, 400)
+        data = response.json()
+        self.assertEqual(data['status'], 'error')
+        self.assertIn('errors', data)
+
+    def test_registration_verification_success(self):
+        """Registering with correct OTPs succeeds and creates a user in db."""
+        url = reverse('accounts:register')
+        # Trigger sending first
+        self.client.post(
+            url,
+            data=json.dumps({
+                "action": "send_register_otps",
+                "phone": "9998887776",
+                "email": "newreg@example.com",
+                "full_name": "New Registrant",
+                "password1": "testpass123",
+                "password2": "testpass123",
+                "user_role": "customer"
+            }),
+            content_type="application/json",
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest"
+        )
+        
+        phone_otp = OTPRequest.objects.filter(phone="9998887776", purpose="register_phone").first().otp
+        email_otp = OTPRequest.objects.filter(phone="newreg@example.com", purpose="register_email").first().otp
+        
+        payload = {
+            "action": "register",
+            "phone": "9998887776",
+            "email": "newreg@example.com",
+            "full_name": "New Registrant",
+            "password1": "testpass123",
+            "password2": "testpass123",
+            "user_role": "customer",
+            "phone_otp": phone_otp,
+            "email_otp": email_otp
+        }
+        response = self.client.post(
+            url,
+            data=json.dumps(payload),
+            content_type="application/json",
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest"
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['status'], 'success')
+        
+        # Verify user created
+        new_user = User.objects.filter(phone="9998887776").first()
+        self.assertIsNotNone(new_user)
+        self.assertEqual(new_user.email, "newreg@example.com")
+        self.assertEqual(new_user.full_name, "New Registrant")
+        self.assertEqual(new_user.role, "customer")
+
+

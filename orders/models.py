@@ -134,7 +134,28 @@ class Order(BaseModel):
                 new_num = 1
             self.unique_order_id= f'ORD-{date_str}-{new_num:06d}'
         
+        # Detect status change
+        is_new = self._state.adding
+        old_status = None
+        status_changed = False
+        if not is_new:
+            try:
+                old_status = type(self).objects.filter(pk=self.pk).values_list('status', flat=True).first()
+                if old_status != self.status:
+                    status_changed = True
+            except Exception:
+                pass
+                
         super().save(*args, **kwargs)
+        
+        if status_changed:
+            try:
+                from common.notification_service import notify_order_status_change
+                notify_order_status_change(self, old_status, self.status)
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to trigger status change notification for order {self.unique_order_id}: {e}")
     
     def __str__(self):
         return f"{self.unique_order_id} | {self.user.phone if self.user else self.guest_email} | {self.get_status_display()}"

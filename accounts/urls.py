@@ -12,10 +12,11 @@ urlpatterns = [
     # Forgot/Reset Password Flow
     path('profile/', views.profile_view, name='profile'),  # ← Add this
 
-    path('forgot-password/', views.CustomPasswordResetView.as_view(), name='forgot_password'),
-    path('password-reset/done/', views.CustomPasswordResetDoneView.as_view(), name='password_reset_done'),
-    path('reset/<uidb64>/<token>/', views.CustomPasswordResetConfirmView.as_view(), name='password_reset_confirm'),
-    path('password-reset/complete/', views.CustomPasswordResetCompleteView.as_view(), name='password_reset_complete'),
+    # Forgot/Reset Password Flow with OTP
+    path('forgot-password/', views.forgot_password_view, name='forgot_password'),
+    path('forgot-password/verify/', views.forgot_password_verify_view, name='forgot_password_verify'),
+    path('forgot-password/reset/', views.forgot_password_reset_view, name='forgot_password_reset'),
+    path('api/send-change-password-otp/', views.send_change_password_otp, name='send_change_password_otp'),
     path('api/address/<int:address_id>/', views.api_address_detail, name='api_address_detail'),
 
 ]

@@ -92,7 +92,7 @@
                     <label for="phone">Mobile Number</label>
                     <input type="tel" id="phone" name="phone" class="form-input" 
                            value="{{ user.phone }}" readonly>
-                    <small class="text-muted">Phone number cannot be changed</small>
+                    <small class="text-muted" id="phoneHelpText">OTP verification required on change</small>
                 </div>
                 <div class="form-group">
                     <label for="role">Account Role</label>
@@ -407,7 +407,7 @@
         </div>
     </div>
 
-    <!-- ✅ CUSTOMER: Wallet & Credit History (Only for customers) -->
+    <!-- ✅ CUSTOMER: Wallet & Credit History (Only for customers) - DISABLED/COMMENTED OUT
     {% if is_customer %}
     <div class="profile-card">
         <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
@@ -444,6 +444,7 @@
         </div>
     </div>
     {% endif %}
+    -->
 
     <!-- ✅ CUSTOMER: Order History (Only for customers) -->
     {% if is_customer %}
@@ -635,6 +636,31 @@
         </div>
     </div>
 </div>
+
+<!-- Verification Modal for Profile Updates -->
+<div id="verifyProfileModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:#fff; padding:30px; border-radius:12px; width:90%; max-width:400px; box-shadow:0 4px 20px rgba(0,0,0,0.2); box-sizing: border-box;">
+        <h3 style="margin-top:0; margin-bottom:15px; text-align:center;">🔒 Verify OTP</h3>
+        <p id="verifyModalSubtitle" style="font-size:0.9rem; color:#666; margin-bottom:20px; text-align:center; line-height:1.4;"></p>
+        
+        <!-- Email OTP Input -->
+        <div class="form-group" id="emailOtpGroup" style="display:none; margin-bottom:15px;">
+            <label for="emailOtp" style="font-weight:500; font-size:0.9rem; display:block; margin-bottom:5px;">Email OTP (sent to new email)</label>
+            <input type="text" id="emailOtp" class="form-input" placeholder="6-digit Email OTP" maxlength="6" style="text-align:center; letter-spacing:2px; width:100%; box-sizing:border-box; padding:10px;">
+        </div>
+        
+        <!-- Phone OTP Input -->
+        <div class="form-group" id="phoneOtpGroup" style="display:none; margin-bottom:20px;">
+            <label for="phoneOtp" style="font-weight:500; font-size:0.9rem; display:block; margin-bottom:5px;">Mobile OTP (sent to new mobile)</label>
+            <input type="text" id="phoneOtp" class="form-input" placeholder="6-digit Mobile OTP" maxlength="6" style="text-align:center; letter-spacing:2px; width:100%; box-sizing:border-box; padding:10px;">
+        </div>
+        
+        <div style="display:flex; gap:10px; margin-top:20px;">
+            <button type="button" id="confirmVerifyProfileBtn" class="btn-primary" style="flex:1; margin:0;">Verify & Save</button>
+            <button type="button" id="closeVerifyProfileBtn" class="btn-outline" style="flex:1; margin:0;">Cancel</button>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -649,14 +675,14 @@ const saveProfileBtn = document.getElementById('saveProfileBtn');
 const profileForm = document.getElementById('profileForm');
 
 // Only these fields are editable
-const EDITABLE_FIELDS = ['fullName', 'email'];
+const EDITABLE_FIELDS = ['fullName', 'email', 'phone'];
 let originalValues = {};
 
 function storeOriginalValues() {
     originalValues = {};
     EDITABLE_FIELDS.forEach(id => {
         const field = document.getElementById(id);
-        if (field) originalValues[id] = field.value;
+        if (field) originalValues[id] = field.value.trim();
     });
 }
 
@@ -693,82 +719,177 @@ cancelEditBtn?.addEventListener('click', () => {
     cancelEditBtn.style.display = 'none';
 });
 
-// Profile Form Submit (AJAX) - Email & Full Name ONLY
+// Modal Elements
+const verifyProfileModal = document.getElementById('verifyProfileModal');
+const confirmVerifyProfileBtn = document.getElementById('confirmVerifyProfileBtn');
+const closeVerifyProfileBtn = document.getElementById('closeVerifyProfileBtn');
+const emailOtpGroup = document.getElementById('emailOtpGroup');
+const phoneOtpGroup = document.getElementById('phoneOtpGroup');
+const verifyModalSubtitle = document.getElementById('verifyModalSubtitle');
+
+closeVerifyProfileBtn?.addEventListener('click', () => {
+    verifyProfileModal.style.display = 'none';
+});
+
+// Profile Form Submit (AJAX) - Email, Phone & Full Name
 profileForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
     
     const btn = document.getElementById('saveProfileBtn');
     const originalText = btn.innerHTML;
     const emailField = document.getElementById('email');
+    const phoneField = document.getElementById('phone');
     
     // Clear previous errors
     emailField?.classList.remove('error');
+    phoneField?.classList.remove('error');
     
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving...';
-    
-    const formData = {
-        action: 'update_profile',
-        full_name: document.getElementById('fullName').value.trim(),
-        email: document.getElementById('email').value.trim()
-    };
+    const fullName = document.getElementById('fullName').value.trim();
+    const email = emailField.value.trim();
+    const phone = phoneField.value.trim();
     
     // Client-side validation
-    if (!formData.email) {
+    if (!email) {
         showToast('Email address is required', 'error');
         emailField?.classList.add('error');
-        btn.disabled = false;
-        btn.innerHTML = originalText;
         return;
     }
-    
-    if (!formData.email.includes('@')) {
+    if (!email.includes('@')) {
         showToast('Please enter a valid email address', 'error');
         emailField?.classList.add('error');
-        btn.disabled = false;
-        btn.innerHTML = originalText;
+        return;
+    }
+    if (!phone || phone.length !== 10 || isNaN(phone)) {
+        showToast('Please enter a valid 10-digit mobile number', 'error');
+        phoneField?.classList.add('error');
         return;
     }
     
-    try {
-        const res = await fetch("{% url 'accounts:profile' %}", {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json', 
-                'X-CSRFToken': csrfToken, 
-                'X-Requested-With': 'XMLHttpRequest' 
-            },
-            body: JSON.stringify(formData)
-        });
+    const emailChanged = email !== originalValues['email'];
+    const phoneChanged = phone !== originalValues['phone'];
+    
+    // Function to submit final profile update
+    const submitProfileUpdate = async (emailOtp = '', phoneOtp = '') => {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving...';
         
-        const data = await res.json();
-        
-        if (data.status === 'success') {
-            showToast('Profile updated successfully!', 'success');
+        try {
+            const res = await fetch("{% url 'accounts:profile' %}", {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'X-CSRFToken': csrfToken, 
+                    'X-Requested-With': 'XMLHttpRequest' 
+                },
+                body: JSON.stringify({
+                    action: 'update_profile',
+                    full_name: fullName,
+                    email: email,
+                    phone: phone,
+                    email_otp: emailOtp,
+                    phone_otp: phoneOtp
+                })
+            });
             
-            // Lock fields after save
-            setFieldsReadOnly(true);
-            editProfileBtn.style.display = 'inline-flex';
-            saveProfileBtn.style.display = 'none';
-            cancelEditBtn.style.display = 'none';
+            const data = await res.json();
             
-            // Update displayed values if backend returned new data
-            if (data.email) document.getElementById('email').value = data.email;
-            if (data.full_name) document.getElementById('fullName').value = data.full_name;
-            
-        } else {
-            showToast(data.message || 'Failed to update profile', 'error');
-            if (data.message && data.message.toLowerCase().includes('email')) {
-                emailField?.classList.add('error');
-                emailField?.focus();
+            if (data.status === 'success') {
+                showToast(data.message || 'Profile updated successfully!', 'success');
+                
+                // Lock fields after save
+                setFieldsReadOnly(true);
+                editProfileBtn.style.display = 'inline-flex';
+                saveProfileBtn.style.display = 'none';
+                cancelEditBtn.style.display = 'none';
+                
+                // Update displayed values
+                if (data.email) emailField.value = data.email;
+                if (data.phone) phoneField.value = data.phone;
+                if (data.full_name) document.getElementById('fullName').value = data.full_name;
+                
+                verifyProfileModal.style.display = 'none';
+            } else {
+                showToast(data.message || 'Failed to update profile', 'error');
             }
+        } catch (err) {
+            console.error('Network error:', err);
+            showToast('Connection error. Please try again.', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
         }
-    } catch (err) {
-        console.error('Network error:', err);
-        showToast('Connection error. Please check your internet.', 'error');
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = originalText;
+    };
+    
+    // If changes need OTP verification, trigger sending OTPs and open verification modal
+    if (emailChanged || phoneChanged) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Sending OTP...';
+        
+        try {
+            const res = await fetch("{% url 'accounts:profile' %}", {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'X-CSRFToken': csrfToken, 
+                    'X-Requested-With': 'XMLHttpRequest' 
+                },
+                body: JSON.stringify({
+                    action: 'send_profile_update_otps',
+                    email: email,
+                    phone: phone
+                })
+            });
+            
+            const data = await res.json();
+            
+            if (data.status === 'success') {
+                showToast(data.message, 'success');
+                
+                // Configure modal subtitle
+                let subtext = "We have sent verification codes to update your profile details.";
+                verifyModalSubtitle.textContent = subtext;
+                
+                // Toggle OTP input groups
+                emailOtpGroup.style.display = emailChanged ? 'block' : 'none';
+                phoneOtpGroup.style.display = phoneChanged ? 'block' : 'none';
+                
+                document.getElementById('emailOtp').value = '';
+                document.getElementById('phoneOtp').value = '';
+                
+                // Display the modal
+                verifyProfileModal.style.display = 'flex';
+                
+                // Setup verify trigger
+                confirmVerifyProfileBtn.onclick = () => {
+                    const emailOtpVal = document.getElementById('emailOtp').value.trim();
+                    const phoneOtpVal = document.getElementById('phoneOtp').value.trim();
+                    
+                    if (emailChanged && !emailOtpVal) {
+                        alert('Email OTP is required.');
+                        return;
+                    }
+                    if (phoneChanged && !phoneOtpVal) {
+                        alert('Mobile OTP is required.');
+                        return;
+                    }
+                    
+                    submitProfileUpdate(emailOtpVal, phoneOtpVal);
+                };
+                
+            } else {
+                showToast(data.message || 'Failed to send verification codes.', 'error');
+            }
+        } catch (err) {
+            console.error('Error sending OTPs:', err);
+            showToast('Network error while requesting verification.', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+        
+    } else {
+        // No changes to email or phone, just update directly
+        submitProfileUpdate();
     }
 });
 
