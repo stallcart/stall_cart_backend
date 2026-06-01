@@ -75,9 +75,9 @@ class CartItem(BaseModel):
     #     return self.product.discount_price if self.product.discount_percent > 0 else self.product.price
     def unit_price(self):
         # Use variant price if available, else product price
-        if self.variant and self.variant.price_override:
-            return self.variant.price_override
-        return self.product.discount_price if self.product.discount_percent > 0 else self.product.price
+        if self.variant:
+            return self.variant.final_price
+        return self.product.final_price
 
     
     @property
@@ -88,9 +88,9 @@ class CartItem(BaseModel):
     @property
     def savings(self):
         """Total savings for this line item vs MRP"""
-        if self.product.mrp and self.product.mrp > self.unit_price:
-            return (self.product.mrp - self.unit_price) * self.quantity
-        return 0
+        if self.variant:
+            return self.variant.savings * self.quantity
+        return self.product.savings * self.quantity
 
 
 class HomepageBanner(BaseModel):

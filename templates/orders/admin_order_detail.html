@@ -1,0 +1,274 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Order Details #{{ order.unique_order_id }} (Admin) | StallCart{% endblock %}
+
+{% block content %}
+<div class="admin-order-detail-container" style="max-width: 1000px; margin: 40px auto; padding: 0 20px 60px;">
+    
+    <!-- Breadcrumbs -->
+    <div style="margin-bottom: 20px;">
+        <a href="{% url 'orders:admin_orders' %}" style="text-decoration: none; color: var(--blue-500); font-weight: 600; display: inline-flex; align-items: center; gap: 6px; font-size: 0.9rem;">
+            <i class="fa fa-arrow-left"></i> Back to Orders list
+        </a>
+    </div>
+
+    <!-- Order Header Card -->
+    <div class="header-card" style="background: white; border-radius: var(--r-2xl); border: 1.5px solid var(--gray-100); box-shadow: var(--sh-md); padding: 24px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
+        <div>
+            <h1 style="margin: 0 0 6px; font-family: 'Syne', sans-serif; font-size: 1.5rem; font-weight: 800; color: var(--gray-900);">Order #{{ order.unique_order_id }}</h1>
+            <p style="margin: 0; font-size: 0.85rem; color: var(--gray-500);">
+                Placed on {{ order.created_at|date:"d M Y, h:i A" }} 
+                {% if order.delivered_at %}• Delivered on {{ order.delivered_at|date:"d M Y, h:i A" }}{% endif %}
+            </p>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 10px;">
+            <span class="badge" style="padding: 8px 18px; border-radius: var(--r-xl); font-weight: 700; font-size: 0.875rem;
+                {% if order.status == 'pending' %}background:#fffbeb; color:#d97706; border:1px solid #fde68a;
+                {% elif order.status == 'delivered' or order.status == 'refunded' %}background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0;
+                {% elif order.status == 'cancelled' or order.status == 'returned_to_source' %}background:#fef2f2; color:#b91c1c; border:1px solid #fca5a5;
+                {% else %}background:#f0fdfa; color:#0f766e; border:1px solid #99f6e4;{% endif %}">
+                {{ order.get_status_display }}
+            </span>
+            <button class="btn-primary" onclick="openStatusModal()" style="font-size: 0.85rem; padding: 8px 16px; border-radius: var(--r-md); border: none; cursor: pointer; font-weight: 700;">
+                Update Status
+            </button>
+        </div>
+    </div>
+
+    <!-- Return Requests Banner for this Order -->
+    {% for item in order.items.all %}
+        {% for return_req in item.return_requests.all %}
+            {% if return_req.status == 'requested' %}
+                <div style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border: 1.5px solid #fcd34d; border-radius: var(--r-xl); padding: 16px 20px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+                    <div>
+                        <h4 style="margin: 0 0 4px; color: #92400e; font-family: 'Syne', sans-serif;"><i class="fa fa-undo-alt"></i> Return Requested for {{ item.product.name|truncatechars:40 }}</h4>
+                        <p style="margin: 0; font-size: 0.85rem; color: #78350f;">Reason: <strong>{{ return_req.get_reason_display }}</strong> • Refund Amount: <strong>₹{{ return_req.refund_amount|floatformat:2 }}</strong></p>
+                    </div>
+                    <a href="{% url 'orders:return_detail' return_req.id %}" class="btn-primary" style="background: #d97706; padding: 8px 16px; font-size: 0.85rem; text-decoration: none; border-radius: var(--r-md); font-weight: 700;">
+                        Manage Return Request
+                    </a>
+                </div>
+            {% endif %}
+        {% endfor %}
+    {% endfor %}
+
+    <!-- 2-Column Details Grid -->
+    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;">
+        
+        <!-- Left Column: Items & Timeline -->
+        <div style="display: flex; flex-direction: column; gap: 24px;">
+            
+            <!-- Items Detail -->
+            <div style="background: white; border-radius: var(--r-2xl); border: 1.5px solid var(--gray-100); box-shadow: var(--sh-md); padding: 24px;">
+                <h3 style="margin: 0 0 16px; font-family: 'Syne', sans-serif; font-size: 1.15rem; font-weight: 800; color: var(--gray-900); border-bottom: 1.5px solid var(--gray-100); padding-bottom: 10px;">
+                    🛍️ Order Items
+                </h3>
+                <div style="display: flex; flex-direction: column; gap: 16px;">
+                    {% for item in order.items.all %}
+                    <div style="display: flex; gap: 16px; align-items: center; border-bottom: 1px solid var(--gray-100); padding-bottom: 16px; flex-wrap: wrap;">
+                        <div style="width: 60px; height: 60px; border-radius: var(--r-md); overflow: hidden; border: 1px solid var(--gray-200); background: var(--gray-50); flex-shrink: 0;">
+                            {% if item.product.primary_image %}
+                                <img src="{{ item.product.primary_image.url }}" alt="{{ item.product.name }}" style="width: 100%; height: 100%; object-fit: cover;">
+                            {% else %}
+                                <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: var(--gray-300);"><i class="fa fa-image"></i></div>
+                            {% endif %}
+                        </div>
+                        <div style="flex: 1; min-width: 200px;">
+                            <h4 style="margin: 0 0 4px; font-size: 0.95rem; font-weight: 700; color: var(--gray-900);">{{ item.product.name }}</h4>
+                            <p style="margin: 0; font-size: 0.8rem; color: var(--gray-500);">
+                                SKU: {{ item.product.sku|default:'—' }} 
+                                • Seller: <strong style="color: var(--blue-600);">{{ item.product.seller.shop_name }}</strong>
+                                {% if item.variant %}
+                                    • Variant: <span style="font-weight: 600;">{{ item.variant.size_value }} / {{ item.variant.color }}</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div style="text-align: right; min-width: 100px;">
+                            <div style="font-size: 0.85rem; color: var(--gray-500);">{{ item.quantity }} x ₹{{ item.price|floatformat:2 }}</div>
+                            <strong style="font-size: 1rem; color: var(--blue-500); display: block; margin-top: 2px;">₹{{ item.total|floatformat:2 }}</strong>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Status Timeline -->
+            <div style="background: white; border-radius: var(--r-2xl); border: 1.5px solid var(--gray-100); box-shadow: var(--sh-md); padding: 24px;">
+                <h3 style="margin: 0 0 16px; font-family: 'Syne', sans-serif; font-size: 1.15rem; font-weight: 800; color: var(--gray-900); border-bottom: 1.5px solid var(--gray-100); padding-bottom: 10px;">
+                    📜 Status Audit Logs
+                </h3>
+                <div style="display: flex; flex-direction: column; gap: 0; padding-left: 10px; border-left: 2px solid var(--gray-200); margin-left: 10px;">
+                    {% for log in order.status_logs.all %}
+                    <div style="position: relative; padding-left: 20px; padding-bottom: 20px;">
+                        <div style="position: absolute; left: -17px; top: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--blue-500); border: 2px solid white;"></div>
+                        <strong style="display: block; font-size: 0.875rem; color: var(--gray-800);">
+                            {{ log.get_new_status_display }}
+                        </strong>
+                        <span style="font-size: 0.75rem; color: var(--gray-500);">
+                            Changed by: {{ log.changed_by.full_name|default:log.changed_by.phone|default:"System" }} 
+                            • {{ log.timestamp|date:"d M Y, h:i A" }}
+                        </span>
+                        {% if log.remarks %}
+                            <p style="margin: 6px 0 0; font-size: 0.82rem; color: var(--gray-600); background: var(--gray-50); padding: 8px 12px; border-radius: var(--r-md); border: 1px solid var(--gray-100);">
+                                {{ log.remarks }}
+                            </p>
+                        {% endif %}
+                    </div>
+                    {% empty %}
+                    <p class="text-muted" style="margin: 0; font-size: 0.85rem; color: var(--gray-400);">No status log updates recorded.</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Right Column: Shipping & Summary -->
+        <div style="display: flex; flex-direction: column; gap: 24px;">
+            
+            <!-- Customer Shipping Info -->
+            <div style="background: white; border-radius: var(--r-2xl); border: 1.5px solid var(--gray-100); box-shadow: var(--sh-md); padding: 20px;">
+                <h3 style="margin: 0 0 12px; font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 800; color: var(--gray-900);">🚚 Shipping Address</h3>
+                <div style="font-size: 0.85rem; color: var(--gray-700); line-height: 1.5;">
+                    <strong style="font-size: 0.95rem; color: var(--gray-900); display: block; margin-bottom: 6px;">{{ order.shipping_address.name }}</strong>
+                    {{ order.shipping_address.address_line1 }}<br>
+                    {% if order.shipping_address.address_line2 %}{{ order.shipping_address.address_line2 }}<br>{% endif %}
+                    {{ order.shipping_address.city }}, {{ order.shipping_address.state }} - <strong>{{ order.shipping_address.postal_code }}</strong><br>
+                    📞 Phone: {{ order.shipping_address.phone }}
+                </div>
+            </div>
+
+            <!-- Delivery Partner & Tracking -->
+            <div style="background: white; border-radius: var(--r-2xl); border: 1.5px solid var(--gray-100); box-shadow: var(--sh-md); padding: 20px;">
+                <h3 style="margin: 0 0 12px; font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 800; color: var(--gray-900);">📦 Shipping Courier</h3>
+                <div style="font-size: 0.85rem; color: var(--gray-700); line-height: 1.5;">
+                    {% if order.tracking_number %}
+                        <p style="margin: 0 0 8px;">Courier Company: <strong>{{ order.courier_name|default:"Shiprocket" }}</strong></p>
+                        <p style="margin: 0 0 12px;">AWB Tracking: <strong>{{ order.tracking_number }}</strong></p>
+                        {% if order.tracking_url %}
+                            <a href="{{ order.tracking_url }}" target="_blank" class="btn-outline" style="text-decoration: none; display: inline-flex; align-items: center; justify-content: center; width: 100%; padding: 8px; border-radius: var(--r-md); font-weight: 600; font-size: 0.8rem; border: 1.5px solid var(--gray-200); color: var(--gray-700);">
+                                <i class="fa fa-external-link-alt" style="margin-right: 6px;"></i> Track Delivery Live
+                            </a>
+                        {% endif %}
+                    {% else %}
+                        <p class="text-muted" style="margin: 0; color: var(--gray-400); font-style: italic;">No courier tracking number assigned yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Financial Summary -->
+            <div style="background: white; border-radius: var(--r-2xl); border: 1.5px solid var(--gray-100); box-shadow: var(--sh-md); padding: 20px;">
+                <h3 style="margin: 0 0 12px; font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 800; color: var(--gray-900);">💵 Order Pricing</h3>
+                <div style="display: flex; flex-direction: column; gap: 10px; font-size: 0.85rem; color: var(--gray-600);">
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>Subtotal</span>
+                        <strong style="color: var(--gray-800);">₹{{ order.subtotal|floatformat:2 }}</strong>
+                    </div>
+                    {% if order.discount_amount > 0 %}
+                    <div style="display: flex; justify-content: space-between; color: var(--red);">
+                        <span>Discounts</span>
+                        <strong>− ₹{{ order.discount_amount|floatformat:2 }}</strong>
+                    </div>
+                    {% endif %}
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>Payment Method</span>
+                        <strong style="text-transform: uppercase; color: var(--gray-800);">{{ order.payment_method }}</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>Payment Status</span>
+                        <strong style="text-transform: capitalize; color: {% if order.payment_status == 'paid' or order.payment_status == 'refunded' %}#16a34a{% else %}#ea580c{% endif %};">{{ order.payment_status }}</strong>
+                    </div>
+                    {% if order.refund_amount %}
+                    <div style="display: flex; justify-content: space-between; color: var(--green); font-weight: 700; border-top: 1px dashed var(--gray-200); padding-top: 8px;">
+                        <span>Total Refunded</span>
+                        <strong>₹{{ order.refund_amount|floatformat:2 }}</strong>
+                    </div>
+                    {% endif %}
+                    <div style="display: flex; justify-content: space-between; font-size: 1.05rem; color: var(--gray-900); border-top: 1.5px solid var(--gray-100); padding-top: 10px; font-weight: 800;">
+                        <span>Grand Total</span>
+                        <span style="color: var(--blue-500);">₹{{ order.total_amount|floatformat:2 }}</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- ✅ Admin Update Status Modal -->
+<div id="statusModal" class="modal-overlay" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); justify-content: center; align-items: center; z-index: 10000;">
+    <div class="modal-content" style="background: white; border-radius: var(--r-2xl); width: 100%; max-width: 440px; box-shadow: var(--sh-xl); overflow: hidden; border: 1px solid var(--gray-100);">
+        <div style="padding: 20px 24px; border-bottom: 1px solid var(--gray-100); display: flex; align-items: center; justify-content: space-between;">
+            <h3 style="margin: 0; font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 800;">👑 Update Order Status (Admin)</h3>
+            <span class="modal-close" onclick="closeModal()" style="font-size: 1.5rem; color: var(--gray-400); cursor: pointer; line-height: 1;">&times;</span>
+        </div>
+        <form id="statusForm" style="padding: 24px; margin: 0;">
+            {% csrf_token %}
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label style="display: block; font-weight: 600; color: var(--gray-700); margin-bottom: 8px; font-size: 0.9rem;">Select New Order Status</label>
+                <select name="status" class="form-input" required style="width: 100%; padding: 10px 12px; border: 1.5px solid var(--gray-200); border-radius: var(--r-md); font-size: 0.9rem; outline: none; background: white;">
+                    <option value="pending" {% if order.status == 'pending' %}selected{% endif %}>🟡 Order Placed</option>
+                    <option value="confirmed" {% if order.status == 'confirmed' %}selected{% endif %}>🔵 Order Confirmed</option>
+                    <option value="processing" {% if order.status == 'processing' %}selected{% endif %}>🟠 Processing</option>
+                    <option value="shipped" {% if order.status == 'shipped' %}selected{% endif %}>🟣 Shipped</option>
+                    <option value="out_for_delivery" {% if order.status == 'out_for_delivery' %}selected{% endif %}>🔵 Out for Delivery</option>
+                    <option value="delivered" {% if order.status == 'delivered' %}selected{% endif %}>🟢 Delivered</option>
+                    <option value="cancelled" {% if order.status == 'cancelled' %}selected{% endif %}>🔴 Cancelled</option>
+                    <option value="returned" {% if order.status == 'returned' %}selected{% endif %}>🔄 Returned</option>
+                    <option value="returned_to_source" {% if order.status == 'returned_to_source' %}selected{% endif %}>🔄 Returned to Source (RTO)</option>
+                    <option value="refund_initiated" {% if order.status == 'refund_initiated' %}selected{% endif %}>💰 Refund Initiated</option>
+                    <option value="refunded" {% if order.status == 'refunded' %}selected{% endif %}>✅ Refunded</option>
+                </select>
+            </div>
+            <button type="submit" class="btn-primary" style="width: 100%; padding: 12px; font-weight: 700; border-radius: var(--r-md); border: none; cursor: pointer;">Confirm Update</button>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const csrfToken = '{{ csrf_token }}';
+
+// Modal helpers
+window.openStatusModal = () => {
+    document.getElementById('statusModal').style.display = 'flex';
+};
+window.closeModal = () => {
+    document.getElementById('statusModal').style.display = 'none';
+};
+window.onclick = (e) => {
+    const modal = document.getElementById('statusModal');
+    if (e.target === modal) closeModal();
+};
+
+// Status Update AJAX
+document.getElementById('statusForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const status = e.target.status.value;
+    
+    try {
+        const res = await fetch(`/orders/admin/order/{{ order.unique_order_id }}/update-status/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ status })
+        });
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error || 'Failed to update order status.');
+        }
+        
+        showToast('Order status updated successfully', 'success');
+        setTimeout(() => window.location.reload(), 1000);
+    } catch (err) {
+        alert(err.message);
+    }
+});
+</script>
+{% endblock %}

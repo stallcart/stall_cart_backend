@@ -47,20 +47,18 @@ class CartService:
         return True, None
     
     @staticmethod
-    def _get_unit_price(product):
+    def _get_unit_price(product, variant=None):
         """Get the effective unit price (with discount applied)"""
-        if product.discount_percent > 0 and product.discount_price:
-            return product.discount_price
-        return product.price
+        if variant:
+            return variant.final_price
+        return product.final_price
     
     @staticmethod
-    def _calculate_savings(product, quantity):
+    def _calculate_savings(product, quantity, variant=None):
         """Calculate total savings for a cart item"""
-        if product.mrp and product.discount_percent > 0:
-            original = product.mrp
-            discounted = product.discount_price if product.discount_price else product.price
-            return (original - discounted) * quantity
-        return Decimal('0')
+        if variant:
+            return variant.savings * quantity
+        return product.savings * quantity
     
     # ─────────────────────────────────────────────────────────────
     # ADD TO CART
@@ -251,9 +249,9 @@ class CartService:
             variant = cart_item.variant
             
             # Calculate pricing
-            unit_price = CartService._get_unit_price(product)
-            original_price = product.mrp or product.price
-            savings = CartService._calculate_savings(product, cart_item.quantity)
+            unit_price = CartService._get_unit_price(product, variant)
+            original_price = (product.mrp if (product.mrp and (not variant or product.mrp > variant.final_price)) else (variant.effective_price if variant else product.price))
+            savings = CartService._calculate_savings(product, cart_item.quantity, variant)
             
             # Stock availability for this specific variant/product
             available_stock = variant.stock if variant else product.stock

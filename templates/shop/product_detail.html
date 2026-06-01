@@ -85,7 +85,7 @@
             <div class="price-box">
                 {% if product.discount_percent > 0 %}
                     <div class="price-row">
-                        <span class="price-mrp">MRP: <del>₹{{ product.mrp|default:product.price }}</del></span>
+                        <span class="price-mrp">MRP: <del id="displayMrp">₹{{ product.mrp|default:product.price }}</del></span>
                         <span class="price-off">{{ product.discount_percent }}% OFF</span>
                     </div>
                     <div class="price-current-wrapper">
@@ -144,7 +144,8 @@
                             data-variant-id="{{ variant.id }}"
                             data-size="{{ variant.size_value }}"
                             data-color="{{ variant.color }}"
-                            data-price="{{ variant.effective_price }}"
+                            data-price="{{ variant.final_price }}"
+                            data-mrp="{% if product.mrp and product.mrp > variant.effective_price %}{{ product.mrp }}{% else %}{{ variant.effective_price }}{% endif %}"
                             data-stock="{{ variant.stock }}"
                             {% if not variant.is_in_stock %}disabled title="Out of stock"{% endif %}>
                         {{ variant.size_value }}
@@ -756,29 +757,17 @@ document.addEventListener('DOMContentLoaded', function () {
         pincodeCheckBtn.disabled = true;
 
         fetch(`/check-pincode/?pincode=${pincode}`)
-            .then(res => {
-                if (!res.ok) {
-                    return res.json().then(data => { throw data; });
-                }
-                return res.json();
-            })
+            .then(res => res.json())
             .then(data => {
                 pincodeCheckBtn.disabled = false;
                 if (data.status === 'success') {
                     localStorage.setItem('stallcart_pincode', pincode);
-                    let text = `<span style="color: #059669; font-weight: 600;"><i class="fa fa-check-circle"></i> Delivery Available</span><br>`;
-                    text += `Expected Delivery: <strong>${data.estimated_date}</strong> (in ${data.delivery_days} days)<br>`;
-                    if (data.courier_name) {
-                        text += `<small style="color: #64748b;">Shipped via ${data.courier_name}</small>`;
-                    }
-                    pincodeDeliveryStatus.innerHTML = text;
-                } else {
-                    pincodeDeliveryStatus.innerHTML = `<span style="color: #ef4444;"><i class="fa fa-times-circle"></i> ${data.message || 'Service unavailable'}</span>`;
                 }
+                pincodeDeliveryStatus.innerHTML = data.message;
             })
             .catch(err => {
                 pincodeCheckBtn.disabled = false;
-                pincodeDeliveryStatus.innerHTML = `<span style="color: #ef4444;"><i class="fa fa-times-circle"></i> ${err.message || 'Service unavailable for this PIN code.'}</span>`;
+                pincodeDeliveryStatus.innerHTML = `<span style="color: #ef4444;"><i class="fa fa-times-circle"></i> Service unavailable for this PIN code.</span>`;
             });
     }
 
@@ -856,11 +845,12 @@ function setupVariantSelection() {
 
             selectedVariantId = this.dataset.variantId;
             const price = parseFloat(this.dataset.price);
+            const mrp   = parseFloat(this.dataset.mrp) || baseMrp;
             const stock = parseInt(this.dataset.stock, 10);
             const size  = this.dataset.size  || '';
             const color = this.dataset.color || '';
 
-            updatePriceDisplay(price);
+            updatePriceDisplay(price, mrp);
 
             document.getElementById('selectedSize').textContent  = size + (color ? ' • ' + color : '');
             document.getElementById('variantPrice').textContent  = '₹' + price.toFixed(2);
@@ -903,13 +893,16 @@ function setupVariantSelection() {
     });
 }
 
-function updatePriceDisplay(price) {
+function updatePriceDisplay(price, mrp) {
     const displayPrice  = document.getElementById('displayPrice');
     const displaySavings = document.getElementById('displaySavings');
+    const displayMrp = document.getElementById('displayMrp');
     if (displayPrice) displayPrice.textContent = '₹' + price.toFixed(2);
+    const currentMrp = mrp || baseMrp;
+    if (displayMrp) displayMrp.textContent = '₹' + currentMrp.toFixed(2);
     if (displaySavings) {
-        if (baseMrp > price) {
-            displaySavings.textContent = 'You save: <strong>₹' + (baseMrp - price).toFixed(2) + '</strong>';
+        if (currentMrp > price) {
+            displaySavings.innerHTML = 'You save: <strong>₹' + (currentMrp - price).toFixed(2) + '</strong>';
             displaySavings.style.display = 'inline';
         } else {
             displaySavings.style.display = 'none';

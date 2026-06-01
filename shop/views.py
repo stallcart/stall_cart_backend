@@ -935,7 +935,7 @@ def verify_payment(request):
                     # Final stock check for variant
                     if variant.stock < item_data['quantity']:
                         raise ValueError(f"Stock changed for {product.name} ({variant.size_value}). Only {variant.stock} available.")
-                    unit_price = variant.get_effective_price()
+                    unit_price = variant.final_price
                 else:
                     # Final stock check for product
                     if product.stock < item_data['quantity']:
@@ -1075,11 +1075,14 @@ def _cancel_pending_order(order_unique_id, user):
 def check_pincode(request):
     """
     API view: Check pincode serviceability and estimated delivery date.
-    Returns JSON response.
+    Returns HTML formatted message inside JSON.
     """
     pincode = request.GET.get('pincode', '').strip()
     if not pincode or not pincode.isdigit() or len(pincode) != 6:
-        return JsonResponse({'status': 'error', 'message': 'Invalid PIN code. Please enter a 6-digit number.'}, status=400)
+        return JsonResponse({
+            'status': 'error', 
+            'message': '<span style="color: #ef4444;"><i class="fa fa-exclamation-circle"></i> Please enter a valid 6-digit PIN code.</span>'
+        }, status=400)
     
     from delivery.delivery_services import ShiprocketService
     from django.utils import timezone
@@ -1088,10 +1091,16 @@ def check_pincode(request):
     srv = ShiprocketService()
     res = srv.check_serviceability(delivery_postcode=pincode)
     
+    # Reject fallback (estimate from our end) to enforce Shiprocket accuracy
+    if not res.get('success') or res.get('is_fallback'):
+        return JsonResponse({
+            'status': 'error',
+            'message': '<span style="color: #ef4444;"><i class="fa fa-times-circle"></i> Delivery not available for this PIN code.</span>'
+        })
+    
     delivery_days = res.get('delivery_days', 4)
     etd_date = None
     
-    # Calculate delivery date
     if res.get('etd'):
         from datetime import datetime
         try:
@@ -1103,11 +1112,14 @@ def check_pincode(request):
         etd_date = timezone.now().date() + timedelta(days=delivery_days)
         
     formatted_date = etd_date.strftime("%A, %b %d")
+    courier_name = res.get('courier_name', '')
     
+    html = f'<span style="color: #059669; font-weight: 600;"><i class="fa fa-check-circle"></i> Delivery Available</span><br>'
+    html += f'Expected Delivery: <strong>{formatted_date}</strong> (in {delivery_days} days)<br>'
+    if courier_name:
+        html += f'<small style="color: #64748b;">Shipped via {courier_name}</small>'
+        
     return JsonResponse({
         'status': 'success',
-        'delivery_days': delivery_days,
-        'estimated_date': formatted_date,
-        'courier_name': res.get('courier_name', ''),
-        'is_fallback': res.get('is_fallback', False)
+        'message': html
     })

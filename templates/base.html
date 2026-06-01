@@ -120,6 +120,11 @@
                     <i class="fa fa-store"></i>
                     <span class="hide-mobile">Seller Panel</span>
                 </a>
+                <a href="{% if user.is_superuser %}{% url 'orders:admin_orders' %}{% else %}{% url 'orders:seller_orders' %}{% endif %}"
+                   class="nav-link {% if request.resolver_match.url_name in 'seller_orders,admin_orders' %}active{% endif %}">
+                    <i class="fa fa-clipboard-list"></i>
+                    <span class="hide-mobile">Manage Orders</span>
+                </a>
             {% else %}
                 <a href="{% url 'items:product_list' %}"
                    class="nav-link {% if request.resolver_match.url_name == 'product_list' %}active{% endif %}">
@@ -266,6 +271,10 @@
                 <a href="{% url 'items:admin_dashboard' %}" class="mobile-nav-item">
                     <span class="mobile-nav-icon"><i class="fa fa-store"></i></span>
                     Seller Panel
+                </a>
+                <a href="{% if user.is_superuser %}{% url 'orders:admin_orders' %}{% else %}{% url 'orders:seller_orders' %}{% endif %}" class="mobile-nav-item">
+                    <span class="mobile-nav-icon"><i class="fa fa-clipboard-list"></i></span>
+                    Manage Orders
                 </a>
             {% endif %}
         {% endif %}
@@ -517,6 +526,10 @@
     <a href="{% url 'items:admin_dashboard' %}" class="bottom-nav-item {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}">
         <i class="fa fa-store"></i>
         <span>Dashboard</span>
+    </a>
+    <a href="{% if user.is_superuser %}{% url 'orders:admin_orders' %}{% else %}{% url 'orders:seller_orders' %}{% endif %}" class="bottom-nav-item {% if request.resolver_match.url_name in 'seller_orders,admin_orders' %}active{% endif %}">
+        <i class="fa fa-clipboard-list"></i>
+        <span>Orders</span>
     </a>
     {% endif %}
     {% if user.is_authenticated %}

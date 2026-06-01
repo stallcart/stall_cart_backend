@@ -151,6 +151,8 @@ class Product(BaseModel):
                 # First save to get pk
                 super().save(*args, **kwargs)
                 is_new = False  # Mark as saved
+                # Since we already saved/inserted, subsequent save should not use force_insert
+                kwargs.pop('force_insert', None)
                 
             # Now generate unique SKU with pk
             base_sku = f"{self.seller.shop_name[:3].upper()}-{self.name[:5].upper().replace(' ', '')}-{self.pk}"
@@ -360,26 +362,45 @@ class ProductVariant(BaseModel):
         return self.get_effective_price()
 
     @property
+    def final_price(self):
+        """Get discounted price of variant if parent product has discount (always returns Decimal)"""
+        effective = self.effective_price
+        if self.product.discount_percent and self.product.discount_percent > 0:
+            return round(effective * (Decimal('1') - Decimal(self.product.discount_percent) / Decimal('100')), 2)
+        return effective
+
+    @property
+    def savings_per_unit(self):
+        """Return savings per unit: original/mrp base price - final price (never negative)"""
+        base_price = self.product.mrp if (self.product.mrp and self.product.mrp > self.effective_price) else self.effective_price
+        return max(Decimal('0'), base_price - self.final_price)
+
+    @property
+    def savings(self):
+        """Alias for savings_per_unit for template compatibility"""
+        return self.savings_per_unit
+
+    @property
     def commission_rate(self):
         """Inherits commission rate from parent product's category"""
         return self.product.commission_rate
 
     @property
     def admin_commission(self):
-        return self.effective_price * self.commission_rate
+        return self.final_price * self.commission_rate
 
     @property
     def seller_profit(self):
         """Variant profit uses product's cost_price (unless you add variant-specific cost later)"""
         if self.product.cost_price is None:
             return None
-        return self.effective_price - self.admin_commission - self.product.cost_price
+        return self.final_price - self.admin_commission - self.product.cost_price
 
     @property
     def seller_profit_margin(self):
         profit = self.seller_profit
-        if profit is not None and self.effective_price > 0:
-            return (profit / self.effective_price) * Decimal('100')
+        if profit is not None and self.final_price > 0:
+            return (profit / self.final_price) * Decimal('100')
         return None
 
     def calculate_profit_for_quantity(self, quantity):

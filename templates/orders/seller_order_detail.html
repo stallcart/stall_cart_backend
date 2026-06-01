@@ -39,7 +39,11 @@
         <h3>📦 Your Items in This Order</h3>
         {% for item in seller_items %}
         <div class="order-item">
-            <img src="{{ item.product.primary_image.url|default:'/static/images/placeholder.png' }}" alt="{{ item.product.name }}" width="80">
+            {% if item.product.primary_image %}
+                <img src="{{ item.product.primary_image.url }}" alt="{{ item.product.name }}" width="80">
+            {% else %}
+                <img src="/static/images/placeholder.png" alt="{{ item.product.name }}" width="80">
+            {% endif %}
             <div>
                 <h4>{{ item.product.name }}</h4>
                 <p>SKU: {{ item.product.sku|default:'—' }}</p>
@@ -50,12 +54,11 @@
         {% endfor %}
     </div>
 
-    <!-- Delivery Info -->
-    {% if delivery and delivery.delivery_partner %}
+    {% if delivery and delivery.partner %}
     <div class="delivery-info">
         <h3>🚚 Delivery Partner</h3>
-        <p><strong>{{ delivery.delivery_partner.full_name }}</strong></p>
-        <p>📞 {{ delivery.delivery_partner.phone }}</p>
+        <p><strong>{{ delivery.partner.full_name }}</strong></p>
+        <p>📞 {{ delivery.partner.phone }}</p>
         {% if order.tracking_number %}
             <p>🔢 Tracking: {{ order.tracking_number }}</p>
             {% if order.tracking_url %}
@@ -104,7 +107,7 @@
                 Returned to Source (RTO)
             </h4>
             <p style="font-size: 0.85rem; color: #78350f; line-height: 1.5; margin-bottom: 14px;">
-                This shipment could not be delivered to the customer (e.g. wrong address/delivery failure) and has been returned back to you. Please confirm receipt to refund the customer's wallet.
+                This shipment could not be delivered to the customer (e.g. wrong address/delivery failure) and has been returned back to you. Please confirm receipt to refund the customer.
             </p>
             <button class="btn-primary" id="confirmRtoBtn" onclick="confirmRtoReceipt('{{ order.unique_order_id }}')" style="background: #d97706; border: none; width: 100%; font-weight: 700; font-size: 0.9rem; padding: 10px; border-radius: var(--r-md); color: white; cursor: pointer;">
                 ✓ Confirm Receipt & Process Refund

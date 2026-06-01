@@ -98,6 +98,14 @@ DATABASES = {
     }
 }
 
+# Use SQLite for running tests to bypass MySQL permissions and speed up testing
+import sys
+if 'test' in sys.argv or 'test_coverage' in sys.argv:
+    DATABASES['default'] = {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
+
 # ═══════════════════════════════════════════════════════════
 # AUTH & USER SETTINGS
 # ═══════════════════════════════════════════════════════════
