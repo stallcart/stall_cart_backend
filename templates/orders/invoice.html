@@ -524,7 +524,7 @@
         <div class="invoice-section">
             <table class="pricing-table">
                 <tr>
-                    <td class="label">Subtotal ({{ order.items.count }} item{{ order.items.count|pluralize }})</td>
+                    <td class="label">Items Total ({{ order.items.count }} item{{ order.items.count|pluralize }})</td>
                     <td class="value">₹{{ order.mrp_subtotal|floatformat:2 }}</td>
                 </tr>
                 {% if order.discount_amount and order.discount_amount > 0 %}

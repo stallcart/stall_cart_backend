@@ -48,6 +48,26 @@
                 <h4>{{ item.product.name }}</h4>
                 <p>SKU: {{ item.product.sku|default:'—' }}</p>
                 <p>Qty: {{ item.quantity }} × ₹{{ item.price|floatformat:2 }}</p>
+                <p style="font-size: 0.85rem; color: #555; margin-top: 4px;">
+                    Commission ({{ item.product.category.commision_percentage|default:0 }}%): 
+                    <span style="color: #c62828; font-weight: 600;">−₹{{ item.commission_amount|floatformat:2 }}</span>
+                </p>
+                {% if order.status == 'delivered' and not order.is_returned %}
+                    <p style="font-size: 0.85rem; color: #555; margin-top: 2px;">
+                        Your Earnings: 
+                        <span style="color: #2e7d32; font-weight: 600;">₹{{ item.seller_earnings|floatformat:2 }}</span>
+                    </p>
+                {% elif order.status == 'cancelled' %}
+                    <p style="font-size: 0.85rem; color: #555; margin-top: 2px;">
+                        Your Earnings: 
+                        <span style="color: #c62828; font-weight: 600;">₹0.00</span>
+                    </p>
+                {% else %}
+                    <p style="font-size: 0.85rem; color: #555; margin-top: 2px;">
+                        Est. Earnings: 
+                        <span style="color: #2874f0; font-weight: 600;">₹{{ item.seller_earnings|floatformat:2 }}</span>
+                    </p>
+                {% endif %}
                 <p class="item-total">₹{{ item.total|floatformat:2 }}</p>
             </div>
         </div>
