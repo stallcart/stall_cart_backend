@@ -10,7 +10,7 @@
         
         @page {
             size: A4;
-            margin: 1.5cm;
+            margin: 0.8cm;
         }
         
         * {
@@ -96,7 +96,7 @@
         
         /* ===== SECTIONS ===== */
         .invoice-section {
-            margin-bottom: 20pt;
+            margin-bottom: 10pt;
         }
         
         .section-title {
@@ -293,36 +293,37 @@
         
         /* ===== FOOTER ===== */
         .invoice-footer {
-            margin-top: 30pt;
-            padding-top: 15pt;
-            border-top: 2pt solid #e2e8f0;
+            margin-top: 12pt;
+            padding-top: 8pt;
+            border-top: 1.5pt solid #e2e8f0;
             text-align: center;
-            font-size: 10pt;
+            font-size: 9pt;
         }
         
         .thank-you {
-            font-size: 12pt;
+            font-size: 10.5pt;
             font-weight: bold;
             color: #1a5fd4;
-            margin-bottom: 12pt;
+            margin-bottom: 4pt;
         }
         
         .footer-note {
             color: #64748b;
-            margin-bottom: 8pt;
-            line-height: 1.4;
+            margin-bottom: 4pt;
+            line-height: 1.3;
+            font-size: 8.5pt;
         }
         
         .footer-contact {
             color: #475569;
-            margin: 3pt 0;
-            font-size: 10pt;
+            margin: 2pt 0;
+            font-size: 8.5pt;
         }
         
         .footer-copyright {
-            font-size: 9pt;
+            font-size: 8pt;
             color: #94a3b8;
-            margin-top: 12pt;
+            margin-top: 6pt;
         }
         
         /* ===== UTILITIES ===== */
@@ -342,66 +343,80 @@
     <div class="invoice-container">
         
         <!-- Header -->
-        <div class="invoice-header">
-            <div class="invoice-logo">
-                {% if site_settings.logo_url %}
-                    <!-- xhtml2pdf: Use absolute URL for images -->
-                    <img src="{{ request.scheme }}://{{ request.get_host }}{{ site_settings.logo_url }}" alt="{{ site_settings.site_name }}"><br>
-                    <div style="font-size: 12pt; font-weight: bold; color: #475569; margin-top: 4pt;">
-                        {{ site_settings.site_name }}
-                    </div>
-                {% else %}
-                    <div class="invoice-logo-text">{{ site_settings.site_name }}</div>
-                {% endif %}
-            </div>
-            <div class="invoice-meta">
-                <div class="invoice-title">INVOICE</div>
-                <div class="invoice-number">#{{ order.unique_order_id }}</div>
-                <div class="invoice-date">Date: {{ order.created_at|date:"F d, Y" }}</div>
-            </div>
-        </div>
+        <table style="width: 100%; border-bottom: 2pt solid #99beff; padding-bottom: 12pt; margin-bottom: 18pt;">
+            <tr>
+                <td style="width: 60%; vertical-align: middle;">
+                    {% if site_settings.logo_url %}
+                        <img src="{{ request.scheme }}://{{ request.get_host }}{{ site_settings.logo_url }}" alt="{{ site_settings.site_name }}" height="40" style="display: block; margin-bottom: 4pt;"><br>
+                        <div style="font-size: 11pt; font-weight: bold; color: #475569; margin-top: 2pt;">
+                            {{ site_settings.site_name }}
+                        </div>
+                    {% else %}
+                        <div class="invoice-logo-text">{{ site_settings.site_name }}</div>
+                    {% endif %}
+                </td>
+                <td style="width: 40%; text-align: right; vertical-align: middle;">
+                    <div class="invoice-title" style="font-size: 20pt; font-weight: bold; color: #0f172a; margin-bottom: 3pt;">INVOICE</div>
+                    <div class="invoice-number" style="font-size: 12pt; color: #64748b; margin-bottom: 5pt;">#{{ order.unique_order_id }}</div>
+                    <div class="invoice-date" style="font-size: 11pt; color: #475569;">Date: {{ order.created_at|date:"F d, Y" }}</div>
+                </td>
+            </tr>
+        </table>
         
-        <!-- Company Info / Seller Info -->
-        <div class="invoice-section">
-            <div class="address-label">From</div>
-            {% with seller=order.items.first.seller %}
-            {% if seller %}
-                <div class="address-name">{{ seller.shop_name }}</div>
-                {% if seller.address.address %}
-                    <div class="address-line">{{ seller.address.address }}</div>
-                {% endif %}
-                <div class="address-line">
-                    {{ seller.address.city|default:"" }}{% if seller.address.state %}, {{ seller.address.state }}{% endif %} 
-                    {% if seller.address.postalCode %} - {{ seller.address.postalCode }}{% endif %}
-                </div>
-                {% if seller.phone %}
-                    <div class="address-phone">📞 {{ seller.phone }}</div>
-                {% endif %}
-                {% if seller.user.email %}
-                    <div class="address-phone">✉️ {{ seller.user.email }}</div>
-                {% endif %}
-                {% if seller.gst_number %}
-                    <div class="address-phone" style="margin-top: 4pt; font-weight: bold; color: #475569;">GSTIN: {{ seller.gst_number }}</div>
-                {% endif %}
-            {% else %}
-                <div class="address-name">{{ site_settings.site_name }}</div>
-                <div class="address-line">{{ site_settings.contact_address|default:"123 Commerce Street" }}</div>
-                <div class="address-line">
-                    {{ site_settings.contact_city|default:"Mumbai" }}, 
-                    {{ site_settings.contact_state|default:"MH" }} 
-                    {{ site_settings.contact_pin|default:"400001" }}
-                </div>
-                <div class="address-phone">📞 {{ site_settings.contact_phone|default:"+91 98765 43210" }}</div>
-                <div class="address-phone">✉️ {{ site_settings.contact_email|default:"support@stallcart.com" }}</div>
-            {% endif %}
-            {% endwith %}
-        </div>
-        
-        <!-- Addresses (JSON Fields - Safe Access) -->
-        <div class="invoice-section">
-            <div class="addresses-grid">
+        <!-- Company Info / Seller Info & Order details in two-column table -->
+        <table style="width: 100%; table-layout: fixed; margin-bottom: 18pt;">
+            <tr>
+                <!-- Left: From (Seller Info) -->
+                <td style="width: 50%; vertical-align: top; padding-right: 15pt;">
+                    <div class="address-label">From</div>
+                    {% with seller=order.items.first.seller %}
+                    {% if seller %}
+                        <div class="address-name">{{ seller.shop_name }}</div>
+                        {% if seller.address.address %}
+                            <div class="address-line">{{ seller.address.address }}</div>
+                        {% endif %}
+                        <div class="address-line">
+                            {{ seller.address.city|default:"" }}{% if seller.address.state %}, {{ seller.address.state }}{% endif %} 
+                            {% if seller.address.postalCode %} - {{ seller.address.postalCode }}{% endif %}
+                        </div>
+                        {% if seller.phone %}
+                            <div class="address-phone">Phone: {{ seller.phone }}</div>
+                        {% endif %}
+                        {% if seller.user.email %}
+                            <div class="address-phone">Email: {{ seller.user.email }}</div>
+                        {% endif %}
+                        {% if seller.gst_number %}
+                            <div class="address-phone" style="margin-top: 4pt; font-weight: bold; color: #475569;">GSTIN: {{ seller.gst_number }}</div>
+                        {% endif %}
+                    {% else %}
+                        <div class="address-name">{{ site_settings.site_name }}</div>
+                        <div class="address-line">{{ site_settings.contact_address|default:"123 Commerce Street" }}</div>
+                        <div class="address-line">
+                            {{ site_settings.contact_city|default:"Mumbai" }}, 
+                            {{ site_settings.contact_state|default:"MH" }} 
+                            {{ site_settings.contact_pin|default:"400001" }}
+                        </div>
+                        <div class="address-phone">Phone: {{ site_settings.contact_phone|default:"+91 98765 43210" }}</div>
+                        <div class="address-phone">Email: {{ site_settings.contact_email|default:"support@stallcart.com" }}</div>
+                    {% endif %}
+                    {% endwith %}
+                </td>
+                
+                <!-- Right: Stacked general order properties -->
+                <td style="width: 50%; vertical-align: top; padding-left: 15pt;">
+                    <div class="address-label">Order Details</div>
+                    <div class="address-line"><strong style="color: #1e293b;">Order ID:</strong> #{{ order.unique_order_id }}</div>
+                    <div class="address-line"><strong style="color: #1e293b;">Order Status:</strong> {{ order.get_status_display }}</div>
+                    <div class="address-line"><strong style="color: #1e293b;">Date:</strong> {{ order.created_at|date:"F d, Y, h:i A" }}</div>
+                </td>
+            </tr>
+        </table>
+
+        <!-- Billing & Shipping Address side-by-side Table -->
+        <table style="width: 100%; table-layout: fixed; margin-bottom: 18pt;">
+            <tr>
                 <!-- Bill To -->
-                <div class="address-col">
+                <td style="width: 50%; vertical-align: top; padding-right: 15pt;">
                     <div class="address-label">Bill To</div>
                     <div class="address-name">
                         {{ order.billing_address.name|default:order.user.full_name|default:order.guest_email }}
@@ -416,11 +431,11 @@
                         {{ order.billing_address.postal_code|default:"" }}
                     </div>
                     <div class="address-line">{{ order.billing_address.country|default:"India" }}</div>
-                    <div class="address-phone">📞 {{ order.billing_address.phone|default:order.guest_phone|default:order.user.phone }}</div>
-                </div>
+                    <div class="address-phone">Phone: {{ order.billing_address.phone|default:order.guest_phone|default:order.user.phone }}</div>
+                </td>
                 
                 <!-- Ship To -->
-                <div class="address-col">
+                <td style="width: 50%; vertical-align: top; padding-left: 15pt;">
                     <div class="address-label">Ship To</div>
                     <div class="address-name">{{ order.shipping_address.name|default:"" }}</div>
                     <div class="address-line">{{ order.shipping_address.address_line1|default:"" }}</div>
@@ -433,45 +448,45 @@
                         {{ order.shipping_address.postal_code|default:"" }}
                     </div>
                     <div class="address-line">{{ order.shipping_address.country|default:"India" }}</div>
-                    <div class="address-phone">📞 {{ order.shipping_address.phone|default:"" }}</div>
-                </div>
-            </div>
-        </div>
+                    <div class="address-phone">Phone: {{ order.shipping_address.phone|default:"" }}</div>
+                </td>
+            </tr>
+        </table>
         
         <!-- Order Details Table -->
         <div class="invoice-section">
             <div class="section-title">Order Items</div>
-            <table class="order-table">
+            <table class="order-table" style="width: 100%; border-collapse: collapse; margin-bottom: 12pt;">
                 <thead>
                     <tr>
-                        <th width="50%">Product</th>
-                        <th width="15%" class="text-right">Price</th>
-                        <th width="10%" class="text-right">Qty</th>
-                        <th width="25%" class="text-right">Total</th>
+                        <th width="50%" style="background-color: #ebf2ff; color: #1249a8; padding: 8pt 10pt; font-weight: bold; border-bottom: 2pt solid #99beff;">Product</th>
+                        <th width="15%" class="text-right" style="background-color: #ebf2ff; color: #1249a8; padding: 8pt 10pt; font-weight: bold; border-bottom: 2pt solid #99beff;">Price</th>
+                        <th width="10%" class="text-right" style="background-color: #ebf2ff; color: #1249a8; padding: 8pt 10pt; font-weight: bold; border-bottom: 2pt solid #99beff;">Qty</th>
+                        <th width="25%" class="text-right" style="background-color: #ebf2ff; color: #1249a8; padding: 8pt 10pt; font-weight: bold; border-bottom: 2pt solid #99beff;">Total</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for item in order.items.all %}
-                    <tr>
-                        <td>
-                            <div class="product-name">{{ item.product.name }}</div>
+                    <tr style="border-bottom: 1px solid #f1f4f9;">
+                        <td style="padding: 10pt;">
+                            <div class="product-name" style="font-weight: bold; color: #1e293b; font-size: 11pt; margin-bottom: 3pt;">{{ item.product.name }}</div>
                             {% if item.product.sku %}
-                            <div class="product-sku">SKU: {{ item.product.sku }}</div>
+                            <div class="product-sku" style="font-size: 9pt; color: #94a3b8;">SKU: {{ item.product.sku }}</div>
                             {% endif %}
                             {% if item.seller %}
-                            <div class="text-muted" style="font-size:9pt;margin-top:2pt;">
+                            <div class="text-muted" style="font-size: 9pt; margin-top: 2pt;">
                                 Sold by: {{ item.seller.shop_name|default:"StallCart" }}
                             </div>
                             {% endif %}
                         </td>
-                        <td class="text-right">
-                            <span class="product-price">₹{{ item.price|floatformat:2 }}</span>
+                        <td class="text-right" style="padding: 10pt; vertical-align: top;">
+                            <span class="product-price" style="font-weight: bold; color: #1e293b;">₹{{ item.price|floatformat:2 }}</span>
                         </td>
-                        <td class="text-right">
+                        <td class="text-right" style="padding: 10pt; vertical-align: top;">
                             <span>{{ item.quantity }}</span>
                         </td>
-                        <td class="text-right">
-                            <span class="product-total">₹{{ item.total|floatformat:2 }}</span>
+                        <td class="text-right" style="padding: 10pt; vertical-align: top;">
+                            <span class="product-total" style="font-weight: bold; color: #0f172a;">₹{{ item.total|floatformat:2 }}</span>
                         </td>
                     </tr>
                     {% empty %}
@@ -485,70 +500,70 @@
             </table>
         </div>
         
-        <!-- Pricing Summary -->
-        <div class="invoice-section">
-            <table class="pricing-table">
-                <tr>
-                    <td class="label">Items Total ({{ order.items.count }} item{{ order.items.count|pluralize }})</td>
-                    <td class="value">₹{{ order.mrp_subtotal|floatformat:2 }}</td>
-                </tr>
-                {% if order.discount_amount and order.discount_amount > 0 %}
-                <tr>
-                    <td class="label">Discount</td>
-                    <td class="value" style="color:#ef4444;">-₹{{ order.discount_amount|floatformat:2 }}</td>
-                </tr>
-                {% endif %}
-                {% if order.delivery_charge and order.delivery_charge > 0 %}
-                <tr>
-                    <td class="label">Delivery Charge</td>
-                    <td class="value">₹{{ order.delivery_charge|floatformat:2 }}</td>
-                </tr>
-                {% endif %}
-                {% if order.tax_amount and order.tax_amount > 0 %}
-                <tr>
-                    <td class="label">Tax (GST)</td>
-                    <td class="value">₹{{ order.tax_amount|floatformat:2 }}</td>
-                </tr>
-                {% endif %}
-                <tr class="total-row">
-                    <td class="label">Grand Total</td>
-                    <td class="value">₹{{ order.total_amount|floatformat:2 }}</td>
-                </tr>
-            </table>
-        </div>
-        
-        <!-- Payment Details -->
-        <div class="invoice-section">
-            <div class="section-title">Payment Details</div>
-            <table style="width:100%;font-size:11pt;">
-                <tr>
-                    <td style="width:100%;vertical-align:top;">
-                        <div class="address-label mb-6">Payment Method</div>
-                        <div class="payment-box">
-                            <div class="payment-method">
-                                <strong>
-                                    {% if order.payment_method == 'cod' %}💵 Cash on Delivery
-                                    {% elif order.payment_method == 'razorpay' %}💳 Razorpay (UPI/Card)
-                                    {% elif order.payment_method == 'wallet' %}👛 StallCart Wallet
-                                    {% else %}{{ order.payment_method|title }}{% endif %}
-                                </strong>
-                            </div>
-                            <div class="payment-status 
-                                {% if order.payment_status == 'paid' %}payment-paid
-                                {% elif order.payment_status == 'failed' %}payment-failed
-                                {% else %}payment-pending{% endif %}">
-                                {{ order.get_payment_status_display|default:"Pending" }}
-                            </div>
-                            {% if order.razorpay_payment_id %}
-                            <div style="font-size:9pt;color:#64748b;margin-top:4pt;">
-                                Payment ID: {{ order.razorpay_payment_id|truncatechars:20 }}
-                            </div>
-                            {% endif %}
+        <!-- Bottom Section: Payment Details & Pricing Summary in side-by-side Table -->
+        <table style="width: 100%; table-layout: fixed; border-collapse: collapse; margin-top: 10pt; margin-bottom: 20pt; page-break-inside: avoid;">
+            <tr>
+                <!-- Left: Payment Details -->
+                <td style="width: 55%; vertical-align: top; padding-right: 20pt;">
+                    <div class="address-label" style="margin-bottom: 8pt;">Payment Details</div>
+                    <div class="payment-box" style="background-color: #f8fafc; border-radius: 8pt; padding: 12pt; border: 1px solid #e2e8f0;">
+                        <div class="payment-method" style="margin-bottom: 6pt; font-size: 11pt; color: #1e293b;">
+                            <strong>Method:
+                                {% if order.payment_method == 'cod' %}Cash on Delivery (COD)
+                                {% elif order.payment_method == 'razorpay' %}Razorpay (Prepaid)
+                                {% elif order.payment_method == 'wallet' %}StallCart Wallet
+                                {% else %}{{ order.payment_method|title }}{% endif %}
+                            </strong>
                         </div>
-                    </td>
-                </tr>
-            </table>
-        </div>
+                        <div class="payment-status" style="font-size: 10pt; font-weight: bold; margin-bottom: 6pt;">
+                            Status:
+                            <span class="{% if order.payment_status == 'paid' %}payment-paid{% elif order.payment_status == 'failed' %}payment-failed{% else %}payment-pending{% endif %}">
+                                {{ order.get_payment_status_display|default:"Pending" }}
+                            </span>
+                        </div>
+                        {% if order.razorpay_payment_id %}
+                        <div style="font-size: 9pt; color: #64748b; margin-top: 6pt; border-top: 1px dashed #e2e8f0; padding-top: 6pt;">
+                            Transaction ID:<br>
+                            <span style="font-family: monospace; color: #334155; font-weight: bold;">{{ order.razorpay_payment_id }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </td>
+                
+                <!-- Right: Pricing Summary -->
+                <td style="width: 45%; vertical-align: top;">
+                    <div class="address-label" style="margin-bottom: 8pt; text-align: right;">Summary</div>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 10pt;">
+                        <tr>
+                            <td style="padding: 4pt 0; text-align: left; color: #475569;">Items Total</td>
+                            <td style="padding: 4pt 0; text-align: right; font-weight: bold; color: #1e293b;">₹{{ order.mrp_subtotal|floatformat:2 }}</td>
+                        </tr>
+                        {% if order.discount_amount and order.discount_amount > 0 %}
+                        <tr>
+                            <td style="padding: 4pt 0; text-align: left; color: #475569;">Discount</td>
+                            <td style="padding: 4pt 0; text-align: right; font-weight: bold; color: #ef4444;">-₹{{ order.discount_amount|floatformat:2 }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if order.delivery_charge and order.delivery_charge > 0 %}
+                        <tr>
+                            <td style="padding: 4pt 0; text-align: left; color: #475569;">Delivery Charge</td>
+                            <td style="padding: 4pt 0; text-align: right; font-weight: bold; color: #1e293b;">₹{{ order.delivery_charge|floatformat:2 }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if order.tax_amount and order.tax_amount > 0 %}
+                        <tr>
+                            <td style="padding: 4pt 0; text-align: left; color: #475569;">Tax (GST)</td>
+                            <td style="padding: 4pt 0; text-align: right; font-weight: bold; color: #1e293b;">₹{{ order.tax_amount|floatformat:2 }}</td>
+                        </tr>
+                        {% endif %}
+                        <tr style="background-color: #ebf2ff; border-top: 1.5pt solid #99beff;">
+                            <td style="padding: 6pt; text-align: left; color: #1249a8; font-weight: bold; font-size: 11pt;">Grand Total</td>
+                            <td style="padding: 6pt; text-align: right; color: #1a5fd4; font-weight: bold; font-size: 13pt;">₹{{ order.total_amount|floatformat:2 }}</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
         
         <!-- Footer -->
         <div class="invoice-footer">
@@ -557,13 +572,15 @@
                 This is a computer-generated invoice and does not require a signature.<br>
                 For queries, contact support with order number: <strong>#{{ order.unique_order_id }}</strong>
             </div>
-            <div class="footer-contact">📧 {{ site_settings.contact_email }}</div>
-            <div class="footer-contact">📞 {{ site_settings.contact_phone }}</div>
-            {% if site_settings.contact_whatsapp %}
-            <div class="footer-contact">💬 WhatsApp: {{ site_settings.contact_whatsapp }}</div>
-            {% endif %}
+            <div class="footer-contact" style="margin-top: 6pt; color: #475569; font-size: 8.5pt;">
+                <strong>Email:</strong> {{ site_settings.contact_email }} |
+                <strong>Phone:</strong> {{ site_settings.contact_phone }}
+                {% if site_settings.contact_whatsapp %}
+                | <strong>WhatsApp:</strong> {{ site_settings.contact_whatsapp }}
+                {% endif %}
+            </div>
             <div class="footer-copyright">
-                © {% now "Y" %} {{ site_settings.site_name }}. All rights reserved.
+                Copyright (c) {% now "Y" %} {{ site_settings.site_name }}. All rights reserved.
             </div>
         </div>
         
@@ -571,8 +588,8 @@
     
     <!-- Print Button (visible in browser, hidden in PDF) -->
     <div class="no-print">
-        <button onclick="window.print()" class="print-btn">🖨️ Save as PDF</button>
-        <p class="print-hint">Use browser print dialog → "Save as PDF"</p>
+        <button onclick="window.print()" class="print-btn">Save as PDF</button>
+        <p class="print-hint">Use browser print dialog -> "Save as PDF"</p>
     </div>
     
     <!-- Auto-print and browser-only style injection -->
