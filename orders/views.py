@@ -419,6 +419,13 @@ def _link_callback(uri, rel, request):
     from django.conf import settings
     import os
     
+    # Strip protocol and host if pointing to our own server to avoid loopback deadlock
+    host = request.get_host()
+    if uri.startswith(f"http://{host}"):
+        uri = uri[len(f"http://{host}"):]
+    elif uri.startswith(f"https://{host}"):
+        uri = uri[len(f"https://{host}"):]
+    
     # Handle static files
     if uri.startswith(settings.STATIC_URL):
         path = uri.replace(settings.STATIC_URL, '', 1)
