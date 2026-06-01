@@ -324,7 +324,7 @@
                 {% for order in seller_orders %}
                 <div class="order-preview-item">
                     <div>
-                        <strong>Order #{{ order.order.unique_order_id|default:order.order.id|slice:":8"|upper }}</strong>
+                        <strong>Order #{% if order.order.unique_order_id %}{{ order.order.unique_order_id }}{% else %}{{ order.order.id|slice:":8"|upper }}{% endif %}</strong>
                         <p class="text-muted">{{ order.order.created_at|date:"M d, Y, h:i A" }}</p>
                         <p class="text-muted">{{ order.quantity }} × {{ order.product.name|truncatechars:30 }}</p>
                         <p class="text-muted">Customer: {{ order.order.user.full_name|default:order.order.guest_email }}</p>
@@ -457,7 +457,7 @@
                 {% for order in user_orders %}
                 <div class="order-preview-item">
                     <div>
-                        <strong>Order #{{ order.unique_order_id|default:order.id|slice:":8"|upper }}</strong>
+                        <strong>Order #{% if order.unique_order_id %}{{ order.unique_order_id }}{% else %}{{ order.id|slice:":8"|upper }}{% endif %}</strong>
                         <p class="text-muted">{{ order.created_at|date:"M d, Y" }}</p>
                         <p class="text-muted">{{ order.items.count }} item{{ order.items.count|pluralize }}</p>
                     </div>

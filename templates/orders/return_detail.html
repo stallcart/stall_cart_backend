@@ -70,10 +70,22 @@
                 <!-- Refund Completed -->
                 <div style="position: relative; padding-left: 20px; padding-bottom: 4px;">
                     <div style="position: absolute; left: -17px; top: 2px; width: 12px; height: 12px; border-radius: 50%; 
-                        {% if return_request.refund_status == 'completed' %}background: var(--green);{% else %}background: var(--gray-300);{% endif %} border: 2px solid white;"></div>
-                    <strong style="display: block; font-size: 0.875rem; {% if return_request.refund_status == 'completed' %}color: var(--gray-800);{% else %}color: var(--gray-400);{% endif %}">Refund Processed</strong>
+                        {% if return_request.refund_status == 'completed' or return_request.refund_status == 'manual_pending' %}background: var(--green);{% else %}background: var(--gray-300);{% endif %} border: 2px solid white;"></div>
+                    <strong style="display: block; font-size: 0.875rem; {% if return_request.refund_status == 'completed' or return_request.refund_status == 'manual_pending' %}color: var(--gray-800);{% else %}color: var(--gray-400);{% endif %}">Refund Processed</strong>
                     {% if return_request.refund_status == 'completed' %}
-                        <span style="font-size: 0.75rem; color: var(--green); font-weight: 600;">Refunded to StallCart Wallet</span>
+                        <span style="font-size: 0.75rem; color: var(--green); font-weight: 600;">
+                            {% if return_request.refund_method == 'original' %}
+                                Refunded to Original Payment Source
+                            {% elif return_request.refund_method == 'bank' %}
+                                Refunded to Bank Account
+                            {% else %}
+                                Refunded to StallCart Wallet
+                            {% endif %}
+                        </span>
+                    {% elif return_request.refund_status == 'manual_pending' %}
+                        <span style="font-size: 0.75rem; color: #2563eb; font-weight: 600;">
+                            Manual Bank Refund Pending
+                        </span>
                     {% else %}
                         <span style="font-size: 0.75rem; color: var(--gray-500);">Processing refund amount</span>
                     {% endif %}

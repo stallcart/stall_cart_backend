@@ -30,22 +30,42 @@
     <!-- Return Requests Section -->
     {% include "orders/return_requests_panel.html" with pending_returns=pending_returns %}
 
-    <!-- Filter Bar -->
-    <div class="filter-bar">
-        <form method="get" class="filter-form">
-            <select name="status" onchange="this.form.submit()">
-                <option value="">All Statuses</option>
-                <option value="pending" {% if filters.status == 'pending' %}selected{% endif %}>Pending</option>
-                <option value="confirmed" {% if filters.status == 'confirmed' %}selected{% endif %}>Confirmed</option>
-                <option value="processing" {% if filters.status == 'processing' %}selected{% endif %}>Processing</option>
-                <option value="shipped" {% if filters.status == 'shipped' %}selected{% endif %}>Shipped</option>
-                <option value="out_for_delivery" {% if filters.status == 'out_for_delivery' %}selected{% endif %}>Out for Delivery</option>
-                <option value="delivered" {% if filters.status == 'delivered' %}selected{% endif %}>Delivered</option>
-                <option value="cancelled" {% if filters.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
-            </select>
-            {% if filters.status %}
-                <a href="{% url 'orders:seller_orders' %}" class="btn-clear">✕ Clear Filter</a>
-            {% endif %}
+    <!-- Filter & Search Bar -->
+    <div class="filter-bar" style="background: white; padding: 16px; border-radius: var(--r-xl); border: 1.5px solid var(--gray-100); box-shadow: var(--sh-sm); margin-bottom: 24px;">
+        <form method="get" class="filter-form" style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center; width: 100%;">
+            <!-- Search Text -->
+            <div style="flex: 2; min-width: 200px;">
+                <input type="text" name="q" placeholder="Search by Order ID, Name, Phone..." value="{{ filters.q|default:'' }}" class="form-input" style="width: 100%; padding: 8px 12px; border: 1.5px solid var(--gray-200); border-radius: var(--r-md); font-size: 0.9rem;">
+            </div>
+            
+            <!-- Date Picker -->
+            <div style="flex: 1; min-width: 150px;">
+                <input type="date" name="date" value="{{ filters.date|default:'' }}" class="form-input" style="width: 100%; padding: 8px 12px; border: 1.5px solid var(--gray-200); border-radius: var(--r-md); font-size: 0.9rem;">
+            </div>
+            
+            <!-- Status Dropdown -->
+            <div style="flex: 1; min-width: 150px;">
+                <select name="status" class="form-input" style="width: 100%; padding: 8px 12px; border: 1.5px solid var(--gray-200); border-radius: var(--r-md); font-size: 0.9rem;">
+                    <option value="">All Statuses</option>
+                    <option value="pending" {% if filters.status == 'pending' %}selected{% endif %}>Pending</option>
+                    <option value="confirmed" {% if filters.status == 'confirmed' %}selected{% endif %}>Confirmed</option>
+                    <option value="processing" {% if filters.status == 'processing' %}selected{% endif %}>Processing</option>
+                    <option value="shipped" {% if filters.status == 'shipped' %}selected{% endif %}>Shipped</option>
+                    <option value="out_for_delivery" {% if filters.status == 'out_for_delivery' %}selected{% endif %}>Out for Delivery</option>
+                    <option value="delivered" {% if filters.status == 'delivered' %}selected{% endif %}>Delivered</option>
+                    <option value="cancelled" {% if filters.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                    <option value="returned" {% if filters.status == 'returned' %}selected{% endif %}>Returned</option>
+                    <option value="refunded" {% if filters.status == 'refunded' %}selected{% endif %}>Refunded</option>
+                </select>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div style="display: flex; gap: 8px;">
+                <button type="submit" class="btn-primary" style="padding: 8px 16px; font-weight: 700; border-radius: var(--r-md); font-size: 0.9rem; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; height: 38px;">Filter</button>
+                {% if filters.status or filters.q or filters.date %}
+                    <a href="{% url 'orders:seller_orders' %}" class="btn-outline" style="padding: 8px 16px; border-radius: var(--r-md); font-size: 0.9rem; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; height: 38px; border: 1.5px solid var(--gray-200);">Clear</a>
+                {% endif %}
+            </div>
         </form>
     </div>
 
@@ -55,7 +75,7 @@
     <div class="order-card">
         <div class="order-header">
             <div>
-                <h3>Order #{{ order_group.grouper.unique_order_id|default:order_group.grouper.id|slice:":8"|upper }}</h3>
+                <h3>Order #{% if order_group.grouper.unique_order_id %}{{ order_group.grouper.unique_order_id }}{% else %}{{ order_group.grouper.id|slice:":8"|upper }}{% endif %}</h3>
                 <p class="text-muted">Placed on {{ order_group.grouper.created_at|date:"M d, Y, h:i A" }}</p>
                 <p class="text-muted">Customer: {{ order_group.grouper.user.full_name|default:order_group.grouper.guest_email }}</p>
             </div>
@@ -67,8 +87,11 @@
         <div class="order-items-list">
             {% for item in order_group.list %}
             <div class="order-item-row">
-                <img src="{{ item.product.primary_image.url|default:'/static/images/placeholder.png' }}" 
-                     alt="{{ item.product.name }}" class="item-thumb">
+                {% if item.product.primary_image %}
+                    <img src="{{ item.product.primary_image.url }}" alt="{{ item.product.name }}" class="item-thumb">
+                {% else %}
+                    <img src="/static/images/placeholder.png" alt="{{ item.product.name }}" class="item-thumb">
+                {% endif %}
                 <div class="item-details">
                     <h4>{{ item.product.name }}</h4>
                     <p>SKU: {{ item.product.sku|default:'—' }} • Qty: {{ item.quantity }}</p>

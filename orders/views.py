@@ -152,7 +152,7 @@ def order_detail(request, order_id):
     context = {
         'order': order,
         'timeline': timeline,
-        'delivery': getattr(order, 'delivery_assignment', None),
+        'delivery': getattr(order, 'delivery_task', None),
         'shiprocket_tracking': shiprocket_tracking,
     }
     return render(request, 'orders/order_detail.html', context)
@@ -187,17 +187,39 @@ def cancel_order(request, order_id):
             item.product.stock += item.quantity
             item.product.save()
     
-    if order.payment_status == 'paid' and order.payment_method == 'razorpay':
-        try:
-            razorpay_client.refund.create({
-                'payment_id': order.razorpay_payment_id,
-                'amount': int(order.total_amount * 100),
-                'notes': {'order_id': order.unique_order_id}
-            })
-            order.payment_status = 'refunded'
-            order.save()
-        except Exception as e:
-            logger.error(f"Refund failed for {order.unique_order_id}: {e}")
+    if order.payment_status == 'paid':
+        if order.payment_method == 'razorpay':
+            client = get_razorpay_client()
+            if client:
+                try:
+                    client.refund.create({
+                        'payment_id': order.razorpay_payment_id,
+                        'amount': int(order.total_amount * 100),
+                        'notes': {'order_id': order.unique_order_id}
+                    })
+                    order.payment_status = 'refunded'
+                    order.refund_amount = order.total_amount
+                    order.refund_at = timezone.now()
+                    order.save()
+                except Exception as e:
+                    logger.error(f"Refund failed for {order.unique_order_id}: {e}")
+            else:
+                logger.error(f"Razorpay client not configured for cancellation refund of {order.unique_order_id}")
+        elif order.payment_method == 'wallet':
+            try:
+                from accounts.models import Wallet
+                wallet, _ = Wallet.objects.get_or_create(user=order.user)
+                wallet.deposit(
+                    amount=order.total_amount,
+                    reference_id=f"CNL-{order.unique_order_id}",
+                    description=f"Refund for cancelled Order #{order.unique_order_id}"
+                )
+                order.payment_status = 'refunded'
+                order.refund_amount = order.total_amount
+                order.refund_at = timezone.now()
+                order.save()
+            except Exception as e:
+                logger.error(f"Wallet refund failed for cancelled Order {order.unique_order_id}: {e}")
     
     messages.success(request, f"Order {order.unique_order_id} cancelled successfully")
     return JsonResponse({'status': 'success', 'redirect': '/orders/'})
@@ -538,9 +560,40 @@ def seller_orders(request):
         'order__items__product'
     ).order_by('-order__created_at')
     
+    # ── Search & Filter ──────────────────────────────────────────
+    from django.db.models import Q
+    from datetime import datetime
+    
+    q = request.GET.get('q', '').strip()
+    if q:
+        query = Q(order__unique_order_id__icontains=q) | \
+                Q(order__user__full_name__icontains=q) | \
+                Q(order__user__phone__icontains=q) | \
+                Q(order__guest_email__icontains=q) | \
+                Q(order__guest_phone__icontains=q)
+        
+        # Support inline date search (e.g. YYYY-MM-DD)
+        for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%Y/%m/%d", "%d/%m/%Y"):
+            try:
+                dt = datetime.strptime(q, fmt).date()
+                query |= Q(order__created_at__date=dt)
+                break
+            except ValueError:
+                continue
+        order_items = order_items.filter(query)
+        
+    date_filter = request.GET.get('date', '').strip()
+    if date_filter:
+        try:
+            dt = datetime.strptime(date_filter, "%Y-%m-%d").date()
+            order_items = order_items.filter(order__created_at__date=dt)
+        except ValueError:
+            pass
+            
     status_filter = request.GET.get('status')
     if status_filter:
         order_items = order_items.filter(order__status=status_filter)
+        
     pending_count = order_items.filter(order__status='pending').count()
     delivered_count = order_items.filter(order__status='delivered').count()
     pending_returns = ReturnRequest.objects.filter(
@@ -550,7 +603,7 @@ def seller_orders(request):
 
     context = {'order_items': order_items, 'seller': seller, 'filters': request.GET.dict(),
             'pending_count': pending_count,
-            'delivered_count':delivered_count,
+            'delivered_count': delivered_count,
             'pending_returns': pending_returns,
             }
     return render(request, 'orders/seller_order.html', context)
@@ -565,10 +618,13 @@ def seller_order_detail(request, order_id):
     seller = request.user.seller_profile
     order = get_object_or_404(
         Order.objects.prefetch_related('items__product'),
-        unique_order_id=order_id, items__product__seller=seller
+        unique_order_id=order_id
     )
     
     seller_items = order.items.filter(product__seller=seller).select_related('product')
+    if not seller_items.exists():
+        messages.error(request, "You are not authorized to view this order.")
+        return redirect('shop:home')
     
     # Calculate financial totals for the seller
     seller_items_total = Decimal('0.00')
@@ -603,7 +659,7 @@ def seller_order_detail(request, order_id):
     
     context = {
         'order': order, 'seller_items': seller_items, 'timeline': timeline,
-        'delivery': getattr(order, 'delivery_assignment', None),
+        'delivery': getattr(order, 'delivery_task', None),
         'seller_items_total': seller_items_total,
         'seller_commission_total': seller_commission_total,
         'seller_earnings_total': seller_earnings_total,
@@ -620,7 +676,9 @@ def seller_update_status(request, order_id):
         return JsonResponse({'error': 'Unauthorized'}, status=403)
     
     seller = request.user.seller_profile
-    order = get_object_or_404(Order, unique_order_id=order_id, items__product__seller=seller)
+    order = get_object_or_404(Order, unique_order_id=order_id)
+    if not order.items.filter(product__seller=seller).exists():
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
     
     if order.status not in ['pending', 'confirmed', 'processing']:
         return JsonResponse({'error': 'Order cannot be updated at this stage'}, status=400)
@@ -659,7 +717,10 @@ def seller_add_tracking(request, order_id):
     if not (request.user.role == 'seller' and hasattr(request.user, 'seller_profile')):
         return JsonResponse({'error': 'Unauthorized'}, status=403)
     
-    order = get_object_or_404(Order, unique_order_id=order_id, items__product__seller=request.user.seller_profile)
+    seller = request.user.seller_profile
+    order = get_object_or_404(Order, unique_order_id=order_id)
+    if not order.items.filter(product__seller=seller).exists():
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
     data = json.loads(request.body)
     
     order.tracking_number = data.get('tracking_number')
@@ -675,11 +736,56 @@ def seller_add_tracking(request, order_id):
 @admin_only
 def admin_orders(request):
     """Admin: View all orders system-wide"""
-    orders = Order.objects.select_related('user', 'delivery_assignment__delivery_partner').prefetch_related('items__product').order_by('-created_at')
+    orders = Order.objects.select_related('user', 'delivery_task__partner').prefetch_related('items__product').order_by('-created_at')
+    
+    # ── Search & Filter ──────────────────────────────────────────
+    from django.db.models import Q
+    from datetime import datetime
+    
+    q = request.GET.get('q', '').strip()
+    if q:
+        query = Q(unique_order_id__icontains=q) | \
+                Q(user__full_name__icontains=q) | \
+                Q(user__phone__icontains=q) | \
+                Q(guest_email__icontains=q) | \
+                Q(guest_phone__icontains=q)
+        
+        # Support inline date search (e.g. YYYY-MM-DD)
+        for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%Y/%m/%d", "%d/%m/%Y"):
+            try:
+                dt = datetime.strptime(q, fmt).date()
+                query |= Q(created_at__date=dt)
+                break
+            except ValueError:
+                continue
+        orders = orders.filter(query)
+        
+    date_filter = request.GET.get('date', '').strip()
+    if date_filter:
+        try:
+            dt = datetime.strptime(date_filter, "%Y-%m-%d").date()
+            orders = orders.filter(created_at__date=dt)
+        except ValueError:
+            pass
+            
     status = request.GET.get('status')
     if status:
         orders = orders.filter(status=status)
-    context = {'orders': orders, 'filters': request.GET.dict()}
+        
+    pending_count = Order.objects.filter(status='pending').count()
+    delivered_count = Order.objects.filter(status='delivered').count()
+    
+    pending_returns = ReturnRequest.objects.filter(
+        status='requested'
+    ).select_related('order_item__product', 'order_item__order', 'order_item__variant').order_by('-created_at')
+    
+    context = {
+        'orders': orders, 
+        'filters': request.GET.dict(),
+        'pending_returns': pending_returns,
+        'pending_count': pending_count,
+        'delivered_count': delivered_count,
+    }
     return render(request, 'orders/admin_orders.html', context)
 
 @admin_only
@@ -947,7 +1053,7 @@ def approve_return(request, return_id):
     
     # Permission check: seller can only approve returns for their own products
     if not request.user.is_staff and not request.user.is_superuser:
-        if return_req.order_item.product.seller != request.user:
+        if not hasattr(request.user, 'seller_profile') or return_req.order_item.product.seller != request.user.seller_profile:
             return JsonResponse(
                 {'status': 'error', 'message': 'You can only manage returns for your own products'}, 
                 status=403
@@ -1062,7 +1168,7 @@ def _process_refund(order, return_req, qty_to_restock):
     
     from accounts.models import Wallet
     
-    # 1. Wallet Payment: Refund directly to Wallet
+    # 1. Wallet Payment: Refund directly to Wallet (the original source)
     if payment_method == 'wallet':
         wallet, _ = Wallet.objects.get_or_create(user=order.user)
         wallet.deposit(
@@ -1071,12 +1177,13 @@ def _process_refund(order, return_req, qty_to_restock):
             description=f"Refund for returned item in Order #{order.unique_order_id}"
         )
         return_req.refund_status = 'completed'
-        return_req.save(update_fields=['refund_status', 'updated_at'])
+        return_req.refund_method = 'wallet'
+        return_req.save(update_fields=['refund_status', 'refund_method', 'updated_at'])
         result['status'] = 'completed'
         result['note'] = 'Refunded to customer wallet'
         return result
         
-    # 2. Razorpay Payment: Try Razorpay API refund, fallback to Wallet on failure
+    # 2. Razorpay Payment: Try Razorpay API refund to source. Do NOT fallback to Wallet.
     elif payment_method == 'razorpay' and razorpay_payment_id:
         client = get_razorpay_client()
         if client:
@@ -1094,52 +1201,38 @@ def _process_refund(order, return_req, qty_to_restock):
                 razorpay_refund = client.refund.create(refund_data)
                 return_req.razorpay_refund_id = razorpay_refund.get('id')
                 return_req.refund_status = 'processing'
-                return_req.save(update_fields=['razorpay_refund_id', 'refund_status', 'updated_at'])
+                return_req.refund_method = 'original'
+                return_req.save(update_fields=['razorpay_refund_id', 'refund_status', 'refund_method', 'updated_at'])
                 result['status'] = 'processing'
                 result['razorpay_refund_id'] = razorpay_refund.get('id')
                 return result
             except Exception as e:
-                logger.error(f"Razorpay refund failed: {e}. Falling back to Wallet credit.")
+                logger.error(f"Razorpay refund failed for returned item RTN-{return_req.id}: {e}")
                 
-        # Fallback to wallet deposit on failure/missing client
-        wallet, _ = Wallet.objects.get_or_create(user=order.user)
-        wallet.deposit(
-            amount=refund_amount,
-            reference_id=f"RTN-{return_req.id}",
-            description=f"Refund (prepaid fallback) for returned item in Order #{order.unique_order_id}"
-        )
-        return_req.refund_status = 'completed'
-        return_req.save(update_fields=['refund_status', 'updated_at'])
-        result['status'] = 'completed'
-        result['note'] = 'Razorpay refund failed/skipped; refunded to customer wallet'
+        # Set status to failed instead of falling back to wallet
+        return_req.refund_status = 'failed'
+        return_req.refund_method = 'original'
+        return_req.save(update_fields=['refund_status', 'refund_method', 'updated_at'])
+        result['status'] = 'failed'
+        result['note'] = 'Razorpay refund failed/skipped; marked as failed'
         return result
         
-    # 3. COD Payment: Refund directly to Wallet
+    # 3. COD Payment: COD has no online source, mark for manual bank transfer instead of wallet deposit
     elif payment_method == 'cod':
-        wallet, _ = Wallet.objects.get_or_create(user=order.user)
-        wallet.deposit(
-            amount=refund_amount,
-            reference_id=f"RTN-{return_req.id}",
-            description=f"Refund (COD) for returned item in Order #{order.unique_order_id}"
-        )
-        return_req.refund_status = 'completed'
-        return_req.save(update_fields=['refund_status', 'updated_at'])
-        result['status'] = 'completed'
-        result['note'] = 'COD order: Refunded to customer wallet'
+        return_req.refund_status = 'manual_pending'
+        return_req.refund_method = 'bank'
+        return_req.save(update_fields=['refund_status', 'refund_method', 'updated_at'])
+        result['status'] = 'manual_pending'
+        result['method'] = 'bank'
+        result['note'] = 'COD order: refund marked for manual bank transfer'
         return result
         
     else:
-        # Unknown payment method fallback to wallet
-        wallet, _ = Wallet.objects.get_or_create(user=order.user)
-        wallet.deposit(
-            amount=refund_amount,
-            reference_id=f"RTN-{return_req.id}",
-            description=f"Refund (unsupported fallback) for returned item in Order #{order.unique_order_id}"
-        )
-        return_req.refund_status = 'completed'
+        # Unknown/unsupported payment method: set to failed
+        return_req.refund_status = 'failed'
         return_req.save(update_fields=['refund_status', 'updated_at'])
-        result['status'] = 'completed'
-        result['note'] = 'Unsupported payment method; refunded to customer wallet'
+        result['status'] = 'failed'
+        result['note'] = 'Unsupported payment method; marked as failed'
         return result
 
 
@@ -1194,22 +1287,55 @@ def confirm_rto_refund(request, order_id):
                 item.returned_quantity = qty
                 item.save(update_fields=['is_returned', 'returned_quantity', 'updated_at'])
                 
-        # 2. Refund to customer wallet
-        from accounts.models import Wallet
-        wallet, _ = Wallet.objects.get_or_create(user=order.user)
-        wallet.deposit(
-            amount=order.total_amount,
-            reference_id=f"RTO-{order.unique_order_id}",
-            description=f"RTO Refund for Order #{order.unique_order_id}"
-        )
+        # 2. Refund to customer
+        refund_note = ""
+        payment_method = order.payment_method.lower()
+        if payment_method == 'wallet':
+            from accounts.models import Wallet
+            wallet, _ = Wallet.objects.get_or_create(user=order.user)
+            wallet.deposit(
+                amount=order.total_amount,
+                reference_id=f"RTO-{order.unique_order_id}",
+                description=f"RTO Refund for Order #{order.unique_order_id}"
+            )
+            order.payment_status = 'refunded'
+            order.refund_amount = order.total_amount
+            order.refund_at = timezone.now()
+            refund_note = "refunded to customer wallet"
+        elif payment_method == 'razorpay' and order.razorpay_payment_id:
+            client = get_razorpay_client()
+            if client:
+                try:
+                    razorpay_refund = client.refund.create({
+                        'payment_id': order.razorpay_payment_id,
+                        'amount': int(order.total_amount * 100),
+                        'notes': {'order_id': order.unique_order_id, 'reason': 'RTO'}
+                    })
+                    order.razorpay_refund_id = razorpay_refund.get('id')
+                    order.payment_status = 'refunded'
+                    order.refund_amount = order.total_amount
+                    order.refund_at = timezone.now()
+                    refund_note = f"refunded to original source (Razorpay ID: {razorpay_refund.get('id')})"
+                except Exception as e:
+                    logger.error(f"RTO Razorpay refund failed for {order.unique_order_id}: {e}")
+                    order.payment_status = 'failed'
+                    refund_note = "Razorpay refund failed; manual refund required"
+            else:
+                logger.error(f"RTO Razorpay refund failed for {order.unique_order_id}: Razorpay client not configured")
+                order.payment_status = 'failed'
+                refund_note = "Razorpay client not configured; manual refund required"
+        elif payment_method == 'cod':
+            order.payment_status = 'refunded'
+            order.refund_amount = order.total_amount
+            refund_note = "COD refund: pending manual bank transfer"
+        else:
+            order.payment_status = 'failed'
+            refund_note = "Unsupported payment method; manual refund required"
         
         # 3. Update Order Status
         old_status = order.status
         order.status = 'returned'
-        order.payment_status = 'refunded'
-        order.refund_amount = order.total_amount
-        order.refund_at = timezone.now()
-        order.save(update_fields=['status', 'payment_status', 'refund_amount', 'refund_at', 'updated_at'])
+        order.save(update_fields=['status', 'payment_status', 'refund_amount', 'refund_at', 'razorpay_refund_id', 'updated_at'])
         
         # 4. Log status change
         OrderStatusLog.objects.create(
@@ -1217,11 +1343,11 @@ def confirm_rto_refund(request, order_id):
             old_status=old_status,
             new_status='returned',
             changed_by=request.user,
-            remarks='RTO delivery receipt confirmed & refunded to customer wallet'
+            remarks=f'RTO delivery receipt confirmed & {refund_note}'
         )
         
     return JsonResponse({
         'status': 'success',
-        'message': 'RTO receipt confirmed and refund processed to customer wallet.',
+        'message': f'RTO receipt confirmed. Refund details: {refund_note}.',
         'new_status': 'Returned'
     })

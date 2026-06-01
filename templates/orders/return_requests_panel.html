@@ -50,10 +50,10 @@ Include with: {% include "orders/_return_requests_panel.html" with pending_retur
                     </p>
                 {% endif %}
                 <p style="margin: 0 0 8px; font-size: 0.8rem; color: var(--gray-500);">
-                    <a href="{% url 'orders:order_detail' return_req.order_item.order.id %}" 
+                    <a href="{% url 'orders:order_detail' return_req.order_item.order.unique_order_id %}" 
                        style="color: var(--blue-500); text-decoration: none;">
-                        Order #{{ return_req.order_item.order.id }}
-                    </a> • {{ return_req.order_item.order.customer.get_full_name|default:return_req.order_item.order.customer.username }}
+                        Order #{{ return_req.order_item.order.unique_order_id }}
+                    </a> • {{ return_req.order_item.order.user.full_name|default:return_req.order_item.order.guest_email|default:"Guest" }}
                     • Qty: {{ return_req.quantity }}
                 </p>
                 <p style="margin: 0 0 8px; font-size: 0.85rem; color: var(--gray-700);">
