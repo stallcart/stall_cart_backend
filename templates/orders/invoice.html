@@ -11,11 +11,6 @@
         @page {
             size: A4;
             margin: 1.5cm;
-            @bottom-center {
-                content: "Page " counter(page) " of " counter(pages);
-                font-size: 9pt;
-                color: #64748b;
-            }
         }
         
         * {
@@ -109,7 +104,7 @@
             font-weight: bold;
             color: #334155;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
+            letter-spacing: 0.5px;
             margin-bottom: 10pt;
             padding-bottom: 6pt;
             border-bottom: 1pt solid #e2e8f0;
@@ -138,7 +133,7 @@
             font-weight: bold;
             color: #64748b;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
+            letter-spacing: 0.5px;
             margin-bottom: 4pt;
         }
         
@@ -340,37 +335,7 @@
         /* ===== HIDE IN PDF ===== */
         .no-print { display: none; }
         
-        /* ===== PRINT BUTTON (shown in browser, hidden in PDF) ===== */
-        @media screen {
-            .no-print { 
-                display: block !important; 
-                position: fixed;
-                bottom: 20pt;
-                right: 20pt;
-                z-index: 9999;
-            }
-            .print-btn {
-                background-color: #2874f0;
-                color: #ffffff;
-                border: none;
-                padding: 10pt 20pt;
-                border-radius: 8pt;
-                font-weight: bold;
-                font-size: 11pt;
-                cursor: pointer;
-                box-shadow: 0 3pt 10pt rgba(0,0,0,0.15);
-            }
-            .print-btn:hover {
-                background-color: #1a5fd4;
-            }
-            .print-hint {
-                font-size: 9pt;
-                color: #64748b;
-                margin-top: 6pt;
-                text-align: center;
-                max-width: 180pt;
-            }
-        }
+        /* Dynamic print button styling moved to script block at the bottom to prevent xhtml2pdf parser crash */
     </style>
 </head>
 <body>
@@ -610,8 +575,53 @@
         <p class="print-hint">Use browser print dialog → "Save as PDF"</p>
     </div>
     
-    <!-- Auto-print if ?print=1 in URL -->
+    <!-- Auto-print and browser-only style injection -->
     <script type="text/javascript">
+        // Inject screen/print styles dynamically to prevent xhtml2pdf parsing crash
+        (function() {
+            var css = '\
+                .no-print { \
+                    display: block !important; \
+                    position: fixed; \
+                    bottom: 20pt; \
+                    right: 20pt; \
+                    z-index: 9999; \
+                } \
+                .print-btn { \
+                    background-color: #2874f0; \
+                    color: #ffffff; \
+                    border: none; \
+                    padding: 10pt 20pt; \
+                    border-radius: 8pt; \
+                    font-weight: bold; \
+                    font-size: 11pt; \
+                    cursor: pointer; \
+                    box-shadow: 0 3pt 10pt rgba(0,0,0,0.15); \
+                } \
+                .print-btn:hover { \
+                    background-color: #1a5fd4; \
+                } \
+                .print-hint { \
+                    font-size: 9pt; \
+                    color: #64748b; \
+                    margin-top: 6pt; \
+                    text-align: center; \
+                    max-width: 180pt; \
+                } \
+                @media print { \
+                    .no-print { display: none !important; } \
+                }';
+            var head = document.head || document.getElementsByTagName('head')[0];
+            var style = document.createElement('style');
+            style.type = 'text/css';
+            if (style.styleSheet){
+                style.styleSheet.cssText = css;
+            } else {
+                style.appendChild(document.createTextNode(css));
+            }
+            head.appendChild(style);
+        })();
+
         // xhtml2pdf doesn't execute JS, but browser preview will
         if (window.location.search.indexOf('print=1') !== -1) {
             window.addEventListener('load', function() {
