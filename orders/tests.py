@@ -382,3 +382,48 @@ class OrderManagementTests(TestCase):
         self.assertIsNotNone(log)
         self.assertEqual(log.new_status, "out_for_delivery")
         self.assertIn("Shiprocket Webhook", log.remarks)
+
+    def test_seller_update_status_success(self):
+        """Seller can successfully update order status to processing and shipped."""
+        self.client.login(phone="8888888888", password="sellerpassword")
+        
+        # Test transition to processing
+        url = reverse('orders:seller_update_status', args=[self.order1.unique_order_id])
+        response = self.client.post(
+            url,
+            data=json.dumps({"status": "processing"}),
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.order1.refresh_from_db()
+        self.assertEqual(self.order1.status, "processing")
+        
+        # Test transition to shipped
+        response = self.client.post(
+            url,
+            data=json.dumps({"status": "shipped"}),
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.order1.refresh_from_db()
+        self.assertEqual(self.order1.status, "shipped")
+
+    def test_admin_update_status_success(self):
+        """Admin can successfully update any order status."""
+        self.client.login(phone="9999999999", password="adminpassword")
+        url = reverse('orders:admin_update_status', args=[self.order1.unique_order_id])
+        response = self.client.post(
+            url,
+            data=json.dumps({"status": "confirmed"}),
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.order1.refresh_from_db()
+        self.assertEqual(self.order1.status, "confirmed")
+
+    def test_admin_order_change_page_loads(self):
+        """Standard Django admin order detail page should load successfully."""
+        self.client.login(phone="9999999999", password="adminpassword")
+        url = reverse('admin:orders_order_change', args=[self.order1.id])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
