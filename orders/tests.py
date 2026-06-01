@@ -188,7 +188,8 @@ class OrderManagementTests(TestCase):
         self.assertNotIn(self.item1_1, response.context['order_items'])
         
         # Filter by Date (today)
-        today_str = timezone.now().strftime("%Y-%m-%d")
+        from django.utils.timezone import localtime
+        today_str = localtime(self.order1.created_at).strftime("%Y-%m-%d")
         response = self.client.get(reverse('orders:seller_orders'), {'date': today_str})
         self.assertIn(self.item1_1, response.context['order_items'])
         self.assertIn(self.item2_1, response.context['order_items'])
@@ -303,7 +304,7 @@ class OrderManagementTests(TestCase):
             self.assertEqual(wallet.balance, Decimal("0.00"))
 
     def test_wallet_return_refund_handling(self):
-        """Wallet payments return refund amount directly to customer's wallet."""
+        """Wallet payments return refund amount via manual bank transfer since wallet is disabled."""
         return_req = ReturnRequest.objects.create(
             order_item=self.item2_1,  # Belongs to order2, which is Wallet-paid
             user=self.customer,
@@ -327,15 +328,15 @@ class OrderManagementTests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         
-        # Verify return request status and refund status/method
+        # Verify return request status and refund status/method (redirected to manual bank transfer)
         return_req.refresh_from_db()
         self.assertEqual(return_req.status, 'approved')
-        self.assertEqual(return_req.refund_status, 'completed')
-        self.assertEqual(return_req.refund_method, 'wallet')
+        self.assertEqual(return_req.refund_status, 'manual_pending')
+        self.assertEqual(return_req.refund_method, 'bank')
         
-        # Verify wallet has been credited
+        # Verify wallet has NOT been credited
         wallet.refresh_from_db()
-        self.assertEqual(wallet.balance, Decimal("150.00"))
+        self.assertEqual(wallet.balance, Decimal("50.00"))
 
     def test_seller_order_detail_multiple_items_same_seller(self):
         """Seller order details page should load successfully when the order contains multiple items from the same seller."""
@@ -351,3 +352,33 @@ class OrderManagementTests(TestCase):
         self.assertEqual(seller_items.count(), 2)
         self.assertIn(self.item1_1, seller_items)
         self.assertIn(self.item1_3, seller_items)
+
+    def test_shiprocket_webhook_success(self):
+        """Shiprocket tracking webhook updates order status and logs the event."""
+        # Setup an order with tracking number
+        self.order1.tracking_number = "SR123456789"
+        self.order1.status = "confirmed"
+        self.order1.save()
+        
+        # Call Shiprocket Webhook
+        url = reverse('orders:shiprocket_webhook')
+        payload = {
+            "awb": "SR123456789",
+            "current_status": "Out for Delivery"
+        }
+        response = self.client.post(
+            url,
+            data=json.dumps(payload),
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+        
+        # Verify status updated
+        self.order1.refresh_from_db()
+        self.assertEqual(self.order1.status, "out_for_delivery")
+        
+        # Verify log entry created
+        log = OrderStatusLog.objects.filter(order=self.order1).order_by('-timestamp').first()
+        self.assertIsNotNone(log)
+        self.assertEqual(log.new_status, "out_for_delivery")
+        self.assertIn("Shiprocket Webhook", log.remarks)

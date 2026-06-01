@@ -124,6 +124,31 @@
         Existing user? <a href="{% url 'accounts:login' %}">Log in here</a>
     </p>
 </div>
+
+<!-- Verification Modal for Registration -->
+<div id="verifyRegisterModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:#fff; padding:30px; border-radius:12px; width:90%; max-width:400px; box-shadow:0 4px 20px rgba(0,0,0,0.2); box-sizing: border-box;">
+        <h3 style="margin-top:0; margin-bottom:15px; text-align:center;">🔒 Verify Registration OTP</h3>
+        <p id="verifyModalSubtitle" style="font-size:0.9rem; color:#666; margin-bottom:20px; text-align:center; line-height:1.4;"></p>
+        
+        <!-- Email OTP Input -->
+        <div class="form-group" id="emailOtpGroup" style="margin-bottom:15px;">
+            <label for="emailOtp" style="font-weight:500; font-size:0.9rem; display:block; margin-bottom:5px;">Email Verification OTP</label>
+            <input type="text" id="emailOtp" class="form-input" placeholder="6-digit Email OTP" maxlength="6" style="text-align:center; letter-spacing:2px; width:100%; box-sizing:border-box; padding:10px;">
+        </div>
+        
+        <!-- Phone OTP Input -->
+        <div class="form-group" id="phoneOtpGroup" style="margin-bottom:20px;">
+            <label for="phoneOtp" style="font-weight:500; font-size:0.9rem; display:block; margin-bottom:5px;">Mobile Verification OTP</label>
+            <input type="text" id="phoneOtp" class="form-input" placeholder="6-digit Mobile OTP" maxlength="6" style="text-align:center; letter-spacing:2px; width:100%; box-sizing:border-box; padding:10px;">
+        </div>
+        
+        <div style="display:flex; gap:10px; margin-top:20px;">
+            <button type="button" id="confirmVerifyRegisterBtn" class="btn-primary" style="flex:1; margin:0;">Verify & Register</button>
+            <button type="button" id="closeVerifyRegisterBtn" class="btn-outline" style="flex:1; margin:0;">Cancel</button>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -131,6 +156,15 @@
 document.addEventListener('DOMContentLoaded', () => {
     const roleRadios = document.querySelectorAll('input[name="user_role"]');
     const sellerFields = document.getElementById('sellerFields');
+    
+    // Toast helper
+    function toast(msg, type = 'info') {
+        if (typeof window.showToast === 'function') { 
+            window.showToast(msg, type); 
+            return; 
+        }
+        alert(`${type.toUpperCase()}: ${msg}`);
+    }
     
     // Toggle seller fields based on role selection
     function toggleSellerFields() {
@@ -163,6 +197,173 @@ document.addEventListener('DOMContentLoaded', () => {
             e.target.value = e.target.value.replace(/[^0-9]/g, '').slice(0, 10);
         });
     }
+
+    // AJAX registration with OTP verification
+    const authForm = document.getElementById('authForm');
+    const verifyRegisterModal = document.getElementById('verifyRegisterModal');
+    const confirmVerifyRegisterBtn = document.getElementById('confirmVerifyRegisterBtn');
+    const closeVerifyRegisterBtn = document.getElementById('closeVerifyRegisterBtn');
+    const verifyModalSubtitle = document.getElementById('verifyModalSubtitle');
+    const emailOtpInput = document.getElementById('emailOtp');
+    const phoneOtpInput = document.getElementById('phoneOtp');
+    
+    closeVerifyRegisterBtn?.addEventListener('click', () => {
+        verifyRegisterModal.style.display = 'none';
+    });
+    
+    authForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        // Retrieve values
+        const phone = document.querySelector('input[name="phone"]').value.trim();
+        const email = document.querySelector('input[name="email"]').value.trim();
+        const fullName = document.querySelector('input[name="full_name"]').value.trim();
+        const password1 = document.querySelector('input[name="password1"]').value;
+        const password2 = document.querySelector('input[name="password2"]').value;
+        const userRole = document.querySelector('input[name="user_role"]:checked')?.value || 'customer';
+        const shopName = document.querySelector('input[name="shop_name"]')?.value.trim() || '';
+        const shopDescription = document.querySelector('textarea[name="shop_description"]')?.value.trim() || '';
+        const gstNumber = document.querySelector('input[name="gst_number"]')?.value.trim() || '';
+        
+        // Basic validations
+        if (!phone || phone.length !== 10 || isNaN(phone)) {
+            toast('Please enter a valid 10-digit mobile number.', 'error');
+            return;
+        }
+        if (!email || !email.includes('@')) {
+            toast('Please enter a valid email address.', 'error');
+            return;
+        }
+        if (!fullName) {
+            toast('Full name is required.', 'error');
+            return;
+        }
+        if (!password1 || password1.length < 6) {
+            toast('Password must be at least 6 characters long.', 'error');
+            return;
+        }
+        if (password1 !== password2) {
+            toast('Passwords do not match.', 'error');
+            return;
+        }
+        if (userRole === 'seller' && !shopName) {
+            toast('Shop name is required for seller accounts.', 'error');
+            return;
+        }
+        
+        const submitBtn = authForm.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Sending verification codes...';
+        
+        try {
+            const res = await fetch("{% url 'accounts:register' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    action: 'send_register_otps',
+                    phone: phone,
+                    email: email,
+                    full_name: fullName,
+                    password1: password1,
+                    password2: password2,
+                    user_role: userRole,
+                    shop_name: shopName,
+                    shop_description: shopDescription,
+                    gst_number: gstNumber
+                })
+            });
+            
+            const data = await res.json();
+            
+            if (data.status === 'success') {
+                toast(data.message, 'success');
+                verifyModalSubtitle.textContent = `We have sent verification codes to verify your email (${email}) and mobile number (${phone}).`;
+                emailOtpInput.value = '';
+                phoneOtpInput.value = '';
+                
+                // Show verification modal
+                verifyRegisterModal.style.display = 'flex';
+                
+                // On verify trigger click
+                confirmVerifyRegisterBtn.onclick = async () => {
+                    const emailOtpVal = emailOtpInput.value.trim();
+                    const phoneOtpVal = phoneOtpInput.value.trim();
+                    
+                    if (!emailOtpVal || emailOtpVal.length !== 6) {
+                        alert('Please enter a valid 6-digit email OTP.');
+                        return;
+                    }
+                    if (!phoneOtpVal || phoneOtpVal.length !== 6) {
+                        alert('Please enter a valid 6-digit mobile OTP.');
+                        return;
+                    }
+                    
+                    confirmVerifyRegisterBtn.disabled = true;
+                    confirmVerifyRegisterBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Creating Account...';
+                    
+                    try {
+                        const regRes = await fetch("{% url 'accounts:register' %}", {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': '{{ csrf_token }}',
+                                'X-Requested-With': 'XMLHttpRequest'
+                            },
+                            body: JSON.stringify({
+                                action: 'register',
+                                phone: phone,
+                                email: email,
+                                full_name: fullName,
+                                password1: password1,
+                                password2: password2,
+                                user_role: userRole,
+                                shop_name: shopName,
+                                shop_description: shopDescription,
+                                gst_number: gstNumber,
+                                email_otp: emailOtpVal,
+                                phone_otp: phoneOtpVal
+                            })
+                        });
+                        
+                        const regData = await regRes.json();
+                        if (regData.status === 'success') {
+                            toast('Account created successfully!', 'success');
+                            window.location.href = regData.redirect || '/';
+                        } else {
+                            alert(regData.message || 'Verification failed.');
+                        }
+                    } catch (err) {
+                        console.error('Registration verification error:', err);
+                        alert('Registration error. Please check values and try again.');
+                    } finally {
+                        confirmVerifyRegisterBtn.disabled = false;
+                        confirmVerifyRegisterBtn.innerHTML = 'Verify & Register';
+                    }
+                };
+            } else {
+                if (data.errors) {
+                    let errorMsg = "Please correct the following errors:\n";
+                    for (const field in data.errors) {
+                        errorMsg += `• ${field}: ${data.errors[field].join(', ')}\n`;
+                    }
+                    alert(errorMsg);
+                } else {
+                    toast(data.message || 'Validation checks failed.', 'error');
+                }
+            }
+        } catch (err) {
+            console.error('Registration check error:', err);
+            toast('Network error during registration. Please try again.', 'error');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        }
+    });
 });
 </script>
 {% endblock %}

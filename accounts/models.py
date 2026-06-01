@@ -210,3 +210,44 @@ class WalletTransaction(BaseModel):
 
     def __str__(self):
         return f"{self.wallet.user.phone} | {self.transaction_type} | {self.amount}"
+
+
+class OTPRequest(BaseModel):
+    phone = models.CharField(max_length=255, db_index=True)
+    otp = models.CharField(max_length=6)
+    purpose = models.CharField(max_length=50)  # 'forgot_password', 'change_password'
+    is_verified = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.phone} | {self.purpose} | {self.otp}"
+
+    def is_expired(self):
+        from django.utils import timezone
+        return timezone.now() > self.expires_at
+
+    @classmethod
+    def check_and_create_otp(cls, phone, purpose, expiry_minutes=10):
+        from django.utils import timezone
+        from datetime import timedelta
+        import random
+
+        twenty_four_hours_ago = timezone.now() - timedelta(hours=24)
+        daily_count = cls.objects.filter(phone=phone, created_at__gte=twenty_four_hours_ago).count()
+        if daily_count >= 5:
+            return None, "You have exceeded the limit of 5 OTP requests per day. Please try again later."
+
+        otp = f"{random.randint(100000, 999999)}"
+        expires_at = timezone.now() + timedelta(minutes=expiry_minutes)
+
+        otp_req = cls.objects.create(
+            phone=phone,
+            otp=otp,
+            purpose=purpose,
+            expires_at=expires_at
+        )
+        return otp_req, None

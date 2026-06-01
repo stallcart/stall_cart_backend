@@ -110,46 +110,229 @@ def notify_login_welcome(user, token: str):
 
 
 def notify_order_placed(order):
-    payload = NotificationPayload(
-        title='🛍️ Order Confirmed!',
-        body=f'Order #{order.id} is confirmed. We\'ll notify you when it ships.',
-        click_action=f'/orders/{order.id}/',
-        tag=f'order-{order.id}',
-        data={'order_id': order.id},
-    )
-    return send_to_user(order.user, payload)
+    """
+    Called when an order is placed (created/confirmed).
+    Sends notifications to Customer, Sellers, and Admins.
+    """
+    from accounts.models import User
+    from django.db.models import Q
+    import logging
+    logger = logging.getLogger(__name__)
+
+    # 1. Customer notification
+    if order.user:
+        cust_payload = NotificationPayload(
+            title='🛍️ Order Placed!',
+            body=f'Your order #{order.unique_order_id} has been placed successfully. Thank you for shopping with StallCart!',
+            click_action=f'/orders/order/{order.unique_order_id}/',
+            tag=f'order-{order.id}',
+            data={'order_id': str(order.id), 'event': 'order_placed'}
+        )
+        send_to_user(order.user, cust_payload)
+    
+    # 2. Seller notifications
+    try:
+        seller_ids = order.items.values_list('seller', flat=True).distinct()
+        sellers = User.objects.filter(role='seller', seller_profile__id__in=seller_ids)
+        for seller in sellers:
+            seller_payload = NotificationPayload(
+                title='📦 New Order Received!',
+                body=f'A new order #{order.unique_order_id} has been placed containing your products. Please process it.',
+                click_action=f'/orders/seller/order/{order.unique_order_id}/',
+                tag=f'order-{order.id}-seller',
+                data={'order_id': str(order.id), 'event': 'order_placed'}
+            )
+            send_to_user(seller, seller_payload)
+    except Exception as e:
+        logger.error(f"[FCM] Failed to send order placed notification to sellers: {e}")
+        
+    # 3. Admin notifications
+    try:
+        admins = User.objects.filter(Q(role='admin') | Q(is_superuser=True), is_active=True)
+        for admin in admins:
+            admin_payload = NotificationPayload(
+                title='🔔 New Order Placed',
+                body=f'Order #{order.unique_order_id} has been placed for ₹{order.total_amount}.',
+                click_action=f'/orders/admin/order/{order.unique_order_id}/',
+                tag=f'order-{order.id}-admin',
+                data={'order_id': str(order.id), 'event': 'order_placed'}
+            )
+            send_to_user(admin, admin_payload)
+    except Exception as e:
+        logger.error(f"[FCM] Failed to send order placed notification to admins: {e}")
+
+
+def notify_order_status_change(order, old_status, new_status):
+    """
+    Called when an order status changes (after creation).
+    Sends notifications to Customer, Sellers, and Admins.
+    """
+    from accounts.models import User
+    from django.db.models import Q
+    import logging
+    logger = logging.getLogger(__name__)
+
+    if not order or not new_status or old_status == new_status:
+        return
+
+    # Don't trigger if old_status is empty/None or transitions pending -> confirmed on creation
+    # because notify_order_placed handles it.
+    if not old_status or (old_status == 'pending' and new_status == 'confirmed' and (timezone.now() - order.created_at).total_seconds() < 5):
+        return
+
+    cust_title = cust_body = None
+    seller_title = seller_body = None
+    admin_title = admin_body = None
+
+    if new_status == 'confirmed':
+        cust_title = '✅ Order Confirmed'
+        cust_body = f'Your order #{order.unique_order_id} has been confirmed.'
+        
+        seller_title = '🔵 Order Confirmed'
+        seller_body = f'Order #{order.unique_order_id} is confirmed. Please prepare items for shipping.'
+        
+        admin_title = '🔵 Order Confirmed'
+        admin_body = f'Order #{order.unique_order_id} has been confirmed.'
+        
+    elif new_status == 'processing':
+        cust_title = '🟠 Order Processing'
+        cust_body = f'Your order #{order.unique_order_id} is being processed and prepared for shipping.'
+        
+        seller_title = '🟠 Order Processing'
+        seller_body = f'Order #{order.unique_order_id} status is updated to Processing. Prepare for pickup.'
+        
+        admin_title = '🟠 Order Processing'
+        admin_body = f'Order #{order.unique_order_id} is now processing.'
+        
+    elif new_status == 'shipped':
+        courier_info = f" via {order.courier_name}" if order.courier_name else ""
+        tracking_info = f" (AWB: {order.tracking_number})" if order.tracking_number else ""
+        
+        cust_title = '🚚 Order Shipped!'
+        cust_body = f'Your order #{order.unique_order_id} has been picked up by our delivery partner and shipped{courier_info}{tracking_info}.'
+        
+        seller_title = '🚚 Order Dispatched'
+        seller_body = f'Order #{order.unique_order_id} has been picked up by the delivery partner.'
+        
+        admin_title = '🚚 Order Shipped'
+        admin_body = f'Order #{order.unique_order_id} has been shipped{courier_info}{tracking_info}.'
+        
+    elif new_status == 'out_for_delivery':
+        cust_title = '🛵 Out for Delivery'
+        cust_body = f'Your order #{order.unique_order_id} is out for delivery. Keep your phone handy!'
+        
+        seller_title = '🛵 Out for Delivery'
+        seller_body = f'Order #{order.unique_order_id} is out for delivery.'
+        
+        admin_title = '🛵 Out for Delivery'
+        admin_body = f'Order #{order.unique_order_id} is out for delivery.'
+        
+    elif new_status == 'delivered':
+        cust_title = '🎉 Order Delivered!'
+        cust_body = f'Your order #{order.unique_order_id} has been delivered successfully. Thank you!'
+        
+        seller_title = '🟢 Order Delivered'
+        seller_body = f'Order #{order.unique_order_id} has been delivered. Net earnings have been credited.'
+        
+        admin_title = '🟢 Order Delivered'
+        admin_body = f'Order #{order.unique_order_id} has been delivered.'
+        
+    elif new_status == 'cancelled':
+        cust_title = '🔴 Order Cancelled'
+        cust_body = f'Your order #{order.unique_order_id} has been cancelled.'
+        
+        seller_title = '🔴 Order Cancelled'
+        seller_body = f'Order #{order.unique_order_id} has been cancelled.'
+        
+        admin_title = '🔴 Order Cancelled'
+        admin_body = f'Order #{order.unique_order_id} has been cancelled.'
+        
+    elif new_status in ('returned', 'returned_to_source'):
+        label = 'Returned' if new_status == 'returned' else 'Returned to Source (RTO)'
+        cust_title = f'🔄 Order {label}'
+        cust_body = f'Your order #{order.unique_order_id} status has been updated to {label}.'
+        
+        seller_title = f'🔄 Order {label}'
+        seller_body = f'Order #{order.unique_order_id} is marked as {label}.'
+        
+        admin_title = f'🔄 Order {label}'
+        admin_body = f'Order #{order.unique_order_id} status updated to {label}.'
+        
+    elif new_status in ('refund_initiated', 'refunded'):
+        label = 'Refund Initiated' if new_status == 'refund_initiated' else 'Refunded'
+        cust_title = f'💰 Order {label}'
+        cust_body = f'Refund of ₹{order.total_amount} for order #{order.unique_order_id} has been {label.lower()}.'
+        
+        seller_title = f'💰 Order {label}'
+        seller_body = f'Order #{order.unique_order_id} refund: {label}.'
+        
+        admin_title = f'💰 Order {label}'
+        admin_body = f'Order #{order.unique_order_id} refund: {label}.'
+
+    # Get distinct sellers
+    try:
+        seller_ids = order.items.values_list('seller', flat=True).distinct()
+        sellers = User.objects.filter(role='seller', seller_profile__id__in=seller_ids)
+    except Exception as e:
+        logger.error(f"[FCM] Failed to query sellers for status change: {e}")
+        sellers = []
+
+    # Get admins
+    try:
+        admins = User.objects.filter(Q(role='admin') | Q(is_superuser=True), is_active=True)
+    except Exception as e:
+        logger.error(f"[FCM] Failed to query admins for status change: {e}")
+        admins = []
+
+    # Send notifications
+    if cust_title and cust_body and order.user:
+        try:
+            send_to_user(order.user, NotificationPayload(
+                title=cust_title,
+                body=cust_body,
+                click_action=f'/orders/order/{order.unique_order_id}/',
+                tag=f'order-{order.id}',
+                data={'order_id': str(order.id), 'status': new_status}
+            ))
+        except Exception as e:
+            logger.error(f"[FCM] Failed to notify customer on status change: {e}")
+        
+    if seller_title and seller_body:
+        for seller in sellers:
+            try:
+                send_to_user(seller, NotificationPayload(
+                    title=seller_title,
+                    body=seller_body,
+                    click_action=f'/orders/seller/order/{order.unique_order_id}/',
+                    tag=f'order-{order.id}-seller',
+                    data={'order_id': str(order.id), 'status': new_status}
+                ))
+            except Exception as e:
+                logger.error(f"[FCM] Failed to notify seller {seller.id} on status change: {e}")
+            
+    if admin_title and admin_body:
+        for admin in admins:
+            try:
+                send_to_user(admin, NotificationPayload(
+                    title=admin_title,
+                    body=admin_body,
+                    click_action=f'/orders/admin/order/{order.unique_order_id}/',
+                    tag=f'order-{order.id}-admin',
+                    data={'order_id': str(order.id), 'status': new_status}
+                ))
+            except Exception as e:
+                logger.error(f"[FCM] Failed to notify admin {admin.id} on status change: {e}")
 
 
 def notify_order_shipped(order, tracking_id=None):
-    body = f'Order #{order.id} is on its way!'
     if tracking_id:
-        body += f' Track: {tracking_id}'
-    payload = NotificationPayload(
-        title='🚚 Order Shipped',
-        body=body,
-        click_action=f'/orders/{order.id}/',
-        tag=f'order-{order.id}',
-        data={'order_id': order.id},
-    )
-    return send_to_user(order.user, payload)
+        order.tracking_number = tracking_id
+    return notify_order_status_change(order, order.status, 'shipped')
 
 
 def notify_order_out_for_delivery(order):
-    payload = NotificationPayload(
-        title='🛵 Out for Delivery!',
-        body=f'Your order #{order.id} is out for delivery. Keep your phone handy!',
-        click_action=f'/orders/{order.id}/',
-        tag=f'order-{order.id}',
-        data={'order_id': order.id},
-    )
-    return send_to_user(order.user, payload)
+    return notify_order_status_change(order, order.status, 'out_for_delivery')
 
 
 def notify_order_delivered(order):
-    payload = NotificationPayload(
-        title='✅ Delivered!',
-        body=f'Order #{order.id} delivered. Enjoy your purchase!',
-        click_action=f'/orders/{order.id}/',
-        tag=f'order-{order.id}',
-    )
-    return send_to_user(order.user, payload)
+    return notify_order_status_change(order, order.status, 'delivered')

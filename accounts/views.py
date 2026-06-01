@@ -75,20 +75,126 @@ def login_view(request):
     
     return render(request, 'accounts/login.html', {'form': form})
 
-# @require_POST
 def register_view(request):
-    """Handle user registration with role selection (customer/seller)"""
+    """Handle user registration with role selection (customer/seller) and OTP verification"""
     
-    # Handle AJAX submission from modal
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+    is_ajax = request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest' or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    
+    # Handle AJAX submissions
+    if is_ajax:
         try:
             data = json.loads(request.body)
-            form = UserRegistrationForm(data)
+            action = data.get('action')
             
-            if form.is_valid():
+            # Action 1: Send OTPs for registration
+            if action == 'send_register_otps':
+                phone = data.get('phone', '').strip()
+                email = data.get('email', '').strip().lower()
+                full_name = data.get('full_name', '').strip()
+                password1 = data.get('password1', '')
+                password2 = data.get('password2', '')
+                user_role = data.get('user_role', 'customer')
+                shop_name = data.get('shop_name', '').strip()
+                shop_description = data.get('shop_description', '').strip()
+                gst_number = data.get('gst_number', '').strip()
+                
+                # Check uniqueness and validate form first
+                form_data = {
+                    'phone': phone,
+                    'email': email,
+                    'full_name': full_name,
+                    'password1': password1,
+                    'password2': password2,
+                    'user_role': user_role,
+                    'shop_name': shop_name if user_role == 'seller' else '',
+                    'shop_description': shop_description if user_role == 'seller' else '',
+                    'gst_number': gst_number if user_role == 'seller' else '',
+                }
+                form = UserRegistrationForm(form_data)
+                if not form.is_valid():
+                    return JsonResponse({'status': 'error', 'errors': form.errors}, status=400)
+                
+                # Generate and send phone OTP
+                otp_phone_req, err = OTPRequest.check_and_create_otp(phone, 'register_phone')
+                if err:
+                    return JsonResponse({'status': 'error', 'message': err}, status=400)
+                    
+                # Generate and send email OTP
+                otp_email_req, err = OTPRequest.check_and_create_otp(email, 'register_email')
+                if err:
+                    otp_phone_req.delete()  # Clean up phone OTP request
+                    return JsonResponse({'status': 'error', 'message': err}, status=400)
+                
+                # Try sending email OTP via SMTP
+                try:
+                    from django.core.mail import send_mail
+                    from django.conf import settings
+                    send_mail(
+                        subject="StallCart - Registration Verification OTP",
+                        message=f"Welcome to StallCart! Your verification OTP is: {otp_email_req.otp}. Valid for 10 minutes.",
+                        from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'StallCart <noreply@stallcart.in>'),
+                        recipient_list=[email],
+                        fail_silently=False,
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to send registration email OTP: {e}")
+                    
+                print(f"📧 [EMAIL OTP DEMO] Sent OTP to {email} for registration: {otp_email_req.otp}")
+                print(f"📱 [PHONE OTP DEMO] Sent OTP to {phone} for registration: {otp_phone_req.otp}")
+                
+                return JsonResponse({
+                    'status': 'success',
+                    'message': f'Verification OTPs sent to email: {email} and mobile: {phone}. (For demo testing, Email OTP: {otp_email_req.otp}, Mobile OTP: {otp_phone_req.otp})'
+                })
+            
+            # Action 2: Verify OTPs and complete registration
+            elif action == 'register':
+                form = UserRegistrationForm(data)
+                if not form.is_valid():
+                    return JsonResponse({'status': 'error', 'errors': form.errors}, status=400)
+                
+                email_otp = data.get('email_otp', '').strip()
+                phone_otp = data.get('phone_otp', '').strip()
+                
+                if not email_otp or not phone_otp:
+                    return JsonResponse({'status': 'error', 'message': 'Email OTP and Mobile OTP are required to verify and create account.'}, status=400)
+                
+                phone = form.cleaned_data['phone']
+                email = form.cleaned_data['email']
+                from django.utils import timezone
+                
+                # Verify Phone OTP
+                otp_phone_req = OTPRequest.objects.filter(
+                    phone=phone,
+                    purpose='register_phone',
+                    otp=phone_otp,
+                    is_verified=False,
+                    expires_at__gt=timezone.now()
+                ).first()
+                
+                # Verify Email OTP
+                otp_email_req = OTPRequest.objects.filter(
+                    phone=email,
+                    purpose='register_email',
+                    otp=email_otp,
+                    is_verified=False,
+                    expires_at__gt=timezone.now()
+                ).first()
+                
+                if not otp_phone_req:
+                    return JsonResponse({'status': 'error', 'message': 'Invalid or expired Mobile OTP'}, status=400)
+                if not otp_email_req:
+                    return JsonResponse({'status': 'error', 'message': 'Invalid or expired Email OTP'}, status=400)
+                
+                # Mark OTPs as verified
+                otp_phone_req.is_verified = True
+                otp_phone_req.save()
+                otp_email_req.is_verified = True
+                otp_email_req.save()
+                
                 # Create user
                 user = form.save(commit=False)
-                user.role = form.cleaned_data['user_role']  # Set role from form
+                user.role = form.cleaned_data['user_role']
                 user.save()
                 
                 # If seller, create SellerProfile
@@ -98,58 +204,34 @@ def register_view(request):
                         shop_name=form.cleaned_data['shop_name'],
                         shop_description=form.cleaned_data.get('shop_description', ''),
                         gst_number=form.cleaned_data.get('gst_number'),
-                        phone=user.phone,  # Use same phone as user
-                        is_verified=False,  # Pending admin verification
+                        phone=user.phone,
+                        is_verified=False,
                         created_by=user
                     )
-                    messages.success(request, f"Seller account created! Your shop '{form.cleaned_data['shop_name']}' is pending verification.")
+                    messages.success(request, f"🎉 Seller account created! Your shop '{form.cleaned_data['shop_name']}' is pending verification.")
                 else:
-                    messages.success(request, "Account created successfully! Welcome to StallCart.")
+                    messages.success(request, "✅ Account created successfully! Welcome to StallCart.")
                 
                 # Auto-login
                 login(request, user)
                 
                 return JsonResponse({
                     'status': 'success', 
-                    'redirect': '/',
-                    'role': user.role
+                    'redirect': '/'
                 })
             
-            return JsonResponse({
-                'status': 'error', 
-                'errors': form.errors
-            }, status=400)
+            return JsonResponse({'status': 'error', 'message': 'Invalid AJAX action'}, status=400)
             
         except json.JSONDecodeError:
-            return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
-    
-    # Handle regular form submission (non-AJAX)
+            return JsonResponse({'status': 'error', 'message': 'Invalid JSON request'}, status=400)
+        except Exception as e:
+            logger.error(f"Registration AJAX error: {e}")
+            return JsonResponse({'status': 'error', 'message': 'Internal server error'}, status=500)
+            
+    # Handle regular form submission (Fallback, enforces AJAX/OTP verification)
     if request.method == 'POST':
         form = UserRegistrationForm(request.POST)
-        if form.is_valid():
-            # Create user
-            user = form.save(commit=False)
-            user.role = form.cleaned_data['user_role']
-            user.save()
-            
-            # If seller, create SellerProfile
-            if user.role == 'seller':
-                SellerProfile.objects.create(
-                    user=user,
-                    shop_name=form.cleaned_data['shop_name'],
-                    shop_description=form.cleaned_data.get('shop_description', ''),
-                    gst_number=form.cleaned_data.get('gst_number'),
-                    phone=user.phone,
-                    is_verified=False,
-                    created_by=user
-                )
-                messages.success(request, f"🎉 Seller account created! Your shop '{form.cleaned_data['shop_name']}' is pending admin verification. You can start adding products once verified.")
-            else:
-                messages.success(request, "✅ Account created successfully! Welcome to StallCart.")
-            
-            # Auto-login
-            login(request, user)
-            return redirect('shop:home')
+        form.add_error(None, "OTP Verification is required to create an account. Please enable JavaScript to verify.")
     else:
         form = UserRegistrationForm()
     
@@ -160,42 +242,201 @@ def logout_view(request):
     messages.info(request, "You have been logged out.")
     return redirect('shop:home')
 
+import logging
+logger = logging.getLogger(__name__)
+
+
+@login_required
+@require_POST
+def send_change_password_otp(request):
+    """AJAX endpoint to send OTP for password change"""
+    user = request.user
+    if not user.phone:
+        return JsonResponse({'status': 'error', 'message': 'No mobile number registered to this account'}, status=400)
+    
+    otp_req, err = OTPRequest.check_and_create_otp(user.phone, 'change_password')
+    if err:
+        return JsonResponse({'status': 'error', 'message': err}, status=400)
+    
+    # Try sending via FCM
+    try:
+        from common.notification_service import send_to_user, NotificationPayload
+        payload = NotificationPayload(
+            title="🔑 Password Change OTP",
+            body=f"Your StallCart verification OTP is {otp_req.otp}. Valid for 10 minutes. Do not share this OTP.",
+            tag="change-password-otp"
+        )
+        send_to_user(user, payload)
+    except Exception as e:
+        logger.error(f"FCM OTP send failed: {e}")
+        
+    print(f"🔑 [OTP DEMO] Sent OTP to {user.phone} for password change: {otp_req.otp}")
+    
+    return JsonResponse({
+        'status': 'success',
+        'message': f'OTP sent successfully to your registered mobile: {user.phone}. (For testing, OTP is: {otp_req.otp})'
+    })
+
+
 @login_required
 def change_password_view(request):
     from django.contrib.auth.forms import PasswordChangeForm
     if request.method == 'POST':
         form = PasswordChangeForm(request.user, request.POST)
-        if form.is_valid():
+        otp_code = request.POST.get('otp')
+        
+        # Verify OTP
+        if not otp_code:
+            form.add_error(None, "Verification OTP is required.")
+        else:
+            # Check latest unexpired unverified OTP
+            from django.utils import timezone
+            otp_req = OTPRequest.objects.filter(
+                phone=request.user.phone,
+                purpose='change_password',
+                otp=otp_code.strip(),
+                is_verified=False,
+                expires_at__gt=timezone.now()
+            ).first()
+            
+            if not otp_req:
+                form.add_error(None, "Invalid or expired OTP.")
+            else:
+                # Mark as verified
+                otp_req.is_verified = True
+                otp_req.save()
+                
+        if form.is_valid() and not form.errors:
             user = form.save()
             from django.contrib.auth import update_session_auth_hash
             update_session_auth_hash(request, user)
             messages.success(request, "Password changed successfully!")
             return redirect('accounts:profile')
         else:
-            # Debug: Print form errors to console/PythonAnywhere logs
-            print("❌ PasswordChangeForm errors:", form.errors)
             messages.error(request, "Please correct the errors below.")
     else:
         form = PasswordChangeForm(request.user)
     return render(request, 'accounts/change_password.html', {'form': form})
 
-# Custom Password Reset Views (Email-based)
-class CustomPasswordResetView(PasswordResetView):
-    template_name = 'accounts/forgot_password.html'
-    email_template_name = 'accounts/password_reset_email.html'
-    subject_template_name = 'accounts/password_reset_subject.txt'
-    success_url = '/accounts/password-reset/done/'
-    html_email_template_name = 'accounts/password_reset_email.html'
 
-class CustomPasswordResetDoneView(PasswordResetDoneView):
-    template_name = 'accounts/password_reset_done.html'
+def forgot_password_view(request):
+    """Step 1 of forgot password: submit mobile number"""
+    if request.method == 'POST':
+        phone = request.POST.get('phone', '').strip()
+        if not phone:
+            messages.error(request, "Mobile number is required.")
+            return render(request, 'accounts/forgot_password.html')
+            
+        user = User.objects.filter(phone=phone).first()
+        if not user:
+            messages.error(request, "Mobile number not registered.")
+            return render(request, 'accounts/forgot_password.html')
+            
+        otp_req, err = OTPRequest.check_and_create_otp(phone, 'forgot_password')
+        if err:
+            messages.error(request, err)
+            return render(request, 'accounts/forgot_password.html')
+            
+        # Try sending via FCM
+        try:
+            from common.notification_service import send_to_user, NotificationPayload
+            payload = NotificationPayload(
+                title="🔑 Password Reset OTP",
+                body=f"Your StallCart password reset OTP is {otp_req.otp}. Valid for 10 minutes.",
+                tag="forgot-password-otp"
+            )
+            send_to_user(user, payload)
+        except Exception as e:
+            logger.error(f"FCM OTP send failed: {e}")
+            
+        print(f"🔑 [OTP DEMO] Sent OTP to {phone} for password reset: {otp_req.otp}")
+        
+        # Save to session
+        request.session['forgot_phone'] = phone
+        messages.success(request, f"OTP sent to your registered mobile number: {phone}. (For testing, OTP is: {otp_req.otp})")
+        return redirect('accounts:forgot_password_verify')
+        
+    return render(request, 'accounts/forgot_password.html')
 
-class CustomPasswordResetConfirmView(PasswordResetConfirmView):
-    template_name = 'accounts/password_reset_confirm.html'
-    success_url = '/accounts/password-reset/complete/'
 
-class CustomPasswordResetCompleteView(PasswordResetCompleteView):
-    template_name = 'accounts/password_reset_complete.html'
+def forgot_password_verify_view(request):
+    """Step 2 of forgot password: submit and verify OTP"""
+    phone = request.session.get('forgot_phone')
+    if not phone:
+        messages.error(request, "Session expired. Please enter your mobile number again.")
+        return redirect('accounts:forgot_password')
+        
+    if request.method == 'POST':
+        otp_code = request.POST.get('otp', '').strip()
+        if not otp_code:
+            messages.error(request, "OTP is required.")
+            return render(request, 'accounts/forgot_password_verify.html', {'phone': phone})
+            
+        from django.utils import timezone
+        otp_req = OTPRequest.objects.filter(
+            phone=phone,
+            purpose='forgot_password',
+            otp=otp_code,
+            is_verified=False,
+            expires_at__gt=timezone.now()
+        ).first()
+        
+        if not otp_req:
+            messages.error(request, "Invalid or expired OTP.")
+            return render(request, 'accounts/forgot_password_verify.html', {'phone': phone})
+            
+        # Mark as verified
+        otp_req.is_verified = True
+        otp_req.save()
+        
+        request.session['forgot_verified'] = True
+        messages.success(request, "OTP verified successfully. Please choose a new password.")
+        return redirect('accounts:forgot_password_reset')
+        
+    return render(request, 'accounts/forgot_password_verify.html', {'phone': phone})
+
+
+def forgot_password_reset_view(request):
+    """Step 3 of forgot password: enter new password"""
+    phone = request.session.get('forgot_phone')
+    verified = request.session.get('forgot_verified')
+    
+    if not phone or not verified:
+        messages.error(request, "Session expired. Please start over.")
+        return redirect('accounts:forgot_password')
+        
+    if request.method == 'POST':
+        password = request.POST.get('password')
+        confirm_password = request.POST.get('confirm_password')
+        
+        if not password or not confirm_password:
+            messages.error(request, "Both password fields are required.")
+            return render(request, 'accounts/forgot_password_reset.html')
+            
+        if password != confirm_password:
+            messages.error(request, "Passwords do not match.")
+            return render(request, 'accounts/forgot_password_reset.html')
+            
+        if len(password) < 8:
+            messages.error(request, "Password must be at least 8 characters.")
+            return render(request, 'accounts/forgot_password_reset.html')
+            
+        user = User.objects.filter(phone=phone).first()
+        if not user:
+            messages.error(request, "User not found.")
+            return redirect('accounts:forgot_password')
+            
+        user.set_password(password)
+        user.save()
+        
+        # Clear session
+        request.session.pop('forgot_phone', None)
+        request.session.pop('forgot_verified', None)
+        
+        messages.success(request, "Password reset successfully! Please login with your new password.")
+        return redirect('accounts:login')
+        
+    return render(request, 'accounts/forgot_password_reset.html')
 
 # accounts/views.py - Update profile_view function
 
@@ -605,36 +846,187 @@ def profile_view(request):
             data = json.loads(request.body)
             action = data.get('action')
             
-            # ===== UPDATE PERSONAL PROFILE =====
-            if action == 'update_profile':
-                # ✅ Always initialize variables FIRST to avoid UnboundLocalError
-                new_full_name = request.user.full_name  # Default to current value
-                new_email = request.user.email
+            # ===== SEND OTPs FOR PROFILE UPDATE =====
+            if action == 'send_profile_update_otps':
+                new_email = data.get('email', '').strip().lower()
+                new_phone = data.get('phone', '').strip()
                 
-                # ✅ Safely extract from request data
+                email_changed = (new_email and new_email != request.user.email)
+                phone_changed = (new_phone and new_phone != request.user.phone)
+                
+                if not email_changed and not phone_changed:
+                    return JsonResponse({'status': 'error', 'message': 'No changes detected'}, status=400)
+                    
+                email_sent = False
+                phone_sent = False
+                
+                # Check email duplicate & send OTP
+                if email_changed:
+                    if not new_email or '@' not in new_email or '.' not in new_email.split('@')[-1]:
+                        return JsonResponse({'status': 'error', 'message': 'Invalid email format'}, status=400)
+                    if User.objects.filter(email__iexact=new_email).exclude(pk=request.user.pk).exists():
+                        return JsonResponse({'status': 'error', 'message': 'Email address already registered by another user'}, status=400)
+                    
+                    otp_req, err = OTPRequest.check_and_create_otp(new_email, 'update_email')
+                    if err:
+                        return JsonResponse({'status': 'error', 'message': err}, status=400)
+                        
+                    # Try sending via email
+                    try:
+                        from django.core.mail import send_mail
+                        from django.conf import settings
+                        send_mail(
+                            subject="StallCart - Email Update OTP",
+                            message=f"Your verification OTP to update your email is: {otp_req.otp}. Valid for 10 minutes.",
+                            from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'stallcart.in@gmail.com'),
+                            recipient_list=[new_email],
+                            fail_silently=False,
+                        )
+                    except Exception as e:
+                        logger.error(f"Failed to send email OTP: {e}")
+                    print(f"📧 [EMAIL OTP DEMO] Sent OTP to {new_email} for email change: {otp_req.otp}")
+                    email_sent = True
+                    
+                # Check phone duplicate & send OTP
+                if phone_changed:
+                    if not new_phone or not new_phone.isdigit() or len(new_phone) != 10:
+                        return JsonResponse({'status': 'error', 'message': 'Invalid phone number format. Must be 10 digits.'}, status=400)
+                    if User.objects.filter(phone=new_phone).exclude(pk=request.user.pk).exists():
+                        return JsonResponse({'status': 'error', 'message': 'Mobile number already registered by another user'}, status=400)
+                        
+                    otp_req, err = OTPRequest.check_and_create_otp(new_phone, 'update_phone')
+                    if err:
+                        return JsonResponse({'status': 'error', 'message': err}, status=400)
+                        
+                    # Send via FCM
+                    try:
+                        from common.notification_service import send_to_user, NotificationPayload
+                        payload = NotificationPayload(
+                            title="🔑 Mobile Update OTP",
+                            body=f"Your OTP to update your mobile number is {otp_req.otp}. Valid for 10 minutes.",
+                            tag="update-phone-otp"
+                        )
+                        send_to_user(request.user, payload)
+                    except Exception as e:
+                        logger.error(f"FCM OTP send failed: {e}")
+                    print(f"📱 [PHONE OTP DEMO] Sent OTP to {new_phone} for phone change: {otp_req.otp}")
+                    phone_sent = True
+                    
+                # Generate user-friendly success message
+                msg_parts = []
+                if email_sent:
+                    msg_parts.append(f"OTP sent to new email: {new_email}")
+                if phone_sent:
+                    msg_parts.append(f"OTP sent to new mobile: {new_phone}")
+                
+                # Help text showing demo OTPs to make it easy for user testing
+                demo_help = ""
+                if email_sent and phone_sent:
+                    # Both changed, show both OTPs in demo
+                    email_otp_val = OTPRequest.objects.filter(phone=new_email, purpose='update_email').first().otp
+                    phone_otp_val = OTPRequest.objects.filter(phone=new_phone, purpose='update_phone').first().otp
+                    demo_help = f" (For demo, Email OTP: {email_otp_val}, Mobile OTP: {phone_otp_val})"
+                elif email_sent:
+                    email_otp_val = OTPRequest.objects.filter(phone=new_email, purpose='update_email').first().otp
+                    demo_help = f" (For demo, Email OTP: {email_otp_val})"
+                elif phone_sent:
+                    phone_otp_val = OTPRequest.objects.filter(phone=new_phone, purpose='update_phone').first().otp
+                    demo_help = f" (For demo, Mobile OTP: {phone_otp_val})"
+                
+                return JsonResponse({
+                    'status': 'success',
+                    'message': " & ".join(msg_parts) + "." + demo_help,
+                    'email_sent': email_sent,
+                    'phone_sent': phone_sent
+                })
+
+            # ===== UPDATE PERSONAL PROFILE =====
+            elif action == 'update_profile':
+                # Always initialize variables FIRST to avoid UnboundLocalError
+                new_full_name = request.user.full_name
+                new_email = request.user.email
+                new_phone = request.user.phone
+                
+                # Safely extract from request data
                 if 'full_name' in data and data['full_name'] is not None:
                     new_full_name = str(data['full_name']).strip()
                 if 'email' in data and data['email'] is not None:
                     new_email = str(data['email']).strip().lower()
+                if 'phone' in data and data['phone'] is not None:
+                    new_phone = str(data['phone']).strip()
                 
-                # ✅ Validate email
-                if not new_email or '@' not in new_email or '.' not in new_email.split('@')[-1]:
-                    return JsonResponse({'status': 'error', 'message': 'Invalid email format'}, status=400)
+                email_changed = (new_email != request.user.email)
+                phone_changed = (new_phone != request.user.phone)
                 
-                # ✅ Case-insensitive duplicate check
-                if new_email.lower() != request.user.email.lower():
+                from django.utils import timezone
+                
+                # Verify Email OTP
+                if email_changed:
+                    if not new_email or '@' not in new_email or '.' not in new_email.split('@')[-1]:
+                        return JsonResponse({'status': 'error', 'message': 'Invalid email format'}, status=400)
                     if User.objects.filter(email__iexact=new_email).exclude(pk=request.user.pk).exists():
-                        return JsonResponse({'status': 'error', 'message': 'Email already registered'}, status=400)
+                        return JsonResponse({'status': 'error', 'message': 'Email address already registered by another user'}, status=400)
+                        
+                    email_otp = data.get('email_otp')
+                    if not email_otp:
+                        return JsonResponse({'status': 'error', 'message': 'Email OTP is required to verify changes'}, status=400)
+                        
+                    otp_req = OTPRequest.objects.filter(
+                        phone=new_email,
+                        purpose='update_email',
+                        otp=email_otp.strip(),
+                        is_verified=False,
+                        expires_at__gt=timezone.now()
+                    ).first()
+                    
+                    if not otp_req:
+                        return JsonResponse({'status': 'error', 'message': 'Invalid or expired Email OTP'}, status=400)
+                    
+                    otp_req.is_verified = True
+                    otp_req.save()
+                    
+                # Verify Phone OTP
+                if phone_changed:
+                    if not new_phone or not new_phone.isdigit() or len(new_phone) != 10:
+                        return JsonResponse({'status': 'error', 'message': 'Invalid phone number format'}, status=400)
+                    if User.objects.filter(phone=new_phone).exclude(pk=request.user.pk).exists():
+                        return JsonResponse({'status': 'error', 'message': 'Mobile number already registered by another user'}, status=400)
+                        
+                    phone_otp = data.get('phone_otp')
+                    if not phone_otp:
+                        return JsonResponse({'status': 'error', 'message': 'Mobile OTP is required to verify changes'}, status=400)
+                        
+                    otp_req = OTPRequest.objects.filter(
+                        phone=new_phone,
+                        purpose='update_phone',
+                        otp=phone_otp.strip(),
+                        is_verified=False,
+                        expires_at__gt=timezone.now()
+                    ).first()
+                    
+                    if not otp_req:
+                        return JsonResponse({'status': 'error', 'message': 'Invalid or expired Mobile OTP'}, status=400)
+                    
+                    otp_req.is_verified = True
+                    otp_req.save()
                 
-                # ✅ Update and save
+                # Update and save User profile
                 request.user.full_name = new_full_name
                 request.user.email = new_email
-                request.user.save(update_fields=['full_name', 'email', 'updated_at'])
+                request.user.phone = new_phone
+                request.user.save(update_fields=['full_name', 'email', 'phone', 'updated_at'])
+                
+                # If role is seller, also update SellerProfile
+                if request.user.role == 'seller' and hasattr(request.user, 'seller_profile'):
+                    sp = request.user.seller_profile
+                    sp.phone = new_phone
+                    sp.save(update_fields=['phone', 'updated_at'])
                 
                 return JsonResponse({
                     'status': 'success', 
-                    'message': 'Profile updated',
+                    'message': 'Profile updated successfully!',
                     'email': request.user.email,
+                    'phone': request.user.phone,
                     'full_name': request.user.full_name
                 })
             
