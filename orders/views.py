@@ -182,34 +182,6 @@ def cancel_order(request, order_id):
             order=order, old_status=old_status, new_status='cancelled',
             changed_by=request.user, remarks=f'Cancelled by customer: {remarks}'
         )
-        
-        for item in order.items.all():
-            item.product.stock += item.quantity
-            item.product.save()
-    
-    if order.payment_status == 'paid':
-        if order.payment_method == 'razorpay':
-            client = get_razorpay_client()
-            if client:
-                try:
-                    client.refund.create({
-                        'payment_id': order.razorpay_payment_id,
-                        'amount': int(order.total_amount * 100),
-                        'notes': {'order_id': order.unique_order_id}
-                    })
-                    order.payment_status = 'refunded'
-                    order.refund_amount = order.total_amount
-                    order.refund_at = timezone.now()
-                    order.save()
-                except Exception as e:
-                    logger.error(f"Refund failed for {order.unique_order_id}: {e}")
-            else:
-                logger.error(f"Razorpay client not configured for cancellation refund of {order.unique_order_id}")
-        elif order.payment_method == 'wallet':
-            order.payment_status = 'refund_pending'
-            order.refund_amount = order.total_amount
-            order.save()
-            logger.info(f"Wallet payment: marked cancellation of {order.unique_order_id} for manual refund.")
     
     messages.success(request, f"Order {order.unique_order_id} cancelled successfully")
     return JsonResponse({'status': 'success', 'redirect': '/orders/'})
@@ -668,22 +640,25 @@ def seller_order_detail(request, order_id):
 @require_POST
 @login_required
 def seller_update_status(request, order_id):
-    """Seller: Update order status (e.g., mark as shipped)"""
-    if not (request.user.role == 'seller' and hasattr(request.user, 'seller_profile')):
+    """Seller: Update order status (e.g., mark as shipped/delivered/returned)"""
+    if not (is_seller_or_admin(request.user)):
         return JsonResponse({'error': 'Unauthorized'}, status=403)
     
-    seller = request.user.seller_profile
     order = get_object_or_404(Order, unique_order_id=order_id)
-    if not order.items.filter(product__seller=seller).exists():
-        return JsonResponse({'error': 'Unauthorized'}, status=403)
     
-    if order.status not in ['pending', 'confirmed', 'processing']:
+    # If seller, verify they own items in the order
+    if not request.user.is_superuser:
+        seller = request.user.seller_profile
+        if not order.items.filter(product__seller=seller).exists():
+            return JsonResponse({'error': 'Unauthorized'}, status=403)
+    
+    if order.status not in ['pending', 'confirmed', 'processing', 'shipped', 'delivered']:
         return JsonResponse({'error': 'Order cannot be updated at this stage'}, status=400)
     
     data = json.loads(request.body)
     new_status = data.get('status')
     
-    if new_status not in ['processing', 'shipped']:
+    if new_status not in ['processing', 'shipped', 'delivered', 'returned']:
         return JsonResponse({'error': 'Invalid status transition'}, status=400)
     
     with transaction.atomic():
@@ -692,11 +667,13 @@ def seller_update_status(request, order_id):
         order.status_updated_at = timezone.now()
         if new_status == 'shipped':
             order.shipped_at = timezone.now()
+        elif new_status == 'delivered':
+            order.delivered_at = timezone.now()
         order.save()
         
         OrderStatusLog.objects.create(
             order=order, old_status=old_status, new_status=new_status,
-            changed_by=request.user, remarks='Updated by seller'
+            changed_by=request.user, remarks='Updated by seller/admin'
         )
     
     if new_status == 'shipped':
@@ -710,21 +687,24 @@ def seller_update_status(request, order_id):
 @require_POST
 @login_required
 def seller_add_tracking(request, order_id):
-    """Seller: Add courier tracking number"""
-    if not (request.user.role == 'seller' and hasattr(request.user, 'seller_profile')):
+    """Seller/Admin: Add or edit courier tracking number"""
+    if not (is_seller_or_admin(request.user)):
         return JsonResponse({'error': 'Unauthorized'}, status=403)
     
-    seller = request.user.seller_profile
     order = get_object_or_404(Order, unique_order_id=order_id)
-    if not order.items.filter(product__seller=seller).exists():
-        return JsonResponse({'error': 'Unauthorized'}, status=403)
-    data = json.loads(request.body)
     
+    # If seller, verify they own items in the order
+    if not request.user.is_superuser:
+        seller = request.user.seller_profile
+        if not order.items.filter(product__seller=seller).exists():
+            return JsonResponse({'error': 'Unauthorized'}, status=403)
+            
+    data = json.loads(request.body)
     order.tracking_number = data.get('tracking_number')
     order.courier_name = data.get('courier_name', 'Shiprocket')
     order.save()
     
-    return JsonResponse({'status': 'success', 'message': 'Tracking added'})
+    return JsonResponse({'status': 'success', 'message': 'Tracking updated'})
 
 # ==================== ADMIN VIEWS ====================
 

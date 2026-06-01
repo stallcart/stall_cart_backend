@@ -118,6 +118,28 @@ class Order(BaseModel):
             # models.Index(fields=['order_id']),
         ]
     
+    def restock_items(self):
+        """Restock all items in the order, handling variants correctly and preventing double-restocking."""
+        for item in self.items.all():
+            if not item.is_returned:
+                product = item.product
+                variant = item.variant
+                qty = item.quantity
+                if variant:
+                    variant.stock = (variant.stock or 0) + qty
+                    variant.save(update_fields=['stock', 'updated_at'])
+                    product.stock = product.variants.filter(is_active=True).aggregate(
+                        total=models.Sum('stock')
+                    )['total'] or 0
+                    product.save(update_fields=['stock', 'updated_at'])
+                else:
+                    product.stock = (product.stock or 0) + qty
+                    product.save(update_fields=['stock', 'updated_at'])
+                
+                item.is_returned = True
+                item.returned_quantity = qty
+                item.save(update_fields=['is_returned', 'returned_quantity', 'updated_at'])
+
     def save(self, *args, **kwargs):
         # Auto-generate order ID
         # Auto-generate order_id only if not already set
@@ -149,6 +171,48 @@ class Order(BaseModel):
         super().save(*args, **kwargs)
         
         if status_changed:
+            # Handle restocking and refunding automatically if status transitions to cancelled/returned/RTO
+            if self.status in ('cancelled', 'returned', 'returned_to_source') and old_status not in ('cancelled', 'returned', 'returned_to_source'):
+                self.restock_items()
+                
+                # Auto-refund if paid and eligible (Razorpay)
+                if self.can_be_refunded:
+                    try:
+                        # Lazy import to avoid circular dependencies
+                        from orders.views import get_razorpay_client
+                        client = get_razorpay_client()
+                        if client:
+                            razorpay_refund = client.refund.create({
+                                'payment_id': self.razorpay_payment_id,
+                                'amount': int(self.total_amount * 100),
+                                'notes': {'order_id': self.unique_order_id, 'reason': 'Auto-refund on cancellation/return'}
+                            })
+                            self.payment_status = 'refunded'
+                            self.refund_amount = self.total_amount
+                            self.refund_at = timezone.now()
+                            type(self).objects.filter(pk=self.pk).update(
+                                payment_status='refunded',
+                                refund_amount=self.total_amount,
+                                refund_at=self.refund_at,
+                                razorpay_refund_id=razorpay_refund.get('id')
+                            )
+                        else:
+                            self.payment_status = 'failed'
+                            type(self).objects.filter(pk=self.pk).update(payment_status='failed')
+                    except Exception as e:
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.error(f"Auto-refund failed for cancelled/returned order {self.unique_order_id}: {e}")
+                        self.payment_status = 'failed'
+                        type(self).objects.filter(pk=self.pk).update(payment_status='failed')
+                elif self.payment_method == 'wallet' and self.payment_status == 'paid':
+                    self.payment_status = 'refunded'
+                    self.refund_amount = self.total_amount
+                    type(self).objects.filter(pk=self.pk).update(
+                        payment_status='refunded',
+                        refund_amount=self.total_amount
+                    )
+
             try:
                 from common.notification_service import notify_order_status_change
                 notify_order_status_change(self, old_status, self.status)

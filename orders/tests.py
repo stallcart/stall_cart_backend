@@ -427,3 +427,75 @@ class OrderManagementTests(TestCase):
         url = reverse('admin:orders_order_change', args=[self.order1.id])
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
+
+    def test_seller_multi_status_and_tracking_update(self):
+        """Seller can update status multiple times and add/edit tracking details."""
+        self.client.login(phone="8888888888", password="sellerpassword")
+        url = reverse('orders:seller_update_status', args=[self.order1.unique_order_id])
+        
+        # 1. Update status to processing
+        response = self.client.post(
+            url,
+            data=json.dumps({"status": "processing"}),
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.order1.refresh_from_db()
+        self.assertEqual(self.order1.status, "processing")
+        
+        # 2. Add tracking info
+        tracking_url = reverse('orders:seller_add_tracking', args=[self.order1.unique_order_id])
+        response = self.client.post(
+            tracking_url,
+            data=json.dumps({"tracking_number": "TRK12345", "courier_name": "Delhivery"}),
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.order1.refresh_from_db()
+        self.assertEqual(self.order1.tracking_number, "TRK12345")
+        self.assertEqual(self.order1.courier_name, "Delhivery")
+        
+        # 3. Edit/update tracking info
+        response = self.client.post(
+            tracking_url,
+            data=json.dumps({"tracking_number": "TRK99999", "courier_name": "BlueDart"}),
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.order1.refresh_from_db()
+        self.assertEqual(self.order1.tracking_number, "TRK99999")
+        self.assertEqual(self.order1.courier_name, "BlueDart")
+        
+        # 4. Update status to shipped
+        response = self.client.post(
+            url,
+            data=json.dumps({"status": "shipped"}),
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.order1.refresh_from_db()
+        self.assertEqual(self.order1.status, "shipped")
+        
+        # 5. Update status to delivered
+        response = self.client.post(
+            url,
+            data=json.dumps({"status": "delivered"}),
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.order1.refresh_from_db()
+        self.assertEqual(self.order1.status, "delivered")
+
+    def test_admin_tracking_update(self):
+        """Admin can also add/edit tracking details."""
+        self.client.login(phone="9999999999", password="adminpassword")
+        tracking_url = reverse('orders:seller_add_tracking', args=[self.order1.unique_order_id])
+        response = self.client.post(
+            tracking_url,
+            data=json.dumps({"tracking_number": "ADMTRACK", "courier_name": "Shiprocket"}),
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.order1.refresh_from_db()
+        self.assertEqual(self.order1.tracking_number, "ADMTRACK")
+        self.assertEqual(self.order1.courier_name, "Shiprocket")

@@ -30,9 +30,20 @@
                 {% else %}background:#f0fdfa; color:#0f766e; border:1px solid #99f6e4;{% endif %}">
                 {{ order.get_status_display }}
             </span>
-            <button class="btn-primary" onclick="openStatusModal()" style="font-size: 0.85rem; padding: 8px 16px; border-radius: var(--r-md); border: none; cursor: pointer; font-weight: 700;">
-                Update Status
-            </button>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
+                <button class="btn-primary" onclick="openStatusModal()" style="font-size: 0.85rem; padding: 8px 16px; border-radius: var(--r-md); border: none; cursor: pointer; font-weight: 700; height: 36px; display: inline-flex; align-items: center; justify-content: center;">
+                    Update Status
+                </button>
+                {% if not order.tracking_number %}
+                <button class="btn-outline" onclick="openTrackingModal('', '')" style="font-size: 0.85rem; padding: 8px 16px; border-radius: var(--r-md); border: 1.5px solid var(--gray-200); cursor: pointer; font-weight: 700; height: 36px; display: inline-flex; align-items: center; justify-content: center; background: white; color: var(--gray-700);">
+                    📦 Add Tracking
+                </button>
+                {% else %}
+                <button class="btn-outline" onclick="openTrackingModal('{{ order.courier_name|escapejs }}', '{{ order.tracking_number|escapejs }}')" style="font-size: 0.85rem; padding: 8px 16px; border-radius: var(--r-md); border: 1.5px solid var(--gray-200); cursor: pointer; font-weight: 700; height: 36px; display: inline-flex; align-items: center; justify-content: center; background: white; color: var(--gray-700);">
+                    📝 Edit Tracking
+                </button>
+                {% endif %}
+            </div>
         </div>
     </div>
 
@@ -227,6 +238,33 @@
     </div>
 </div>
 
+<!-- ✅ Admin Add/Edit Tracking Modal -->
+<div id="trackingModal" class="modal-overlay" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); justify-content: center; align-items: center; z-index: 10000;">
+    <div class="modal-content" style="background: white; border-radius: var(--r-2xl); width: 100%; max-width: 440px; box-shadow: var(--sh-xl); overflow: hidden; border: 1px solid var(--gray-100);">
+        <div style="padding: 20px 24px; border-bottom: 1px solid var(--gray-100); display: flex; align-items: center; justify-content: space-between;">
+            <h3 style="margin: 0; font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 800;">📦 Add/Edit Tracking Details</h3>
+            <span class="modal-close" onclick="closeTrackingModal()" style="font-size: 1.5rem; color: var(--gray-400); cursor: pointer; line-height: 1;">&times;</span>
+        </div>
+        <form id="trackingForm" style="padding: 24px; margin: 0;">
+            {% csrf_token %}
+            <div class="form-group" style="margin-bottom: 15px;">
+                <label style="display: block; font-weight: 600; color: var(--gray-700); margin-bottom: 8px; font-size: 0.9rem;">Courier Name</label>
+                <select name="courier_name" id="courierNameSelect" class="form-input" style="width: 100%; padding: 10px 12px; border: 1.5px solid var(--gray-200); border-radius: var(--r-md); font-size: 0.9rem; outline: none; background: white;">
+                    <option value="Shiprocket">🚀 Shiprocket</option>
+                    <option value="Delhivery">📦 Delhivery</option>
+                    <option value="BlueDart">🔵 BlueDart</option>
+                    <option value="Other">📋 Other</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label style="display: block; font-weight: 600; color: var(--gray-700); margin-bottom: 8px; font-size: 0.9rem;">Tracking Number (AWB)</label>
+                <input type="text" name="tracking_number" id="trackingNumberInput" class="form-input" required placeholder="e.g., AWB123456789" style="width: 100%; padding: 10px 12px; border: 1.5px solid var(--gray-200); border-radius: var(--r-md); font-size: 0.9rem; outline: none; background: white;">
+            </div>
+            <button type="submit" class="btn-primary" style="width: 100%; padding: 12px; font-weight: 700; border-radius: var(--r-md); border: none; cursor: pointer;">Save Tracking</button>
+        </form>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -237,12 +275,24 @@ const csrfToken = '{{ csrf_token }}';
 window.openStatusModal = () => {
     document.getElementById('statusModal').style.display = 'flex';
 };
+window.openTrackingModal = (courierName = '', trackingNumber = '') => {
+    const numInput = document.getElementById('trackingNumberInput');
+    if (numInput) numInput.value = trackingNumber;
+    const select = document.getElementById('courierNameSelect');
+    if (select) select.value = courierName || 'Shiprocket';
+    document.getElementById('trackingModal').style.display = 'flex';
+};
 window.closeModal = () => {
     document.getElementById('statusModal').style.display = 'none';
 };
+window.closeTrackingModal = () => {
+    document.getElementById('trackingModal').style.display = 'none';
+};
 window.onclick = (e) => {
     const modal = document.getElementById('statusModal');
+    const tModal = document.getElementById('trackingModal');
     if (e.target === modal) closeModal();
+    if (e.target === tModal) closeTrackingModal();
 };
 
 // Status Update AJAX
@@ -265,6 +315,33 @@ document.getElementById('statusForm')?.addEventListener('submit', async (e) => {
         }
         
         showToast('Order status updated successfully', 'success');
+        setTimeout(() => window.location.reload(), 1000);
+    } catch (err) {
+        alert(err.message);
+    }
+});
+
+// Tracking Add/Edit AJAX
+document.getElementById('trackingForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const tracking_number = document.getElementById('trackingNumberInput').value;
+    const courier_name = document.getElementById('courierNameSelect').value;
+    
+    try {
+        const res = await fetch(`/orders/seller/order/{{ order.unique_order_id }}/add-tracking/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ tracking_number, courier_name })
+        });
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error || 'Failed to update tracking info.');
+        }
+        
+        showToast('Tracking info updated successfully', 'success');
         setTimeout(() => window.location.reload(), 1000);
     } catch (err) {
         alert(err.message);
