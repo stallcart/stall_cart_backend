@@ -279,6 +279,83 @@
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+// Custom dialog helpers for a premium look
+function showCustomConfirm(title, message, confirmText = 'Yes', cancelText = 'No') {
+    return new Promise((resolve) => {
+        const modal = document.createElement('div');
+        modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,0.6);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:10000;opacity:0;transition:opacity 0.25s ease;';
+        const content = document.createElement('div');
+        content.style.cssText = 'background:#ffffff;border-radius:16px;width:calc(100% - 32px);max-width:400px;padding:24px;box-shadow:0 20px 25px -5px rgba(0,0,0,0.1);transform:scale(0.9) translateY(10px);transition:transform 0.25s cubic-bezier(0.34,1.56,0.64,1);text-align:center;';
+        content.innerHTML = `
+            <div style="width:56px;height:56px;background:#eff6ff;color:#3b82f6;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:1.5rem;">
+                <i class="fa fa-question-circle"></i>
+            </div>
+            <h3 style="margin:0 0 8px 0;font-size:1.25rem;font-weight:700;color:#0f172a;font-family:sans-serif;">${title}</h3>
+            <p style="margin:0 0 24px 0;font-size:0.95rem;color:#64748b;line-height:1.5;font-family:sans-serif;">${message}</p>
+            <div style="display:flex;gap:12px;justify-content:center;">
+                <button id="customConfirmCancel" style="flex:1;padding:10px 16px;border:1.5px solid #e2e8f0;border-radius:8px;background:#ffffff;color:#475569;font-weight:600;font-size:0.9rem;cursor:pointer;transition:all 0.2s;">${cancelText}</button>
+                <button id="customConfirmOk" style="flex:1;padding:10px 16px;border:none;border-radius:8px;background:#2874f0;color:#ffffff;font-weight:600;font-size:0.9rem;cursor:pointer;transition:all 0.2s;box-shadow:0 4px 6px -1px rgba(40,116,240,0.2);">${confirmText}</button>
+            </div>
+        `;
+        modal.appendChild(content);
+        document.body.appendChild(modal);
+        requestAnimationFrame(() => { modal.style.opacity = '1'; content.style.transform = 'scale(1) translateY(0)'; });
+        function closeConfirm(value) {
+            modal.style.opacity = '0'; content.style.transform = 'scale(0.9) translateY(10px)';
+            setTimeout(() => { modal.remove(); resolve(value); }, 250);
+        }
+        const cancelBtn = content.querySelector('#customConfirmCancel');
+        const okBtn = content.querySelector('#customConfirmOk');
+        cancelBtn.addEventListener('click', () => closeConfirm(false));
+        okBtn.addEventListener('click', () => closeConfirm(true));
+        cancelBtn.addEventListener('mouseenter', () => cancelBtn.style.background = '#f8fafc');
+        cancelBtn.addEventListener('mouseleave', () => cancelBtn.style.background = '#ffffff');
+        okBtn.addEventListener('mouseenter', () => okBtn.style.background = '#1a5fd4');
+        okBtn.addEventListener('mouseleave', () => okBtn.style.background = '#2874f0');
+    });
+}
+
+function showCustomAlert(title, message, type = 'error') {
+    return new Promise((resolve) => {
+        const modal = document.createElement('div');
+        modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,0.6);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:10000;opacity:0;transition:opacity 0.25s ease;';
+        let iconHtml = '<i class="fa fa-info-circle"></i>';
+        let iconBg = '#eff6ff';
+        let iconColor = '#3b82f6';
+        let btnBg = '#2874f0';
+        let btnHoverBg = '#1a5fd4';
+        if (type === 'error') {
+            iconHtml = '<i class="fa fa-exclamation-triangle"></i>';
+            iconBg = '#fee2e2'; iconColor = '#ef4444'; btnBg = '#ef4444'; btnHoverBg = '#dc2626';
+        } else if (type === 'success') {
+            iconHtml = '<i class="fa fa-check-circle"></i>';
+            iconBg = '#ecfdf5'; iconColor = '#10b981'; btnBg = '#10b981'; btnHoverBg = '#059669';
+        }
+        const content = document.createElement('div');
+        content.style.cssText = 'background:#ffffff;border-radius:16px;width:calc(100% - 32px);max-width:400px;padding:24px;box-shadow:0 20px 25px -5px rgba(0,0,0,0.1);transform:scale(0.9) translateY(10px);transition:transform 0.25s cubic-bezier(0.34,1.56,0.64,1);text-align:center;';
+        content.innerHTML = `
+            <div style="width:56px;height:56px;background:${iconBg};color:${iconColor};border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:1.5rem;">
+                ${iconHtml}
+            </div>
+            <h3 style="margin:0 0 8px 0;font-size:1.25rem;font-weight:700;color:#0f172a;font-family:sans-serif;">${title}</h3>
+            <p style="margin:0 0 24px 0;font-size:0.95rem;color:#64748b;line-height:1.5;font-family:sans-serif;">${message}</p>
+            <div style="display:flex;justify-content:center;">
+                <button id="customAlertOk" style="width:100%;padding:10px 16px;border:none;border-radius:8px;background:${btnBg};color:#ffffff;font-weight:600;font-size:0.9rem;cursor:pointer;transition:all 0.2s;">Dismiss</button>
+            </div>
+        `;
+        modal.appendChild(content);
+        document.body.appendChild(modal);
+        requestAnimationFrame(() => { modal.style.opacity = '1'; content.style.transform = 'scale(1) translateY(0)'; });
+        function closeAlert() {
+            modal.style.opacity = '0'; content.style.transform = 'scale(0.9) translateY(10px)';
+            setTimeout(() => { modal.remove(); resolve(); }, 250);
+        }
+        const okBtn = content.querySelector('#customAlertOk');
+        okBtn.addEventListener('click', closeAlert);
+        okBtn.addEventListener('mouseenter', () => okBtn.style.background = btnHoverBg);
+        okBtn.addEventListener('mouseleave', () => okBtn.style.background = btnBg);
+    });
+}
     const CSRF = '{{ csrf_token }}';
     const SAVE_ADDRESS_URL = "{% url 'accounts:profile' %}";
     const GET_ADDRESS_BASE = "{% url 'accounts:api_address_detail' 1 %}".replace('/1/', '/');
@@ -348,17 +425,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // ── Set Default Address ──
     window.setDefaultAddress = async (addressId) => {
-        if (!confirm('Set this as your default address?')) return;
-        try {
-            const res = await fetch(SAVE_ADDRESS_URL, { 
-                method: 'POST', 
-                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF }, 
-                body: JSON.stringify({ action: 'set_default_address', address_id: addressId }) 
-            });
-            const data = await res.json();
-            if (data.status === 'success') { toast('Default address updated!', 'success'); setTimeout(() => location.reload(), 500); }
-            else { toast(data.message || 'Failed to update', 'error'); }
-        } catch (err) { toast('Network error', 'error'); }
+        showCustomConfirm('Set Default Address', 'Set this address as your default billing and shipping address?', 'Set Default', 'Cancel').then(async (confirmed) => {
+            if (!confirmed) return;
+            try {
+                const res = await fetch(SAVE_ADDRESS_URL, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF }, 
+                    body: JSON.stringify({ action: 'set_default_address', address_id: addressId }) 
+                });
+                const data = await res.json();
+                if (data.status === 'success') { toast('Default address updated!', 'success'); setTimeout(() => location.reload(), 500); }
+                else { toast(data.message || 'Failed to update', 'error'); }
+            } catch (err) { toast('Network error', 'error'); }
+        });
     };
 
     // ── Address Modal Functions ──
@@ -536,14 +615,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                     // Redirect to Success page using orders:order_success
                                     window.location.href = `{% url 'orders:order_success' order_id='0' %}`.replace('0', verification.order_id);
                                 } else {
-                                    alert(verification.message || 'Payment verification failed.');
+                                    showCustomAlert('Verification Failed', verification.message || 'Payment verification failed.', 'error');
                                     btn.disabled = false;
                                     btn.innerHTML = 'PLACE ORDER';
                                 }
                             })
                             .catch(err => {
                                 console.error('Verification error:', err);
-                                alert('Network error during verification. Please contact support.');
+                                showCustomAlert('Network Error', 'Network error during verification. Please contact support.', 'error');
                                 btn.disabled = false;
                                 btn.innerHTML = 'PLACE ORDER';
                             });
@@ -564,7 +643,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     };
                     var rzp1 = new Razorpay(options);
                     rzp1.on('payment.failed', function (response){
-                        alert('Payment Failed: ' + response.error.description);
+                        showCustomAlert('Payment Failed', response.error.description, 'error');
                         btn.disabled = false;
                         btn.innerHTML = 'PLACE ORDER';
                     });
@@ -574,13 +653,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     window.location.href = `{% url 'orders:order_success' order_id='0' %}`.replace('0', data.order_id);
                 }
             } else {
-                alert(data.message || 'Order failed. Please try again.');
+                showCustomAlert('Order Failed', data.message || 'Order failed. Please try again.', 'error');
                 btn.disabled = false;
                 btn.innerHTML = 'PLACE ORDER';
             }
         } catch (err) {
             console.error('Error placing order:', err);
-            alert('Network Error. Please check your connection.');
+            showCustomAlert('Network Error', 'Please check your internet connection and try again.', 'error');
             btn.disabled = false;
             btn.innerHTML = 'PLACE ORDER';
         }
