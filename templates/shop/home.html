@@ -1386,25 +1386,17 @@ document.querySelectorAll('.btn-share').forEach(btn => {
     if (!launchBanner) return;
 
     const closeBtn = document.getElementById('closeLaunchBanner');
-    const bannerId = launchBanner.dataset.bannerId;
-    const localStorageKey = `stallcart_announcement_banner_dismissed_${bannerId}`;
     
     if (closeBtn) {
-        if (localStorage.getItem(localStorageKey) === 'true') {
-            launchBanner.style.display = 'none';
-            return;
-        } else {
-            closeBtn.addEventListener('click', function () {
-                launchBanner.style.opacity = '0';
-                launchBanner.style.transform = 'scaleY(0)';
-                launchBanner.style.transition = 'opacity 0.4s ease, transform 0.4s ease, margin 0.4s ease';
-                launchBanner.style.margin = '0';
-                setTimeout(() => {
-                    launchBanner.style.display = 'none';
-                }, 400);
-                localStorage.setItem(localStorageKey, 'true');
-            });
-        }
+        closeBtn.addEventListener('click', function () {
+            launchBanner.style.opacity = '0';
+            launchBanner.style.transform = 'scaleY(0)';
+            launchBanner.style.transition = 'opacity 0.4s ease, transform 0.4s ease, margin 0.4s ease';
+            launchBanner.style.margin = '0';
+            setTimeout(() => {
+                launchBanner.style.display = 'none';
+            }, 400);
+        });
     }
 
     const endTimeStr = launchBanner.dataset.endTime;
