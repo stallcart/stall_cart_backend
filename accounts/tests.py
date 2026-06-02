@@ -86,6 +86,14 @@ class ProfileUpdateOTPTests(TestCase):
             email="test@example.com"
         )
         self.client.login(phone=self.phone, password="testpassword123")
+        
+        from unittest.mock import patch
+        self.sms_patcher = patch('common.sms_service.send_sms_via_brevo')
+        self.mock_send_sms = self.sms_patcher.start()
+        self.mock_send_sms.return_value = True
+
+    def tearDown(self):
+        self.sms_patcher.stop()
 
     def test_profile_update_trigger_otp(self):
         """Requesting to change email or phone triggers OTP send."""
@@ -269,6 +277,14 @@ class UserRegistrationOTPTests(TestCase):
     def setUp(self):
         self.phone = "9876543210"
         self.email = "test@example.com"
+        
+        from unittest.mock import patch
+        self.sms_patcher = patch('common.sms_service.send_sms_via_brevo')
+        self.mock_send_sms = self.sms_patcher.start()
+        self.mock_send_sms.return_value = True
+
+    def tearDown(self):
+        self.sms_patcher.stop()
 
     def test_registration_trigger_otp(self):
         """Triggering registration OTP works successfully and creates OTP requests in db."""
