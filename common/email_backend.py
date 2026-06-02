@@ -57,8 +57,14 @@ class BrevoAPIBackend(BaseEmailBackend):
                     payload["textContent"] = message.body
                 elif getattr(message, 'content_subtype', None) == 'html':
                     payload["htmlContent"] = message.body
+                    from django.utils.html import strip_tags
+                    payload["textContent"] = strip_tags(message.body)
                 else:
                     payload["textContent"] = message.body
+                    # Wrap plain text in simple HTML to avoid blank rendering issues in some email clients
+                    import html
+                    html_body = html.escape(message.body).replace('\n', '<br>')
+                    payload["htmlContent"] = f"<html><body><div style='font-family: sans-serif; font-size: 14px; line-height: 1.5; color: #333;'>{html_body}</div></body></html>"
                 
                 response = requests.post(url, json=payload, headers=headers, timeout=10)
                 if response.status_code in [200, 201]:
