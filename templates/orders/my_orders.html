@@ -10,8 +10,8 @@
 <div class="orders-container">
 
     <!-- Header -->
-    <div class="page-header">
-        <h2><i class="fa fa-box" style="color:var(--blue-500,#2874f0);margin-right:8px;"></i>My Orders</h2>
+    <div class="profile-header">
+        <h2><i class="fa fa-box"></i> My Orders</h2>
         <p class="text-muted">Track, return, or reorder your purchases</p>
     </div>
 
@@ -31,10 +31,18 @@
         </div>
     </div>
 
+    <!-- Filter Tabs -->
+    <div class="order-filter-bar">
+        <button class="order-filter-btn active" data-filter="all">All Orders</button>
+        <button class="order-filter-btn" data-filter="active">Active</button>
+        <button class="order-filter-btn" data-filter="delivered">Delivered</button>
+        <button class="order-filter-btn" data-filter="cancelled">Cancelled &amp; Returned</button>
+    </div>
+
     {% if orders %}
     <div class="orders-list">
         {% for order in orders %}
-        <div class="order-card">
+        <div class="order-card" data-status="{{ order.status }}">
 
             <!-- Card Header -->
             <div class="order-card-header">
@@ -45,12 +53,12 @@
                                 {{ order.unique_order_id }}
                             </a>
                         {% else %}
-                            <span class="order-id-link" style="color:#999;cursor:not-allowed;">
+                            <span class="order-id-link text-muted" style="cursor:not-allowed;">
                                 {{ order.unique_order_id|default:"N/A" }}
                             </span>
                         {% endif %}
                     </h3>
-                    <p class="text-muted" style="margin:4px 0 0;">
+                    <p class="text-muted" style="margin-top: 4px;">
                         {{ order.created_at|date:"d M Y, h:i A" }} &nbsp;·&nbsp;
                         {{ order.items.count }} item{{ order.items.count|pluralize }}
                     </p>
@@ -67,8 +75,8 @@
                     {% if item.product.primary_image %}
                         <img src="{{ item.product.primary_image.url }}" alt="{{ item.product.name }}">
                     {% else %}
-                        <div style="width:50px;height:50px;border-radius:6px;background:#e9ecef;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                            <i class="fa fa-image" style="color:#ccc;"></i>
+                        <div class="order-item-img-fallback" style="width:52px; height:52px; border-radius:var(--r-md); background:var(--gray-100); display:flex; align-items:center; justify-content:center; flex-shrink:0; border:1px solid var(--gray-200);">
+                            <i class="fa fa-image" style="color:var(--gray-400);"></i>
                         </div>
                     {% endif %}
                     <div>
@@ -88,7 +96,7 @@
                     Payment:
                     <strong>{{ order.get_payment_method_display }}</strong>
                     &nbsp;·&nbsp;
-                    <span class="badge-{{ order.payment_status }}" style="font-size:.8rem;">
+                    <span class="badge-{{ order.payment_status }} order-status-badge" style="font-size:0.75rem; padding: 2px 8px;">
                         {{ order.payment_status|title }}
                     </span>
                 </span>
@@ -102,12 +110,11 @@
                         <i class="fa fa-search"></i> Track Order
                     </a>
                 {% else %}
-                    <span class="btn-track" style="opacity:0.6;cursor:not-allowed;">
+                    <span class="btn-track" style="opacity:0.6; cursor:not-allowed;">
                         <i class="fa fa-search"></i> Track Order
                     </span>
                 {% endif %}
 
-                {# Correct Django template syntax: check status individually #}
                 {% if order.status == 'pending' or order.status == 'confirmed' or order.status == 'processing' %}
                     {% if order.is_cancellable %}
                     <button class="btn-cancel"
@@ -157,10 +164,10 @@
 
     {% else %}
     <div class="empty-state">
-        <i class="fa fa-box-open"></i>
+        <i class="fa fa-box-open" style="font-size:3rem; color:var(--gray-300); margin-bottom:16px;"></i>
         <h3>No orders yet</h3>
         <p style="margin-bottom:20px;">Start shopping to see your orders here!</p>
-        <a href="{% url 'shop:home' %}" style="background:#2874f0;color:#fff;padding:12px 28px;border-radius:8px;font-weight:700;text-decoration:none;">
+        <a href="{% url 'shop:home' %}" class="btn-primary">
             Start Shopping
         </a>
     </div>
@@ -168,61 +175,23 @@
 
 </div>
 
-<!-- ── Cancel Modal (Commented Out) ──
-<div class="oc-modal" id="cancelModal">
-    <div class="oc-modal-box">
-        <button class="oc-close" onclick="closeCancelModal()">&times;</button>
-        <p class="oc-modal-title"><i class="fa fa-times-circle" style="color:#c62828;margin-right:6px;"></i>Cancel Order</p>
-        <p style="font-size:.85rem;color:#666;margin:-8px 0 16px;">Order: <strong id="cancelOrderLabel"></strong></p>
-
-        {% csrf_token %}
-        <input type="hidden" id="cancelOrderId" value="">
-
-        <div class="oc-form-group">
-            <label>Reason for cancellation *</label>
-            <select class="oc-select" id="cancelReason">
-                <option value="changed_mind">Changed my mind</option>
-                <option value="found_cheaper">Found cheaper elsewhere</option>
-                <option value="delivery_delay">Delivery delay</option>
-                <option value="wrong_address">Wrong address</option>
-                <option value="other">Other</option>
-            </select>
-        </div>
-        <div class="oc-form-group">
-            <label>Additional remarks (optional)</label>
-            <textarea class="oc-textarea" id="cancelRemarks" rows="3" placeholder="Tell us more..."></textarea>
-        </div>
-
-        <div class="oc-error" id="cancelError"></div>
-
-        <div class="oc-btn-row">
-            <button class="oc-btn-cancel-modal" onclick="closeCancelModal()">Keep Order</button>
-            <button class="oc-btn-confirm" id="cancelConfirmBtn" onclick="submitCancellation()">
-                Confirm Cancellation
-            </button>
-        </div>
-    </div>
-</div>
--->
-
-<!-- ── Return Modal ──────────────────────────────────────── -->
+<!-- ── Return Modal ── -->
 <div class="modal" id="returnModal" role="dialog" aria-modal="true">
     <div class="modal-content">
         <div class="modal-header-bar">
-            <h3><i class="fa fa-undo" style="color:var(--blue-600);margin-right:8px;"></i>Return Items</h3>
+            <h3><i class="fa fa-undo"></i> Return Items</h3>
             <button class="modal-close" onclick="closeReturnModal()" aria-label="Close modal">&times;</button>
         </div>
-        <div class="modal-body" style="padding: 24px;">
+        <div class="modal-body">
             <p style="font-size: 0.95rem; color: var(--gray-700); margin-bottom: 12px;">
                 Order: <strong id="returnOrderLabel" style="color: var(--gray-900);"></strong>
             </p>
             <p style="font-size: 0.9rem; color: var(--gray-500); margin-bottom: 24px; line-height: 1.5;">
                 To initiate a return, please go to the order detail page and select the items you want to return.
             </p>
-            <div style="display: flex; gap: 12px; margin-top: 16px;">
-                <button class="btn-outline" onclick="closeReturnModal()" style="flex: 1; padding: 10px 16px;">Close</button>
-                <a id="returnDetailLink" href="#" class="btn-primary"
-                   style="flex: 1.2; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 16px;">
+            <div class="form-actions" style="margin-top: 16px;">
+                <button class="btn-outline" onclick="closeReturnModal()" style="flex: 1;">Close</button>
+                <a id="returnDetailLink" href="#" class="btn-primary" style="flex: 1.2; text-decoration: none;">
                     <i class="fa fa-external-link-alt"></i> Go to Order Detail
                 </a>
             </div>
@@ -236,81 +205,44 @@
 <script>
 const CSRF_TOKEN = '{{ csrf_token }}';
 
+// ===== ORDER FILTERING TAB SYSTEM =====
+document.querySelectorAll('.order-filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.order-filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        const filter = btn.getAttribute('data-filter');
+        const cards = document.querySelectorAll('.order-card');
+        
+        cards.forEach(card => {
+            const status = card.getAttribute('data-status');
+            if (filter === 'all') {
+                card.style.display = 'block';
+            } else if (filter === 'active') {
+                const activeStates = ['pending', 'confirmed', 'processing', 'shipped', 'out_for_delivery'];
+                card.style.display = activeStates.includes(status) ? 'block' : 'none';
+            } else if (filter === 'delivered') {
+                card.style.display = status === 'delivered' ? 'block' : 'none';
+            } else if (filter === 'cancelled') {
+                const cancelledStates = ['cancelled', 'returned', 'refund_initiated'];
+                card.style.display = cancelledStates.includes(status) ? 'block' : 'none';
+            }
+        });
+    });
+});
+
 // ── Toast ────────────────────────────────────────────────
 function ocToast(msg, type = 'info') {
     const el = document.createElement('div');
-    el.className = `oc-toast ${type}`;
+    el.className = `toast ${type}`;
     const icons = { success: 'fa-check-circle', error: 'fa-exclamation-circle', info: 'fa-info-circle' };
     el.innerHTML = `<i class="fa ${icons[type] || icons.info}"></i> ${msg}`;
     document.body.appendChild(el);
     setTimeout(() => {
-        el.style.animation = 'ocToastOut 0.3s ease forwards';
+        el.style.animation = 'toastOut 0.3s ease forwards';
         setTimeout(() => el.remove(), 320);
     }, 2800);
 }
-
-/* ── Cancel Modal (Commented Out) ──
-function openCancelModal(orderId) {
-    document.getElementById('cancelOrderId').value = orderId;
-    document.getElementById('cancelOrderLabel').textContent = orderId;
-    document.getElementById('cancelRemarks').value = '';
-    document.getElementById('cancelError').style.display = 'none';
-    document.getElementById('cancelConfirmBtn').disabled = false;
-    document.getElementById('cancelConfirmBtn').textContent = 'Confirm Cancellation';
-    document.getElementById('cancelModal').classList.add('open');
-    document.body.style.overflow = 'hidden';
-}
-function closeCancelModal() {
-    document.getElementById('cancelModal').classList.remove('open');
-    document.body.style.overflow = '';
-}
-
-async function submitCancellation() {
-    const orderId = document.getElementById('cancelOrderId').value;
-    const reason  = document.getElementById('cancelReason').value;
-    const remarks = document.getElementById('cancelRemarks').value.trim();
-    const btn     = document.getElementById('cancelConfirmBtn');
-    const errEl   = document.getElementById('cancelError');
-
-    btn.disabled = true;
-    btn.textContent = 'Cancelling…';
-    errEl.style.display = 'none';
-
-    try {
-        const res = await fetch(`/orders/order/${orderId}/cancel/`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': CSRF_TOKEN
-            },
-            body: JSON.stringify({ reason, remarks })
-        });
-
-        const contentType = res.headers.get('content-type') || '';
-        if (!contentType.includes('application/json')) {
-            throw new Error(`Server returned ${res.status}. Check cancel URL in urls.py.`);
-        }
-
-        const data = await res.json();
-
-        if (data.status === 'success') {
-            closeCancelModal();
-            ocToast('Order cancelled successfully.', 'success');
-            setTimeout(() => location.reload(), 1000);
-        } else {
-            errEl.textContent = data.error || 'Cancellation failed. Please try again.';
-            errEl.style.display = 'block';
-            btn.disabled = false;
-            btn.textContent = 'Confirm Cancellation';
-        }
-    } catch (err) {
-        errEl.textContent = err.message || 'Network error. Please try again.';
-        errEl.style.display = 'block';
-        btn.disabled = false;
-        btn.textContent = 'Confirm Cancellation';
-    }
-}
-*/
 
 // ── Return Modal ─────────────────────────────────────────
 function openReturnModal(orderId) {
@@ -325,13 +257,10 @@ function closeReturnModal() {
 }
 
 // ── Reorder ──────────────────────────────────────────────
-// ── Reorder: Redirect to Product Detail Page ──────────────────────────────
-// ── Reorder: Redirect to Product Detail Page ──────────────────────────────
 async function reorderOrder(orderId, btn) {
     const origHTML = btn.innerHTML;
     const origDisabled = btn.disabled;
     
-    // Show loading state
     btn.disabled = true;
     btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Loading…';
 
@@ -344,7 +273,6 @@ async function reorderOrder(orderId, btn) {
             }
         });
 
-        // Handle 404 if endpoint doesn't exist yet
         if (res.status === 404) {
             ocToast('Reorder feature coming soon!', 'info');
             btn.disabled = origDisabled;
@@ -360,14 +288,11 @@ async function reorderOrder(orderId, btn) {
         const data = await res.json();
         
         if (data.status === 'success') {
-            // Show informative toast
             const msg = data.total_items > 1 
                 ? `🛒 ${data.message} + ${data.total_items - 1} more item(s) in this order`
                 : `🛒 ${data.message}`;
             
             ocToast(msg, 'success');
-            
-            // Redirect after short delay for UX
             setTimeout(() => {
                 window.location.href = data.redirect_url;
             }, 900);
@@ -386,16 +311,11 @@ async function reorderOrder(orderId, btn) {
 }
 
 // ── Close modals on backdrop click / Escape ───────────────
-/*
-document.getElementById('cancelModal').addEventListener('click', function(e) {
-    if (e.target === this) closeCancelModal();
-});
-*/
 document.getElementById('returnModal').addEventListener('click', function(e) {
     if (e.target === this) closeReturnModal();
 });
 document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') { closeCancelModal(); closeReturnModal(); }
+    if (e.key === 'Escape') { closeReturnModal(); }
 });
 </script>
 {% endblock %}
