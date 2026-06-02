@@ -4,107 +4,6 @@
 {% block title %}My Orders | {{ site_settings.site_name }}{% endblock %}
 
 {% block extra_css %}
-<style>
-.orders-container { max-width: 900px; margin: 0 auto; padding: 20px; }
-.page-header { margin-bottom: 25px; }
-.page-header h2 { margin: 0 0 5px; }
-.text-muted { color: #666; font-size: 0.9rem; }
-
-/* Stats */
-.order-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; margin-bottom: 25px; }
-.stat-card { background: #fff; padding: 15px; border-radius: 10px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-.stat-card .stat-num { display: block; font-size: 1.5rem; font-weight: 700; color: var(--blue-500, #2874f0); }
-.stat-card .stat-label { font-size: 0.8rem; color: #666; }
-
-/* Order Card */
-.order-card { background: #fff; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.06); overflow: hidden; border: 1px solid #f0f0f0; transition: box-shadow 0.2s; }
-.order-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.10); }
-.order-card-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: #f8f9fa; border-bottom: 1px solid #eee; flex-wrap: wrap; gap: 10px; }
-.order-card-header h3 { margin: 0; font-size: 1rem; color: #212121; }
-.order-id-link { color: #2874f0; text-decoration: none; font-weight: 700; }
-.order-id-link:hover { text-decoration: underline; }
-.order-status-badge { padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; white-space: nowrap; }
-.badge-pending { background: #fff8e1; color: #f57f17; }
-.badge-confirmed, .badge-processing { background: #e3f2fd; color: #1976d2; }
-.badge-shipped, .badge-out_for_delivery { background: #e8f5e9; color: #2e7d32; }
-.badge-delivered { background: #c8e6c9; color: #1b5e20; }
-.badge-cancelled { background: #ffebee; color: #c62828; }
-.badge-returned, .badge-refund_initiated { background: #f3e5f5; color: #6a1b9a; }
-
-/* Items Preview */
-.order-items-preview { padding: 15px 20px; display: flex; flex-wrap: wrap; gap: 10px; }
-.order-item-mini { display: flex; align-items: center; gap: 10px; background: #f8f9fa; padding: 8px 12px; border-radius: 8px; max-width: 280px; }
-.order-item-mini img { width: 50px; height: 50px; border-radius: 6px; object-fit: cover; flex-shrink: 0; background: #e9ecef; }
-.order-item-mini h4 { margin: 0 0 4px; font-size: 0.875rem; color: #212121; }
-.order-item-mini p { margin: 0; color: #666; font-size: 0.82rem; }
-.order-item-more { display: flex; align-items: center; justify-content: center; background: #e3f2fd; color: #1976d2; padding: 8px 14px; border-radius: 8px; font-size: 0.85rem; font-weight: 500; }
-
-/* Summary */
-.order-summary-strip { padding: 12px 20px; background: #fafafa; border-top: 1px solid #eee; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
-.summary-total { font-weight: 700; font-size: 1rem; color: #212121; }
-.summary-meta { font-size: 0.82rem; color: #666; }
-
-/* Actions */
-.order-actions { display: flex; gap: 10px; padding: 14px 20px; flex-wrap: wrap; align-items: center; }
-.btn-sm { padding: 8px 16px !important; font-size: 0.85rem !important; }
-.btn-track { border: 2px solid #2874f0; color: #2874f0; background: #fff; padding: 9px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; text-decoration: none; font-size: 0.875rem; transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px; }
-.btn-track:hover { background: #2874f0; color: #fff; }
-.btn-cancel { background: #fff0f0; border: 1px solid #ffcdd2; color: #c62828; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.85rem; transition: all 0.15s; display: inline-flex; align-items: center; gap: 5px; }
-.btn-cancel:hover { background: #ffcdd2; }
-.btn-reorder { background: #e8f5e9; border: 1px solid #c8e6c9; color: #2e7d32; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.85rem; transition: all 0.15s; display: inline-flex; align-items: center; gap: 5px; }
-.btn-reorder:hover { background: #c8e6c9; }
-.btn-return { background: #e3f2fd; border: 1px solid #bbdefb; color: #1565c0; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.85rem; transition: all 0.15s; display: inline-flex; align-items: center; gap: 5px; }
-.btn-return:hover { background: #bbdefb; }
-
-/* Quick Timeline */
-.quick-timeline { padding: 12px 20px; background: #f8f9ff; border-top: 1px solid #eee; }
-.timeline-steps { display: flex; justify-content: space-between; position: relative; }
-.timeline-steps::before { content: ''; position: absolute; top: 10px; left: 10%; right: 10%; height: 2px; background: #e0e0e0; z-index: 0; }
-.tl-step { position: relative; z-index: 1; text-align: center; flex: 1; }
-.tl-step .dot { width: 12px; height: 12px; border-radius: 50%; background: #ccc; margin: 0 auto 5px; }
-.tl-step.done .dot { background: #2874f0; }
-.tl-step.active .dot { background: #2874f0; box-shadow: 0 0 0 4px rgba(40,116,240,0.2); }
-.tl-step small { font-size: 0.72rem; color: #666; display: block; line-height: 1.3; }
-
-/* Empty State */
-.empty-state { text-align: center; padding: 60px 20px; color: #888; background: #fff; border-radius: 12px; }
-.empty-state i { font-size: 3rem; margin-bottom: 15px; display: block; color: #ccc; }
-
-/* Modal */
-.oc-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 2000; padding: 20px; }
-.oc-modal.open { display: flex; }
-.oc-modal-box { background: #fff; padding: 28px; border-radius: 14px; width: 100%; max-width: 460px; position: relative; box-shadow: 0 16px 48px rgba(0,0,0,0.18); }
-.oc-modal-title { font-size: 1.1rem; font-weight: 700; margin: 0 0 18px; color: #212121; }
-.oc-close { position: absolute; top: 16px; right: 18px; font-size: 1.4rem; cursor: pointer; color: #999; background: none; border: none; line-height: 1; }
-.oc-close:hover { color: #333; }
-.oc-form-group { margin-bottom: 15px; }
-.oc-form-group label { display: block; margin-bottom: 6px; font-weight: 500; color: #444; font-size: 0.875rem; }
-.oc-select, .oc-textarea { width: 100%; padding: 10px 12px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 0.9rem; font-family: inherit; outline: none; transition: border-color 0.2s; }
-.oc-select:focus, .oc-textarea:focus { border-color: #2874f0; box-shadow: 0 0 0 3px rgba(40,116,240,0.1); }
-.oc-btn-row { display: flex; gap: 10px; margin-top: 20px; }
-.oc-btn-confirm { flex: 1; background: #c62828; color: #fff; border: none; padding: 11px; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 0.9rem; transition: background 0.15s; }
-.oc-btn-confirm:hover { background: #b71c1c; }
-.oc-btn-confirm:disabled { background: #ccc; cursor: not-allowed; }
-.oc-btn-cancel-modal { flex: 1; background: #f5f5f5; color: #444; border: none; padding: 11px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.9rem; transition: background 0.15s; }
-.oc-btn-cancel-modal:hover { background: #e0e0e0; }
-.oc-error { background: #ffebee; color: #c62828; padding: 10px 14px; border-radius: 8px; font-size: 0.85rem; margin-top: 10px; display: none; }
-
-/* Toast */
-.oc-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); padding: 12px 22px; border-radius: 40px; font-size: 0.875rem; font-weight: 600; box-shadow: 0 6px 20px rgba(0,0,0,0.15); z-index: 9999; display: flex; align-items: center; gap: 8px; animation: ocToastIn 0.3s ease; white-space: nowrap; }
-.oc-toast.success { background: #059669; color: #fff; }
-.oc-toast.error { background: #dc2626; color: #fff; }
-.oc-toast.info { background: #1f2937; color: #fff; }
-@keyframes ocToastIn { from { opacity:0; transform:translateX(-50%) translateY(12px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
-@keyframes ocToastOut { to { opacity:0; transform:translateX(-50%) translateY(12px); } }
-
-@media (max-width: 600px) {
-    .order-card-header { flex-direction: column; align-items: flex-start; }
-    .order-actions { flex-direction: column; }
-    .btn-track, .btn-cancel, .btn-reorder, .btn-return { width: 100%; justify-content: center; }
-    .timeline-steps::before { display: none; }
-    .tl-step { flex: none; }
-}
-</style>
 {% endblock %}
 
 {% block content %}
@@ -117,16 +16,16 @@
     </div>
 
     <!-- Stats -->
-    <div class="order-stats">
-        <div class="stat-card">
+    <div class="stats-grid">
+        <div class="stat-card total">
             <span class="stat-num">{{ total_orders }}</span>
             <span class="stat-label">Total Orders</span>
         </div>
-        <div class="stat-card">
+        <div class="stat-card success">
             <span class="stat-num">{{ delivered_orders }}</span>
             <span class="stat-label">Delivered</span>
         </div>
-        <div class="stat-card">
+        <div class="stat-card info">
             <span class="stat-num">{{ in_progress_orders }}</span>
             <span class="stat-label">In Progress</span>
         </div>
@@ -307,22 +206,26 @@
 -->
 
 <!-- ── Return Modal ──────────────────────────────────────── -->
-<div class="oc-modal" id="returnModal">
-    <div class="oc-modal-box">
-        <button class="oc-close" onclick="closeReturnModal()">&times;</button>
-        <p class="oc-modal-title"><i class="fa fa-undo" style="color:#1565c0;margin-right:6px;"></i>Return Items</p>
-        <p style="font-size:.85rem;color:#666;margin:-8px 0 16px;">
-            Order: <strong id="returnOrderLabel"></strong>
-        </p>
-        <p style="font-size:.85rem;color:#444;">
-            To initiate a return, please go to the order detail page and select the items you want to return.
-        </p>
-        <div class="oc-btn-row">
-            <button class="oc-btn-cancel-modal" onclick="closeReturnModal()">Close</button>
-            <a id="returnDetailLink" href="#"
-               style="flex:1;background:#1565c0;color:#fff;border:none;padding:11px;border-radius:8px;font-weight:700;cursor:pointer;font-size:.9rem;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:6px;">
-                <i class="fa fa-external-link-alt"></i> Go to Order Detail
-            </a>
+<div class="modal" id="returnModal" role="dialog" aria-modal="true">
+    <div class="modal-content">
+        <div class="modal-header-bar">
+            <h3><i class="fa fa-undo" style="color:var(--blue-600);margin-right:8px;"></i>Return Items</h3>
+            <button class="modal-close" onclick="closeReturnModal()" aria-label="Close modal">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 24px;">
+            <p style="font-size: 0.95rem; color: var(--gray-700); margin-bottom: 12px;">
+                Order: <strong id="returnOrderLabel" style="color: var(--gray-900);"></strong>
+            </p>
+            <p style="font-size: 0.9rem; color: var(--gray-500); margin-bottom: 24px; line-height: 1.5;">
+                To initiate a return, please go to the order detail page and select the items you want to return.
+            </p>
+            <div style="display: flex; gap: 12px; margin-top: 16px;">
+                <button class="btn-outline" onclick="closeReturnModal()" style="flex: 1; padding: 10px 16px;">Close</button>
+                <a id="returnDetailLink" href="#" class="btn-primary"
+                   style="flex: 1.2; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 16px;">
+                    <i class="fa fa-external-link-alt"></i> Go to Order Detail
+                </a>
+            </div>
         </div>
     </div>
 </div>
@@ -413,11 +316,11 @@ async function submitCancellation() {
 function openReturnModal(orderId) {
     document.getElementById('returnOrderLabel').textContent = orderId;
     document.getElementById('returnDetailLink').href = `/orders/order/${orderId}/`;
-    document.getElementById('returnModal').classList.add('open');
+    document.getElementById('returnModal').classList.add('show');
     document.body.style.overflow = 'hidden';
 }
 function closeReturnModal() {
-    document.getElementById('returnModal').classList.remove('open');
+    document.getElementById('returnModal').classList.remove('show');
     document.body.style.overflow = '';
 }
 

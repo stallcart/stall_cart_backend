@@ -480,13 +480,13 @@
                             {% endif %}
                         </td>
                         <td class="text-right" style="padding: 10pt; vertical-align: top;">
-                            <span class="product-price" style="font-weight: bold; color: #1e293b;">₹{{ item.price|floatformat:2 }}</span>
+                            <span class="product-price" style="font-weight: bold; color: #1e293b;">Rs. {{ item.price|floatformat:2 }}</span>
                         </td>
                         <td class="text-right" style="padding: 10pt; vertical-align: top;">
                             <span>{{ item.quantity }}</span>
                         </td>
                         <td class="text-right" style="padding: 10pt; vertical-align: top;">
-                            <span class="product-total" style="font-weight: bold; color: #0f172a;">₹{{ item.total|floatformat:2 }}</span>
+                            <span class="product-total" style="font-weight: bold; color: #0f172a;">Rs. {{ item.total|floatformat:2 }}</span>
                         </td>
                     </tr>
                     {% empty %}
@@ -536,29 +536,29 @@
                     <table style="width: 100%; border-collapse: collapse; font-size: 10pt;">
                         <tr>
                             <td style="padding: 4pt 0; text-align: left; color: #475569;">Items Total</td>
-                            <td style="padding: 4pt 0; text-align: right; font-weight: bold; color: #1e293b;">₹{{ order.mrp_subtotal|floatformat:2 }}</td>
+                            <td style="padding: 4pt 0; text-align: right; font-weight: bold; color: #1e293b;">Rs. {{ order.mrp_subtotal|floatformat:2 }}</td>
                         </tr>
                         {% if order.discount_amount and order.discount_amount > 0 %}
                         <tr>
                             <td style="padding: 4pt 0; text-align: left; color: #475569;">Discount</td>
-                            <td style="padding: 4pt 0; text-align: right; font-weight: bold; color: #ef4444;">-₹{{ order.discount_amount|floatformat:2 }}</td>
+                            <td style="padding: 4pt 0; text-align: right; font-weight: bold; color: #ef4444;">-Rs. {{ order.discount_amount|floatformat:2 }}</td>
                         </tr>
                         {% endif %}
                         {% if order.delivery_charge and order.delivery_charge > 0 %}
                         <tr>
                             <td style="padding: 4pt 0; text-align: left; color: #475569;">Delivery Charge</td>
-                            <td style="padding: 4pt 0; text-align: right; font-weight: bold; color: #1e293b;">₹{{ order.delivery_charge|floatformat:2 }}</td>
+                            <td style="padding: 4pt 0; text-align: right; font-weight: bold; color: #1e293b;">Rs. {{ order.delivery_charge|floatformat:2 }}</td>
                         </tr>
                         {% endif %}
                         {% if order.tax_amount and order.tax_amount > 0 %}
                         <tr>
                             <td style="padding: 4pt 0; text-align: left; color: #475569;">Tax (GST)</td>
-                            <td style="padding: 4pt 0; text-align: right; font-weight: bold; color: #1e293b;">₹{{ order.tax_amount|floatformat:2 }}</td>
+                            <td style="padding: 4pt 0; text-align: right; font-weight: bold; color: #1e293b;">Rs. {{ order.tax_amount|floatformat:2 }}</td>
                         </tr>
                         {% endif %}
                         <tr style="background-color: #ebf2ff; border-top: 1.5pt solid #99beff;">
                             <td style="padding: 6pt; text-align: left; color: #1249a8; font-weight: bold; font-size: 11pt;">Grand Total</td>
-                            <td style="padding: 6pt; text-align: right; color: #1a5fd4; font-weight: bold; font-size: 13pt;">₹{{ order.total_amount|floatformat:2 }}</td>
+                            <td style="padding: 6pt; text-align: right; color: #1a5fd4; font-weight: bold; font-size: 13pt;">Rs. {{ order.total_amount|floatformat:2 }}</td>
                         </tr>
                     </table>
                 </td>

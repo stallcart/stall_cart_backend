@@ -4,18 +4,18 @@
 {% block title %}Product Dashboard | {% if is_superuser %}Admin{% else %}{{ user.seller_profile.shop_name }}{% endif %}{% endblock %}
 
 {% block content %}
-<div class="admin-dashboard">
+<div class="container" style="padding-top: 24px; padding-bottom: 40px;">
     <div style="margin-bottom: 20px;">
-        <a href="{% url 'shop:home' %}" style="display: inline-flex; align-items: center; gap: 8px; color: var(--gray-600); text-decoration: none; font-weight: 600; font-size: 0.9rem; transition: color 0.2s;" onmouseover="this.style.color='var(--blue-500)'" onmouseout="this.style.color='var(--gray-600)'">
+        <a href="{% url 'shop:home' %}" class="back-link">
             <i class="fa fa-arrow-left"></i> Back to Store
         </a>
     </div>
 
     <!-- Header -->
-    <div class="dash-header">
+    <div class="panel-header">
         <div>
             <h2>📦 Product Dashboard</h2>
-            <p class="text-muted">{% if is_superuser %}Manage all store items{% else %}Manage your shop inventory{% endif %}</p>
+            <p class="page-subtitle">{% if is_superuser %}Manage all store items{% else %}Manage your shop inventory{% endif %}</p>
         </div>
         <button class="btn-primary" id="openAddModal">+ Add New Product</button>
     </div>
@@ -29,29 +29,29 @@
     </div>
 
     <!-- Filters -->
-    <form method="get" class="filter-bar">
-        <input type="text" name="search" placeholder="Search by name or SKU..." value="{{ filters.search }}" class="form-input">
-        <select name="category" class="form-select">
+    <form method="get" class="filters-bar">
+        <input type="text" name="search" placeholder="Search by name or SKU..." value="{{ filters.search }}" class="form-input" style="flex: 1; min-width: 180px;">
+        <select name="category" class="form-select" style="min-width: 150px;">
             <option value="">All Categories</option>
             {% for cat in categories %}
                 <option value="{{ cat.id }}" {% if filters.category == cat.id|stringformat:"s" %}selected{% endif %}>{{ cat.name }}</option>
             {% endfor %}
         </select>
-        <select name="status" class="form-select">
+        <select name="status" class="form-select" style="min-width: 140px;">
             <option value="">All Status</option>
             <option value="published" {% if filters.status == 'published' %}selected{% endif %}>Published</option>
             <option value="draft" {% if filters.status == 'draft' %}selected{% endif %}>Draft</option>
             <option value="discontinued" {% if filters.status == 'discontinued' %}selected{% endif %}>Discontinued</option>
         </select>
-        <button type="submit" class="btn-outline">🔍 Filter</button>
+        <button type="submit" class="btn-outline" style="padding: 10px 18px; border-color: var(--blue-200); color: var(--blue-600); display: inline-flex; align-items: center; gap: 6px; width: auto;">🔍 Filter</button>
         {% if filters.search or filters.category or filters.status %}
-            <a href="{% url 'items:product_dashboard' %}" class="btn-outline" style="border:none; color:#c62828;">Clear</a>
+            <a href="{% url 'items:product_dashboard' %}" class="btn-clear">Clear</a>
         {% endif %}
     </form>
 
     <!-- Products Table -->
-    <div class="table-container">
-        <table class="data-table">
+    <div class="table-wrapper">
+        <table class="data-table" style="min-width: 820px;">
             <thead>
                 <tr>
                     <th>Product</th>
@@ -79,9 +79,9 @@
                     <td>{{ p.category.name|default:'-' }}</td>
                     <td>₹{{ p.price|floatformat:2 }}</td>
                     <td>
-                        {% if p.stock == 0 %}<span class="badge danger">0</span>
-                        {% elif p.stock <= 5 %}<span class="badge warning">{{ p.stock }}</span>
-                        {% else %}<span class="badge success">{{ p.stock }}</span>{% endif %}
+                        {% if p.stock == 0 %}<span class="status-pill status-oos">0 — Out</span>
+                        {% elif p.stock <= 5 %}<span class="status-pill status-draft">⚠ {{ p.stock }}</span>
+                        {% else %}<span class="status-pill status-published">{{ p.stock }}</span>{% endif %}
                     </td>
                     <td>
                         <label class="toggle">
@@ -90,15 +90,17 @@
                                    {% if p.status == 'discontinued' %}disabled{% endif %}>
                             <span class="slider"></span>
                         </label>
-                        <small class="status-text">{{ p.get_status_display }}</small>
+                        <small class="status-text" style="font-size: 0.8rem; font-weight: 600; margin-left: 4px; color: var(--gray-600);">{{ p.get_status_display }}</small>
                     </td>
                     <td>
-                        <button class="btn-sm" onclick="openEditModal({{ p.id }})">✏️ Edit</button>
-                        <button class="btn-sm danger" onclick="archiveProduct({{ p.id }})">🗑️ Archive</button>
+                        <div class="action-group">
+                            <button class="act-btn act-edit" onclick="openEditModal({{ p.id }})">✏️ Edit</button>
+                            <button class="act-btn act-archive" onclick="archiveProduct({{ p.id }})">🗑️ Archive</button>
+                        </div>
                     </td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="{% if is_superuser %}7{% else %}6{% endif %}" class="text-center py-4">No products found</td></tr>
+                <tr><td colspan="{% if is_superuser %}7{% else %}6{% endif %}" class="empty-state">No products found</td></tr>
                 {% endfor %}
             </tbody>
         </table>
@@ -106,76 +108,80 @@
 
     <!-- Pagination -->
     {% if products.has_other_pages %}
-    <div class="pagination">
-        {% if products.has_previous %}<a href="?page={{ products.previous_page_number }}&search={{ filters.search }}&category={{ filters.category }}&status={{ filters.status }}">← Prev</a>{% endif %}
-        <span>Page {{ products.number }} of {{ products.paginator.num_pages }}</span>
-        {% if products.has_next %}<a href="?page={{ products.next_page_number }}&search={{ filters.search }}&category={{ filters.category }}&status={{ filters.status }}">Next →</a>{% endif %}
+    <div style="display: flex; justify-content: center; gap: 8px; margin-top: 24px; flex-wrap: wrap;">
+        {% if products.has_previous %}<a href="?page={{ products.previous_page_number }}&search={{ filters.search }}&category={{ filters.category }}&status={{ filters.status }}" class="btn-outline">← Prev</a>{% endif %}
+        <span class="btn-primary" style="padding: 8px 14px; font-size: 0.85rem; cursor: default;">Page {{ products.number }} of {{ products.paginator.num_pages }}</span>
+        {% if products.has_next %}<a href="?page={{ products.next_page_number }}&search={{ filters.search }}&category={{ filters.category }}&status={{ filters.status }}" class="btn-outline">Next →</a>{% endif %}
     </div>
     {% endif %}
 </div>
 
 <!-- Add/Edit Product Modal -->
-<div id="productModal" class="modal" style="display:none;">
+<div id="productModal" class="modal" role="dialog" aria-modal="true">
     <div class="modal-content large">
-        <span class="modal-close" onclick="closeModal()">&times;</span>
-        <h3 id="modalTitle">Add New Product</h3>
-        <form id="productForm" enctype="multipart/form-data">
-            {% csrf_token %}
-            <input type="hidden" name="product_id" id="prodId">
-            
-            <div class="form-row">
+        <div class="modal-header-bar">
+            <h3 id="modalTitle">Add New Product</h3>
+            <button type="button" class="modal-close" onclick="closeModal()" aria-label="Close">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="productForm" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" name="product_id" id="prodId">
+                
+                <div class="form-row two-col">
+                    <div class="form-group">
+                        <label>Product Name *</label>
+                        <input type="text" name="name" id="prodName" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Category *</label>
+                        <select name="category" id="prodCat" class="form-select" required>
+                            <option value="">Select...</option>
+                            {% for cat in categories %}<option value="{{ cat.id }}">{{ cat.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-row three-col">
+                    <div class="form-group">
+                        <label>Price (₹) *</label>
+                        <input type="number" name="price" id="prodPrice" class="form-input" step="0.01" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Stock *</label>
+                        <input type="number" name="stock" id="prodStock" class="form-input" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Status</label>
+                        <select name="status" id="prodStatus" class="form-select">
+                            <option value="draft">Draft</option>
+                            <option value="published">Published</option>
+                            <option value="out_of_stock">Out of Stock</option>
+                        </select>
+                    </div>
+                </div>
+                
                 <div class="form-group">
-                    <label>Product Name *</label>
-                    <input type="text" name="name" id="prodName" class="form-input" required>
+                    <label>Short Description</label>
+                    <textarea name="short_description" id="prodShort" class="form-input" rows="2"></textarea>
                 </div>
                 <div class="form-group">
-                    <label>Category *</label>
-                    <select name="category" id="prodCat" class="form-select" required>
-                        <option value="">Select...</option>
-                        {% for cat in categories %}<option value="{{ cat.id }}">{{ cat.name }}</option>{% endfor %}
-                    </select>
+                    <label>Full Description</label>
+                    <textarea name="description" id="prodDesc" class="form-input" rows="4"></textarea>
                 </div>
-            </div>
-            
-            <div class="form-row">
+                
                 <div class="form-group">
-                    <label>Price (₹) *</label>
-                    <input type="number" name="price" id="prodPrice" class="form-input" step="0.01" min="0" required>
+                    <label>Primary Image</label>
+                    <input type="file" name="primary_image" id="prodImg" class="form-input" accept="image/*">
+                    <small class="form-help">Recommended: 800x800px PNG/JPG</small>
                 </div>
-                <div class="form-group">
-                    <label>Stock *</label>
-                    <input type="number" name="stock" id="prodStock" class="form-input" min="0" required>
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary" id="submitBtn">Save Product</button>
+                    <button type="button" class="btn-outline" onclick="closeModal()">Cancel</button>
                 </div>
-                <div class="form-group">
-                    <label>Status</label>
-                    <select name="status" id="prodStatus" class="form-select">
-                        <option value="draft">Draft</option>
-                        <option value="published">Published</option>
-                        <option value="out_of_stock">Out of Stock</option>
-                    </select>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label>Short Description</label>
-                <textarea name="short_description" id="prodShort" class="form-input" rows="2"></textarea>
-            </div>
-            <div class="form-group">
-                <label>Full Description</label>
-                <textarea name="description" id="prodDesc" class="form-input" rows="4"></textarea>
-            </div>
-            
-            <div class="form-group">
-                <label>Primary Image</label>
-                <input type="file" name="primary_image" id="prodImg" class="form-input" accept="image/*">
-                <small>Recommended: 800x800px PNG/JPG</small>
-            </div>
-            
-            <div class="form-actions">
-                <button type="submit" class="btn-primary" id="submitBtn">Save Product</button>
-                <button type="button" class="btn-outline" onclick="closeModal()">Cancel</button>
-            </div>
-        </form>
+            </form>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -190,7 +196,7 @@ const form = document.getElementById('productForm');
 document.getElementById('openAddModal').onclick = () => {
     document.getElementById('modalTitle').textContent = 'Add New Product';
     form.reset(); document.getElementById('prodId').value = '';
-    modal.style.display = 'flex';
+    modal.classList.add('show');
 };
 
 window.openEditModal = async (id) => {
@@ -208,16 +214,17 @@ window.openEditModal = async (id) => {
         document.getElementById('prodStatus').value = p.status;
         document.getElementById('prodShort').value = p.short_description || '';
         document.getElementById('prodDesc').value = p.description || '';
-        modal.style.display = 'flex';
+        modal.classList.add('show');
     } catch(e) { alert('Failed to load product data'); }
 };
 
-window.closeModal = () => modal.style.display = 'none';
+window.closeModal = () => modal.classList.remove('show');
 
 // Submit Form (AJAX + FormData)
 form.onsubmit = async (e) => {
     e.preventDefault();
     const btn = document.getElementById('submitBtn');
+    const orig = btn.innerHTML;
     btn.disabled = true; btn.textContent = 'Saving...';
     
     const fd = new FormData(form);
@@ -261,50 +268,4 @@ window.archiveProduct = async (id) => {
 
 window.onclick = (e) => { if(e.target === modal) closeModal(); };
 </script>
-
-<!-- Quick API endpoint to fetch product data for edit modal -->
-<!-- Add to items/views.py if not already: 
-def get_product_detail(request, pk):
-    p = get_object_or_404(Product, pk=pk)
-    return JsonResponse({'name': p.name, 'category': p.category_id, 'price': str(p.price), 'stock': p.stock, 'status': p.status, 'short_description': p.short_description, 'description': p.description})
--->
-{% endblock %}
-
-{% block extra_css %}
-<style>
-.admin-dashboard { max-width: 1400px; margin: 0 auto; padding: 20px; }
-.dash-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
-.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 25px; }
-.stat-card { background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); text-align: center; }
-.stat-card .num { font-size: 1.8rem; font-weight: 700; display: block; }
-.stat-card .label { font-size: 0.85rem; color: #666; text-transform: uppercase; }
-.stat-card.success .num { color: #2e7d32; } .stat-card.warning .num { color: #f57f17; } .stat-card.danger .num { color: #c62828; }
-
-.filter-bar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; background: #fff; padding: 15px; border-radius: 10px; }
-.filter-bar .form-input, .filter-bar .form-select { flex: 1; min-width: 150px; }
-
-.table-container { background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-.data-table { width: 100%; border-collapse: collapse; }
-.data-table th { background: #f8f9fa; padding: 12px 15px; text-align: left; font-weight: 600; color: #444; }
-.data-table td { padding: 12px 15px; border-top: 1px solid #eee; vertical-align: middle; }
-.prod-cell { display: flex; align-items: center; gap: 12px; }
-.prod-cell .thumb { width: 45px; height: 45px; border-radius: 6px; object-fit: cover; background: #f5f5f5; }
-
-.badge { padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
-.badge.success { background: #e8f5e9; color: #2e7d32; } .badge.warning { background: #fff8e1; color: #f57f17; } .badge.danger { background: #ffebee; color: #c62828; }
-
-.toggle { position: relative; display: inline-block; width: 40px; height: 22px; }
-.toggle input { opacity: 0; width: 0; height: 0; }
-.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #ccc; transition: .4s; border-radius: 22px; }
-.slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 2px; bottom: 2px; background: white; transition: .4s; border-radius: 50%; }
-input:checked + .slider { background: #2874f0; } input:checked + .slider:before { transform: translateX(18px); }
-
-.btn-sm { padding: 6px 12px; font-size: 0.85rem; border-radius: 6px; border: none; cursor: pointer; background: #e3f2fd; color: #1976d2; }
-.btn-sm.danger { background: #ffebee; color: #c62828; }
-.modal-content.large { max-width: 700px; }
-.form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px; }
-.form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee; }
-.pagination { display: flex; justify-content: center; gap: 15px; margin-top: 20px; align-items: center; }
-.pagination a { padding: 8px 12px; background: #fff; border: 1px solid #ddd; border-radius: 6px; text-decoration: none; }
-</style>
 {% endblock %}

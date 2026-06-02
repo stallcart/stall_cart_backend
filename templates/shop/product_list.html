@@ -54,6 +54,35 @@
             </div>
         </div>
 
+        <!-- Horizontal Category Quick Filters -->
+        <div class="category-scroll-wrapper" style="margin-bottom: 24px;">
+            <div class="category-scroll-container">
+                <a href="{% url 'items:product_list' %}{% if request.GET.gender %}?gender={{ request.GET.gender }}{% endif %}{% if request.GET.sort %}{% if request.GET.gender %}&{% else %}?{% endif %}sort={{ request.GET.sort }}{% endif %}" class="category-quick-card {% if not request.GET.category %}active{% endif %}">
+                    <div class="category-quick-icon">🛍️</div>
+                    <span class="category-quick-name">All Shop</span>
+                </a>
+                {% for cat in categories %}
+                <a href="{% url 'items:product_list' %}?category={{ cat.slug }}{% if request.GET.gender %}&gender={{ request.GET.gender }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}" 
+                   class="category-quick-card {% if request.GET.category == cat.slug %}active{% endif %}">
+                    <div class="category-quick-icon">
+                        {% if "women" in cat.name|lower %}👗
+                        {% elif "men" in cat.name|lower %}👔
+                        {% elif "footwear" in cat.name|lower or "shoe" in cat.name|lower %}👟
+                        {% elif "jewel" in cat.name|lower %}💍
+                        {% elif "beauty" in cat.name|lower %}💄
+                        {% elif "sport" in cat.name|lower %}⚽
+                        {% elif "book" in cat.name|lower %}📚
+                        {% elif "kid" in cat.name|lower or "toy" in cat.name|lower %}🧸
+                        {% elif "furniture" in cat.name|lower %}🛋️
+                        {% elif "cloth" in cat.name|lower %}👕
+                        {% else %}🛍️{% endif %}
+                    </div>
+                    <span class="category-quick-name">{{ cat.name }}</span>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+
         <!-- Active Filter Tags -->
         {% if request.GET.category or request.GET.gender or request.GET.search %}
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;">
@@ -123,13 +152,8 @@
                         <i class="{% if user.is_authenticated and product|is_in_wishlist:user %}fa{% else %}far{% endif %} fa-heart"></i>
                     </button>
                     {% endif %}
-                    <button type="button" class="float-share btn-share"
-                            data-name="{{ product.name }}"
-                            data-url="{{ request.scheme }}://{{ request.get_host }}{% url 'items:product_detail' product.slug %}"
-                            aria-label="Share">
-                        <i class="fa fa-share-alt"></i>
-                    </button>
                 </div>
+
                 
                 <!-- Product Info -->
                 <div class="product-info">
@@ -162,13 +186,20 @@
                     {% endif %}
                 </div>
 
-                <a href="{% url 'items:product_detail' product.slug %}"
-                   class="btn-view"
-                   style="{% if product.stock <= 0 %}opacity:0.6;pointer-events:none;{% endif %}">
-                    <i class="fa fa-eye"></i>
-                    {% if product.stock > 0 %}View Details{% else %}Out of Stock{% endif %}
-                </a>
-                
+                <div class="card-action-row">
+                    <a href="{% url 'items:product_detail' product.slug %}"
+                       class="btn-view"
+                       style="{% if product.stock <= 0 %}opacity:0.6;pointer-events:none;{% endif %}">
+                        <i class="fa fa-eye"></i>
+                        {% if product.stock > 0 %}View Details{% else %}Out of Stock{% endif %}
+                    </a>
+                    <button type="button" class="card-share-btn btn-share"
+                            data-name="{{ product.name }}"
+                            data-url="{{ request.scheme }}://{{ request.get_host }}{% url 'items:product_detail' product.slug %}"
+                            aria-label="Share">
+                        <i class="fa fa-share-alt"></i>
+                    </button>
+                </div>
             </article>
             {% endfor %}
         </div>

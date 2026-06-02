@@ -7,16 +7,16 @@
 <div class="container" style="padding-top: 24px; padding-bottom: 40px;">
     
     <div style="margin-bottom: 20px;">
-        <a href="{% url 'shop:home' %}" style="display: inline-flex; align-items: center; gap: 8px; color: var(--gray-600); text-decoration: none; font-weight: 600; font-size: 0.9rem; transition: color 0.2s;" onmouseover="this.style.color='var(--blue-500)'" onmouseout="this.style.color='var(--gray-600)'">
+        <a href="{% url 'shop:home' %}" class="back-link">
             <i class="fa fa-arrow-left"></i> Back to Store
         </a>
     </div>
 
     <!-- ══ Dashboard Header ═══════════════════════════════════════════════════ -->
-    <div class="panel-header" style="margin-bottom: 24px;">
+    <div class="panel-header">
         <div>
-            <h2 style="margin: 0 0 4px; font-family: 'Syne', sans-serif;">{{ page_title }}</h2>
-            <p class="page-subtitle" style="color: var(--gray-500); font-size: 0.9rem; margin: 0;">
+            <h2 style="margin: 0 0 4px;">{{ page_title }}</h2>
+            <p class="page-subtitle">
                 {% if is_superuser %}Manage products across all sellers{% else %}Manage your shop inventory{% endif %}
             </p>
         </div>
@@ -31,214 +31,80 @@
     </div>
 
     <!-- ══ Tab Navigation ═════════════════════════════════════════════════════ -->
-    <nav class="dash-tabs" aria-label="Dashboard sections" style="
-        display: flex; align-items: center; gap: 6px; 
-        background: var(--white); border-radius: var(--r-xl); 
-        padding: 6px; margin-bottom: 24px; 
-        box-shadow: var(--sh-sm); border: 1.5px solid var(--gray-100);
-        overflow-x: auto; flex-wrap: nowrap;
-    ">
+    <nav class="dash-tabs" aria-label="Dashboard sections">
         <a href="{% url 'items:admin_dashboard' %}"
-           class="dash-tab {% if not request.GET.status and not request.GET.stock %}active{% endif %}"
-           style="
-               display: flex; align-items: center; gap: 6px;
-               padding: 8px 14px; border-radius: var(--r-lg);
-               color: var(--gray-600); text-decoration: none;
-               font-size: 0.85rem; font-weight: 600;
-               white-space: nowrap; transition: all var(--tr);
-               border: 1.5px solid transparent;
-           ">
+           class="dash-tab {% if not request.GET.status and not request.GET.stock %}active{% endif %}">
             <i class="fa fa-box-open" style="font-size: 0.9rem;"></i>
             <span class="hide-mobile">All Items</span>
-            <span class="tab-count" style="
-                background: var(--gray-100); color: var(--gray-600);
-                font-size: 0.7rem; font-weight: 700;
-                padding: 2px 8px; border-radius: 20px;
-                min-width: 24px; text-align: center;
-            ">{{ stats.total }}</span>
+            <span class="tab-count neutral">{{ stats.total }}</span>
         </a>
         <a href="{% url 'items:admin_dashboard' %}?status=published"
-           class="dash-tab {% if request.GET.status == 'published' %}active{% endif %}"
-           style="
-               display: flex; align-items: center; gap: 6px;
-               padding: 8px 14px; border-radius: var(--r-lg);
-               color: var(--gray-600); text-decoration: none;
-               font-size: 0.85rem; font-weight: 600;
-               white-space: nowrap; transition: all var(--tr);
-               border: 1.5px solid transparent;
-           ">
+           class="dash-tab {% if request.GET.status == 'published' %}active{% endif %}">
             <i class="fa fa-circle-check" style="font-size: 0.9rem; color: var(--green);"></i>
             <span class="hide-mobile">Published</span>
-            <span class="tab-count success" style="
-                background: var(--green-light); color: var(--green);
-                font-size: 0.7rem; font-weight: 700;
-                padding: 2px 8px; border-radius: 20px;
-                min-width: 24px; text-align: center;
-            ">{{ stats.published }}</span>
+            <span class="tab-count success">{{ stats.published }}</span>
         </a>
         <a href="{% url 'items:admin_dashboard' %}?status=draft"
-           class="dash-tab {% if request.GET.status == 'draft' %}active{% endif %}"
-           style="
-               display: flex; align-items: center; gap: 6px;
-               padding: 8px 14px; border-radius: var(--r-lg);
-               color: var(--gray-600); text-decoration: none;
-               font-size: 0.85rem; font-weight: 600;
-               white-space: nowrap; transition: all var(--tr);
-               border: 1.5px solid transparent;
-           ">
+           class="dash-tab {% if request.GET.status == 'draft' %}active{% endif %}">
             <i class="fa fa-pen-to-square" style="font-size: 0.9rem; color: var(--amber);"></i>
             <span class="hide-mobile">Drafts</span>
-            <span class="tab-count neutral" style="
-                background: var(--gray-100); color: var(--gray-600);
-                font-size: 0.7rem; font-weight: 700;
-                padding: 2px 8px; border-radius: 20px;
-                min-width: 24px; text-align: center;
-            ">{{ stats.draft }}</span>
+            <span class="tab-count neutral">{{ stats.draft }}</span>
         </a>
         <a href="{% url 'items:admin_dashboard' %}?stock=low"
-           class="dash-tab {% if request.GET.stock == 'low' %}active{% endif %}"
-           style="
-               display: flex; align-items: center; gap: 6px;
-               padding: 8px 14px; border-radius: var(--r-lg);
-               color: var(--gray-600); text-decoration: none;
-               font-size: 0.85rem; font-weight: 600;
-               white-space: nowrap; transition: all var(--tr);
-               border: 1.5px solid transparent;
-           ">
+           class="dash-tab {% if request.GET.stock == 'low' %}active{% endif %}">
             <i class="fa fa-triangle-exclamation" style="font-size: 0.9rem; color: var(--amber);"></i>
             <span class="hide-mobile">Low Stock</span>
-            <span class="tab-count warning" style="
-                background: var(--amber-light); color: var(--amber);
-                font-size: 0.7rem; font-weight: 700;
-                padding: 2px 8px; border-radius: 20px;
-                min-width: 24px; text-align: center;
-            ">{{ stats.low_stock }}</span>
+            <span class="tab-count warning">{{ stats.low_stock }}</span>
         </a>
         <a href="{% url 'items:admin_dashboard' %}?status=out_of_stock"
-           class="dash-tab {% if request.GET.status == 'out_of_stock' %}active{% endif %}"
-           style="
-               display: flex; align-items: center; gap: 6px;
-               padding: 8px 14px; border-radius: var(--r-lg);
-               color: var(--gray-600); text-decoration: none;
-               font-size: 0.85rem; font-weight: 600;
-               white-space: nowrap; transition: all var(--tr);
-               border: 1.5px solid transparent;
-           ">
+           class="dash-tab {% if request.GET.status == 'out_of_stock' %}active{% endif %}">
             <i class="fa fa-ban" style="font-size: 0.9rem; color: var(--red);"></i>
             <span class="hide-mobile">Out of Stock</span>
-            <span class="tab-count danger" style="
-                background: var(--red-light); color: var(--red);
-                font-size: 0.7rem; font-weight: 700;
-                padding: 2px 8px; border-radius: 20px;
-                min-width: 24px; text-align: center;
-            ">{{ stats.out_of_stock }}</span>
+            <span class="tab-count danger">{{ stats.out_of_stock }}</span>
         </a>
     </nav>
 
     <!-- ══ Stats Cards ═══════════════════════════════════════════════════════ -->
-    <div class="stats-grid" style="
-        display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-        gap: 14px; margin-bottom: 24px;
-    ">
-        <div class="stat-card" style="
-            background: var(--white); padding: 16px 14px;
-            border-radius: var(--r-xl); text-align: center;
-            box-shadow: var(--sh-sm); border: 1.5px solid var(--gray-100);
-            transition: all var(--tr);
-        ">
-            <span style="display: block; font-family: 'Syne', sans-serif; font-size: 1.6rem; font-weight: 800; color: var(--gray-900);">{{ stats.total }}</span>
-            <small style="color: var(--gray-500); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Total Items</small>
+    <div class="stats-grid">
+        <div class="stat-card total">
+            <span class="num">{{ stats.total }}</span>
+            <small class="label">Total Items</small>
         </div>
-        <div class="stat-card success" style="
-            background: var(--white); padding: 16px 14px;
-            border-radius: var(--r-xl); text-align: center;
-            box-shadow: var(--sh-sm); border: 1.5px solid var(--gray-100);
-            border-top: 3px solid var(--green);
-            transition: all var(--tr);
-        ">
-            <span style="display: block; font-family: 'Syne', sans-serif; font-size: 1.6rem; font-weight: 800; color: var(--green);">{{ stats.published }}</span>
-            <small style="color: var(--gray-500); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Published</small>
+        <div class="stat-card success">
+            <span class="num">{{ stats.published }}</span>
+            <small class="label">Published</small>
         </div>
-        <div class="stat-card neutral" style="
-            background: var(--white); padding: 16px 14px;
-            border-radius: var(--r-xl); text-align: center;
-            box-shadow: var(--sh-sm); border: 1.5px solid var(--gray-100);
-            border-top: 3px solid var(--gray-400);
-            transition: all var(--tr);
-        ">
-            <span style="display: block; font-family: 'Syne', sans-serif; font-size: 1.6rem; font-weight: 800; color: var(--gray-700);">{{ stats.draft }}</span>
-            <small style="color: var(--gray-500); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Draft</small>
+        <div class="stat-card neutral">
+            <span class="num">{{ stats.draft }}</span>
+            <small class="label">Draft</small>
         </div>
-        <div class="stat-card warning" style="
-            background: var(--white); padding: 16px 14px;
-            border-radius: var(--r-xl); text-align: center;
-            box-shadow: var(--sh-sm); border: 1.5px solid var(--gray-100);
-            border-top: 3px solid var(--amber);
-            transition: all var(--tr);
-        ">
-            <span style="display: block; font-family: 'Syne', sans-serif; font-size: 1.6rem; font-weight: 800; color: var(--amber);">{{ stats.low_stock }}</span>
-            <small style="color: var(--gray-500); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Low Stock</small>
+        <div class="stat-card warning">
+            <span class="num">{{ stats.low_stock }}</span>
+            <small class="label">Low Stock</small>
         </div>
-        <div class="stat-card danger" style="
-            background: var(--white); padding: 16px 14px;
-            border-radius: var(--r-xl); text-align: center;
-            box-shadow: var(--sh-sm); border: 1.5px solid var(--gray-100);
-            border-top: 3px solid var(--red);
-            transition: all var(--tr);
-        ">
-            <span style="display: block; font-family: 'Syne', sans-serif; font-size: 1.6rem; font-weight: 800; color: var(--red);">{{ stats.out_of_stock }}</span>
-            <small style="color: var(--gray-500); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Out of Stock</small>
+        <div class="stat-card danger">
+            <span class="num">{{ stats.out_of_stock }}</span>
+            <small class="label">Out of Stock</small>
         </div>
-        <div class="stat-card info" style="
-            background: var(--white); padding: 16px 14px;
-            border-radius: var(--r-xl); text-align: center;
-            box-shadow: var(--sh-sm); border: 1.5px solid var(--gray-100);
-            border-top: 3px solid var(--blue-500);
-            transition: all var(--tr);
-        ">
-            <span style="display: block; font-family: 'Syne', sans-serif; font-size: 1.6rem; font-weight: 800; color: var(--blue-600);">₹{{ stats.total_value|floatformat:0 }}</span>
-            <small style="color: var(--gray-500); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Inventory Value</small>
+        <div class="stat-card info">
+            <span class="num">₹{{ stats.total_value|floatformat:0 }}</span>
+            <small class="label">Inventory Value</small>
         </div>
     </div>
 
     <!-- ══ Filters Bar ═══════════════════════════════════════════════════════ -->
-    <form method="get" class="filters-bar" style="
-        display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;
-        background: var(--white); padding: 14px; border-radius: var(--r-xl);
-        box-shadow: var(--sh-sm); border: 1.5px solid var(--gray-100);
-    ">
+    <form method="get" class="filters-bar">
         <input type="text" name="search" value="{{ filters.search }}"
                placeholder="🔍 Search name, SKU, brand…" 
-               class="form-input" style="
-                   flex: 1; min-width: 180px; padding: 10px 14px;
-                   border: 1.5px solid var(--gray-200); border-radius: var(--r-lg);
-                   font-size: 0.9rem; font-family: inherit;
-                   transition: all var(--tr);
-               ">
-        <select name="status" class="form-select" style="
-            padding: 10px 32px 10px 14px; border: 1.5px solid var(--gray-200);
-            border-radius: var(--r-lg); font-size: 0.9rem; font-weight: 500;
-            color: var(--gray-700); background: var(--white);
-            transition: border-color var(--tr); appearance: none;
-            background-image: url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394A5C0' stroke-width='2.5'%3E%3Cpolyline points='6,9 12,15 18,9'/%3E%3C/svg%3E&quot;);
-            background-repeat: no-repeat; background-position: right 10px center;
-            min-width: 140px; cursor: pointer;
-        ">
+               class="form-input" style="flex: 1; min-width: 180px;">
+        <select name="status" class="form-select" style="min-width: 140px;">
             <option value="">All Status</option>
             <option value="published"    {% if filters.status == 'published'    %}selected{% endif %}>Published</option>
             <option value="draft"        {% if filters.status == 'draft'        %}selected{% endif %}>Draft</option>
             <option value="out_of_stock" {% if filters.status == 'out_of_stock' %}selected{% endif %}>Out of Stock</option>
             <option value="discontinued" {% if filters.status == 'discontinued' %}selected{% endif %}>Discontinued</option>
         </select>
-        <select name="category" class="form-select" style="
-            padding: 10px 32px 10px 14px; border: 1.5px solid var(--gray-200);
-            border-radius: var(--r-lg); font-size: 0.9rem; font-weight: 500;
-            color: var(--gray-700); background: var(--white);
-            transition: border-color var(--tr); appearance: none;
-            background-image: url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394A5C0' stroke-width='2.5'%3E%3Cpolyline points='6,9 12,15 18,9'/%3E%3C/svg%3E&quot;);
-            background-repeat: no-repeat; background-position: right 10px center;
-            min-width: 150px; cursor: pointer;
-        ">
+        <select name="category" class="form-select" style="min-width: 150px;">
             <option value="">All Categories</option>
             {% for cat in categories %}
             <option value="{{ cat.id }}" {% if filters.category == cat.id|stringformat:"s" %}selected{% endif %}>
@@ -247,15 +113,7 @@
             {% endfor %}
         </select>
         {% if is_superuser %}
-        <select name="seller" class="form-select" style="
-            padding: 10px 32px 10px 14px; border: 1.5px solid var(--gray-200);
-            border-radius: var(--r-lg); font-size: 0.9rem; font-weight: 500;
-            color: var(--gray-700); background: var(--white);
-            transition: border-color var(--tr); appearance: none;
-            background-image: url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394A5C0' stroke-width='2.5'%3E%3Cpolyline points='6,9 12,15 18,9'/%3E%3C/svg%3E&quot;);
-            background-repeat: no-repeat; background-position: right 10px center;
-            min-width: 140px; cursor: pointer;
-        ">
+        <select name="seller" class="form-select" style="min-width: 140px;">
             <option value="">All Sellers</option>
             {% for s in sellers %}
             <option value="{{ s.id }}" {% if filters.seller == s.id|stringformat:"s" %}selected{% endif %}>
@@ -264,45 +122,18 @@
             {% endfor %}
         </select>
         {% endif %}
-        <button type="submit" class="btn-outline" style="
-            padding: 10px 18px; border: 1.5px solid var(--blue-200);
-            color: var(--blue-600); background: var(--white);
-            border-radius: var(--r-lg); font-size: 0.9rem; font-weight: 600;
-            font-family: inherit; transition: all var(--tr);
-            white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;
-        ">
-            <i class="fa fa-filter"></i> Filter
-        </button>
-        {% if filters.search or filters.status or filters.category or filters.seller %}
-            <a href="{% url 'items:admin_dashboard' %}" class="btn-clear" style="
-                padding: 10px 14px; color: var(--red); text-decoration: none;
-                border-radius: var(--r-lg); font-size: 0.9rem; font-weight: 600;
-                display: inline-flex; align-items: center; gap: 4px;
-                transition: all var(--tr);
-            ">
-                <i class="fa fa-times"></i> Clear
-            </a>
-        {% endif %}
-    </form>
-
-    <!-- ══ Products Table ════════════════════════════════════════════════════ -->
-    <div class="table-wrapper" style="
-        background: var(--white); border-radius: var(--r-xl);
-        box-shadow: var(--sh-md); border: 1.5px solid var(--gray-100);
-        overflow-x: auto;
-    ">
-        <table class="data-table" style="
-            width: 100%; border-collapse: collapse; min-width: 820px;
-        ">
+        <button type="submit" class="btn-outline" style="padding: 10px 18px; b    <!-- ══ Products Table ════════════════════════════════════════════════════ -->
+    <div class="table-wrapper">
+        <table class="data-table" style="min-width: 820px;">
             <thead>
-                <tr style="background: var(--gray-50);">
-                    <th style="width: 320px; padding: 14px 16px; text-align: left; font-weight: 700; color: var(--gray-700); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 2px solid var(--gray-200);">Item</th>
-                    <th style="padding: 14px 16px; text-align: left; font-weight: 700; color: var(--gray-700); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 2px solid var(--gray-200);">Category</th>
-                    {% if is_superuser %}<th style="padding: 14px 16px; text-align: left; font-weight: 700; color: var(--gray-700); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 2px solid var(--gray-200);">Seller</th>{% endif %}
-                    <th style="padding: 14px 16px; text-align: left; font-weight: 700; color: var(--gray-700); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 2px solid var(--gray-200);">Price</th>
-                    <th style="padding: 14px 16px; text-align: left; font-weight: 700; color: var(--gray-700); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 2px solid var(--gray-200);">Stock</th>
-                    <th style="padding: 14px 16px; text-align: left; font-weight: 700; color: var(--gray-700); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 2px solid var(--gray-200);">Status</th>
-                    <th style="padding: 14px 16px; text-align: left; font-weight: 700; color: var(--gray-700); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 2px solid var(--gray-200);">Actions</th>
+                <tr>
+                    <th style="width: 320px;">Item</th>
+                    <th>Category</th>
+                    {% if is_superuser %}<th>Seller</th>{% endif %}
+                    <th>Price</th>
+                    <th>Stock</th>
+                    <th>Status</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody id="productsTable">
@@ -310,19 +141,13 @@
                 <tr id="row-{{ product.id }}"
                     data-status="{{ product.status }}"
                     data-name="{{ product.name|lower }}"
-                    data-sku="{{ product.sku|lower }}"
-                    style="border-bottom: 1px solid var(--gray-100); transition: background var(--tr);">
+                    data-sku="{{ product.sku|lower }}">
 
                     <!-- Item cell: thumbnail + name + badges -->
-                    <td style="padding: 14px 16px; vertical-align: middle;">
-                        <div class="item-cell" style="display: flex; align-items: center; gap: 12px;">
+                    <td>
+                        <div class="item-cell">
                             {% if product.primary_image %}
-                                <img src="{{ product.primary_image.url }}" alt="{{ product.name }}" 
-                                     class="prod-thumb" style="
-                                         width: 52px; height: 52px; border-radius: var(--r-md);
-                                         object-fit: cover; border: 1.5px solid var(--gray-100);
-                                         flex-shrink: 0; background: var(--gray-50);
-                                     ">
+                                <img src="{{ product.primary_image.url }}" alt="{{ product.name }}" class="prod-thumb">
                             {% else %}
                                 <div class="img-placeholder" style="
                                     width: 52px; height: 52px; border-radius: var(--r-md);
@@ -336,41 +161,28 @@
                                 <strong style="font-size: 0.9rem; line-height: 1.35; color: var(--gray-800); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ product.name|truncatechars:35 }}</strong>
                                 <small class="text-muted" style="font-size: 0.75rem; color: var(--gray-400);">SKU: {{ product.sku|default:"—" }}</small>
                                 <div class="badge-row" style="display: flex; gap: 5px; flex-wrap: wrap; margin-top: 2px;">
-                                    {% if product.is_featured %}<span class="mini-badge featured" style="
-                                        font-size: 0.65rem; padding: 2px 7px; border-radius: 12px;
-                                        font-weight: 700; background: var(--amber-light); color: var(--amber);
-                                    ">★ Featured</span>{% endif %}
-                                    {% if product.is_hot_deal %}<span class="mini-badge hot" style="
-                                        font-size: 0.65rem; padding: 2px 7px; border-radius: 12px;
-                                        font-weight: 700; background: #fce4ec; color: #c2185b;
-                                    ">🔥 Hot</span>{% endif %}
-                                    {% if product.gender %}<span class="mini-badge gender" style="
-                                        font-size: 0.65rem; padding: 2px 7px; border-radius: 12px;
-                                        font-weight: 700; background: var(--blue-50); color: var(--blue-600);
-                                    ">{{ product.get_gender_display }}</span>{% endif %}
+                                    {% if product.is_featured %}<span class="mini-badge featured">★ Featured</span>{% endif %}
+                                    {% if product.is_hot_deal %}<span class="mini-badge hot">🔥 Hot</span>{% endif %}
+                                    {% if product.gender %}<span class="mini-badge gender">{{ product.get_gender_display }}</span>{% endif %}
                                 </div>
                             </div>
                         </div>
                     </td>
 
                     <!-- Category -->
-                    <td style="padding: 14px 16px; vertical-align: middle; font-size: 0.9rem; color: var(--gray-700);">
+                    <td>
                         {{ product.category.name|default:"Uncategorized" }}
                     </td>
 
                     <!-- Seller (superuser only) -->
                     {% if is_superuser %}
-                    <td style="padding: 14px 16px; vertical-align: middle;">
-                        <span class="seller-tag" style="
-                            background: var(--blue-50); color: var(--blue-600);
-                            padding: 4px 10px; border-radius: 20px;
-                            font-size: 0.78rem; font-weight: 600;
-                        ">{{ product.seller.shop_name|truncatechars:18 }}</span>
+                    <td>
+                        <span class="seller-tag">{{ product.seller.shop_name|truncatechars:18 }}</span>
                     </td>
                     {% endif %}
 
                     <!-- Price -->
-                    <td style="padding: 14px 16px; vertical-align: middle;" class="price-cell">
+                    <td class="price-cell">
                         {% if product.discount_percent > 0 %}
                             <span class="price-original" style="
                                 text-decoration: line-through; color: var(--gray-400);
@@ -391,43 +203,24 @@
                     </td>
 
                     <!-- Stock -->
-                    <td style="padding: 14px 16px; vertical-align: middle;">
+                    <td>
                         {% if product.stock == 0 %}
-                            <span class="badge danger" style="
-                                padding: 5px 12px; border-radius: 20px;
-                                font-size: 0.75rem; font-weight: 700;
-                                background: var(--red-light); color: var(--red);
-                                white-space: nowrap;
-                            ">0 — Out</span>
+                            <span class="status-pill status-oos">0 — Out</span>
                         {% elif product.stock <= product.low_stock_threshold %}
-                            <span class="badge warning" style="
-                                padding: 5px 12px; border-radius: 20px;
-                                font-size: 0.75rem; font-weight: 700;
-                                background: var(--amber-light); color: var(--amber);
-                                white-space: nowrap;
-                            ">⚠ {{ product.stock }}</span>
+                            <span class="status-pill status-draft">⚠ {{ product.stock }}</span>
                         {% else %}
-                            <span class="badge success" style="
-                                padding: 5px 12px; border-radius: 20px;
-                                font-size: 0.75rem; font-weight: 700;
-                                background: var(--green-light); color: var(--green);
-                                white-space: nowrap;
-                            ">{{ product.stock }}</span>
+                            <span class="status-pill status-published">{{ product.stock }}</span>
                         {% endif %}
                     </td>
 
-                    <!-- Status badge (read-only label) -->
-                    <td style="padding: 14px 16px; vertical-align: middle;">
+                    <!-- Status badge -->
+                    <td>
                         <span class="status-pill
                             {% if product.status == 'published'     %}status-published
                             {% elif product.status == 'draft'        %}status-draft
                             {% elif product.status == 'discontinued' %}status-discontinued
                             {% else %}status-oos{% endif %}"
-                            id="status-pill-{{ product.id }}" style="
-                                display: inline-block; padding: 5px 12px;
-                                border-radius: 20px; font-size: 0.75rem;
-                                font-weight: 700; white-space: nowrap;
-                            ">
+                            id="status-pill-{{ product.id }}">
                             {% if product.status == 'published'     %}✅ Published
                             {% elif product.status == 'draft'        %}📝 Draft
                             {% elif product.status == 'out_of_stock' %}📦 Out of Stock
@@ -436,117 +229,77 @@
                         </span>
                     </td>
 
-                    <!-- ── Actions ── -->
-                    <td style="padding: 14px 16px; vertical-align: middle;">
-                        <div class="action-group" style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
-
-                            {# 👁 VIEW — live page, new tab; muted if not published #}
+                    <!-- Actions -->
+                    <td>
+                        <div class="action-group">
+                            {# VIEW #}
                             {% if product.status == 'published' %}
                                 <a href="{% url 'items:product_detail' product.slug %}"
                                    target="_blank"
                                    rel="noopener noreferrer"
                                    class="act-btn act-view"
-                                   title="View live product" style="
-                                       display: inline-flex; align-items: center;
-                                       gap: 4px; padding: 6px 10px;
-                                       border-radius: var(--r-md);
-                                       font-size: 0.78rem; font-weight: 600;
-                                       border: 1.5px solid var(--green);
-                                       background: var(--green-light);
-                                       color: var(--green); text-decoration: none;
-                                       transition: all var(--tr); white-space: nowrap;
-                                   ">
-                                    <i class="fa fa-eye" style="font-size: 0.85rem;"></i><span class="hide-mobile">View</span>
+                                   title="View live product">
+                                    <i class="fa fa-eye"></i><span class="hide-mobile">View</span>
                                 </a>
                             {% else %}
-                                <span class="act-btn act-view-off" title="Publish to view live" style="
-                                    display: inline-flex; align-items: center;
-                                    gap: 4px; padding: 6px 10px;
-                                    border-radius: var(--r-md);
-                                    font-size: 0.78rem; font-weight: 600;
-                                    border: 1.5px solid var(--gray-200);
-                                    background: var(--gray-100);
-                                    color: var(--gray-400); cursor: not-allowed;
-                                    white-space: nowrap;
-                                ">
-                                    <i class="fa fa-eye-slash" style="font-size: 0.85rem;"></i><span class="hide-mobile">View</span>
+                                <span class="act-btn act-view-off" title="Publish to view live">
+                                    <i class="fa fa-eye-slash"></i><span class="hide-mobile">View</span>
                                 </span>
                             {% endif %}
 
-                            {# ✏ EDIT #}
+                            {# EDIT #}
                             <a href="{% url 'items:product_edit' product.id %}"
                                class="act-btn act-edit"
-                               title="Edit product" style="
-                                   display: inline-flex; align-items: center;
-                                   gap: 4px; padding: 6px 10px;
-                                   border-radius: var(--r-md);
-                                   font-size: 0.78rem; font-weight: 600;
-                                   border: 1.5px solid var(--blue-200);
-                                   background: var(--blue-50);
-                                   color: var(--blue-600); text-decoration: none;
-                                   transition: all var(--tr); white-space: nowrap;
-                               ">
-                                <i class="fa fa-pencil" style="font-size: 0.85rem;"></i><span class="hide-mobile">Edit</span>
+                               title="Edit product">
+                                <i class="fa fa-pencil"></i><span class="hide-mobile">Edit</span>
                             </a>
 
-                            {# 🔄 TOGGLE — hidden for discontinued #}
+                            {# TOGGLE #}
                             {% if product.status != 'discontinued' %}
                                 <button type="button"
                                         class="act-btn act-toggle"
                                         data-id="{{ product.id }}"
                                         data-status="{{ product.status }}"
                                         id="toggle-btn-{{ product.id }}"
-                                        title="{% if product.status == 'published' %}Unpublish{% else %}Publish{% endif %}" style="
-                                            display: inline-flex; align-items: center;
-                                            gap: 4px; padding: 6px 10px;
-                                            border-radius: var(--r-md);
-                                            font-size: 0.78rem; font-weight: 600;
-                                            border: 1.5px solid var(--amber);
-                                            background: var(--amber-light);
-                                            color: var(--amber); text-decoration: none;
-                                            transition: all var(--tr); white-space: nowrap;
-                                            border: none; cursor: pointer;
-                                        ">
+                                        title="{% if product.status == 'published' %}Unpublish{% else %}Publish{% endif %}">
                                     {% if product.status == 'published' %}
-                                        <i class="fa fa-toggle-on" style="font-size: 0.9rem;"></i><span class="hide-mobile">Unpublish</span>
+                                        <i class="fa fa-toggle-on"></i><span class="hide-mobile">Unpublish</span>
                                     {% else %}
-                                        <i class="fa fa-toggle-off" style="font-size: 0.9rem;"></i><span class="hide-mobile">Publish</span>
+                                        <i class="fa fa-toggle-off"></i><span class="hide-mobile">Publish</span>
                                     {% endif %}
                                 </button>
                             {% endif %}
 
-                            {# 🗑 ARCHIVE — hidden for discontinued #}
+                            {# ARCHIVE #}
                             {% if product.status != 'discontinued' %}
                                 <button type="button"
                                         class="act-btn act-archive"
                                         data-id="{{ product.id }}"
                                         data-name="{{ product.name|escapejs }}"
-                                        title="Archive product" style="
-                                            display: inline-flex; align-items: center;
-                                            gap: 4px; padding: 6px 10px;
-                                            border-radius: var(--r-md);
-                                            font-size: 0.78rem; font-weight: 600;
-                                            border: 1.5px solid var(--red);
-                                            background: var(--red-light);
-                                            color: var(--red); text-decoration: none;
-                                            transition: all var(--tr); white-space: nowrap;
-                                            border: none; cursor: pointer;
-                                        ">
-                                    <i class="fa fa-archive" style="font-size: 0.85rem;"></i><span class="hide-mobile">Archive</span>
+                                        title="Archive product">
+                                    <i class="fa fa-archive"></i><span class="hide-mobile">Archive</span>
                                 </button>
                             {% endif %}
-
                         </div>
                     </td>
-
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="{% if is_superuser %}7{% else %}6{% endif %}" class="empty-state" style="
-                        text-align: center; padding: 48px 20px; color: var(--gray-500);
-                    ">
-                        <div style="font-size: 2.5rem; color: var(--gray-200); margin-bottom: 12px;">
+                    <td colspan="{% if is_superuser %}7{% else %}6{% endif %}" class="empty-state">
+                        <div class="empty-state-icon">
                             <i class="fa fa-box-open"></i>
+                        </div>
+                        <h3>No items found</h3>
+                        <p>No items found matching your filters.</p>
+                        <a href="{% url 'items:product_create' %}" class="btn-primary">
+                            <i class="fa fa-plus"></i> Add Your First Product
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>           <i class="fa fa-box-open"></i>
                         </div>
                         <p style="font-size: 0.95rem; margin-bottom: 16px;">No items found matching your filters.</p>
                         <a href="{% url 'items:product_create' %}" class="btn-primary" style="
