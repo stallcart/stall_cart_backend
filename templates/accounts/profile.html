@@ -7,7 +7,7 @@
 <div class="profile-container">
     <!-- Page Header -->
     <div class="profile-header">
-        <h2>👤 My Profile</h2>
+        <h2><i class="fa fa-user-circle"></i> My Profile</h2>
         <p class="text-muted">
             {% if is_customer %}Manage your account, addresses, and orders{% endif %}
             {% if is_seller %}Manage your shop, products, and orders{% endif %}
@@ -15,491 +15,475 @@
         </p>
     </div>
 
-    <!-- Profile Stats (Role-Based) -->
-    <div class="stats-grid">
-        <div class="stat-card total">
-            <span class="stat-num" style="font-size:1.5rem; text-transform:capitalize;">{{ user.role }}</span>
-            <span class="stat-label">Account Type</span>
-        </div>
-        
-        <div class="stat-card {% if is_seller and seller_profile.is_verified or is_customer and user.is_active or is_admin %}success{% else %}warning{% endif %}">
-            <span class="stat-num" style="font-size:1.5rem;">
-                {% if is_seller and seller_profile %}
-                    {{ seller_profile.is_verified|yesno:"Verified,Pending" }}
-                {% elif is_customer %}
-                    {{ user.is_active|yesno:"Active,Suspended" }}
-                {% elif is_admin %}
-                    Admin
-                {% else %}
-                    Pending
+    <div class="profile-layout">
+        <!-- ── SIDEBAR NAVIGATION ── -->
+        <div class="profile-sidebar">
+            <div class="profile-user-card">
+                <div class="profile-avatar-large">
+                    {{ user.full_name|default:user.phone|slice:":1"|upper }}
+                </div>
+                <div class="profile-user-name">{{ user.full_name|default:user.phone }}</div>
+                <div class="profile-user-role">{{ user.get_role_display|default:"Customer" }}</div>
+            </div>
+
+            <div class="profile-menu">
+                <button class="profile-menu-item active" data-target="personal-info">
+                    <i class="fa fa-id-card"></i> <span>Personal Info</span>
+                </button>
+                {% if is_customer %}
+                <button class="profile-menu-item" data-target="addresses">
+                    <i class="fa fa-map-marker-alt"></i> <span>Shipping Addresses</span>
+                </button>
+                <button class="profile-menu-item" data-target="orders">
+                    <i class="fa fa-shopping-bag"></i> <span>Recent Orders</span>
+                </button>
                 {% endif %}
-            </span>
-            <span class="stat-label">Status</span>
-        </div>
-        
-        {% if is_customer %}
-        <div class="stat-card info">
-            <span class="stat-num">{{ user_orders.count|default:0 }}</span>
-            <span class="stat-label">Orders</span>
-        </div>
-        <div class="stat-card info">
-            <span class="stat-num">{{ wishlist_count|default:0 }}</span>
-            <span class="stat-label">Wishlist</span>
-        </div>
-        {% endif %}
-        
-        {% if is_seller and seller_stats %}
-        <div class="stat-card info">
-            <span class="stat-num">{{ seller_stats.total_products }}</span>
-            <span class="stat-label">Products</span>
-        </div>
-        <div class="stat-card success">
-            <span class="stat-num">{{ seller_stats.total_orders }}</span>
-            <span class="stat-label">Orders Received</span>
-        </div>
-        {% endif %}
-    </div>
-
-    <!-- ✅ PERSONAL INFORMATION (All Roles) - Email & Full Name ONLY editable -->
-    <div class="profile-card">
-        <div class="card-header">
-            <h3>📝 Personal Information</h3>
-            <button type="button" class="btn-outline btn-sm" id="editProfileBtn">✏️ Edit</button>
-        </div>
-        
-        <form id="profileForm" method="post">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="update_profile">
-            
-            <div class="form-grid">
-                <div class="form-group">
-                    <label for="fullName">Full Name</label>
-                    <input type="text" id="fullName" name="full_name" class="form-input" 
-                           value="{{ user.full_name|default:'' }}" readonly>
-                </div>
-                <div class="form-group">
-                    <label for="email">Email Address</label>
-                    <input type="email" id="email" name="email" class="form-input" 
-                           value="{{ user.email|default:'' }}" required readonly>
-                </div>
-            </div>
-            
-            <div class="form-grid">
-                <div class="form-group">
-                    <label for="phone">Mobile Number</label>
-                    <input type="tel" id="phone" name="phone" class="form-input" 
-                           value="{{ user.phone }}" readonly>
-                    <small class="text-muted" id="phoneHelpText">OTP verification required on change</small>
-                </div>
-                <div class="form-group">
-                    <label for="role">Account Role</label>
-                    <input type="text" id="role" class="form-input" 
-                           value="{{ user.get_role_display }}" readonly>
-                </div>
-            </div>
-            
-            <div class="form-actions">
-                <button type="submit" class="btn-primary" id="saveProfileBtn" style="display:none;">💾 Save Changes</button>
-                <button type="button" class="btn-outline" id="cancelEditBtn" style="display:none;">Cancel</button>
-            </div>
-        </form>
-    </div>
-
-    <!-- ✅ CUSTOMER: Multiple Shipping Addresses (Only for customers) -->
-    {% if is_customer %}
-    <div class="profile-card">
-        <div class="card-header">
-            <h3>📍 Shipping Addresses</h3>
-            <button type="button" class="btn-outline btn-sm" id="addAddressBtn">+ Add New Address</button>
-        </div>
-        
-        <!-- Address List -->
-        <div id="addressList">
-            {% if customer_addresses %}
-                {% for addr in customer_addresses %}
-                <div class="address-card {% if addr.is_default %}default-address{% endif %}" data-address-id="{{ addr.id }}">
-                    <div class="address-header">
-                        <div class="address-title">
-                            <strong>{{ addr.name }}</strong>
-                            {% if addr.is_default %}
-                                <span class="badge badge-success">✓ Default</span>
-                            {% endif %}
-                        </div>
-                        <span class="badge badge-type">{{ addr.get_address_type_display }}</span>
-                    </div>
-                    <div class="address-body">
-                        <p class="address-line">{{ addr.address_line1 }}{% if addr.address_line2 %}, {{ addr.address_line2 }}{% endif %}</p>
-                        <p class="address-line">{{ addr.city }}, {{ addr.state }} - {{ addr.postal_code }}</p>
-                        <p class="address-line">📞 {{ addr.phone }} • {{ addr.country }}</p>
-                    </div>
-                    <div class="address-actions">
-                        {% if not addr.is_default %}
-                        <button class="btn-action btn-set-default" onclick="setDefaultAddress({{ addr.id }})">
-                            Set Default
-                        </button>
-                        {% endif %}
-                        <button class="btn-action btn-edit" onclick="openAddressModal('edit', {{ addr.id }})">
-                            ✏️ Edit
-                        </button>
-                        <button class="btn-action btn-delete" onclick="deleteAddress({{ addr.id }})">
-                            🗑️ Delete
-                        </button>
-                    </div>
-                </div>
-                {% endfor %}
-            {% else %}
-                <div class="empty-state">
-                    <i class="fa fa-map-marker-alt" style="font-size:2rem;color:#ccc;margin-bottom:10px;"></i>
-                    <p>No addresses saved yet.</p>
-                    <button class="btn-primary btn-sm" id="addFirstAddressBtn">+ Add Your First Address</button>
-                </div>
-            {% endif %}
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- ✅ SELLER: Shop Address & Orders (Only for sellers) -->
-    {% if is_seller and seller_profile %}
-        <!-- Shop Address Card -->
-        <div class="profile-card">
-            <div class="card-header">
-                <h3>🏪 Shop Address</h3>
-                <button type="button" class="btn-outline btn-sm" id="editShopAddressBtn">
-                    {% if shop_address %}✏️ Edit{% else %}+ Add Shop Address{% endif %}
+                {% if is_seller %}
+                <button class="profile-menu-item" data-target="shop-address">
+                    <i class="fa fa-store"></i> <span>Shop Address</span>
+                </button>
+                <button class="profile-menu-item" data-target="orders-received">
+                    <i class="fa fa-clipboard-list"></i> <span>Orders Received</span>
+                </button>
+                <button class="profile-menu-item" data-target="seller-dashboard">
+                    <i class="fa fa-chart-bar"></i> <span>Seller Dashboard</span>
+                </button>
+                {% endif %}
+                {% if is_admin %}
+                <button class="profile-menu-item" data-target="admin-tools">
+                    <i class="fa fa-cogs"></i> <span>Admin Tools</span>
+                </button>
+                {% endif %}
+                <button class="profile-menu-item" data-target="security">
+                    <i class="fa fa-shield-alt"></i> <span>Security</span>
                 </button>
             </div>
-            
-            <!-- Shop Address View -->
-            <div id="shopAddressView">
-                {% if shop_address %}
-                <div class="shop-address-card">
-                    <p><strong>{{ shop_address.shop_name }}</strong></p>
-                    <p>{{ shop_address.address_line1 }}{% if shop_address.address_line2 %}, {{ shop_address.address_line2 }}{% endif %}</p>
-                    <p>{{ shop_address.city }}, {{ shop_address.state }} - {{ shop_address.postal_code }}</p>
-                    <p>📞 {{ shop_address.shop_phone }} • {{ shop_address.country }}</p>
-                    {% if shop_address.gst_number %}
-                        <p><strong>GST:</strong> {{ shop_address.gst_number }}</p>
-                    {% endif %}
-                    {% if shop_address.pickup_instructions %}
-                        <p><strong>Pickup Instructions:</strong> {{ shop_address.pickup_instructions }}</p>
-                    {% endif %}
-                    <p class="text-muted">
-                        Status: {% if shop_address.is_verified %}✅ Verified{% else %}⏳ Pending Verification{% endif %}
-                    </p>
-                </div>
-                {% else %}
-                <p class="empty-state">No shop address added. Add one to enable order pickups.</p>
-                {% endif %}
-            </div>
-            
-            <!-- Shop Address Form (Hidden) -->
-            <form id="shopAddressForm" method="post" style="display:none;">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="update_shop_address">
-                
-                <div class="form-group">
-                    <label for="shopAddrName">Shop Name *</label>
-                    <input type="text" id="shopAddrName" name="shop_name" class="form-input" 
-                        value="{{ shop_address.shop_name|default:seller_profile.shop_name }}" required>
-                </div>
-                
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="shopAddrPhone">Shop Phone *</label>
-                        <input type="tel" id="shopAddrPhone" name="shop_phone" class="form-input" 
-                            value="{{ shop_address.shop_phone|default:seller_profile.phone }}" required pattern="[0-9]{10}">
-                    </div>
-                    <div class="form-group">
-                        <label for="shopAddrEmail">Shop Email</label>
-                        <input type="email" id="shopAddrEmail" name="shop_email" class="form-input" 
-                            value="{{ shop_address.shop_email|default:user.email }}">
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label for="shopAddrLine1">Address Line 1 *</label>
-                    <textarea id="shopAddrLine1" name="address_line1" class="form-input" rows="2" required>{{ shop_address.address_line1 }}</textarea>
-                </div>
-                
-                <div class="form-group">
-                    <label for="shopAddrLine2">Address Line 2 (Optional)</label>
-                    <textarea id="shopAddrLine2" name="address_line2" class="form-input" rows="2">{{ shop_address.address_line2 }}</textarea>
-                </div>
-                
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="shopAddrCity">City *</label>
-                        <input type="text" id="shopAddrCity" name="city" class="form-input" 
-                            value="{{ shop_address.city }}" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="shopAddrState">State *</label>
-                        <select id="shopAddrState" name="state" class="form-input" style="width: 100%; height: 40px; background: white; padding: 0 10px;" required>
-                            <option value="" disabled>Select State</option>
-                            <option value="Andaman and Nicobar Islands" {% if shop_address.state == "Andaman and Nicobar Islands" %}selected{% endif %}>Andaman and Nicobar Islands</option>
-                            <option value="Andhra Pradesh" {% if shop_address.state == "Andhra Pradesh" %}selected{% endif %}>Andhra Pradesh</option>
-                            <option value="Arunachal Pradesh" {% if shop_address.state == "Arunachal Pradesh" %}selected{% endif %}>Arunachal Pradesh</option>
-                            <option value="Assam" {% if shop_address.state == "Assam" %}selected{% endif %}>Assam</option>
-                            <option value="Bihar" {% if shop_address.state == "Bihar" %}selected{% endif %}>Bihar</option>
-                            <option value="Chandigarh" {% if shop_address.state == "Chandigarh" %}selected{% endif %}>Chandigarh</option>
-                            <option value="Chhattisgarh" {% if shop_address.state == "Chhattisgarh" %}selected{% endif %}>Chhattisgarh</option>
-                            <option value="Dadra and Nagar Haveli and Daman and Diu" {% if shop_address.state == "Dadra and Nagar Haveli and Daman and Diu" %}selected{% endif %}>Dadra and Nagar Haveli and Daman and Diu</option>
-                            <option value="Delhi" {% if shop_address.state == "Delhi" %}selected{% endif %}>Delhi</option>
-                            <option value="Goa" {% if shop_address.state == "Goa" %}selected{% endif %}>Goa</option>
-                            <option value="Gujarat" {% if shop_address.state == "Gujarat" %}selected{% endif %}>Gujarat</option>
-                            <option value="Haryana" {% if shop_address.state == "Haryana" %}selected{% endif %}>Haryana</option>
-                            <option value="Himachal Pradesh" {% if shop_address.state == "Himachal Pradesh" %}selected{% endif %}>Himachal Pradesh</option>
-                            <option value="Jammu and Kashmir" {% if shop_address.state == "Jammu and Kashmir" %}selected{% endif %}>Jammu and Kashmir</option>
-                            <option value="Jharkhand" {% if shop_address.state == "Jharkhand" %}selected{% endif %}>Jharkhand</option>
-                            <option value="Karnataka" {% if shop_address.state == "Karnataka" %}selected{% endif %}>Karnataka</option>
-                            <option value="Kerala" {% if shop_address.state == "Kerala" %}selected{% endif %}>Kerala</option>
-                            <option value="Ladakh" {% if shop_address.state == "Ladakh" %}selected{% endif %}>Ladakh</option>
-                            <option value="Lakshadweep" {% if shop_address.state == "Lakshadweep" %}selected{% endif %}>Lakshadweep</option>
-                            <option value="Madhya Pradesh" {% if shop_address.state == "Madhya Pradesh" %}selected{% endif %}>Madhya Pradesh</option>
-                            <option value="Maharashtra" {% if shop_address.state == "Maharashtra" %}selected{% endif %}>Maharashtra</option>
-                            <option value="Manipur" {% if shop_address.state == "Manipur" %}selected{% endif %}>Manipur</option>
-                            <option value="Meghalaya" {% if shop_address.state == "Meghalaya" %}selected{% endif %}>Meghalaya</option>
-                            <option value="Mizoram" {% if shop_address.state == "Mizoram" %}selected{% endif %}>Mizoram</option>
-                            <option value="Nagaland" {% if shop_address.state == "Nagaland" %}selected{% endif %}>Nagaland</option>
-                            <option value="Odisha" {% if shop_address.state == "Odisha" %}selected{% endif %}>Odisha</option>
-                            <option value="Puducherry" {% if shop_address.state == "Puducherry" %}selected{% endif %}>Puducherry</option>
-                            <option value="Punjab" {% if shop_address.state == "Punjab" %}selected{% endif %}>Punjab</option>
-                            <option value="Rajasthan" {% if shop_address.state == "Rajasthan" %}selected{% endif %}>Rajasthan</option>
-                            <option value="Sikkim" {% if shop_address.state == "Sikkim" %}selected{% endif %}>Sikkim</option>
-                            <option value="Tamil Nadu" {% if shop_address.state == "Tamil Nadu" %}selected{% endif %}>Tamil Nadu</option>
-                            <option value="Telangana" {% if shop_address.state == "Telangana" %}selected{% endif %}>Telangana</option>
-                            <option value="Tripura" {% if shop_address.state == "Tripura" %}selected{% endif %}>Tripura</option>
-                            <option value="Uttar Pradesh" {% if shop_address.state == "Uttar Pradesh" or not shop_address.state %}selected{% endif %}>Uttar Pradesh</option>
-                            <option value="Uttarakhand" {% if shop_address.state == "Uttarakhand" %}selected{% endif %}>Uttarakhand</option>
-                            <option value="West Bengal" {% if shop_address.state == "West Bengal" %}selected{% endif %}>West Bengal</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="shopAddrPostal">PIN Code *</label>
-                        <input type="text" id="shopAddrPostal" name="postal_code" class="form-input" 
-                            value="{{ shop_address.postal_code }}" required pattern="[0-9]{6}">
-                    </div>
-                    <div class="form-group">
-                        <label for="shopAddrCountry">Country</label>
-                        <select id="shopAddrCountry" name="country" class="form-select">
-                            <option value="India" {% if shop_address.country == 'India' %}selected{% endif %}>India</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="shopAddrGST">GST Number</label>
-                        <input type="text" id="shopAddrGST" name="gst_number" class="form-input" 
-                            value="{{ shop_address.gst_number|default:seller_profile.gst_number }}" maxlength="15">
-                    </div>
-                    <div class="form-group">
-                        <label for="shopPickupInstr">Pickup Instructions</label>
-                        <textarea id="shopPickupInstr" name="pickup_instructions" class="form-input" rows="2" placeholder="e.g., Gate code, contact person">{{ shop_address.pickup_instructions }}</textarea>
-                    </div>
-                </div>
-                
-                <div class="form-actions">
-                    <button type="submit" class="btn-primary">💾 Save Shop Address</button>
-                    <button type="button" class="btn-outline" id="cancelShopAddressBtn" style="margin-left:10px;">Cancel</button>
-                </div>
-            </form>
         </div>
 
-        <!-- Orders Received Section -->
-        <div class="profile-card">
-            <div class="card-header">
-                <h3>📦 Orders Received</h3>
-                <a href="{% url 'orders:seller_orders' %}" class="btn-outline btn-sm">View All Orders</a>
-            </div>
+        <!-- ── MAIN PANEL CONTENT ── -->
+        <div class="profile-content">
             
-            {% if seller_orders %}
-            <div class="orders-preview">
-                {% for order in seller_orders %}
-                <div class="order-preview-item">
-                    <div>
-                        <strong>Order #{% if order.order.unique_order_id %}{{ order.order.unique_order_id }}{% else %}{{ order.order.id|slice:":8"|upper }}{% endif %}</strong>
-                        <p class="text-muted">{{ order.order.created_at|date:"M d, Y, h:i A" }}</p>
-                        <p class="text-muted">{{ order.quantity }} × {{ order.product.name|truncatechars:30 }}</p>
-                        <p class="text-muted">Customer: {{ order.order.user.full_name|default:order.order.guest_email }}</p>
+            <!-- 1. PERSONAL INFORMATION PANEL (All Roles) -->
+            <div class="profile-section-panel active" id="personal-info">
+                <div class="profile-card">
+                    <div class="card-header">
+                        <h3><i class="fa fa-user"></i> Personal Information</h3>
+                        <button type="button" class="btn-outline btn-sm" id="editProfileBtn">✏️ Edit</button>
                     </div>
-                    <div class="order-status">
-                        <span class="badge badge-{{ order.order.status }}">
-                            {{ order.order.get_status_display }}
-                        </span>
-                        <strong>₹{{ order.total|floatformat:2 }}</strong>
-                        {% with order_id=order.order.unique_order_id|default:order.order.id %}
-                            {% if order_id %}
-                                <a href="{% url 'orders:seller_order_detail' order_id %}" class="btn-outline btn-sm view-order-btn">
-                                    View Details →
-                                </a>
-                            {% else %}
-                                <span class="text-muted">Invalid Order ID</span>
-                            {% endif %}
-                        {% endwith %}
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-            {% else %}
-            <p class="empty-state">No orders yet. <a href="{% url 'items:product_create' %}">Add products</a> to start selling!</p>
-            {% endif %}
-        </div>
-
-        <!-- Seller Stats Grid -->
-        <div class="profile-card">
-            <div class="card-header">
-                <h3>📊 Seller Dashboard</h3>
-                <a href="{% url 'items:admin_dashboard' %}" class="btn-outline btn-sm">Manage Products</a>
-            </div>
-            <div class="seller-stats-grid">
-                <div class="stat-box">
-                    <span class="stat-num">{{ seller_stats.published }}</span>
-                    <span class="stat-label">Published Products</span>
-                </div>
-                <div class="stat-box">
-                    <span class="stat-num">{{ seller_stats.draft }}</span>
-                    <span class="stat-label">Draft Products</span>
-                </div>
-                <div class="stat-box">
-                    <span class="stat-num">{{ seller_stats.total_sales }}</span>
-                    <span class="stat-label">Items Sold</span>
-                </div>
-                <div class="stat-box">
-                    <span class="stat-num">₹{{ seller_stats.total_revenue|floatformat:0 }}</span>
-                    <span class="stat-label">Total Revenue</span>
-                </div>
-            </div>
-            <div class="seller-quick-links">
-                <a href="{% url 'items:product_create' %}" class="btn-primary">+ Add New Product</a>
-                <a href="{% url 'items:admin_dashboard' %}?status=draft" class="btn-outline">View Drafts</a>
-                <a href="{% url 'orders:seller_orders' %}" class="btn-outline">View All Orders</a>
-            </div>
-        </div>
-    {% endif %}
-    
-    <!-- ✅ ACCOUNT SECURITY (All Roles) -->
-    <div class="profile-card">
-        <div class="card-header">
-            <h3>🔐 Account Security</h3>
-        </div>
-        <div class="security-list">
-            <div class="security-item">
-                <div>
-                    <strong>Password</strong>
-                    <p class="text-muted">Last changed: {{ user.updated_at|date:"M d, Y" }}</p>
-                </div>
-                <a href="{% url 'accounts:change_password' %}" class="btn-outline btn-sm">Change Password</a>
-            </div>
-            <div class="security-item">
-                <div>
-                    <strong>Two-Factor Authentication</strong>
-                    <p class="text-muted">Add an extra layer of security</p>
-                </div>
-                <button class="btn-outline btn-sm" disabled>Coming Soon</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- ✅ CUSTOMER: Wallet & Credit History (Only for customers) - DISABLED/COMMENTED OUT
-    {% if is_customer %}
-    <div class="profile-card">
-        <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
-            <h3>👛 StallCart Wallet</h3>
-            <span style="font-size: 1.25rem; font-weight: 700; color: var(--green);">₹{{ wallet.balance|default:"0.00"|floatformat:2 }}</span>
-        </div>
-        
-        <div class="wallet-body" style="padding-top: 10px;">
-            <p class="text-muted" style="margin-bottom: 16px;">
-                Your refund amounts are credited directly to your wallet for quick checkout on future orders.
-            </p>
-            
-            <h4 style="font-size: 0.95rem; font-weight: 600; color: var(--gray-700); margin-bottom: 10px;">Transaction History</h4>
-            {% if wallet_transactions %}
-                <div class="transaction-list" style="display:flex; flex-direction:column; gap:12px; margin-top:10px;">
-                    {% for txn in wallet_transactions %}
-                    <div class="transaction-item" style="display:flex; justify-content:space-between; align-items:center; padding:12px 14px; background:var(--gray-50); border: 1.5px solid var(--gray-100); border-radius:var(--r-md);">
-                        <div>
-                            <strong style="display:block; font-size:0.9rem; color:var(--gray-800);">{{ txn.description|default:"Wallet Credit" }}</strong>
-                            <small class="text-muted" style="font-size: 0.75rem;">{{ txn.timestamp|date:"d M Y, h:i A" }}</small>
-                            {% if txn.reference_id %}
-                                <span style="font-size: 0.75rem; color: var(--blue-500); display: block; margin-top: 2px;">Ref: {{ txn.reference_id }}</span>
-                            {% endif %}
+                    
+                    <form id="profileForm" method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="update_profile">
+                        
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="fullName">Full Name</label>
+                                <input type="text" id="fullName" name="full_name" class="form-input" 
+                                       value="{{ user.full_name|default:'' }}" readonly>
+                            </div>
+                            <div class="form-group">
+                                <label for="email">Email Address</label>
+                                <input type="email" id="email" name="email" class="form-input" 
+                                       value="{{ user.email|default:'' }}" required readonly>
+                            </div>
                         </div>
-                        <div style="font-weight:700; font-size:1rem; {% if txn.transaction_type == 'credit' %}color:var(--green);{% else %}color:var(--gray-800);{% endif %}">
-                            {% if txn.transaction_type == 'credit' %}+{% else %}−{% endif %} ₹{{ txn.amount|floatformat:2 }}
+                        
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="phone">Mobile Number</label>
+                                <input type="tel" id="phone" name="phone" class="form-input" 
+                                       value="{{ user.phone }}" readonly>
+                                <small class="text-muted" id="phoneHelpText">Verification code required to modify</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="role">Account Role</label>
+                                <input type="text" id="role" class="form-input" 
+                                       value="{{ user.get_role_display }}" readonly>
+                            </div>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button type="submit" class="btn-primary" id="saveProfileBtn" style="display:none;">💾 Save Changes</button>
+                            <button type="button" class="btn-outline" id="cancelEditBtn" style="display:none; margin-left:10px;">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- 2. SHIPPING ADDRESSES PANEL (Customers Only) -->
+            {% if is_customer %}
+            <div class="profile-section-panel" id="addresses">
+                <div class="profile-card">
+                    <div class="card-header">
+                        <h3><i class="fa fa-map-marked-alt"></i> Shipping Addresses</h3>
+                        <button type="button" class="btn-outline btn-sm" id="addAddressBtn">+ Add New</button>
+                    </div>
+                    
+                    <div id="addressList">
+                        {% if customer_addresses %}
+                            {% for addr in customer_addresses %}
+                            <div class="address-card {% if addr.is_default %}default-address{% endif %}" data-address-id="{{ addr.id }}">
+                                <div class="address-header">
+                                    <div class="address-title">
+                                        <strong>{{ addr.name }}</strong>
+                                        {% if addr.is_default %}
+                                            <span class="badge badge-success">✓ Default</span>
+                                        {% endif %}
+                                    </div>
+                                    <span class="badge badge-type">{{ addr.get_address_type_display }}</span>
+                                </div>
+                                <div class="address-body">
+                                    <p class="address-line">{{ addr.address_line1 }}{% if addr.address_line2 %}, {{ addr.address_line2 }}{% endif %}</p>
+                                    <p class="address-line">{{ addr.city }}, {{ addr.state }} - {{ addr.postal_code }}</p>
+                                    <p class="address-line">📞 {{ addr.phone }} • {{ addr.country }}</p>
+                                </div>
+                                <div class="address-actions">
+                                    {% if not addr.is_default %}
+                                    <button class="btn-action btn-set-default" onclick="setDefaultAddress({{ addr.id }})">
+                                        Set Default
+                                    </button>
+                                    {% endif %}
+                                    <button class="btn-action btn-edit" onclick="openAddressModal('edit', {{ addr.id }})">
+                                        ✏️ Edit
+                                    </button>
+                                    <button class="btn-action btn-delete" onclick="deleteAddress({{ addr.id }})">
+                                        🗑️ Delete
+                                    </button>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="empty-state">
+                                <i class="fa fa-map-marker-alt" style="font-size:2rem;color:#ccc;margin-bottom:10px;"></i>
+                                <p>No addresses saved yet.</p>
+                                <button class="btn-primary btn-sm" id="addFirstAddressBtn" style="margin-top:10px;">+ Add Your First Address</button>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. RECENT ORDERS PANEL (Customers Only) -->
+            <div class="profile-section-panel" id="orders">
+                <div class="profile-card">
+                    <div class="card-header">
+                        <h3><i class="fa fa-shopping-bag"></i> Recent Orders</h3>
+                        <a href="{% url 'orders:my_orders' %}" class="btn-outline btn-sm">View All Orders</a>
+                    </div>
+                    <div class="orders-preview">
+                        {% if user_orders %}
+                            {% for order in user_orders %}
+                            <div class="order-preview-item">
+                                <div>
+                                    <strong>Order #{% if order.unique_order_id %}{{ order.unique_order_id }}{% else %}{{ order.id|slice:":8"|upper }}{% endif %}</strong>
+                                    <p class="text-muted">{{ order.created_at|date:"M d, Y" }}</p>
+                                    <p class="text-muted">{{ order.items.count }} item{{ order.items.count|pluralize }}</p>
+                                </div>
+                                <div class="order-status">
+                                    <span class="badge badge-{{ order.status }}">
+                                        {{ order.get_status_display }}
+                                    </span>
+                                    <strong>₹{{ order.total_amount|floatformat:2 }}</strong>
+                                    <a href="{% url 'orders:order_detail' order.unique_order_id|default:order.id %}" class="btn-outline btn-sm view-order-btn">
+                                        View Order →
+                                    </a>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="empty-state">
+                                <p>No orders yet. <a href="{% url 'shop:home' %}">Start shopping</a></p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- 4. SHOP ADDRESS PANEL (Sellers Only) -->
+            {% if is_seller and seller_profile %}
+            <div class="profile-section-panel" id="shop-address">
+                <div class="profile-card">
+                    <div class="card-header">
+                        <h3><i class="fa fa-store"></i> Shop Address</h3>
+                        <button type="button" class="btn-outline btn-sm" id="editShopAddressBtn">
+                            {% if shop_address %}✏️ Edit{% else %}+ Add Shop Address{% endif %}
+                        </button>
+                    </div>
+                    
+                    <!-- Shop Address View -->
+                    <div id="shopAddressView">
+                        {% if shop_address %}
+                        <div class="shop-address-card">
+                            <p><strong>{{ shop_address.shop_name }}</strong></p>
+                            <p>{{ shop_address.address_line1 }}{% if shop_address.address_line2 %}, {{ shop_address.address_line2 }}{% endif %}</p>
+                            <p>{{ shop_address.city }}, {{ shop_address.state }} - {{ shop_address.postal_code }}</p>
+                            <p>📞 {{ shop_address.shop_phone }} • {{ shop_address.country }}</p>
+                            {% if shop_address.gst_number %}
+                                <p><strong>GST:</strong> {{ shop_address.gst_number }}</p>
+                            {% endif %}
+                            {% if shop_address.pickup_instructions %}
+                                <p><strong>Pickup Instructions:</strong> {{ shop_address.pickup_instructions }}</p>
+                            {% endif %}
+                            <p class="text-muted">
+                                Status: {% if shop_address.is_verified %}✅ Verified{% else %}⏳ Pending Verification{% endif %}
+                            </p>
+                        </div>
+                        {% else %}
+                        <div class="empty-state">
+                            <p>No shop address added. Add one to enable order pickups.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Shop Address Form (Hidden) -->
+                    <form id="shopAddressForm" method="post" style="display:none;">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="update_shop_address">
+                        
+                        <div class="form-group">
+                            <label for="shopAddrName">Shop Name *</label>
+                            <input type="text" id="shopAddrName" name="shop_name" class="form-input" 
+                                value="{{ shop_address.shop_name|default:seller_profile.shop_name }}" required>
+                        </div>
+                        
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="shopAddrPhone">Shop Phone *</label>
+                                <input type="tel" id="shopAddrPhone" name="shop_phone" class="form-input" 
+                                    value="{{ shop_address.shop_phone|default:seller_profile.phone }}" required pattern="[0-9]{10}">
+                            </div>
+                            <div class="form-group">
+                                <label for="shopAddrEmail">Shop Email</label>
+                                <input type="email" id="shopAddrEmail" name="shop_email" class="form-input" 
+                                    value="{{ shop_address.shop_email|default:user.email }}">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="shopAddrLine1">Address Line 1 *</label>
+                            <textarea id="shopAddrLine1" name="address_line1" class="form-input" rows="2" required>{{ shop_address.address_line1 }}</textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="shopAddrLine2">Address Line 2 (Optional)</label>
+                            <textarea id="shopAddrLine2" name="address_line2" class="form-input" rows="2">{{ shop_address.address_line2 }}</textarea>
+                        </div>
+                        
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="shopAddrCity">City *</label>
+                                <input type="text" id="shopAddrCity" name="city" class="form-input" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="shopAddrState">State *</label>
+                                <select id="shopAddrState" name="state" class="form-input" required>
+                                    <option value="" disabled>Select State</option>
+                                    <option value="Andaman and Nicobar Islands" {% if shop_address.state == "Andaman and Nicobar Islands" %}selected{% endif %}>Andaman and Nicobar Islands</option>
+                                    <option value="Andhra Pradesh" {% if shop_address.state == "Andhra Pradesh" %}selected{% endif %}>Andhra Pradesh</option>
+                                    <option value="Arunachal Pradesh" {% if shop_address.state == "Arunachal Pradesh" %}selected{% endif %}>Arunachal Pradesh</option>
+                                    <option value="Assam" {% if shop_address.state == "Assam" %}selected{% endif %}>Assam</option>
+                                    <option value="Bihar" {% if shop_address.state == "Bihar" %}selected{% endif %}>Bihar</option>
+                                    <option value="Chandigarh" {% if shop_address.state == "Chandigarh" %}selected{% endif %}>Chandigarh</option>
+                                    <option value="Chhattisgarh" {% if shop_address.state == "Chhattisgarh" %}selected{% endif %}>Chhattisgarh</option>
+                                    <option value="Dadra and Nagar Haveli and Daman and Diu" {% if shop_address.state == "Dadra and Nagar Haveli and Daman and Diu" %}selected{% endif %}>Dadra and Nagar Haveli and Daman and Diu</option>
+                                    <option value="Delhi" {% if shop_address.state == "Delhi" %}selected{% endif %}>Delhi</option>
+                                    <option value="Goa" {% if shop_address.state == "Goa" %}selected{% endif %}>Goa</option>
+                                    <option value="Gujarat" {% if shop_address.state == "Gujarat" %}selected{% endif %}>Gujarat</option>
+                                    <option value="Haryana" {% if shop_address.state == "Haryana" %}selected{% endif %}>Haryana</option>
+                                    <option value="Himachal Pradesh" {% if shop_address.state == "Himachal Pradesh" %}selected{% endif %}>Himachal Pradesh</option>
+                                    <option value="Jammu and Kashmir" {% if shop_address.state == "Jammu and Kashmir" %}selected{% endif %}>Jammu and Kashmir</option>
+                                    <option value="Jharkhand" {% if shop_address.state == "Jharkhand" %}selected{% endif %}>Jharkhand</option>
+                                    <option value="Karnataka" {% if shop_address.state == "Karnataka" %}selected{% endif %}>Karnataka</option>
+                                    <option value="Kerala" {% if shop_address.state == "Kerala" %}selected{% endif %}>Kerala</option>
+                                    <option value="Ladakh" {% if shop_address.state == "Ladakh" %}selected{% endif %}>Ladakh</option>
+                                    <option value="Lakshadweep" {% if shop_address.state == "Lakshadweep" %}selected{% endif %}>Lakshadweep</option>
+                                    <option value="Madhya Pradesh" {% if shop_address.state == "Madhya Pradesh" %}selected{% endif %}>Madhya Pradesh</option>
+                                    <option value="Maharashtra" {% if shop_address.state == "Maharashtra" %}selected{% endif %}>Maharashtra</option>
+                                    <option value="Manipur" {% if shop_address.state == "Manipur" %}selected{% endif %}>Manipur</option>
+                                    <option value="Meghalaya" {% if shop_address.state == "Meghalaya" %}selected{% endif %}>Meghalaya</option>
+                                    <option value="Mizoram" {% if shop_address.state == "Mizoram" %}selected{% endif %}>Mizoram</option>
+                                    <option value="Nagaland" {% if shop_address.state == "Nagaland" %}selected{% endif %}>Nagaland</option>
+                                    <option value="Odisha" {% if shop_address.state == "Odisha" %}selected{% endif %}>Odisha</option>
+                                    <option value="Puducherry" {% if shop_address.state == "Puducherry" %}selected{% endif %}>Puducherry</option>
+                                    <option value="Punjab" {% if shop_address.state == "Punjab" %}selected{% endif %}>Punjab</option>
+                                    <option value="Rajasthan" {% if shop_address.state == "Rajasthan" %}selected{% endif %}>Rajasthan</option>
+                                    <option value="Sikkim" {% if shop_address.state == "Sikkim" %}selected{% endif %}>Sikkim</option>
+                                    <option value="Tamil Nadu" {% if shop_address.state == "Tamil Nadu" %}selected{% endif %}>Tamil Nadu</option>
+                                    <option value="Telangana" {% if shop_address.state == "Telangana" %}selected{% endif %}>Telangana</option>
+                                    <option value="Tripura" {% if shop_address.state == "Tripura" %}selected{% endif %}>Tripura</option>
+                                    <option value="Uttar Pradesh" {% if shop_address.state == "Uttar Pradesh" or not shop_address.state %}selected{% endif %}>Uttar Pradesh</option>
+                                    <option value="Uttarakhand" {% if shop_address.state == "Uttarakhand" %}selected{% endif %}>Uttarakhand</option>
+                                    <option value="West Bengal" {% if shop_address.state == "West Bengal" %}selected{% endif %}>West Bengal</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="shopAddrPostal">PIN Code *</label>
+                                <input type="text" id="shopAddrPostal" name="postal_code" class="form-input" 
+                                    value="{{ shop_address.postal_code }}" required pattern="[0-9]{6}">
+                            </div>
+                            <div class="form-group">
+                                <label for="shopAddrCountry">Country</label>
+                                <select id="shopAddrCountry" name="country" class="form-input">
+                                    <option value="India" {% if shop_address.country == 'India' %}selected{% endif %}>India</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="shopAddrGST">GST Number</label>
+                                <input type="text" id="shopAddrGST" name="gst_number" class="form-input" 
+                                    value="{{ shop_address.gst_number|default:seller_profile.gst_number }}" maxlength="15">
+                            </div>
+                            <div class="form-group">
+                                <label for="shopPickupInstr">Pickup Instructions</label>
+                                <textarea id="shopPickupInstr" name="pickup_instructions" class="form-input" rows="2" placeholder="e.g., Gate code, contact person">{{ shop_address.pickup_instructions }}</textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button type="submit" class="btn-primary">💾 Save Shop Address</button>
+                            <button type="button" class="btn-outline" id="cancelShopAddressBtn" style="margin-left:10px;">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- 5. ORDERS RECEIVED PANEL (Sellers Only) -->
+            <div class="profile-section-panel" id="orders-received">
+                <div class="profile-card">
+                    <div class="card-header">
+                        <h3><i class="fa fa-clipboard-list"></i> Orders Received</h3>
+                        <a href="{% url 'orders:seller_orders' %}" class="btn-outline btn-sm">View All Orders</a>
+                    </div>
+                    
+                    {% if seller_orders %}
+                    <div class="orders-preview">
+                        {% for order in seller_orders %}
+                        <div class="order-preview-item">
+                            <div>
+                                <strong>Order #{% if order.order.unique_order_id %}{{ order.order.unique_order_id }}{% else %}{{ order.order.id|slice:":8"|upper }}{% endif %}</strong>
+                                <p class="text-muted">{{ order.order.created_at|date:"M d, Y, h:i A" }}</p>
+                                <p class="text-muted">{{ order.quantity }} × {{ order.product.name|truncatechars:30 }}</p>
+                                <p class="text-muted">Customer: {{ order.order.user.full_name|default:order.order.guest_email }}</p>
+                            </div>
+                            <div class="order-status">
+                                <span class="badge badge-{{ order.order.status }}">
+                                    {{ order.order.get_status_display }}
+                                </span>
+                                <strong>₹{{ order.total|floatformat:2 }}</strong>
+                                {% with order_id=order.order.unique_order_id|default:order.order.id %}
+                                    {% if order_id %}
+                                        <a href="{% url 'orders:seller_order_detail' order_id %}" class="btn-outline btn-sm view-order-btn">
+                                            View Details →
+                                        </a>
+                                    {% else %}
+                                        <span class="text-muted">Invalid Order ID</span>
+                                    {% endif %}
+                                {% endwith %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="empty-state">
+                        <p>No orders yet. <a href="{% url 'items:product_create' %}">Add products</a> to start selling!</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- 6. SELLER DASHBOARD PANEL (Sellers Only) -->
+            <div class="profile-section-panel" id="seller-dashboard">
+                <div class="profile-card">
+                    <div class="card-header">
+                        <h3><i class="fa fa-chart-bar"></i> Seller Dashboard</h3>
+                        <a href="{% url 'items:admin_dashboard' %}" class="btn-outline btn-sm">Manage Products</a>
+                    </div>
+                    <div class="seller-stats-grid">
+                        <div class="stat-box">
+                            <span class="stat-num">{{ seller_stats.published }}</span>
+                            <span class="stat-label">Published Products</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-num">{{ seller_stats.draft }}</span>
+                            <span class="stat-label">Draft Products</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-num">{{ seller_stats.total_sales }}</span>
+                            <span class="stat-label">Items Sold</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-num">₹{{ seller_stats.total_revenue|floatformat:0 }}</span>
+                            <span class="stat-label">Total Revenue</span>
                         </div>
                     </div>
-                    {% endfor %}
-                </div>
-            {% else %}
-                <p style="font-size: 0.875rem; color: var(--gray-400); font-style: italic; margin-top: 10px;">No transactions recorded yet.</p>
-            {% endif %}
-        </div>
-    </div>
-    {% endif %}
-    -->
-
-    <!-- ✅ CUSTOMER: Order History (Only for customers) -->
-    {% if is_customer %}
-    <div class="profile-card">
-        <div class="card-header">
-            <h3>📦 Recent Orders</h3>
-            <a href="{% url 'orders:my_orders' %}" class="btn-outline btn-sm">View All Orders</a>
-        </div>
-        <div class="orders-preview">
-            {% if user_orders %}
-                {% for order in user_orders %}
-                <div class="order-preview-item">
-                    <div>
-                        <strong>Order #{% if order.unique_order_id %}{{ order.unique_order_id }}{% else %}{{ order.id|slice:":8"|upper }}{% endif %}</strong>
-                        <p class="text-muted">{{ order.created_at|date:"M d, Y" }}</p>
-                        <p class="text-muted">{{ order.items.count }} item{{ order.items.count|pluralize }}</p>
-                    </div>
-                    <div class="order-status">
-                        <span class="badge badge-{{ order.status }}">
-                            {{ order.get_status_display }}
-                        </span>
-                        <strong>₹{{ order.total_amount|floatformat:2 }}</strong>
-                        <a href="{% url 'orders:order_detail' order.unique_order_id|default:order.id %}" class="btn-outline btn-sm view-order-btn">
-                            View Order →
-                        </a>
+                    <div class="seller-quick-links">
+                        <a href="{% url 'items:product_create' %}" class="btn-primary">+ Add New Product</a>
+                        <a href="{% url 'items:admin_dashboard' %}?status=draft" class="btn-outline">View Drafts</a>
+                        <a href="{% url 'orders:seller_orders' %}" class="btn-outline">View All Orders</a>
                     </div>
                 </div>
-                {% endfor %}
-            {% else %}
-                <p class="empty-state">No orders yet. <a href="{% url 'shop:home' %}">Start shopping</a></p>
+            </div>
             {% endif %}
-        </div>
-    </div>
-    {% endif %}
 
-    <!-- ✅ ADMIN: Admin Tools (Only for superusers) -->
-    {% if is_admin %}
-    <div class="profile-card">
-        <div class="card-header">
-            <h3>⚙️ Admin Tools</h3>
-        </div>
-        <div class="admin-links">
-            <a href="/admin/" class="btn-outline">🔧 Django Admin</a>
-            <a href="{% url 'items:admin_dashboard' %}" class="btn-outline">📦 Product Management</a>
-            <a href="/admin/common/sitesettings/1/change/" class="btn-outline">🎨 Site Settings</a>
-            <a href="/admin/auth/user/" class="btn-outline">👥 User Management</a>
-            <a href="{% url 'orders:seller_orders' %}" class="btn-outline">📋 All Orders</a>
+            <!-- 7. ADMIN TOOLS PANEL (Admin Only) -->
+            {% if is_admin %}
+            <div class="profile-section-panel" id="admin-tools">
+                <div class="profile-card">
+                    <div class="card-header">
+                        <h3><i class="fa fa-cogs"></i> Admin Tools</h3>
+                    </div>
+                    <div class="admin-links">
+                        <a href="/admin/" class="btn-outline">🔧 Django Admin</a>
+                        <a href="{% url 'items:admin_dashboard' %}" class="btn-outline">📦 Product Management</a>
+                        <a href="/admin/common/sitesettings/1/change/" class="btn-outline">🎨 Site Settings</a>
+                        <a href="/admin/auth/user/" class="btn-outline">👥 User Management</a>
+                        <a href="{% url 'orders:seller_orders' %}" class="btn-outline">📋 All Orders</a>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- 8. SECURITY PANEL (All Roles) -->
+            <div class="profile-section-panel" id="security">
+                <div class="profile-card">
+                    <div class="card-header">
+                        <h3><i class="fa fa-lock"></i> Account Security</h3>
+                    </div>
+                    <div class="security-list">
+                        <div class="security-item">
+                            <div>
+                                <strong>Password</strong>
+                                <p class="text-muted">Last changed: {{ user.updated_at|date:"M d, Y" }}</p>
+                            </div>
+                            <a href="{% url 'accounts:change_password' %}" class="btn-outline btn-sm">Change Password</a>
+                        </div>
+                        <div class="security-item">
+                            <div>
+                                <strong>Two-Factor Authentication</strong>
+                                <p class="text-muted">Add an extra layer of security</p>
+                            </div>
+                            <button type="button" class="btn-outline btn-sm" onclick="showToast('2FA configuration coming soon!', 'info')">Enable</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
-    {% endif %}
 </div>
 
-<!-- ✅ ADDRESS MODAL - WORKING VERSION -->
-<div id="addressModal" class="modal" role="dialog" aria-modal="true" style="z-index:1600; display:none;">
-    <div class="modal-content" style="max-width:520px;">
+<!-- ── ADDRESS MODAL ── -->
+<div id="addressModal" class="modal" role="dialog" aria-modal="true">
+    <div class="modal-content">
         <div class="modal-header-bar">
-            <h3 id="modalTitleText" style="font-size:1.1rem;font-weight:700;color:var(--blue-800);margin:0;display:flex;align-items:center;gap:8px;">
-                <i class="fa fa-map-marker-alt" style="color:var(--blue-400);"></i>
+            <h3 id="modalTitleText">
+                <i class="fa fa-map-marker-alt"></i>
                 <span>Add Address</span>
             </h3>
             <button class="modal-close" id="closeAddressModal" aria-label="Close">
@@ -537,14 +521,14 @@
                               placeholder="Area, Colony, Landmark" rows="2"></textarea>
                 </div>
                 
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div class="form-grid">
                     <div class="form-group">
                         <label class="form-label" for="modalAddrCity">City *</label>
                         <input type="text" id="modalAddrCity" name="city" class="form-input" required>
                     </div>
                     <div class="form-group">
                         <label class="form-label" for="modalAddrState">State *</label>
-                        <select id="modalAddrState" name="state" class="form-input" style="width: 100%; height: 40px; background: white; padding: 0 10px;" required>
+                        <select id="modalAddrState" name="state" class="form-input" required>
                             <option value="" disabled selected>Select State</option>
                             <option value="Andaman and Nicobar Islands">Andaman and Nicobar Islands</option>
                             <option value="Andhra Pradesh">Andhra Pradesh</option>
@@ -586,7 +570,7 @@
                     </div>
                 </div>
                 
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div class="form-grid">
                     <div class="form-group">
                         <label class="form-label" for="modalAddrPostal">PIN Code *</label>
                         <input type="text" id="modalAddrPostal" name="postal_code" class="form-input" 
@@ -594,67 +578,66 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label" for="modalAddrCountry">Country</label>
-                        <select id="modalAddrCountry" name="country" class="form-select-sm" style="width:100%;">
+                        <select id="modalAddrCountry" name="country" class="form-input">
                             <option value="India" selected>India</option>
                         </select>
                     </div>
                 </div>
                 
-                <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end;">
+                <div class="form-grid">
                     <div class="form-group">
                         <label class="form-label" for="modalAddrType">Address Type</label>
-                        <select id="modalAddrType" name="address_type" class="form-select-sm" style="width:100%;">
+                        <select id="modalAddrType" name="address_type" class="form-input">
                             <option value="shipping">Shipping</option>
                             <option value="billing">Billing</option>
                             <option value="both" selected>Both</option>
                         </select>
                     </div>
-                    <div style="padding-top:24px;">
-                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.9rem;color:var(--gray-700);">
-                            <input type="checkbox" id="modalAddrDefault" name="is_default" style="width:16px;height:16px;accent-color:var(--blue-500);">
-                            Set as Default
+                    <div class="form-group" style="display:flex; align-items:flex-end; padding-bottom:8px;">
+                        <label class="form-checkbox-label" style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                            <input type="checkbox" id="modalAddrDefault" name="is_default" class="form-checkbox" style="width:16px; height:16px; accent-color:var(--blue-500);">
+                            Set as Default Address
                         </label>
                     </div>
                 </div>
                 
                 <div id="addressModalError" class="form-error-box" style="display:none;"></div>
                 
-                <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
-                    <button type="button" class="btn-outline" id="cancelAddressModalBtn" 
-                            style="width:auto;padding:10px 20px;font-size:0.9rem;">
-                        Cancel
-                    </button>
-                    <button type="submit" class="btn-primary" id="saveAddressModalBtn" 
-                            style="width:auto;padding:10px 20px;font-size:0.9rem;">
-                        Save Address
-                    </button>
+                <div class="form-actions" style="margin-top:20px;">
+                    <button type="button" class="btn-outline" id="cancelAddressModalBtn">Cancel</button>
+                    <button type="submit" class="btn-primary" id="saveAddressModalBtn" style="margin-left:10px;">Save Address</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-<!-- Verification Modal for Profile Updates -->
-<div id="verifyProfileModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
-    <div style="background:#fff; padding:30px; border-radius:12px; width:90%; max-width:400px; box-shadow:0 4px 20px rgba(0,0,0,0.2); box-sizing: border-box;">
-        <h3 style="margin-top:0; margin-bottom:15px; text-align:center;">🔒 Verify OTP</h3>
-        <p id="verifyModalSubtitle" style="font-size:0.9rem; color:#666; margin-bottom:20px; text-align:center; line-height:1.4;"></p>
-        
-        <!-- Email OTP Input -->
-        <div class="form-group" id="emailOtpGroup" style="display:none; margin-bottom:15px;">
-            <label for="emailOtp" style="font-weight:500; font-size:0.9rem; display:block; margin-bottom:5px;">Email OTP (sent to new email)</label>
-            <input type="text" id="emailOtp" class="form-input" placeholder="6-digit Email OTP" maxlength="6" style="text-align:center; letter-spacing:2px; width:100%; box-sizing:border-box; padding:10px;">
+<!-- ── VERIFICATION MODAL ── -->
+<div id="verifyProfileModal" class="modal" role="dialog" aria-modal="true">
+    <div class="modal-content">
+        <div class="modal-header-bar">
+            <h3>🔒 Verify OTP</h3>
+            <button type="button" class="modal-close" id="closeVerifyProfileBtn" aria-label="Close">&times;</button>
         </div>
-        
-        <!-- Phone OTP Input -->
-        <div class="form-group" id="phoneOtpGroup" style="display:none; margin-bottom:20px;">
-            <label for="phoneOtp" style="font-weight:500; font-size:0.9rem; display:block; margin-bottom:5px;">Mobile OTP (sent to new mobile)</label>
-            <input type="text" id="phoneOtp" class="form-input" placeholder="6-digit Mobile OTP" maxlength="6" style="text-align:center; letter-spacing:2px; width:100%; box-sizing:border-box; padding:10px;">
-        </div>
-        
-        <div style="display:flex; gap:10px; margin-top:20px;">
-            <button type="button" id="confirmVerifyProfileBtn" class="btn-primary" style="flex:1; margin:0;">Verify & Save</button>
-            <button type="button" id="closeVerifyProfileBtn" class="btn-outline" style="flex:1; margin:0;">Cancel</button>
+        <div class="modal-body">
+            <p id="verifyModalSubtitle" style="font-size:0.9rem; color:#666; margin-bottom:20px; text-align:center; line-height:1.4;"></p>
+            
+            <!-- Email OTP Input -->
+            <div class="form-group" id="emailOtpGroup" style="display:none; margin-bottom:15px;">
+                <label for="emailOtp" style="font-weight:500; font-size:0.9rem; display:block; margin-bottom:5px;">Email OTP (sent to new email)</label>
+                <input type="text" id="emailOtp" class="form-input" placeholder="6-digit Email OTP" maxlength="6" style="text-align:center; letter-spacing:2px; width:100%; box-sizing:border-box; padding:10px;">
+            </div>
+            
+            <!-- Phone OTP Input -->
+            <div class="form-group" id="phoneOtpGroup" style="display:none; margin-bottom:20px;">
+                <label for="phoneOtp" style="font-weight:500; font-size:0.9rem; display:block; margin-bottom:5px;">Mobile OTP (sent to new mobile)</label>
+                <input type="text" id="phoneOtp" class="form-input" placeholder="6-digit Mobile OTP" maxlength="6" style="text-align:center; letter-spacing:2px; width:100%; box-sizing:border-box; padding:10px;">
+            </div>
+            
+            <div class="form-actions" style="margin-top:20px;">
+                <button type="button" id="confirmVerifyProfileBtn" class="btn-primary" style="flex:1;">Verify & Save</button>
+                <button type="button" id="cancelVerifyProfileBtn" class="btn-outline" style="flex:1; margin-left:10px;">Cancel</button>
+            </div>
         </div>
     </div>
 </div>
@@ -664,6 +647,38 @@
 <script>
 const csrfToken = '{{ csrf_token }}';
 const userRole = '{{ user.role }}';
+
+// ===== SIDEBAR TAB SELECTION SYSTEM =====
+document.querySelectorAll('.profile-menu-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+        // Toggle Nav Buttons
+        document.querySelectorAll('.profile-menu-item').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        // Toggle Content Panels
+        const targetId = btn.getAttribute('data-target');
+        document.querySelectorAll('.profile-section-panel').forEach(p => p.classList.remove('active'));
+        
+        const targetPanel = document.getElementById(targetId);
+        if (targetPanel) {
+            targetPanel.classList.add('active');
+        }
+
+        // Save active tab state
+        sessionStorage.setItem('activeProfileTab', targetId);
+    });
+});
+
+// Restore active tab on load (e.g. after address save page-reload)
+window.addEventListener('DOMContentLoaded', () => {
+    const savedTab = sessionStorage.getItem('activeProfileTab');
+    if (savedTab) {
+        const savedBtn = document.querySelector(`.profile-menu-item[data-target="${savedTab}"]`);
+        if (savedBtn) {
+            savedBtn.click();
+        }
+    }
+});
 
 // ===== PROFILE EDIT TOGGLE - Email & Full Name ONLY =====
 const editProfileBtn = document.getElementById('editProfileBtn');
@@ -720,13 +735,18 @@ cancelEditBtn?.addEventListener('click', () => {
 const verifyProfileModal = document.getElementById('verifyProfileModal');
 const confirmVerifyProfileBtn = document.getElementById('confirmVerifyProfileBtn');
 const closeVerifyProfileBtn = document.getElementById('closeVerifyProfileBtn');
+const cancelVerifyProfileBtn = document.getElementById('cancelVerifyProfileBtn');
 const emailOtpGroup = document.getElementById('emailOtpGroup');
 const phoneOtpGroup = document.getElementById('phoneOtpGroup');
 const verifyModalSubtitle = document.getElementById('verifyModalSubtitle');
 
-closeVerifyProfileBtn?.addEventListener('click', () => {
-    verifyProfileModal.style.display = 'none';
-});
+const hideVerifyModal = () => {
+    verifyProfileModal.classList.remove('show');
+    document.body.style.overflow = '';
+};
+
+closeVerifyProfileBtn?.addEventListener('click', hideVerifyModal);
+cancelVerifyProfileBtn?.addEventListener('click', hideVerifyModal);
 
 // Profile Form Submit (AJAX) - Email, Phone & Full Name
 profileForm?.addEventListener('submit', async (e) => {
@@ -804,7 +824,7 @@ profileForm?.addEventListener('submit', async (e) => {
                 if (data.phone) phoneField.value = data.phone;
                 if (data.full_name) document.getElementById('fullName').value = data.full_name;
                 
-                verifyProfileModal.style.display = 'none';
+                hideVerifyModal();
             } else {
                 showToast(data.message || 'Failed to update profile', 'error');
             }
@@ -854,7 +874,8 @@ profileForm?.addEventListener('submit', async (e) => {
                 document.getElementById('phoneOtp').value = '';
                 
                 // Display the modal
-                verifyProfileModal.style.display = 'flex';
+                verifyProfileModal.classList.add('show');
+                document.body.style.overflow = 'hidden';
                 
                 // Setup verify trigger
                 confirmVerifyProfileBtn.onclick = () => {
@@ -862,11 +883,11 @@ profileForm?.addEventListener('submit', async (e) => {
                     const phoneOtpVal = document.getElementById('phoneOtp').value.trim();
                     
                     if (emailChanged && !emailOtpVal) {
-                        alert('Email OTP is required.');
+                        showToast('Email OTP is required.', 'error');
                         return;
                     }
                     if (phoneChanged && !phoneOtpVal) {
-                        alert('Mobile OTP is required.');
+                        showToast('Mobile OTP is required.', 'error');
                         return;
                     }
                     
@@ -942,7 +963,6 @@ window.openAddressModal = async function(mode = 'add', addressId = null) {
     }
     
     addressModal.classList.add('show');
-    addressModal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
     setTimeout(() => document.getElementById('modalAddrName')?.focus(), 300);
 };
@@ -950,7 +970,6 @@ window.openAddressModal = async function(mode = 'add', addressId = null) {
 function closeAddressModal() {
     if (!addressModal) return;
     addressModal.classList.remove('show');
-    addressModal.style.display = 'none';
     document.body.style.overflow = '';
     if (addressModalForm) addressModalForm.reset();
 }
@@ -977,8 +996,9 @@ addressModal?.addEventListener('click', (e) => {
 });
 
 document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && addressModal?.classList.contains('show')) {
+    if (e.key === 'Escape') {
         closeAddressModal();
+        hideVerifyModal();
     }
 });
 
@@ -1180,5 +1200,3 @@ function showToast(message, type = 'info') {
 }
 </script>
 {% endblock %}
-
-{% block extra_css %}{% endblock %}
