@@ -1396,8 +1396,16 @@ def verify_seller_action(request, seller_id):
             seller.is_active = True
             seller.save(update_fields=['is_verified', 'is_active'])
             
-            # Optional: Send welcome email
-            # send_seller_welcome_email(seller)
+            # Send welcome email using dynamic template
+            try:
+                from common.email_service import send_dynamic_email
+                if seller.user and seller.user.email:
+                    send_dynamic_email('seller_verified', [seller.user.email], {
+                        'seller_name': seller.user.full_name or seller.shop_name,
+                        'shop_name': seller.shop_name
+                    })
+            except Exception as e:
+                logger.error(f"Failed to send seller verification email: {e}")
             
             return JsonResponse({
                 'status': 'success',

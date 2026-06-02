@@ -354,3 +354,44 @@ class UserRegistrationOTPTests(TestCase):
         self.assertEqual(new_user.role, "customer")
 
 
+from django.core import mail
+from common.models import EmailTemplate
+from common.email_service import send_dynamic_email
+
+class DynamicEmailTemplateTests(TestCase):
+    def test_send_dynamic_email_creation(self):
+        # 1. Test that sending a template creates the default in the DB
+        self.assertFalse(EmailTemplate.objects.filter(name='registration_email_otp').exists())
+        
+        success = send_dynamic_email('registration_email_otp', ['test@example.com'], {'otp': '123456'})
+        self.assertTrue(success)
+        
+        # Check that it got created in DB
+        tpl = EmailTemplate.objects.filter(name='registration_email_otp').first()
+        self.assertIsNotNone(tpl)
+        self.assertEqual(tpl.subject, "StallCart - Registration Verification OTP")
+        
+        # Check that the mail is in locmem outbox with rendered content
+        self.assertEqual(len(mail.outbox), 1)
+        sent_email = mail.outbox[0]
+        self.assertEqual(sent_email.subject, "StallCart - Registration Verification OTP")
+        self.assertIn("123456", sent_email.body)
+
+    def test_send_dynamic_email_customized(self):
+        # Create template in DB
+        EmailTemplate.objects.create(
+            name='seller_verified',
+            subject='Welcome Seller {{ seller_name }}!',
+            body='Hello, your shop {{ shop_name }} is verified.'
+        )
+        
+        success = send_dynamic_email('seller_verified', ['seller@example.com'], {
+            'seller_name': 'John Doe',
+            'shop_name': 'My Shop'
+        })
+        self.assertTrue(success)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].subject, "Welcome Seller John Doe!")
+        self.assertEqual(mail.outbox[0].body, "Hello, your shop My Shop is verified.")
+
+

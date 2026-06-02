@@ -164,6 +164,17 @@ class Product(BaseModel):
                 counter += 1
             self.sku = sku
 
+        # If this product has active variants, synchronize parent product stock and status before save
+        if not is_new:
+            active_variants = self.variants.filter(is_active=True)
+            if active_variants.exists():
+                total_stock = sum(v.stock for v in active_variants)
+                self.stock = total_stock
+                if total_stock <= 0:
+                    self.status = 'out_of_stock'
+                elif self.status == 'out_of_stock':
+                    self.status = 'published'
+
         super().save(*args, **kwargs)
 
         # Auto-set primary image from ProductImage if not provided
@@ -200,8 +211,8 @@ class Product(BaseModel):
     
     @property
     def profit_margin(self):
-        if self.cost_price and self.cost_price > 0:
-            return ((self.price - self.cost_price) / self.price) * 100
+        if self.cost_price and self.cost_price > 0 and self.final_price > 0:
+            return ((self.final_price - self.cost_price) / self.final_price) * 100
         return None
     
     # @property
@@ -431,6 +442,27 @@ class ProductVariant(BaseModel):
             self.product.status = 'published'
 
         self.product.save(update_fields=['stock', 'status'])
+
+    def delete(self, *args, **kwargs):
+        product = self.product
+        super().delete(*args, **kwargs)
+
+        # Update parent product stock
+        active_variants = product.variants.filter(is_active=True)
+        if active_variants.exists():
+            total_stock = active_variants.aggregate(
+                total=models.Sum('stock')
+            )['total'] or 0
+            product.stock = total_stock
+            if total_stock <= 0:
+                product.status = 'out_of_stock'
+            elif product.status == 'out_of_stock':
+                product.status = 'published'
+        else:
+            product.stock = 0
+            product.status = 'out_of_stock'
+
+        product.save(update_fields=['stock', 'status'])
     class Meta:
         verbose_name = 'Product Variant'
         verbose_name_plural = 'Product Variants'

@@ -125,17 +125,10 @@ def register_view(request):
                     otp_phone_req.delete()  # Clean up phone OTP request
                     return JsonResponse({'status': 'error', 'message': err}, status=400)
                 
-                # Try sending email OTP via SMTP
+                # Try sending email OTP via dynamic template
                 try:
-                    from django.core.mail import send_mail
-                    from django.conf import settings
-                    send_mail(
-                        subject="StallCart - Registration Verification OTP",
-                        message=f"Welcome to StallCart! Your verification OTP is: {otp_email_req.otp}. Valid for 10 minutes.",
-                        from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'StallCart <noreply@stallcart.in>'),
-                        recipient_list=[email],
-                        fail_silently=False,
-                    )
+                    from common.email_service import send_dynamic_email
+                    send_dynamic_email('registration_email_otp', [email], {'otp': otp_email_req.otp})
                 except Exception as e:
                     logger.error(f"Failed to send registration email OTP: {e}")
                     
@@ -199,7 +192,7 @@ def register_view(request):
                 
                 # If seller, create SellerProfile
                 if user.role == 'seller':
-                    SellerProfile.objects.create(
+                    profile = SellerProfile.objects.create(
                         user=user,
                         shop_name=form.cleaned_data['shop_name'],
                         shop_description=form.cleaned_data.get('shop_description', ''),
@@ -208,6 +201,23 @@ def register_view(request):
                         is_verified=False,
                         created_by=user
                     )
+                    # Notify admin of new seller pending verification via dynamic template
+                    try:
+                        from common.email_service import send_dynamic_email
+                        from accounts.models import User as AuthUser
+                        admins = AuthUser.objects.filter(role='admin', is_active=True)
+                        admin_emails = [admin.email for admin in admins if admin.email]
+                        if admin_emails:
+                            send_dynamic_email('admin_notify_verification', admin_emails, {
+                                'shop_name': profile.shop_name,
+                                'seller_name': user.full_name or user.phone,
+                                'phone': user.phone,
+                                'email': user.email,
+                                'dashboard_url': request.build_absolute_uri('/items/admin/verify-sellers/')
+                            })
+                    except Exception as e:
+                        logger.error(f"Failed to notify admins of new seller: {e}")
+
                     messages.success(request, f"🎉 Seller account created! Your shop '{form.cleaned_data['shop_name']}' is pending verification.")
                 else:
                     messages.success(request, "✅ Account created successfully! Welcome to StallCart.")
@@ -251,30 +261,26 @@ logger = logging.getLogger(__name__)
 def send_change_password_otp(request):
     """AJAX endpoint to send OTP for password change"""
     user = request.user
-    if not user.phone:
-        return JsonResponse({'status': 'error', 'message': 'No mobile number registered to this account'}, status=400)
+    recipient = user.email or user.phone
+    if not recipient:
+        return JsonResponse({'status': 'error', 'message': 'No contact info (email/phone) registered to this account'}, status=400)
     
-    otp_req, err = OTPRequest.check_and_create_otp(user.phone, 'change_password')
+    otp_req, err = OTPRequest.check_and_create_otp(recipient, 'change_password')
     if err:
         return JsonResponse({'status': 'error', 'message': err}, status=400)
     
-    # Try sending via FCM
+    # Try sending via email template
     try:
-        from common.notification_service import send_to_user, NotificationPayload
-        payload = NotificationPayload(
-            title="🔑 Password Change OTP",
-            body=f"Your StallCart verification OTP is {otp_req.otp}. Valid for 10 minutes. Do not share this OTP.",
-            tag="change-password-otp"
-        )
-        send_to_user(user, payload)
+        from common.email_service import send_dynamic_email
+        send_dynamic_email('change_password_otp', [recipient], {'otp': otp_req.otp, 'user': user})
     except Exception as e:
-        logger.error(f"FCM OTP send failed: {e}")
+        logger.error(f"Dynamic email OTP send failed: {e}")
         
-    print(f"🔑 [OTP DEMO] Sent OTP to {user.phone} for password change: {otp_req.otp}")
+    print(f"🔑 [EMAIL OTP DEMO] Sent OTP to {recipient} for password change: {otp_req.otp}")
     
     return JsonResponse({
         'status': 'success',
-        'message': f'OTP sent successfully to your registered mobile: {user.phone}. (For testing, OTP is: {otp_req.otp})'
+        'message': f'OTP sent successfully to your registered email: {recipient}. (For testing, OTP is: {otp_req.otp})'
     })
 
 
@@ -290,9 +296,10 @@ def change_password_view(request):
             form.add_error(None, "Verification OTP is required.")
         else:
             # Check latest unexpired unverified OTP
+            recipient = request.user.email or request.user.phone
             from django.utils import timezone
             otp_req = OTPRequest.objects.filter(
-                phone=request.user.phone,
+                phone=recipient,
                 purpose='change_password',
                 otp=otp_code.strip(),
                 is_verified=False,
@@ -332,28 +339,25 @@ def forgot_password_view(request):
             messages.error(request, "Mobile number not registered.")
             return render(request, 'accounts/forgot_password.html')
             
-        otp_req, err = OTPRequest.check_and_create_otp(phone, 'forgot_password')
+        recipient = user.email or phone
+        
+        otp_req, err = OTPRequest.check_and_create_otp(recipient, 'forgot_password')
         if err:
             messages.error(request, err)
             return render(request, 'accounts/forgot_password.html')
             
-        # Try sending via FCM
+        # Try sending via dynamic email
         try:
-            from common.notification_service import send_to_user, NotificationPayload
-            payload = NotificationPayload(
-                title="🔑 Password Reset OTP",
-                body=f"Your StallCart password reset OTP is {otp_req.otp}. Valid for 10 minutes.",
-                tag="forgot-password-otp"
-            )
-            send_to_user(user, payload)
+            from common.email_service import send_dynamic_email
+            send_dynamic_email('forgot_password_otp', [recipient], {'otp': otp_req.otp, 'user': user})
         except Exception as e:
-            logger.error(f"FCM OTP send failed: {e}")
+            logger.error(f"Dynamic email OTP send failed: {e}")
             
-        print(f"🔑 [OTP DEMO] Sent OTP to {phone} for password reset: {otp_req.otp}")
+        print(f"🔑 [EMAIL OTP DEMO] Sent OTP to {recipient} for password reset: {otp_req.otp}")
         
         # Save to session
         request.session['forgot_phone'] = phone
-        messages.success(request, f"OTP sent to your registered mobile number: {phone}. (For testing, OTP is: {otp_req.otp})")
+        messages.success(request, f"OTP sent to your registered email address: {recipient}. (For testing, OTP is: {otp_req.otp})")
         return redirect('accounts:forgot_password_verify')
         
     return render(request, 'accounts/forgot_password.html')
@@ -372,9 +376,12 @@ def forgot_password_verify_view(request):
             messages.error(request, "OTP is required.")
             return render(request, 'accounts/forgot_password_verify.html', {'phone': phone})
             
+        user = User.objects.filter(phone=phone).first()
+        recipient = user.email if (user and user.email) else phone
+
         from django.utils import timezone
         otp_req = OTPRequest.objects.filter(
-            phone=phone,
+            phone=recipient,
             purpose='forgot_password',
             otp=otp_code,
             is_verified=False,

@@ -297,6 +297,20 @@ def notify_order_status_change(order, old_status, new_status):
         except Exception as e:
             logger.error(f"[FCM] Failed to notify customer on status change: {e}")
         
+        # Send dynamic email notification to the customer
+        try:
+            from common.email_service import send_dynamic_email
+            if order.user.email:
+                send_dynamic_email('order_status_update', [order.user.email], {
+                    'customer_name': order.user.full_name or order.user.phone,
+                    'order_id': order.unique_order_id,
+                    'status': new_status.replace('_', ' ').title(),
+                    'courier_name': order.courier_name,
+                    'tracking_number': order.tracking_number,
+                })
+        except Exception as e:
+            logger.error(f"Failed to send order status update email: {e}")
+        
     if seller_title and seller_body:
         for seller in sellers:
             try:
