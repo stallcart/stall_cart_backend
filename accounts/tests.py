@@ -377,6 +377,11 @@ from common.models import EmailTemplate
 from common.email_service import send_dynamic_email
 
 class DynamicEmailTemplateTests(TestCase):
+    def setUp(self):
+        # Clear the database of pre-populated templates to isolate unit tests
+        EmailTemplate.objects.all().delete()
+        mail.outbox.clear()
+
     def test_send_dynamic_email_creation(self):
         # 1. Test that sending a template creates the default in the DB
         self.assertFalse(EmailTemplate.objects.filter(name='registration_email_otp').exists())
