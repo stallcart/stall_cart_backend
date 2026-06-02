@@ -804,23 +804,29 @@
         <div class="collections-grid">
             {% for cat in categories|slice:":8" %}
             <a href="{% url 'items:product_list' %}?category={{ cat.slug }}" class="collection-card">
-                <span class="collection-emoji">
-                    {% if "women" in cat.name|lower %}👗
-                    {% elif "men" in cat.name|lower %}👔
-                    {% elif "footwear" in cat.name|lower or "shoe" in cat.name|lower %}👟
-                    {% elif "jewel" in cat.name|lower %}💍
-                    {% elif "beauty" in cat.name|lower %}💄
-                    {% elif "sport" in cat.name|lower %}⚽
-                    {% elif "book" in cat.name|lower %}📚
-                    {% elif "kid" in cat.name|lower or "toy" in cat.name|lower %}🧸
-                    {% else %}🛍️{% endif %}
-                </span>
+                <div class="collection-circle cat-{{ cat.slug|default:'other' }}">
+                    <span class="collection-emoji">
+                        {% if "women" in cat.name|lower %}👗
+                        {% elif "men" in cat.name|lower %}👔
+                        {% elif "footwear" in cat.name|lower or "shoe" in cat.name|lower %}👟
+                        {% elif "jewel" in cat.name|lower %}💍
+                        {% elif "beauty" in cat.name|lower %}💄
+                        {% elif "sport" in cat.name|lower %}⚽
+                        {% elif "book" in cat.name|lower %}📚
+                        {% elif "kid" in cat.name|lower or "toy" in cat.name|lower %}🧸
+                        {% elif "furniture" in cat.name|lower %}🛋️
+                        {% elif "cloth" in cat.name|lower %}👕
+                        {% else %}🛍️{% endif %}
+                    </span>
+                </div>
                 <span class="collection-name">{{ cat.name }}</span>
             </a>
             {% empty %}
-            {% for pair in "👗 Women,👔 Men,👟 Footwear,💍 Jewellery,💄 Beauty,⚽ Sports,📚 Books,🧸 Kids"|split:"," %}
+            {% for pair in "👗 Women,👔 Men,👟 Footwear,💍 Jewellery,🛋️ Furniture,👕 Clothes,💄 Beauty,⚽ Sports"|split:"," %}
             <a href="{% url 'items:product_list' %}" class="collection-card">
-                <span class="collection-emoji">{{ pair|slice:":2" }}</span>
+                <div class="collection-circle cat-{{ pair|slice:"3:"|lower|slugify }}">
+                    <span class="collection-emoji">{{ pair|slice:":2" }}</span>
+                </div>
                 <span class="collection-name">{{ pair|slice:"3:" }}</span>
             </a>
             {% endfor %}
@@ -907,9 +913,8 @@
                  data-category="{{ product.category.slug }}"
                  data-price="{{ product.price }}">
 
-                <a href="{% url 'items:product_detail' product.slug %}">
-                    <div class="img-wrap">
-                        
+                <div class="img-wrap">
+                    <a href="{% url 'items:product_detail' product.slug %}" style="display: block; width: 100%; height: 100%;">
                         {% if product.primary_image %}
                             <img src="{{ product.primary_image.url }}"
                                  alt="{{ product.name }}"
@@ -920,29 +925,43 @@
                                 <span>No image</span>
                             </div>
                         {% endif %}
+                    </a>
 
-                        {% if product.gender %}
-                            <span class="badge-gender">{{ product.get_gender_display }}</span>
-                        {% endif %}
-                        {% if product.discount_percent > 0 %}
-                            <span class="badge-discount">-{{ product.discount_percent }}%</span>
-                        {% endif %}
-                        {% if product.is_hot_deal %}
-                            <span class="badge-hot">🔥 Hot</span>
-                        {% endif %}
-                        {% if product.stock == 0 %}
-                            <div class="out-of-stock-overlay">
-                                <span><i class="fa fa-ban" style="margin-right:5px;"></i>Out of Stock</span>
-                            </div>
-                        {% endif %}
-                    </div>
-                </a>
+                    <!-- Floating Badges -->
+                    {% if product.gender %}
+                        <span class="badge-gender">{{ product.get_gender_display }}</span>
+                    {% endif %}
+                    {% if product.discount_percent > 0 %}
+                        <span class="badge-discount">-{{ product.discount_percent }}%</span>
+                    {% endif %}
+                    {% if product.is_hot_deal %}
+                        <span class="badge-hot">🔥 Hot</span>
+                    {% endif %}
+                    {% if product.stock == 0 %}
+                        <div class="out-of-stock-overlay">
+                            <span><i class="fa fa-ban" style="margin-right:5px;"></i>Out of Stock</span>
+                        </div>
+                    {% endif %}
+
+                    <!-- Floating Interactions -->
+                    {% if not user.role or user.role == 'customer' %}
+                    <button type="button" class="float-wishlist btn-wishlist-toggle {% if user.is_authenticated and product|is_in_wishlist:user %}active{% endif %}" data-product-id="{{ product.id }}" aria-label="Wishlist">
+                        <i class="{% if user.is_authenticated and product|is_in_wishlist:user %}fa{% else %}far{% endif %} fa-heart"></i>
+                    </button>
+                    {% endif %}
+                    <button type="button" class="float-share btn-share"
+                            data-name="{{ product.name }}"
+                            data-url="{{ request.scheme }}://{{ request.get_host }}{% url 'items:product_detail' product.slug %}"
+                            aria-label="Share">
+                        <i class="fa fa-share-alt"></i>
+                    </button>
+                </div>
 
                 <div class="product-info">
-                    <div class="product-name">
-                        <a href="{% url 'items:product_detail' product.slug %}">{{ product.name|truncatechars:40 }}</a>
-                    </div>
                     <div class="product-seller">by {{ product.seller.shop_name|truncatechars:22 }}</div>
+                    <h4 class="product-name">
+                        <a href="{% url 'items:product_detail' product.slug %}">{{ product.name|truncatechars:40 }}</a>
+                    </h4>
 
                     <div class="price-row">
                         {% if product.discount_percent > 0 and product.mrp %}
@@ -964,28 +983,14 @@
                             Only {{ product.stock }} left!
                         </div>
                     {% endif %}
-
-                    <a href="{% url 'items:product_detail' product.slug %}"
-                       class="btn-view"
-                       style="{% if product.stock == 0 %}opacity:0.55;pointer-events:none;{% endif %}">
-                        <i class="fa fa-eye"></i>
-                        {% if product.stock > 0 %}View{% else %}Out of Stock{% endif %}
-                    </a>
-
-                    <!-- Actions Row -->
-                    <div class="product-actions-row">
-                        <button class="btn-share"
-                                data-name="{{ product.name }}"
-                                data-url="{{ request.scheme }}://{{ request.get_host }}{% url 'items:product_detail' product.slug %}">
-                            <i class="fa fa-share-alt"></i> Share
-                        </button>
-                        {% if not user.role or user.role == 'customer' %}
-                        <button type="button" class="btn-wishlist-toggle {% if user.is_authenticated and product|is_in_wishlist:user %}active{% endif %}" data-product-id="{{ product.id }}" aria-label="Wishlist">
-                            <i class="{% if user.is_authenticated and product|is_in_wishlist:user %}fa{% else %}far{% endif %} fa-heart"></i>
-                        </button>
-                        {% endif %}
-                    </div>
                 </div>
+
+                <a href="{% url 'items:product_detail' product.slug %}"
+                   class="btn-view"
+                   style="{% if product.stock == 0 %}opacity:0.55;pointer-events:none;{% endif %}">
+                    <i class="fa fa-eye"></i>
+                    {% if product.stock > 0 %}View Details{% else %}Out of Stock{% endif %}
+                </a>
             </div>
 
             {% empty %}
