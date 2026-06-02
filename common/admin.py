@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from django.utils import timezone
-from .models import SiteSettings
+from .models import SiteSettings, EmailTemplate
 
 class BaseModelAdmin(admin.ModelAdmin):
     """Reusable admin config for all models inheriting BaseModel"""
@@ -96,4 +96,11 @@ class SiteSettingsAdmin(admin.ModelAdmin):
                 obj.favicon.url
             )
         return 'No favicon'
-    favicon_preview.short_description = 'Favicon Preview'        
+    favicon_preview.short_description = 'Favicon Preview'
+
+
+@admin.register(EmailTemplate)
+class EmailTemplateAdmin(admin.ModelAdmin):
+    list_display = ('name', 'subject', 'updated_at')
+    search_fields = ('name', 'subject', 'body')
+    readonly_fields = ('created_at', 'updated_at', 'created_by', 'updated_by')        

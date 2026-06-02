@@ -360,4 +360,14 @@ class UserFCMToken(BaseModel):
 
     token=models.TextField()
 
+
+class EmailTemplate(BaseModel):
+    name = models.CharField(max_length=100, unique=True, help_text="Unique template name (e.g. registration_email_otp)")
+    subject = models.CharField(max_length=255, help_text="Email subject template (e.g. StallCart - Verification OTP)")
+    body = models.TextField(help_text="Email body template (HTML and plain text template. E.g. Your OTP is {{ otp }})")
+    description = models.TextField(blank=True, null=True, help_text="Purpose of this email template")
+
+    def __str__(self):
+        return f"{self.name} - {self.subject}"
+
     

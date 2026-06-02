@@ -244,6 +244,12 @@ class ProductForm(forms.ModelForm):
             raise forms.ValidationError('Price must be greater than 0.')
         return price
 
+    def clean_cost_price(self):
+        cost = self.cleaned_data.get('cost_price')
+        if cost is not None and cost <= 0:
+            raise forms.ValidationError('Cost price must be greater than 0.')
+        return cost
+
     def clean_discount_percent(self):
         discount = self.cleaned_data.get('discount_percent')
         if discount is not None and not (0 <= discount <= 100):
