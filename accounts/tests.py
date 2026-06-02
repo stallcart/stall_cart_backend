@@ -33,6 +33,24 @@ class OTPRequestTests(TestCase):
         self.assertIn("exceeded the limit of 5 OTP requests per day", err)
         self.assertIsNone(otp_req)
 
+    def test_custom_daily_rate_limit(self):
+        from common.models import SiteSettings
+        site_settings = SiteSettings.get_singleton()
+        site_settings.daily_otp_limit = 3
+        site_settings.save()
+
+        # Generate 3 OTP requests
+        for i in range(3):
+            otp_req, err = OTPRequest.check_and_create_otp(self.phone, 'forgot_password')
+            self.assertIsNone(err)
+            self.assertIsNotNone(otp_req)
+
+        # 4th request should fail
+        otp_req, err = OTPRequest.check_and_create_otp(self.phone, 'forgot_password')
+        self.assertIsNotNone(err)
+        self.assertIn("exceeded the limit of 3 OTP requests per day", err)
+        self.assertIsNone(otp_req)
+
     def test_rolling_rate_limit(self):
         # Generate 5 OTP requests, but set 3 of them to 25 hours ago
         for i in range(3):

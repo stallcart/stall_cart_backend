@@ -235,11 +235,18 @@ class OTPRequest(BaseModel):
         from django.utils import timezone
         from datetime import timedelta
         import random
+        from common.models import SiteSettings
+
+        try:
+            site_settings = SiteSettings.get_singleton()
+            limit = site_settings.daily_otp_limit
+        except Exception:
+            limit = 5
 
         twenty_four_hours_ago = timezone.now() - timedelta(hours=24)
         daily_count = cls.objects.filter(phone=phone, created_at__gte=twenty_four_hours_ago).count()
-        if daily_count >= 5:
-            return None, "You have exceeded the limit of 5 OTP requests per day. Please try again later."
+        if daily_count >= limit:
+            return None, f"You have exceeded the limit of {limit} OTP requests per day. Please try again later."
 
         otp = f"{random.randint(100000, 999999)}"
         expires_at = timezone.now() + timedelta(minutes=expiry_minutes)
