@@ -110,6 +110,7 @@ class SiteSettings(models.Model):
 
     # Site Status
     is_maintenance_mode = models.BooleanField(default=False, help_text='Enable maintenance mode for non-admins')
+    daily_otp_limit = models.IntegerField(default=5, help_text='Maximum OTP requests allowed per recipient in a 24-hour window')
 
     # Delivery Settings
     delivery_charge = models.DecimalField(
