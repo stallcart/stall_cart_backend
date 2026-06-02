@@ -132,6 +132,13 @@ def register_view(request):
                 except Exception as e:
                     logger.error(f"Failed to send registration email OTP: {e}")
                     
+                # Try sending phone SMS OTP via Brevo API
+                try:
+                    from common.sms_service import send_sms_via_brevo
+                    send_sms_via_brevo(phone, f"Welcome to StallCart! Your registration verification OTP is: {otp_phone_req.otp}. Valid for 10 minutes.")
+                except Exception as e:
+                    logger.error(f"Failed to send registration SMS OTP: {e}")
+                    
                 print(f"📧 [EMAIL OTP DEMO] Sent OTP to {email} for registration: {otp_email_req.otp}")
                 print(f"📱 [PHONE OTP DEMO] Sent OTP to {phone} for registration: {otp_phone_req.otp}")
                 
@@ -909,6 +916,14 @@ def profile_view(request):
                         send_to_user(request.user, payload)
                     except Exception as e:
                         logger.error(f"FCM OTP send failed: {e}")
+                        
+                    # Send via SMS (Brevo API)
+                    try:
+                        from common.sms_service import send_sms_via_brevo
+                        send_sms_via_brevo(new_phone, f"Your StallCart verification OTP to update your mobile number is: {phone_otp_req.otp}. Valid for 10 minutes.")
+                    except Exception as e:
+                        logger.error(f"Failed to send update mobile SMS OTP: {e}")
+                        
                     print(f"📱 [PHONE OTP DEMO] Sent OTP to {new_phone} for phone change: {phone_otp_req.otp}")
                     phone_sent = True
                     
