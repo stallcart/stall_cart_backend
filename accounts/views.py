@@ -867,6 +867,9 @@ def profile_view(request):
                 email_sent = False
                 phone_sent = False
                 
+                email_otp_req = None
+                phone_otp_req = None
+                
                 # Check email duplicate & send OTP
                 if email_changed:
                     if not new_email or '@' not in new_email or '.' not in new_email.split('@')[-1]:
@@ -874,24 +877,14 @@ def profile_view(request):
                     if User.objects.filter(email__iexact=new_email).exclude(pk=request.user.pk).exists():
                         return JsonResponse({'status': 'error', 'message': 'Email address already registered by another user'}, status=400)
                     
-                    otp_req, err = OTPRequest.check_and_create_otp(new_email, 'update_email')
+                    email_otp_req, err = OTPRequest.check_and_create_otp(new_email, 'update_email')
                     if err:
                         return JsonResponse({'status': 'error', 'message': err}, status=400)
                         
-                    # Try sending via email
-                    try:
-                        from django.core.mail import send_mail
-                        from django.conf import settings
-                        send_mail(
-                            subject="StallCart - Email Update OTP",
-                            message=f"Your verification OTP to update your email is: {otp_req.otp}. Valid for 10 minutes.",
-                            from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'stallcart.in@gmail.com'),
-                            recipient_list=[new_email],
-                            fail_silently=False,
-                        )
-                    except Exception as e:
-                        logger.error(f"Failed to send email OTP: {e}")
-                    print(f"📧 [EMAIL OTP DEMO] Sent OTP to {new_email} for email change: {otp_req.otp}")
+                    # Try sending via email (dynamic template)
+                    from common.email_service import send_dynamic_email
+                    send_dynamic_email('update_email_otp', [new_email], {'otp': email_otp_req.otp})
+                    print(f"📧 [EMAIL OTP DEMO] Sent OTP to {new_email} for email change: {email_otp_req.otp}")
                     email_sent = True
                     
                 # Check phone duplicate & send OTP
@@ -901,7 +894,7 @@ def profile_view(request):
                     if User.objects.filter(phone=new_phone).exclude(pk=request.user.pk).exists():
                         return JsonResponse({'status': 'error', 'message': 'Mobile number already registered by another user'}, status=400)
                         
-                    otp_req, err = OTPRequest.check_and_create_otp(new_phone, 'update_phone')
+                    phone_otp_req, err = OTPRequest.check_and_create_otp(new_phone, 'update_phone')
                     if err:
                         return JsonResponse({'status': 'error', 'message': err}, status=400)
                         
@@ -910,13 +903,13 @@ def profile_view(request):
                         from common.notification_service import send_to_user, NotificationPayload
                         payload = NotificationPayload(
                             title="🔑 Mobile Update OTP",
-                            body=f"Your OTP to update your mobile number is {otp_req.otp}. Valid for 10 minutes.",
+                            body=f"Your OTP to update your mobile number is {phone_otp_req.otp}. Valid for 10 minutes.",
                             tag="update-phone-otp"
                         )
                         send_to_user(request.user, payload)
                     except Exception as e:
                         logger.error(f"FCM OTP send failed: {e}")
-                    print(f"📱 [PHONE OTP DEMO] Sent OTP to {new_phone} for phone change: {otp_req.otp}")
+                    print(f"📱 [PHONE OTP DEMO] Sent OTP to {new_phone} for phone change: {phone_otp_req.otp}")
                     phone_sent = True
                     
                 # Generate user-friendly success message
@@ -930,15 +923,11 @@ def profile_view(request):
                 demo_help = ""
                 if email_sent and phone_sent:
                     # Both changed, show both OTPs in demo
-                    email_otp_val = OTPRequest.objects.filter(phone=new_email, purpose='update_email').first().otp
-                    phone_otp_val = OTPRequest.objects.filter(phone=new_phone, purpose='update_phone').first().otp
-                    demo_help = f" (For demo, Email OTP: {email_otp_val}, Mobile OTP: {phone_otp_val})"
+                    demo_help = f" (For demo, Email OTP: {email_otp_req.otp}, Mobile OTP: {phone_otp_req.otp})"
                 elif email_sent:
-                    email_otp_val = OTPRequest.objects.filter(phone=new_email, purpose='update_email').first().otp
-                    demo_help = f" (For demo, Email OTP: {email_otp_val})"
+                    demo_help = f" (For demo, Email OTP: {email_otp_req.otp})"
                 elif phone_sent:
-                    phone_otp_val = OTPRequest.objects.filter(phone=new_phone, purpose='update_phone').first().otp
-                    demo_help = f" (For demo, Mobile OTP: {phone_otp_val})"
+                    demo_help = f" (For demo, Mobile OTP: {phone_otp_req.otp})"
                 
                 return JsonResponse({
                     'status': 'success',
