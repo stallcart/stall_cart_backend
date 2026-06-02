@@ -115,7 +115,7 @@
     height: 100%;
     opacity: 0;
     visibility: hidden;
-    transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.8s;
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.3s;
     z-index: 1;
 }
 .slide.active {
@@ -671,7 +671,7 @@
      TOP BANNER CAROUSEL SLIDER
 ══════════════════════════════════════ -->
 <section class="slider-section">
-    <div class="slider-container" id="homeSlider">
+    <div class="slider-container" id="homeSlider" data-autoplay-speed="{{ site_settings.slider_autoplay_seconds|default:'5.0' }}">
         <div class="slider-wrapper">
             {% for banner in slider_banners %}
             <div class="slide {% if forloop.first %}active{% endif %}" data-index="{{ forloop.counter0 }}">
@@ -1325,6 +1325,8 @@ document.querySelectorAll('.btn-share').forEach(btn => {
     const nextBtn = document.getElementById('sliderNext');
     let currentIndex = 0;
     let timer = null;
+    const autoplaySpeedSec = parseFloat(slider.dataset.autoplaySpeed || 5.0);
+    const autoplaySpeedMs = autoplaySpeedSec * 1000;
     
     function showSlide(index) {
         if (index < 0) index = slides.length - 1;
@@ -1348,7 +1350,7 @@ document.querySelectorAll('.btn-share').forEach(btn => {
     }
     
     function startTimer() {
-        timer = setInterval(nextSlide, 5000);
+        timer = setInterval(nextSlide, autoplaySpeedMs);
     }
     
     function resetTimer() {
@@ -1386,25 +1388,17 @@ document.querySelectorAll('.btn-share').forEach(btn => {
     if (!launchBanner) return;
 
     const closeBtn = document.getElementById('closeLaunchBanner');
-    const bannerId = launchBanner.dataset.bannerId;
-    const localStorageKey = `stallcart_announcement_banner_dismissed_${bannerId}`;
     
     if (closeBtn) {
-        if (localStorage.getItem(localStorageKey) === 'true') {
-            launchBanner.style.display = 'none';
-            return;
-        } else {
-            closeBtn.addEventListener('click', function () {
-                launchBanner.style.opacity = '0';
-                launchBanner.style.transform = 'scaleY(0)';
-                launchBanner.style.transition = 'opacity 0.4s ease, transform 0.4s ease, margin 0.4s ease';
-                launchBanner.style.margin = '0';
-                setTimeout(() => {
-                    launchBanner.style.display = 'none';
-                }, 400);
-                localStorage.setItem(localStorageKey, 'true');
-            });
-        }
+        closeBtn.addEventListener('click', function () {
+            launchBanner.style.opacity = '0';
+            launchBanner.style.transform = 'scaleY(0)';
+            launchBanner.style.transition = 'opacity 0.4s ease, transform 0.4s ease, margin 0.4s ease';
+            launchBanner.style.margin = '0';
+            setTimeout(() => {
+                launchBanner.style.display = 'none';
+            }, 400);
+        });
     }
 
     const endTimeStr = launchBanner.dataset.endTime;
