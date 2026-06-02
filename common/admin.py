@@ -55,7 +55,7 @@ class SiteSettingsAdmin(admin.ModelAdmin):
             'fields': ('contact_phone', 'contact_email', 'contact_whatsapp')
         }),
         ('🌐 Social Links', {
-            'fields': ('social_instagram', 'social_facebook', 'social_twitter')
+            'fields': ('social_instagram', 'social_facebook', 'social_twitter', 'social_youtube')
         }),
         ('🚚 Delivery Settings', {
             'fields': ('delivery_charge', 'free_delivery_threshold'),
@@ -65,9 +65,8 @@ class SiteSettingsAdmin(admin.ModelAdmin):
             'fields': ('cancellation_policy', 'return_policy', 'terms_conditions', 'privacy_policy'),
             'description': 'Manage site-wide legal policies. Content supports rich text and HTML.'
         }),
-        ('⚙️ Site Status', {
-            'fields': ('is_maintenance_mode',),
-            'classes': ('collapse',)
+        ('⚙️ Site Status & System Settings', {
+            'fields': ('is_maintenance_mode', 'daily_otp_limit', 'slider_autoplay_seconds'),
         }),
         ('📅 Audit', {
             'fields': ('created_at', 'updated_at'),
