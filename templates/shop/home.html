@@ -949,13 +949,8 @@
                         <i class="{% if user.is_authenticated and product|is_in_wishlist:user %}fa{% else %}far{% endif %} fa-heart"></i>
                     </button>
                     {% endif %}
-                    <button type="button" class="float-share btn-share"
-                            data-name="{{ product.name }}"
-                            data-url="{{ request.scheme }}://{{ request.get_host }}{% url 'items:product_detail' product.slug %}"
-                            aria-label="Share">
-                        <i class="fa fa-share-alt"></i>
-                    </button>
                 </div>
+
 
                 <div class="product-info">
                     <div class="product-seller">by {{ product.seller.shop_name|truncatechars:22 }}</div>
@@ -985,12 +980,20 @@
                     {% endif %}
                 </div>
 
-                <a href="{% url 'items:product_detail' product.slug %}"
-                   class="btn-view"
-                   style="{% if product.stock == 0 %}opacity:0.55;pointer-events:none;{% endif %}">
-                    <i class="fa fa-eye"></i>
-                    {% if product.stock > 0 %}View Details{% else %}Out of Stock{% endif %}
-                </a>
+                <div class="card-action-row">
+                    <a href="{% url 'items:product_detail' product.slug %}"
+                       class="btn-view"
+                       style="{% if product.stock == 0 %}opacity:0.55;pointer-events:none;{% endif %}">
+                        <i class="fa fa-eye"></i>
+                        {% if product.stock > 0 %}View Details{% else %}Out of Stock{% endif %}
+                    </a>
+                    <button type="button" class="card-share-btn btn-share"
+                            data-name="{{ product.name }}"
+                            data-url="{{ request.scheme }}://{{ request.get_host }}{% url 'items:product_detail' product.slug %}"
+                            aria-label="Share">
+                        <i class="fa fa-share-alt"></i>
+                    </button>
+                </div>
             </div>
 
             {% empty %}

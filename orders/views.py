@@ -12,6 +12,7 @@ import razorpay
 import json
 import logging
 from decimal import Decimal
+from io import BytesIO
 from common.decorators import *
 from .models import Order, OrderItem, ReturnRequest, OrderStatusLog, OrderReturnImage
 from items.models import Product, SellerProfile

@@ -245,43 +245,45 @@ class SiteSettings(models.Model):
         if not self.pk and SiteSettings.objects.exists():
             raise ValueError('SiteSettings is a singleton. Please edit the existing record in Admin.')
 
-        # 🖼️ Optimize uploaded images for faster page loads
+        super().save(*args, **kwargs)
+
+        # 🖼️ Optimize uploaded images for faster page loads after they are saved to disk
         self._optimize_image(self.logo_primary)
         self._optimize_image(self.logo_dark)
         self._optimize_image(self.logo_mobile)
 
-        super().save(*args, **kwargs)
-
     def _optimize_image(self, image_field):
-        """Compress & resize uploaded logos automatically"""
+        """Compress & resize uploaded logos automatically while preserving transparency for PNG/WebP"""
         if image_field and hasattr(image_field, 'path') and os.path.exists(image_field.path):
             try:
                 img = Image.open(image_field.path)
                 
-                # Handle transparency safely
-                if img.mode in ('RGBA', 'P', 'LA'):
-                    background = Image.new('RGB', img.size, (255, 255, 255))
-                    if img.mode == 'RGBA':
-                        background.paste(img, mask=img.split()[-1])
-                    elif img.mode == 'LA':
-                        background.paste(img, mask=img.split()[-1])
-                    else:
-                        background.paste(img.convert('RGBA'), mask=img.split()[-1])
-                    img = background
-
-                # Resize if too wide
+                # Resize if too wide or too high to fit header layout cleanly
                 max_width = 400
-                if img.width > max_width:
-                    ratio = max_width / img.width
-                    new_height = int(img.height * ratio)
-                    img = img.resize((max_width, new_height), Image.Resampling.LANCZOS)
+                max_height = 120
+                
+                width, height = img.size
+                if width > max_width or height > max_height:
+                    ratio = min(max_width / width, max_height / height)
+                    new_width = int(width * ratio)
+                    new_height = int(height * ratio)
+                    img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
                 # Save with compression
-                if image_field.path.lower().endswith(('.jpg', '.jpeg')):
+                ext = os.path.splitext(image_field.path)[1].lower()
+                if ext in ('.jpg', '.jpeg'):
+                    # Convert transparent background to white for JPEGs
+                    if img.mode in ('RGBA', 'LA') or (img.mode == 'P' and 'transparency' in img.info):
+                        bg = Image.new('RGB', img.size, (255, 255, 255))
+                        if img.mode == 'RGBA':
+                            bg.paste(img, mask=img.split()[-1])
+                        else:
+                            bg.paste(img.convert('RGBA'), mask=img.split()[-1])
+                        img = bg
                     img.save(image_field.path, quality=85, optimize=True)
-                elif image_field.path.lower().endswith('.png'):
+                elif ext == '.png':
                     img.save(image_field.path, optimize=True)
-                elif image_field.path.lower().endswith('.webp'):
+                elif ext == '.webp':
                     img.save(image_field.path, quality=85, optimize=True)
             except Exception:
                 pass  # Fail gracefully to avoid breaking uploads

@@ -499,3 +499,28 @@ class OrderManagementTests(TestCase):
         self.order1.refresh_from_db()
         self.assertEqual(self.order1.tracking_number, "ADMTRACK")
         self.assertEqual(self.order1.courier_name, "Shiprocket")
+
+    def test_invoice_views_and_no_rupee_symbol(self):
+        """Test download, preview, and debug invoice views. Ensure no box/Rupee character in invoice template context/rendering."""
+        self.client.login(phone="6666666666", password="customerpassword")
+        
+        # 1. Preview Invoice View
+        url_preview = reverse('orders:invoice_preview', args=[self.order1.unique_order_id])
+        response = self.client.get(url_preview)
+        self.assertEqual(response.status_code, 200)
+        content_decoded = response.content.decode('utf-8')
+        # Check standard currency label presence
+        self.assertIn("Rs. ", content_decoded)
+        # Check that the box-error-causing Unicode Rupee symbol is NOT present
+        self.assertNotIn("₹", content_decoded)
+        
+        # 2. Download Invoice View
+        url_download = reverse('orders:invoice_download', args=[self.order1.unique_order_id])
+        response = self.client.get(url_download)
+        # It could return application/pdf or text/html fallback depending on xhtml2pdf installation, both are acceptable responses.
+        self.assertIn(response.status_code, [200, 302])
+        
+        # 3. Debug Invoice View
+        url_debug = reverse('orders:invoice_debug', args=[self.order1.unique_order_id])
+        response = self.client.get(url_debug)
+        self.assertEqual(response.status_code, 200)

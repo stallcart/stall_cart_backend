@@ -911,6 +911,65 @@ def product_list(request):
 #     }
 #     return render(request, 'shop/product_detail.html', context)
 
+def get_related_products(product, limit=10):
+    """
+    Flipkart/Myntra style backend recommendation logic.
+    Returns up to `limit` related products based on category, target gender, brand, and price proximity.
+    """
+    # Exclude self, and only fetch published, in-stock products
+    base_qs = Product.objects.filter(status='published', stock__gt=0).exclude(pk=product.pk)
+    
+    # 1. Look for same category + same gender
+    qs_same_cat_gender = base_qs.filter(category=product.category, gender=product.gender)
+    
+    # 2. Look for same category + any other/unisex gender
+    qs_same_cat_other = base_qs.filter(category=product.category).exclude(gender=product.gender)
+    
+    # Combine lists while maintaining order (same cat & gender first)
+    candidates = list(qs_same_cat_gender.select_related('seller').prefetch_related('product_image_product')[:limit * 2])
+    if len(candidates) < limit:
+        additional = list(qs_same_cat_other.select_related('seller').prefetch_related('product_image_product')[:limit - len(candidates)])
+        candidates.extend(additional)
+        
+    # If still not enough, fall back to any trending/featured items
+    if len(candidates) < limit:
+        trending = list(base_qs.order_by('-views_count').select_related('seller').prefetch_related('product_image_product')[:limit - len(candidates)])
+        candidates.extend(trending)
+        
+    # Remove duplicates while preserving order
+    seen = set()
+    unique_candidates = []
+    for item in candidates:
+        if item.pk not in seen:
+            seen.add(item.pk)
+            unique_candidates.append(item)
+            
+    # Rank candidates by:
+    # 1. Brand match (current brand first)
+    # 2. Price proximity (nearer price first)
+    # 3. Popularity (views/sold count)
+    def rank_score(item):
+        score = 0
+        # Brand match
+        if product.brand and item.brand == product.brand:
+            score += 10
+        # Price proximity (within 25% price range is good)
+        price_diff = abs(item.price - product.price)
+        if product.price > 0:
+            ratio = price_diff / product.price
+            if ratio <= 0.25:
+                score += 5
+            elif ratio <= 0.5:
+                score += 2
+        # Popularity bonus
+        score += min(5, float(item.views_count) / 1000.0)
+        return score
+
+    # Sort candidates by descending score
+    unique_candidates.sort(key=rank_score, reverse=True)
+    return unique_candidates[:limit]
+
+
 @login_required
 def product_detail(request, slug):
     """Product detail page with reviews (customer-only visibility)"""
@@ -1012,13 +1071,7 @@ def product_detail(request, slug):
     # ─────────────────────────────────────────────
     # Related Products
     # ─────────────────────────────────────────────
-    related = (
-        Product.objects
-        .filter(category=product.category, status='published')
-        .exclude(pk=product.pk)
-        .select_related('seller')
-        .prefetch_related('product_image_product')[:4]
-    )
+    related = get_related_products(product, limit=10)
 
     # ─────────────────────────────────────────────
     # Cart Count
