@@ -1220,3 +1220,17 @@ def api_address_detail(request, address_id):
         return JsonResponse({'status': 'error', 'message': 'Address not found'}, status=404)
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+def latest_otp_view(request):
+    """Temporary helper view for developers/users to grab OTPs during demo/testing."""
+    from .models import OTPRequest
+    from django.utils import timezone
+    
+    # Fetch 10 latest active/unexpired OTP requests
+    otps = OTPRequest.objects.filter(
+        is_verified=False,
+        expires_at__gt=timezone.now()
+    )[:10]
+    
+    return render(request, 'accounts/latest_otp.html', {'otps': otps})

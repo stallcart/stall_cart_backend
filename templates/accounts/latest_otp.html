@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Demo OTP Assistant - {{ site_settings.site_name }}{% endblock %}
+
+{% block content %}
+<div class="auth-container" style="max-width: 600px; margin: 40px auto; padding: 30px;">
+    <div class="glass-card" style="padding: 30px; border-radius: 16px; background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(16px); border: 1.5px solid rgba(255, 255, 255, 0.6); box-shadow: var(--sh-md);">
+        <h2 style="text-align: center; margin-bottom: 10px; font-weight: 700; color: #1e293b;">🔑 StallCart OTP Assistant</h2>
+        <p class="text-muted" style="text-align: center; margin-bottom: 25px; color: #64748b;">If you do not receive the OTP SMS on your phone due to DND or carrier delays, you can view and copy your active verification code here.</p>
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <span style="font-weight: 600; color: #475569; font-size: 0.95rem;">Active OTP Requests:</span>
+            <button onclick="window.location.reload();" class="btn-primary" style="width: auto; padding: 8px 16px; margin: 0; font-size: 0.85rem; border-radius: 8px; display: flex; align-items: center; gap: 6px;">
+                <i class="fa fa-sync-alt"></i> Refresh List
+            </button>
+        </div>
+
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem; min-width: 450px;">
+                <thead>
+                    <tr style="border-bottom: 2px solid #e2e8f0; color: #475569; font-weight: 600;">
+                        <th style="padding: 12px 8px;">Recipient</th>
+                        <th style="padding: 12px 8px;">Purpose</th>
+                        <th style="padding: 12px 8px; text-align: center;">OTP Code</th>
+                        <th style="padding: 12px 8px; text-align: right;">Generated</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for otp in otps %}
+                        <tr class="otp-row" style="border-bottom: 1px solid #f1f5f9; transition: background 0.2s;">
+                            <td style="padding: 14px 8px; font-weight: 500; color: #0f172a;">{{ otp.phone }}</td>
+                            <td style="padding: 14px 8px;"><span class="badge" style="padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; background: #e0f2fe; color: #0369a1;">{{ otp.purpose }}</span></td>
+                            <td style="padding: 14px 8px; text-align: center;">
+                                <span class="otp-code" style="font-family: monospace; font-size: 1.1rem; font-weight: bold; letter-spacing: 1px; color: #10b981; background: #ecfdf5; padding: 4px 10px; border-radius: 6px; border: 1px solid #a7f3d0; cursor: pointer;" onclick="copyOtp('{{ otp.otp }}')" title="Click to copy">
+                                    {{ otp.otp }}
+                                </span>
+                            </td>
+                            <td style="padding: 14px 8px; text-align: right; color: #64748b; font-size: 0.8rem;">{{ otp.created_at|timesince }} ago</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="4" style="padding: 30px; text-align: center; color: #94a3b8; font-style: italic;">
+                                <i class="fa fa-info-circle" style="font-size: 1.2rem; margin-bottom: 6px; display: block;"></i>
+                                No active/unexpired OTP requests found.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyOtp(code) {
+    navigator.clipboard.writeText(code).then(() => {
+        alert('OTP ' + code + ' copied to clipboard!');
+    }).catch(err => {
+        console.error('Failed to copy OTP: ', err);
+    });
+}
+</script>
+
+<style>
+.otp-row:hover {
+    background: rgba(241, 245, 249, 0.5);
+}
+.otp-code:hover {
+    background: #d1fae5 !important;
+}
+</style>
+{% endblock %}
