@@ -111,6 +111,8 @@ class SiteSettings(models.Model):
     # Site Status
     is_maintenance_mode = models.BooleanField(default=False, help_text='Enable maintenance mode for non-admins')
     daily_otp_limit = models.IntegerField(default=5, help_text='Maximum OTP requests allowed per recipient in a 24-hour window')
+    daily_email_otp_limit = models.IntegerField(default=5, help_text='Maximum Email OTP requests allowed per recipient in a 24-hour window')
+    daily_sms_otp_limit = models.IntegerField(default=5, help_text='Maximum SMS OTP requests allowed per recipient in a 24-hour window')
     slider_autoplay_seconds = models.DecimalField(max_digits=3, decimal_places=1, default=Decimal('1.0'), help_text='Autoplay interval for homepage slider in seconds (e.g. 1.0 or 1.5)')
 
     # Delivery Settings

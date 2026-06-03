@@ -66,7 +66,7 @@ class SiteSettingsAdmin(admin.ModelAdmin):
             'description': 'Manage site-wide legal policies. Content supports rich text and HTML.'
         }),
         ('⚙️ Site Status & System Settings', {
-            'fields': ('is_maintenance_mode', 'daily_otp_limit', 'slider_autoplay_seconds'),
+            'fields': ('is_maintenance_mode', 'daily_email_otp_limit', 'daily_sms_otp_limit', 'slider_autoplay_seconds'),
         }),
         ('📅 Audit', {
             'fields': ('created_at', 'updated_at'),

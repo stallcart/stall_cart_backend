@@ -237,16 +237,21 @@ class OTPRequest(BaseModel):
         import random
         from common.models import SiteSettings
 
+        is_email = '@' in phone
         try:
             site_settings = SiteSettings.get_singleton()
-            limit = site_settings.daily_otp_limit
+            if is_email:
+                limit = getattr(site_settings, 'daily_email_otp_limit', 5)
+            else:
+                limit = getattr(site_settings, 'daily_sms_otp_limit', 5)
         except Exception:
             limit = 5
 
         twenty_four_hours_ago = timezone.now() - timedelta(hours=24)
         daily_count = cls.objects.filter(phone=phone, created_at__gte=twenty_four_hours_ago).count()
         if daily_count >= limit:
-            return None, f"You have exceeded the limit of {limit} OTP requests per day. Please try again later."
+            otp_type = "email" if is_email else "SMS"
+            return None, f"You have exceeded the limit of {limit} {otp_type} OTP requests per day. Please try again later."
 
         otp = f"{random.randint(100000, 999999)}"
         expires_at = timezone.now() + timedelta(minutes=expiry_minutes)
