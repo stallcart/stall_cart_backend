@@ -1190,9 +1190,9 @@ def profile_view(request):
     return render(request, 'accounts/profile.html', context)
 def redirect_by_role(user):
     if user.is_admin:
-        return redirect('admin_dashboard')
+        return redirect('items:admin_dashboard')
     elif user.is_seller:
-        return redirect('seller_dashboard')
+        return redirect('items:seller_dashboard')
     return redirect('shop:home')
 
 
