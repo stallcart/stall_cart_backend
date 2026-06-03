@@ -5180,6 +5180,12 @@ input[id$="-DELETE"] {
         grid-template-columns: 1fr;
         gap: 24px;
     }
+    .profile-sidebar {
+        position: static;
+        min-width: 0;
+        width: 100%;
+        overflow: hidden;
+    }
     .profile-user-card {
         display: flex;
         align-items: center;
