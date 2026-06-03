@@ -559,12 +559,14 @@ class SellerSettlementAndBankDetailsTests(TestCase):
             price=Decimal("100.00"),
             stock=10
         )
+        from datetime import timedelta
         self.order = Order.objects.create(
             user=self.customer_user,
             shipping_address={"name": "Customer"},
             total_amount=Decimal("100.00"),
             payment_method="cod",
-            status="delivered"
+            status="delivered",
+            delivered_at=timezone.now() - timedelta(days=15)
         )
         self.item = OrderItem.objects.create(
             order=self.order,

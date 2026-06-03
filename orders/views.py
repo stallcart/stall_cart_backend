@@ -1405,11 +1405,22 @@ def admin_create_settlement_ajax(request, seller_id):
         return JsonResponse({'status': 'error', 'message': 'No order items selected'}, status=400)
         
     from orders.models import OrderItem, SellerSettlement
+    from django.utils import timezone
+    from datetime import timedelta
+    
+    safety_date = timezone.now() - timedelta(days=10)
+    
     items = OrderItem.objects.filter(
         id__in=order_item_ids,
         seller=seller,
-        order__status='delivered'
-    ).exclude(settlements__isnull=False)
+        order__status='delivered',
+        order__delivered_at__lte=safety_date,
+        is_returned=False
+    ).exclude(
+        settlements__isnull=False
+    ).exclude(
+        return_requests__status__in=['requested', 'approved', 'completed']
+    )
     
     if not items.exists():
         return JsonResponse({'status': 'error', 'message': 'None of the selected order items are eligible for settlement.'}, status=400)

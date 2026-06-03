@@ -1548,11 +1548,22 @@ def seller_edit_view(request, seller_id):
     seller.product_count = seller.products.filter(status='published').count()
     
     from orders.models import SellerSettlement, OrderItem
+    from django.utils import timezone
+    from datetime import timedelta
+    
+    safety_date = timezone.now() - timedelta(days=10)
+    
     seller_settlements = SellerSettlement.objects.filter(seller=seller).order_by('-created_at')
     unsettled_order_items = OrderItem.objects.filter(
         seller=seller,
-        order__status='delivered'
-    ).exclude(settlements__isnull=False).select_related('order', 'product')
+        order__status='delivered',
+        order__delivered_at__lte=safety_date,
+        is_returned=False
+    ).exclude(
+        settlements__isnull=False
+    ).exclude(
+        return_requests__status__in=['requested', 'approved', 'completed']
+    ).select_related('order', 'product')
     
     context = {
         'seller': seller,
