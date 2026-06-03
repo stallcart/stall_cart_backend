@@ -113,12 +113,11 @@ def register_view(request):
                 form = UserRegistrationForm(form_data)
                 if not form.is_valid():
                     return JsonResponse({'status': 'error', 'errors': form.errors}, status=400)
-                
-                # Generate and send phone OTP
+                         # Generate and send phone OTP
                 otp_phone_req, err = OTPRequest.check_and_create_otp(phone, 'register_phone')
                 if err:
                     return JsonResponse({'status': 'error', 'message': err}, status=400)
-                    
+                
                 # Generate and send email OTP
                 otp_email_req, err = OTPRequest.check_and_create_otp(email, 'register_email')
                 if err:
@@ -131,11 +130,11 @@ def register_view(request):
                     send_dynamic_email('registration_email_otp', [email], {'otp': otp_email_req.otp})
                 except Exception as e:
                     logger.error(f"Failed to send registration email OTP: {e}")
-                    
-                # Try sending phone SMS OTP via Brevo API
+                
+                # Try sending phone SMS OTP via 2Factor API
                 try:
-                    from common.sms_service import send_sms_via_brevo
-                    send_sms_via_brevo(phone, f"Welcome to StallCart! Your registration verification OTP is: {otp_phone_req.otp}. Valid for 10 minutes.")
+                    from common.sms_service import send_sms_via_2factor
+                    send_sms_via_2factor(phone, otp_phone_req.otp)
                 except Exception as e:
                     logger.error(f"Failed to send registration SMS OTP: {e}")
                     
@@ -264,30 +263,29 @@ logger = logging.getLogger(__name__)
 
 
 @login_required
-@require_POST
 def send_change_password_otp(request):
     """AJAX endpoint to send OTP for password change"""
     user = request.user
-    recipient = user.email or user.phone
+    recipient = user.phone
     if not recipient:
-        return JsonResponse({'status': 'error', 'message': 'No contact info (email/phone) registered to this account'}, status=400)
+        return JsonResponse({'status': 'error', 'message': 'A registered mobile number is required to change password.'}, status=400)
     
     otp_req, err = OTPRequest.check_and_create_otp(recipient, 'change_password')
     if err:
         return JsonResponse({'status': 'error', 'message': err}, status=400)
     
-    # Try sending via email template
+    # Try sending phone SMS OTP via 2Factor API
     try:
-        from common.email_service import send_dynamic_email
-        send_dynamic_email('change_password_otp', [recipient], {'otp': otp_req.otp, 'user': user})
+        from common.sms_service import send_sms_via_2factor
+        send_sms_via_2factor(recipient, otp_req.otp)
     except Exception as e:
-        logger.error(f"Dynamic email OTP send failed: {e}")
+        logger.error(f"Failed to send change password SMS OTP: {e}")
         
-    print(f"🔑 [EMAIL OTP DEMO] Sent OTP to {recipient} for password change: {otp_req.otp}")
+    print(f"📱 [PHONE OTP DEMO] Sent OTP to {recipient} for password change: {otp_req.otp}")
     
     return JsonResponse({
         'status': 'success',
-        'message': f'OTP sent successfully to your registered email: {recipient}.'
+        'message': f'OTP sent successfully to your registered mobile: {recipient}.'
     })
 
 
@@ -303,7 +301,7 @@ def change_password_view(request):
             form.add_error(None, "Verification OTP is required.")
         else:
             # Check latest unexpired unverified OTP
-            recipient = request.user.email or request.user.phone
+            recipient = request.user.phone
             from django.utils import timezone
             otp_req = OTPRequest.objects.filter(
                 phone=recipient,
@@ -346,8 +344,11 @@ def forgot_password_view(request):
             messages.error(request, "Mobile number not registered.")
             return render(request, 'accounts/forgot_password.html')
             
-        recipient = user.email or phone
-        
+        recipient = user.email
+        if not recipient:
+            messages.error(request, "Registered user does not have an email address. Please contact support.")
+            return render(request, 'accounts/forgot_password.html')
+            
         otp_req, err = OTPRequest.check_and_create_otp(recipient, 'forgot_password')
         if err:
             messages.error(request, err)
@@ -384,7 +385,10 @@ def forgot_password_verify_view(request):
             return render(request, 'accounts/forgot_password_verify.html', {'phone': phone})
             
         user = User.objects.filter(phone=phone).first()
-        recipient = user.email if (user and user.email) else phone
+        recipient = user.email if (user and user.email) else None
+        if not recipient:
+            messages.error(request, "Registered user does not have an email address.")
+            return render(request, 'accounts/forgot_password_verify.html', {'phone': phone})
 
         from django.utils import timezone
         otp_req = OTPRequest.objects.filter(
@@ -917,10 +921,10 @@ def profile_view(request):
                     except Exception as e:
                         logger.error(f"FCM OTP send failed: {e}")
                         
-                    # Send via SMS (Brevo API)
+                    # Send via SMS (2Factor API)
                     try:
-                        from common.sms_service import send_sms_via_brevo
-                        send_sms_via_brevo(new_phone, f"Your StallCart verification OTP to update your mobile number is: {phone_otp_req.otp}. Valid for 10 minutes.")
+                        from common.sms_service import send_sms_via_2factor
+                        send_sms_via_2factor(new_phone, phone_otp_req.otp)
                     except Exception as e:
                         logger.error(f"Failed to send update mobile SMS OTP: {e}")
                         

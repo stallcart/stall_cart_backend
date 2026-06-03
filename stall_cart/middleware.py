@@ -6,4 +6,9 @@ class CurrentUserMiddleware:
 
     def __call__(self, request):
         _thread_locals.user = getattr(request, 'user', None)
-        return self.get_response(request)
+        try:
+            response = self.get_response(request)
+        finally:
+            if hasattr(_thread_locals, 'user'):
+                del _thread_locals.user
+        return response

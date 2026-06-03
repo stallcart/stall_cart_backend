@@ -30,13 +30,14 @@ class OTPRequestTests(TestCase):
         # 6th request should fail
         otp_req, err = OTPRequest.check_and_create_otp(self.phone, 'forgot_password')
         self.assertIsNotNone(err)
-        self.assertIn("exceeded the limit of 5 OTP requests per day", err)
+        self.assertIn("exceeded the limit of 5 SMS OTP requests per day", err)
         self.assertIsNone(otp_req)
 
     def test_custom_daily_rate_limit(self):
         from common.models import SiteSettings
         site_settings = SiteSettings.get_singleton()
-        site_settings.daily_otp_limit = 3
+        site_settings.daily_sms_otp_limit = 3
+        site_settings.daily_email_otp_limit = 3
         site_settings.save()
 
         # Generate 3 OTP requests
@@ -48,7 +49,7 @@ class OTPRequestTests(TestCase):
         # 4th request should fail
         otp_req, err = OTPRequest.check_and_create_otp(self.phone, 'forgot_password')
         self.assertIsNotNone(err)
-        self.assertIn("exceeded the limit of 3 OTP requests per day", err)
+        self.assertIn("exceeded the limit of 3 SMS OTP requests per day", err)
         self.assertIsNone(otp_req)
 
     def test_rolling_rate_limit(self):
@@ -88,7 +89,7 @@ class ProfileUpdateOTPTests(TestCase):
         self.client.login(phone=self.phone, password="testpassword123")
         
         from unittest.mock import patch
-        self.sms_patcher = patch('common.sms_service.send_sms_via_brevo')
+        self.sms_patcher = patch('common.sms_service.send_sms_via_2factor')
         self.mock_send_sms = self.sms_patcher.start()
         self.mock_send_sms.return_value = True
 
@@ -279,7 +280,7 @@ class UserRegistrationOTPTests(TestCase):
         self.email = "test@example.com"
         
         from unittest.mock import patch
-        self.sms_patcher = patch('common.sms_service.send_sms_via_brevo')
+        self.sms_patcher = patch('common.sms_service.send_sms_via_2factor')
         self.mock_send_sms = self.sms_patcher.start()
         self.mock_send_sms.return_value = True
 
@@ -310,8 +311,8 @@ class UserRegistrationOTPTests(TestCase):
         
         # Verify OTPRequest instances exist
         phone_otp = OTPRequest.objects.filter(phone="9998887776", purpose="register_phone").first()
-        email_otp = OTPRequest.objects.filter(phone="newreg@example.com", purpose="register_email").first()
         self.assertIsNotNone(phone_otp)
+        email_otp = OTPRequest.objects.filter(phone="newreg@example.com", purpose="register_email").first()
         self.assertIsNotNone(email_otp)
 
     def test_registration_validation_fails(self):
@@ -388,6 +389,60 @@ class UserRegistrationOTPTests(TestCase):
         self.assertEqual(new_user.role, "customer")
 
 
+class ChangePasswordOTPTests(TestCase):
+    def setUp(self):
+        self.phone = "9876543210"
+        self.user = User.objects.create_user(
+            phone=self.phone,
+            password="testpassword123",
+            full_name="Test User",
+            email="test@example.com"
+        )
+        self.client.login(phone=self.phone, password="testpassword123")
+        
+        from unittest.mock import patch
+        self.sms_patcher = patch('common.sms_service.send_sms_via_2factor')
+        self.mock_send_sms = self.sms_patcher.start()
+        self.mock_send_sms.return_value = True
+
+    def tearDown(self):
+        self.sms_patcher.stop()
+
+    def test_send_change_password_otp_success(self):
+        url = reverse('accounts:send_change_password_otp')
+        response = self.client.post(url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['status'], 'success')
+        self.assertIn("OTP sent successfully to your registered mobile", data['message'])
+        
+        # Verify SMS OTPRequest was created for the phone
+        otp_req = OTPRequest.objects.filter(phone=self.phone, purpose="change_password").first()
+        self.assertIsNotNone(otp_req)
+        self.mock_send_sms.assert_called_once_with(self.phone, otp_req.otp)
+
+    def test_change_password_verify_success(self):
+        # First send OTP
+        self.client.post(reverse('accounts:send_change_password_otp'), HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        otp_code = OTPRequest.objects.filter(phone=self.phone, purpose="change_password").first().otp
+        
+        # Submit password change form
+        url = reverse('accounts:change_password')
+        payload = {
+            'old_password': 'testpassword123',
+            'new_password1': 'newsecurepass123',
+            'new_password2': 'newsecurepass123',
+            'otp': otp_code
+        }
+        response = self.client.post(url, data=payload)
+        self.assertEqual(response.status_code, 302) # Redirect to profile
+        
+        # Verify password actually changed
+        self.assertTrue(self.user.check_password('testpassword123')) # Check user instance in DB
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password('newsecurepass123'))
+
+
 from django.core import mail
 from common.models import EmailTemplate
 from common.email_service import send_dynamic_email
@@ -397,6 +452,10 @@ class DynamicEmailTemplateTests(TestCase):
         # Clear the database of pre-populated templates to isolate unit tests
         EmailTemplate.objects.all().delete()
         mail.outbox.clear()
+        # Clear thread-local user to prevent leakage from other tests
+        from common.models import _thread_locals
+        if hasattr(_thread_locals, 'user'):
+            del _thread_locals.user
 
     def test_send_dynamic_email_creation(self):
         # 1. Test that sending a template creates the default in the DB
