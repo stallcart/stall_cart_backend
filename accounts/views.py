@@ -1124,6 +1124,43 @@ def profile_view(request):
                 
                 return JsonResponse({'status': 'success', 'message': 'Shop address saved'})
             
+            # ===== UPDATE BANK DETAILS (Sellers Only) =====
+            elif action == 'update_bank_details':
+                if request.user.role != 'seller' or not hasattr(request.user, 'seller_profile'):
+                    return JsonResponse({'status': 'error', 'message': 'Only sellers can update bank details'}, status=403)
+                
+                bank_name = data.get('bank_name', '').strip()
+                account_number = data.get('account_number', '').strip()
+                ifsc_code = data.get('ifsc_code', '').strip()
+                account_holder_name = data.get('account_holder_name', '').strip()
+                
+                if not bank_name or not account_number or not ifsc_code or not account_holder_name:
+                    return JsonResponse({'status': 'error', 'message': 'All bank details fields are required'}, status=400)
+                
+                seller = request.user.seller_profile
+                
+                # Check if critical bank details have changed
+                details_changed = (
+                    seller.account_number != account_number or
+                    seller.ifsc_code != ifsc_code or
+                    seller.account_holder_name != account_holder_name
+                )
+                
+                seller.bank_name = bank_name
+                seller.account_number = account_number
+                seller.ifsc_code = ifsc_code
+                seller.account_holder_name = account_holder_name
+                
+                update_fields = ['bank_name', 'account_number', 'ifsc_code', 'account_holder_name', 'updated_at']
+                if details_changed:
+                    # Clear cached RazorpayX fund account so it regenerates on the next payout
+                    seller.razorpay_fund_account_id = None
+                    update_fields.append('razorpay_fund_account_id')
+                
+                seller.save(update_fields=update_fields)
+                
+                return JsonResponse({'status': 'success', 'message': 'Bank details updated successfully!'})
+            
             return JsonResponse({'status': 'error', 'message': 'Invalid action'}, status=400)
             
         except json.JSONDecodeError:
@@ -1173,6 +1210,9 @@ def profile_view(request):
             shop_address = seller.shop_address
         except SellerShopAddress.DoesNotExist:
             shop_address = None
+            
+        from orders.models import SellerSettlement
+        seller_settlements = SellerSettlement.objects.filter(seller=seller).order_by('-created_at')
     
     context = {
         'user': request.user, 'is_customer': is_customer, 'is_seller': is_seller, 'is_admin': is_admin,
@@ -1180,6 +1220,7 @@ def profile_view(request):
         'seller_stats': seller_stats, 'seller_profile': request.user.seller_profile if is_seller else None,
         'seller_orders': seller_orders, 'shop_address': shop_address,
         'wallet': wallet, 'wallet_transactions': wallet_transactions,
+        'seller_settlements': seller_settlements if is_seller else None,
     }
     return render(request, 'accounts/profile.html', context)
 def redirect_by_role(user):

@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from decimal import Decimal
-from .models import Order, OrderItem, ReturnRequest, OrderReturnImage
+from .models import Order, OrderItem, ReturnRequest, OrderReturnImage, SellerSettlement
 from common.admin import BaseModelAdmin
 
 class OrderItemInline(admin.TabularInline):
@@ -112,3 +112,78 @@ class ReturnRequestAdmin(BaseModelAdmin):
         if not request.user.is_superuser and hasattr(request.user, 'seller_profile'):
             return qs.filter(order_item__product__seller=request.user.seller_profile)
         return qs
+
+
+@admin.register(SellerSettlement)
+class SellerSettlementAdmin(BaseModelAdmin):
+    list_display = ('settlement_id', 'seller', 'amount', 'commission_deducted', 'status', 'payment_reference', 'razorpay_payout_id', 'settled_at')
+    list_filter = ('status', 'settled_at', 'seller')
+    search_fields = ('settlement_id', 'payment_reference', 'razorpay_payout_id', 'seller__shop_name', 'seller__user__phone')
+    readonly_fields = ('settlement_id', 'amount', 'commission_deducted', 'razorpay_payout_id', 'created_at', 'updated_at')
+    filter_horizontal = ('order_items',)
+    actions = ['trigger_bulk_payouts']
+
+    def trigger_bulk_payouts(self, request, queryset):
+        """Trigger RazorpayX payouts for selected settlements in bulk."""
+        from orders.razorpayx_service import initiate_payout
+        success_count = 0
+        fail_count = 0
+        errors = []
+        
+        for settlement in queryset:
+            if settlement.status != 'processed' or not settlement.razorpay_payout_id:
+                success, msg = initiate_payout(settlement)
+                if success:
+                    success_count += 1
+                else:
+                    fail_count += 1
+                    errors.append(f"{settlement.settlement_id}: {msg}")
+            else:
+                fail_count += 1
+                errors.append(f"{settlement.settlement_id}: Already processed.")
+                
+        if success_count > 0:
+            self.message_user(request, f"Successfully initiated {success_count} RazorpayX payout(s).", level='SUCCESS')
+        if fail_count > 0:
+            self.message_user(request, f"Failed/Skipped {fail_count} payout(s). Details: {', '.join(errors)}", level='ERROR')
+    trigger_bulk_payouts.short_description = "💸 Trigger RazorpayX payout for selected settlements"
+
+    def save_model(self, request, obj, form, change):
+        # If status changes to processed and no payout_id exists, trigger it
+        if change and obj.status == 'processed' and not obj.razorpay_payout_id:
+            from orders.razorpayx_service import initiate_payout
+            success, msg = initiate_payout(obj)
+            if not success:
+                self.message_user(request, f"Error initiating RazorpayX payout: {msg}", level='ERROR')
+            else:
+                self.message_user(request, f"Payout initiated successfully: {msg}", level='SUCCESS')
+        else:
+            super().save_model(request, obj, form, change)
+
+    def get_queryset(self, request):
+        qs = admin.ModelAdmin.get_queryset(self, request).select_related('seller')
+        if not request.user.is_superuser and hasattr(request.user, 'seller_profile'):
+            return qs.filter(seller=request.user.seller_profile)
+        return qs
+
+    def has_add_permission(self, request):
+        return request.user.is_superuser
+
+    def has_change_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+    def formfield_for_manytomany(self, db_field, request, **kwargs):
+        if db_field.name == "order_items":
+            # If editing an existing object, filter order items to that seller
+            obj_id = request.resolver_match.kwargs.get('object_id')
+            if obj_id:
+                settlement = self.get_object(request, obj_id)
+                if settlement:
+                    kwargs["queryset"] = OrderItem.objects.filter(seller=settlement.seller)
+            else:
+                # If adding a new settlement, restrict choices to order items belonging to sellers
+                pass
+        return super().formfield_for_manytomany(db_field, request, **kwargs)

@@ -42,6 +42,9 @@
                 <button class="profile-menu-item" data-target="shop-address">
                     <i class="fa fa-store"></i> <span>Shop Address</span>
                 </button>
+                <button class="profile-menu-item" data-target="bank-details">
+                    <i class="fa fa-university"></i> <span>Bank Details</span>
+                </button>
                 <button class="profile-menu-item" data-target="orders-received">
                     <i class="fa fa-clipboard-list"></i> <span>Orders Received</span>
                 </button>
@@ -352,6 +355,132 @@
                     </form>
                 </div>
             </div>
+
+            <!-- Bank Details Panel (Sellers Only) -->
+            {% if is_seller and seller_profile %}
+            <div class="profile-section-panel" id="bank-details">
+                <div class="profile-card">
+                    <div class="card-header">
+                        <h3><i class="fa fa-university"></i> Bank Account Details</h3>
+                        <button type="button" class="btn-outline btn-sm" id="editBankDetailsBtn">
+                            ✏️ Edit Bank Details
+                        </button>
+                    </div>
+
+                    <!-- Bank Details View -->
+                    <div id="bankDetailsView">
+                        {% if seller_profile.bank_name %}
+                        <div class="bank-details-card" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 20px; margin-top: 15px;">
+                            <div class="form-grid" style="grid-gap: 15px; margin-bottom: 0;">
+                                <div>
+                                    <span class="text-muted" style="font-size: 0.85rem; display: block;">Account Holder Name</span>
+                                    <strong style="font-size: 1.05rem;">{{ seller_profile.account_holder_name }}</strong>
+                                </div>
+                                <div>
+                                    <span class="text-muted" style="font-size: 0.85rem; display: block;">Bank Name</span>
+                                    <strong style="font-size: 1.05rem;">{{ seller_profile.bank_name }}</strong>
+                                </div>
+                                <div>
+                                    <span class="text-muted" style="font-size: 0.85rem; display: block;">Account Number</span>
+                                    <strong style="font-size: 1.05rem;">••••••••{{ seller_profile.account_number|slice:"-4:" }}</strong>
+                                </div>
+                                <div>
+                                    <span class="text-muted" style="font-size: 0.85rem; display: block;">IFSC Code</span>
+                                    <strong style="font-size: 1.05rem;">{{ seller_profile.ifsc_code }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="empty-state">
+                            <i class="fa fa-university" style="font-size: 2.5rem; color: rgba(255,255,255,0.2); margin-bottom: 12px;"></i>
+                            <p>No bank details set yet. Add details to receive payouts.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Bank Details Form (Hidden) -->
+                    <form id="bankDetailsForm" method="post" style="display:none; margin-top: 15px;">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="update_bank_details">
+                        
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="bankAccHolder">Account Holder Name *</label>
+                                <input type="text" id="bankAccHolder" name="account_holder_name" class="form-input" 
+                                    value="{{ seller_profile.account_holder_name|default:'' }}" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="bankName">Bank Name *</label>
+                                <input type="text" id="bankName" name="bank_name" class="form-input" 
+                                    value="{{ seller_profile.bank_name|default:'' }}" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="bankAccNum">Account Number *</label>
+                                <input type="text" id="bankAccNum" name="account_number" class="form-input" 
+                                    value="{{ seller_profile.account_number|default:'' }}" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="bankIFSC">IFSC Code *</label>
+                                <input type="text" id="bankIFSC" name="ifsc_code" class="form-input" 
+                                    value="{{ seller_profile.ifsc_code|default:'' }}" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-actions" style="margin-top: 20px;">
+                            <button type="submit" class="btn-primary">💾 Save Bank Details</button>
+                            <button type="button" class="btn-outline" id="cancelBankDetailsBtn" style="margin-left:10px;">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Settlement History Card -->
+                <div class="profile-card" style="margin-top: 25px;">
+                    <div class="card-header">
+                        <h3><i class="fa fa-history"></i> Settlement History</h3>
+                    </div>
+                    {% if seller_settlements %}
+                    <div style="overflow-x: auto; margin-top: 15px;">
+                        <table class="table" style="width: 100%; border-collapse: collapse; text-align: left;">
+                            <thead>
+                                <tr style="border-bottom: 2px solid rgba(255,255,255,0.1);">
+                                    <th style="padding: 12px 8px;">Settlement ID</th>
+                                    <th style="padding: 12px 8px;">Amount</th>
+                                    <th style="padding: 12px 8px;">Commission Deducted</th>
+                                    <th style="padding: 12px 8px;">Status</th>
+                                    <th style="padding: 12px 8px;">Payment Reference</th>
+                                    <th style="padding: 12px 8px;">Settled At</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for sett in seller_settlements %}
+                                <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                                    <td style="padding: 12px 8px;"><strong>{{ sett.settlement_id }}</strong></td>
+                                    <td style="padding: 12px 8px; color: var(--green-400);">₹{{ sett.amount|floatformat:2 }}</td>
+                                    <td style="padding: 12px 8px; color: var(--red-400);">₹{{ sett.commission_deducted|floatformat:2 }}</td>
+                                    <td style="padding: 12px 8px;">
+                                        <span class="badge {% if sett.status == 'processed' %}badge-paid{% elif sett.status == 'failed' %}badge-failed{% else %}badge-pending{% endif %}" style="font-size: 0.75rem;">
+                                            {{ sett.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td style="padding: 12px 8px;">{{ sett.payment_reference|default:"—" }}</td>
+                                    <td style="padding: 12px 8px; font-size: 0.85rem;" class="text-muted">{{ sett.settled_at|date:"M d, Y, h:i A"|default:"—" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="empty-state">
+                        <i class="fa fa-info-circle" style="font-size: 2rem; color: rgba(255,255,255,0.2); margin-bottom: 10px;"></i>
+                        <p>No settlements recorded yet.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
 
             <!-- 5. ORDERS RECEIVED PANEL (Sellers Only) -->
             <div class="profile-section-panel" id="orders-received">
@@ -1170,6 +1299,66 @@ document.getElementById('shopAddressForm')?.addEventListener('submit', async (e)
             window.location.reload();
         } else {
             showToast(data.message || 'Failed to save shop address', 'error');
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    } catch (err) {
+        showToast('Network error: ' + err.message, 'error');
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+});
+
+// ===== BANK DETAILS MANAGEMENT (Sellers Only) =====
+const editBankDetailsBtn = document.getElementById('editBankDetailsBtn');
+const cancelBankDetailsBtn = document.getElementById('cancelBankDetailsBtn');
+const bankDetailsView = document.getElementById('bankDetailsView');
+const bankDetailsForm = document.getElementById('bankDetailsForm');
+
+editBankDetailsBtn?.addEventListener('click', () => {
+    bankDetailsView.style.display = 'none';
+    bankDetailsForm.style.display = 'block';
+    editBankDetailsBtn.style.display = 'none';
+});
+
+cancelBankDetailsBtn?.addEventListener('click', () => {
+    bankDetailsView.style.display = 'block';
+    bankDetailsForm.style.display = 'none';
+    editBankDetailsBtn.style.display = 'inline-flex';
+});
+
+document.getElementById('bankDetailsForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving...';
+    
+    const formData = new FormData(e.target);
+    const bankDetails = {
+        account_holder_name: formData.get('account_holder_name'),
+        bank_name: formData.get('bank_name'),
+        account_number: formData.get('account_number'),
+        ifsc_code: formData.get('ifsc_code')
+    };
+    
+    try {
+        const res = await fetch("{% url 'accounts:profile' %}", {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json', 
+                'X-CSRFToken': csrfToken, 
+                'X-Requested-With': 'XMLHttpRequest' 
+            },
+            body: JSON.stringify({ action: 'update_bank_details', ...bankDetails })
+        });
+        const data = await res.json();
+        
+        if (data.status === 'success') {
+            showToast('Bank details saved successfully!', 'success');
+            setTimeout(() => window.location.reload(), 600);
+        } else {
+            showToast(data.message || 'Failed to save bank details', 'error');
             btn.disabled = false;
             btn.innerHTML = originalText;
         }

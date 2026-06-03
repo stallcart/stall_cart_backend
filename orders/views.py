@@ -14,7 +14,7 @@ import logging
 from decimal import Decimal
 from io import BytesIO
 from common.decorators import *
-from .models import Order, OrderItem, ReturnRequest, OrderStatusLog, OrderReturnImage
+from .models import Order, OrderItem, ReturnRequest, OrderStatusLog, OrderReturnImage, SellerSettlement
 from items.models import Product, SellerProfile
 from delivery.models import DeliveryPartner
 from django.conf import settings
@@ -1372,3 +1372,96 @@ def confirm_rto_refund(request, order_id):
         'message': f'RTO receipt confirmed. Refund details: {refund_note}.',
         'new_status': 'Returned'
     })
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+@require_POST
+def admin_trigger_payout_ajax(request, settlement_id):
+    """Trigger RazorpayX payout for a settlement."""
+    settlement = get_object_or_404(SellerSettlement, id=settlement_id)
+    from .razorpayx_service import initiate_payout
+    success, msg = initiate_payout(settlement)
+    if success:
+        return JsonResponse({'status': 'success', 'message': msg})
+    return JsonResponse({'status': 'error', 'message': msg}, status=400)
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+@require_POST
+def admin_create_settlement_ajax(request, seller_id):
+    """Create a new SellerSettlement and link the specified order items."""
+    from items.models import SellerProfile
+    seller = get_object_or_404(SellerProfile, id=seller_id)
+    
+    try:
+        data = json.loads(request.body)
+        order_item_ids = data.get('order_item_ids', [])
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': 'Invalid JSON payload'}, status=400)
+        
+    if not order_item_ids:
+        return JsonResponse({'status': 'error', 'message': 'No order items selected'}, status=400)
+        
+    from orders.models import OrderItem, SellerSettlement
+    items = OrderItem.objects.filter(
+        id__in=order_item_ids,
+        seller=seller,
+        order__status='delivered'
+    ).exclude(settlements__isnull=False)
+    
+    if not items.exists():
+        return JsonResponse({'status': 'error', 'message': 'None of the selected order items are eligible for settlement.'}, status=400)
+        
+    with transaction.atomic():
+        settlement = SellerSettlement.objects.create(
+            seller=seller,
+            status='pending'
+        )
+        settlement.order_items.add(*items)
+        
+    return JsonResponse({
+        'status': 'success',
+        'message': f'Settlement {settlement.settlement_id} created successfully with {items.count()} items!',
+        'settlement_id': settlement.id
+    })
+
+
+@csrf_exempt
+def razorpayx_webhook(request):
+    """Handle RazorpayX Payout webhook events."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+    try:
+        event = json.loads(request.body)
+        event_type = event.get('event')
+        payload = event.get('payload', {})
+        payout = payload.get('payout', {}).get('entity', {})
+        
+        payout_id = payout.get('id')
+        reference_id = payout.get('reference_id')
+        
+        if event_type and payout_id:
+            from orders.models import SellerSettlement
+            settlement = SellerSettlement.objects.filter(razorpay_payout_id=payout_id).first()
+            if not settlement and reference_id:
+                settlement = SellerSettlement.objects.filter(settlement_id=reference_id).first()
+                
+            if settlement:
+                if event_type == 'payout.processed':
+                    settlement.status = 'processed'
+                    settlement.payment_reference = payout_id
+                    settlement.save(update_fields=['status', 'payment_reference', 'updated_at'])
+                    logger.info(f"Payout {payout_id} processed for settlement {settlement.settlement_id}")
+                elif event_type in ('payout.failed', 'payout.reversed'):
+                    settlement.status = 'failed'
+                    settlement.payment_reference = payout_id
+                    settlement.save(update_fields=['status', 'payment_reference', 'updated_at'])
+                    logger.error(f"Payout {payout_id} failed/reversed: {payout.get('failure_reason', 'Unknown reason')}")
+                    
+        return JsonResponse({'status': 'ok'}, status=200)
+    except Exception as e:
+        logger.exception(f"Error processing RazorpayX webhook: {e}")
+        return JsonResponse({'error': 'Internal error'}, status=500)

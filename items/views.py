@@ -1547,4 +1547,16 @@ def seller_edit_view(request, seller_id):
     # Pre-calculate product count for sidebar
     seller.product_count = seller.products.filter(status='published').count()
     
-    return render(request, 'items/seller_edit.html', {'seller': seller})
+    from orders.models import SellerSettlement, OrderItem
+    seller_settlements = SellerSettlement.objects.filter(seller=seller).order_by('-created_at')
+    unsettled_order_items = OrderItem.objects.filter(
+        seller=seller,
+        order__status='delivered'
+    ).exclude(settlements__isnull=False).select_related('order', 'product')
+    
+    context = {
+        'seller': seller,
+        'seller_settlements': seller_settlements,
+        'unsettled_order_items': unsettled_order_items,
+    }
+    return render(request, 'items/seller_edit.html', context)

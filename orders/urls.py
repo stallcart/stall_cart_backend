@@ -126,5 +126,10 @@ urlpatterns = [
      path('return/<int:return_id>/approve/', views.approve_return, name='approve_return'),
      path('return/<int:return_id>/', customer_only(views.return_detail), name='return_detail'),
      path('order/<str:order_id>/confirm-rto/', views.confirm_rto_refund, name='confirm_rto_refund'),
+
+     # Settlement & Payout management
+     path('admin/settlement/<int:settlement_id>/payout/', views.admin_trigger_payout_ajax, name='admin_trigger_payout_ajax'),
+     path('admin/seller/<int:seller_id>/create-settlement/', views.admin_create_settlement_ajax, name='admin_create_settlement_ajax'),
+     path('razorpayx-webhook/', views.razorpayx_webhook, name='razorpayx_webhook'),
          
 ]

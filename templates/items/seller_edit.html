@@ -100,6 +100,103 @@
                     </div>
                 </form>
             </div>
+
+            <!-- Settlements & Payouts Card -->
+            <div class="edit-card" style="margin-top: 25px;">
+                <h3><i class="fa fa-university"></i> Settlements & RazorpayX Payouts</h3>
+                
+                <!-- Unsettled Order Items -->
+                <div style="margin-bottom: 25px;">
+                    <h4 style="margin-bottom: 12px; font-size: 0.95rem; display: flex; align-items: center; justify-content: space-between;">
+                        <span>📦 Unsettled Delivered Items</span>
+                        {% if unsettled_order_items %}
+                        <button type="button" class="btn-save" id="createSettlementBtn" style="padding: 6px 12px; font-size: 0.8rem; width: auto; background: var(--blue-600); border-color: var(--blue-600);">
+                            Create Settlement
+                        </button>
+                        {% endif %}
+                    </h4>
+                    
+                    {% if unsettled_order_items %}
+                    <div style="max-height: 250px; overflow-y: auto; border: 1.5px solid var(--gray-200); border-radius: 8px; padding: 10px;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                            <thead>
+                                <tr style="border-bottom: 1.5px solid var(--gray-200); text-align: left;">
+                                    <th style="padding: 6px; width: 30px;"><input type="checkbox" id="selectAllItems"></th>
+                                    <th style="padding: 6px;">Order ID</th>
+                                    <th style="padding: 6px;">Product</th>
+                                    <th style="padding: 6px;">Qty</th>
+                                    <th style="padding: 6px;">Earnings</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in unsettled_order_items %}
+                                <tr style="border-bottom: 1px solid var(--gray-100);">
+                                    <td style="padding: 6px;"><input type="checkbox" class="unsettled-item-check" value="{{ item.id }}"></td>
+                                    <td style="padding: 6px;"><strong>{{ item.order.unique_order_id }}</strong></td>
+                                    <td style="padding: 6px;">{{ item.product.name|truncatechars:20 }}</td>
+                                    <td style="padding: 6px;">{{ item.quantity }}</td>
+                                    <td style="padding: 6px; color: var(--green);">₹{{ item.seller_earnings }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div style="text-align: center; padding: 20px; border: 1.5px dashed var(--gray-200); border-radius: 8px; color: var(--gray-500); font-size: 0.85rem;">
+                        No new unsettled delivered items found for this seller.
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Settlement History -->
+                <div>
+                    <h4 style="margin-bottom: 12px; font-size: 0.95rem;">📜 Settlement History</h4>
+                    {% if seller_settlements %}
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; text-align: left;">
+                            <thead>
+                                <tr style="border-bottom: 1.5px solid var(--gray-200);">
+                                    <th style="padding: 8px;">Settlement ID</th>
+                                    <th style="padding: 8px;">Net Payout</th>
+                                    <th style="padding: 8px;">Commission</th>
+                                    <th style="padding: 8px;">Status</th>
+                                    <th style="padding: 8px;">Payout ID</th>
+                                    <th style="padding: 8px;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for sett in seller_settlements %}
+                                <tr style="border-bottom: 1px solid var(--gray-100);">
+                                    <td style="padding: 8px;"><strong>{{ sett.settlement_id }}</strong></td>
+                                    <td style="padding: 8px; color: var(--green);">₹{{ sett.amount|floatformat:2 }}</td>
+                                    <td style="padding: 8px; color: var(--red);">₹{{ sett.commission_deducted|floatformat:2 }}</td>
+                                    <td style="padding: 8px;">
+                                        <span class="badge-pill {% if sett.status == 'processed' %}verified{% elif sett.status == 'failed' %}rejected{% else %}pending{% endif %}" style="font-size: 0.75rem; padding: 2px 6px;">
+                                            {{ sett.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td style="padding: 8px; font-size: 0.75rem; color: var(--gray-600);">{{ sett.razorpay_payout_id|default:"—" }}</td>
+                                    <td style="padding: 8px;">
+                                        {% if sett.status == 'pending' or sett.status == 'failed' %}
+                                        <button type="button" class="btn-save trigger-payout-btn" data-settlement-id="{{ sett.id }}" style="padding: 4px 8px; font-size: 0.75rem; width: auto; background: var(--green); border-color: var(--green);">
+                                            💸 Trigger Payout
+                                        </button>
+                                        {% else %}
+                                        <span style="color: var(--green); font-size: 0.75rem; font-weight: 600;"><i class="fa fa-check-circle"></i> Settled</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div style="text-align: center; padding: 20px; border: 1.5px dashed var(--gray-200); border-radius: 8px; color: var(--gray-500); font-size: 0.85rem;">
+                        No past settlements recorded.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
             
             <!-- Sidebar: Quick Info -->
             <aside class="info-card">
@@ -260,6 +357,106 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.key === 'Escape' && rejectModal?.classList.contains('show')) {
             closeRejectModal();
         }
+    });
+
+    // ===== Settlements & Payouts Handlers =====
+    const selectAllCheck = document.getElementById('selectAllItems');
+    const itemChecks = document.querySelectorAll('.unsettled-item-check');
+    
+    selectAllCheck?.addEventListener('change', function() {
+        itemChecks.forEach(chk => chk.checked = selectAllCheck.checked);
+    });
+
+    const createSettlementBtn = document.getElementById('createSettlementBtn');
+    createSettlementBtn?.addEventListener('click', async function() {
+        const selectedIds = Array.from(itemChecks)
+            .filter(chk => chk.checked)
+            .map(chk => parseInt(chk.value));
+            
+        if (selectedIds.length === 0) {
+            if (typeof window.showToast === 'function') {
+                window.showToast('Please select at least one item to settle.', 'error');
+            } else {
+                alert('Please select at least one item to settle.');
+            }
+            return;
+        }
+        
+        createSettlementBtn.disabled = true;
+        const originalText = createSettlementBtn.innerHTML;
+        createSettlementBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Creating...';
+        
+        try {
+            const res = await fetch(`/orders/admin/seller/{{ seller.id }}/create-settlement/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ order_item_ids: selectedIds })
+            });
+            const data = await res.json();
+            
+            if (data.status === 'success') {
+                if (typeof window.showToast === 'function') {
+                    window.showToast('Settlement created successfully!', 'success');
+                }
+                setTimeout(() => window.location.reload(), 600);
+            } else {
+                if (typeof window.showToast === 'function') {
+                    window.showToast(data.message || 'Failed to create settlement', 'error');
+                } else {
+                    alert(data.message || 'Failed to create settlement');
+                }
+                createSettlementBtn.disabled = false;
+                createSettlementBtn.innerHTML = originalText;
+            }
+        } catch (err) {
+            console.error('Error creating settlement:', err);
+            createSettlementBtn.disabled = false;
+            createSettlementBtn.innerHTML = originalText;
+        }
+    });
+
+    const triggerBtns = document.querySelectorAll('.trigger-payout-btn');
+    triggerBtns.forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const settlementId = btn.getAttribute('data-settlement-id');
+            btn.disabled = true;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Payout...';
+            
+            try {
+                const res = await fetch(`/orders/admin/settlement/${settlementId}/payout/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                const data = await res.json();
+                
+                if (data.status === 'success') {
+                    if (typeof window.showToast === 'function') {
+                        window.showToast(data.message || 'Payout processed successfully!', 'success');
+                    }
+                    setTimeout(() => window.location.reload(), 800);
+                } else {
+                    if (typeof window.showToast === 'function') {
+                        window.showToast(data.message || 'Failed to trigger payout', 'error');
+                    } else {
+                        alert(data.message || 'Failed to trigger payout');
+                    }
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                }
+            } catch (err) {
+                console.error('Error triggering payout:', err);
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        });
     });
 });
 </script>
