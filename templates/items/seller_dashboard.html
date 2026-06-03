@@ -31,23 +31,23 @@
     <!-- Filters -->
     <form method="get" class="filters-bar">
         <input type="text" name="search" placeholder="Search by name or SKU..." value="{{ filters.search }}" class="form-input" style="flex: 1; min-width: 180px; max-width: 360px;">
-        <select name="category" class="form-select" style="min-width: 150px;">
+        <select name="category" class="form-select" style="min-width: 150px;" onchange="this.form.submit()">
             <option value="">All Categories</option>
             {% for cat in categories %}
                 <option value="{{ cat.id }}" {% if filters.category == cat.id|stringformat:"s" %}selected{% endif %}>{{ cat.name }}</option>
             {% endfor %}
         </select>
-        <select name="status" class="form-select" style="min-width: 140px;">
+        <select name="status" class="form-select" style="min-width: 140px;" onchange="this.form.submit()">
             <option value="">All Status</option>
             <option value="published" {% if filters.status == 'published' %}selected{% endif %}>Published</option>
             <option value="draft" {% if filters.status == 'draft' %}selected{% endif %}>Draft</option>
             <option value="discontinued" {% if filters.status == 'discontinued' %}selected{% endif %}>Discontinued</option>
         </select>
-        <button type="submit" class="btn-primary" style="padding: 10px 18px; display: inline-flex; align-items: center; gap: 8px; justify-content: center; border: none;">
+        <button type="submit" class="btn-primary">
             <i class="fa fa-filter"></i> Filter
         </button>
         {% if filters.search or filters.category or filters.status %}
-            <a href="{% url 'items:seller_dashboard' %}" class="btn-outline" style="padding: 10px 18px; display: inline-flex; align-items: center; gap: 8px; justify-content: center;">
+            <a href="{% url 'items:seller_dashboard' %}" class="btn-outline">
                 <i class="fa fa-times"></i> Clear
             </a>
         {% endif %}
@@ -253,11 +253,22 @@ document.querySelectorAll('.status-toggle').forEach(t => {
     t.onchange = async (e) => {
         const id = e.target.dataset.id;
         try {
-            await fetch(`/items/product/${id}/toggle-status/`, {
+            const res = await fetch(`/items/product/${id}/toggle/`, {
                 method: 'POST', headers: {'X-CSRFToken': csrf}
             });
-            e.target.closest('tr').querySelector('.status-text').textContent = e.target.checked ? 'Published' : 'Draft';
-        } catch(err) { alert('Failed to update status'); e.target.checked = !e.target.checked; }
+            if (!res.ok) {
+                throw new Error('Server error');
+            }
+            const data = await res.json();
+            if (data.status === 'success') {
+                e.target.closest('tr').querySelector('.status-text').textContent = data.new_status === 'published' ? 'Published' : 'Draft';
+            } else {
+                throw new Error(data.message || 'Failed to update status');
+            }
+        } catch(err) {
+            alert(err.message || 'Failed to update status');
+            e.target.checked = !e.target.checked;
+        }
     };
 });
 

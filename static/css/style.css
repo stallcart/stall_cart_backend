@@ -2253,7 +2253,8 @@ h4 { font-size: 1rem; font-weight: 600; }
 .filters-bar .form-input, .filters-bar .form-select,
 .filter-bar .form-input, .filter-bar .form-select,
 .filter-bar-admin .form-input, .filter-bar-admin .form-select {
-    padding: 10px 14px;
+    height: 42px;
+    padding: 0 14px;
     border: 1.5px solid var(--gray-200);
     border-radius: var(--r-lg);
     font-size: 0.9rem;
@@ -2261,6 +2262,7 @@ h4 { font-size: 1rem; font-weight: 600; }
     background: var(--white);
     font-family: inherit;
     transition: all var(--tr);
+    box-sizing: border-box;
 }
 .filters-bar .form-input:focus, .filters-bar .form-select:focus,
 .filter-bar .form-input:focus, .filter-bar .form-select:focus,
@@ -2271,11 +2273,56 @@ h4 { font-size: 1rem; font-weight: 600; }
 }
 .filters-bar .form-select, .filter-bar .form-select, .filter-bar-admin .form-select {
     cursor: pointer;
-    padding-right: 32px;
+    padding: 0 32px 0 14px;
     appearance: none;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394A5C0' stroke-width='2.5'%3E%3Cpolyline points='6,9 12,15 18,9'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 12px center;
+    box-sizing: border-box;
+}
+.filters-bar .btn-primary, .filters-bar .btn-outline,
+.filter-bar .btn-primary, .filter-bar .btn-outline,
+.filter-bar-admin .btn-primary, .filter-bar-admin .btn-outline {
+    height: 42px;
+    padding: 0 20px;
+    border-radius: var(--r-lg);
+    font-size: 0.9rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-sizing: border-box;
+    transition: all var(--tr);
+    cursor: pointer;
+}
+.filters-bar .btn-primary,
+.filter-bar .btn-primary,
+.filter-bar-admin .btn-primary {
+    background: var(--blue-500);
+    color: #fff;
+    border: 1.5px solid transparent;
+}
+.filters-bar .btn-primary:hover,
+.filter-bar .btn-primary:hover,
+.filter-bar-admin .btn-primary:hover {
+    background: var(--blue-600);
+    border-color: transparent;
+}
+.filters-bar .btn-outline,
+.filter-bar .btn-outline,
+.filter-bar-admin .btn-outline {
+    background: var(--white);
+    color: var(--blue-500);
+    border: 1.5px solid var(--blue-200);
+    text-decoration: none;
+}
+.filters-bar .btn-outline:hover,
+.filter-bar .btn-outline:hover,
+.filter-bar-admin .btn-outline:hover {
+    background: var(--blue-500);
+    color: #fff;
+    border-color: var(--blue-500);
 }
 .btn-clear {
     padding: 10px 14px;
