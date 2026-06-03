@@ -524,3 +524,276 @@ class OrderManagementTests(TestCase):
         url_debug = reverse('orders:invoice_debug', args=[self.order1.unique_order_id])
         response = self.client.get(url_debug)
         self.assertEqual(response.status_code, 200)
+
+
+class SellerSettlementAndBankDetailsTests(TestCase):
+    def setUp(self):
+        self.admin_user = User.objects.create_superuser(
+            phone="9999999999",
+            password="adminpassword",
+            full_name="Admin User"
+        )
+        self.seller_user = User.objects.create_user(
+            phone="8888888888",
+            password="sellerpassword",
+            role="seller",
+            full_name="Seller One"
+        )
+        self.seller_profile = SellerProfile.objects.create(
+            user=self.seller_user,
+            shop_name="Shop One",
+            is_verified=True
+        )
+        self.customer_user = User.objects.create_user(
+            phone="6666666666",
+            password="customerpassword",
+            role="customer",
+            full_name="Customer User"
+        )
+        
+        self.category = Category.objects.create(name="Clothing", commision_percentage=10.0)
+        self.product = Product.objects.create(
+            seller=self.seller_profile,
+            category=self.category,
+            name="Shirt",
+            price=Decimal("100.00"),
+            stock=10
+        )
+        self.order = Order.objects.create(
+            user=self.customer_user,
+            shipping_address={"name": "Customer"},
+            total_amount=Decimal("100.00"),
+            payment_method="cod",
+            status="delivered"
+        )
+        self.item = OrderItem.objects.create(
+            order=self.order,
+            product=self.product,
+            seller=self.seller_profile,
+            quantity=1,
+            price=Decimal("100.00"),
+            total=Decimal("100.00")
+        )
+
+    def test_seller_bank_details_update_via_ajax(self):
+        """Seller can update bank details via AJAX, validation is enforced, customers are forbidden."""
+        self.client.login(phone="8888888888", password="sellerpassword")
+        
+        # Test success case
+        payload = {
+            "action": "update_bank_details",
+            "bank_name": "Test Bank",
+            "account_number": "1234567890",
+            "ifsc_code": "TEST0001234",
+            "account_holder_name": "Seller One Bank Acc"
+        }
+        response = self.client.post(
+            reverse('accounts:profile'),
+            data=json.dumps(payload),
+            content_type="application/json",
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.seller_profile.refresh_from_db()
+        self.assertEqual(self.seller_profile.bank_name, "Test Bank")
+        self.assertEqual(self.seller_profile.account_number, "1234567890")
+        self.assertEqual(self.seller_profile.ifsc_code, "TEST0001234")
+        self.assertEqual(self.seller_profile.account_holder_name, "Seller One Bank Acc")
+        
+        # Test validation failure (missing bank_name)
+        payload["bank_name"] = ""
+        response = self.client.post(
+            reverse('accounts:profile'),
+            data=json.dumps(payload),
+            content_type="application/json",
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest"
+        )
+        self.assertEqual(response.status_code, 400)
+        
+        # Test customer is forbidden from updating bank details
+        self.client.login(phone="6666666666", password="customerpassword")
+        payload["bank_name"] = "Another Bank"
+        response = self.client.post(
+            reverse('accounts:profile'),
+            data=json.dumps(payload),
+            content_type="application/json",
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest"
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_seller_settlement_creation_and_m2m_totals(self):
+        """Creating a SellerSettlement auto-calculates total and commission on adding order_items."""
+        from orders.models import SellerSettlement
+        settlement = SellerSettlement.objects.create(
+            seller=self.seller_profile,
+            status="pending"
+        )
+        self.assertIsNotNone(settlement.settlement_id)
+        self.assertTrue(settlement.settlement_id.startswith("SET-"))
+        self.assertEqual(settlement.amount, Decimal("0.00"))
+        self.assertEqual(settlement.commission_deducted, Decimal("0.00"))
+        
+        # Link order item
+        settlement.order_items.add(self.item)
+        settlement.refresh_from_db()
+        
+        # Item price is 100.00. Commission is 10%.
+        # Commission amount = 10.00. Seller earnings = 90.00.
+        self.assertEqual(settlement.amount, Decimal("90.00"))
+        self.assertEqual(settlement.commission_deducted, Decimal("10.00"))
+        
+        # Test status transitions updating settled_at
+        settlement.status = "processed"
+        settlement.save()
+        self.assertIsNotNone(settlement.settled_at)
+        
+        settlement.status = "pending"
+        settlement.save()
+        self.assertIsNone(settlement.settled_at)
+
+    def test_seller_settlement_admin_isolation(self):
+        """Seller can only query/view their own settlements in django admin queryset, superuser sees all."""
+        from orders.models import SellerSettlement
+        from orders.admin import SellerSettlementAdmin
+        from django.contrib.admin.sites import AdminSite
+        
+        seller2_user = User.objects.create_user(
+            phone="5555555555",
+            password="sellerpassword",
+            role="seller",
+            full_name="Seller Two"
+        )
+        seller2_profile = SellerProfile.objects.create(
+            user=seller2_user,
+            shop_name="Shop Two",
+            is_verified=True
+        )
+        
+        sett1 = SellerSettlement.objects.create(seller=self.seller_profile, status="pending")
+        sett2 = SellerSettlement.objects.create(seller=seller2_profile, status="pending")
+        
+        admin_site = AdminSite()
+        model_admin = SellerSettlementAdmin(SellerSettlement, admin_site)
+        
+        # Superuser request
+        request = self.client.get('/')
+        request.user = self.admin_user
+        qs = model_admin.get_queryset(request)
+        self.assertEqual(qs.count(), 2)
+        
+        # Seller 1 request
+        request = self.client.get('/')
+        self.seller_user.refresh_from_db()
+        request.user = self.seller_user
+
+        qs = model_admin.get_queryset(request)
+        self.assertEqual(qs.count(), 1)
+        self.assertIn(sett1, qs)
+        self.assertNotIn(sett2, qs)
+
+    def test_razorpayx_payout_trigger(self):
+        """Verify RazorpayX payout creation flow mocks contact, fund account, and payout API calls."""
+        from unittest import mock
+        with mock.patch('requests.post') as mock_post:
+            # Set settings mock for RazorpayX credentials
+            with self.settings(RAZORPAY_KEY_ID="test_key", RAZORPAY_KEY_SECRET="test_secret", RAZORPAYX_ACCOUNT_NUMBER="12345678"):
+                # Mock contact creation
+                mock_contact_response = mock.Mock()
+                mock_contact_response.status_code = 201
+                mock_contact_response.json.return_value = {"id": "cont_test123"}
+                
+                # Mock fund account creation
+                mock_fund_response = mock.Mock()
+                mock_fund_response.status_code = 201
+                mock_fund_response.json.return_value = {"id": "fa_test123"}
+                
+                # Mock payout initiation
+                mock_payout_response = mock.Mock()
+                mock_payout_response.status_code = 201
+                mock_payout_response.json.return_value = {"id": "pout_test123", "status": "processing"}
+                
+                mock_post.side_effect = [mock_contact_response, mock_fund_response, mock_payout_response]
+                
+                # Setup bank details
+                self.seller_profile.bank_name = "Test Bank"
+                self.seller_profile.account_number = "111122223333"
+                self.seller_profile.ifsc_code = "TEST0001234"
+                self.seller_profile.account_holder_name = "Seller One"
+                self.seller_profile.save()
+                
+                from orders.models import SellerSettlement
+                sett = SellerSettlement.objects.create(seller=self.seller_profile, status="pending")
+                sett.order_items.add(self.item)
+                
+                # Trigger payout via AJAX (superuser required)
+                self.client.login(phone="9999999999", password="adminpassword")
+                response = self.client.post(
+                    reverse('orders:admin_trigger_payout_ajax', args=[sett.id]),
+                    HTTP_X_REQUESTED_WITH="XMLHttpRequest"
+                )
+                
+                self.assertEqual(response.status_code, 200)
+                sett.refresh_from_db()
+                self.assertEqual(sett.razorpay_payout_id, "pout_test123")
+                self.assertEqual(sett.status, "processed")
+                
+                self.seller_profile.refresh_from_db()
+                self.assertEqual(self.seller_profile.razorpay_contact_id, "cont_test123")
+                self.assertEqual(self.seller_profile.razorpay_fund_account_id, "fa_test123")
+
+    def test_razorpayx_webhook_updates_status(self):
+        """Verify webhook updates payout status correctly."""
+        from orders.models import SellerSettlement
+        sett = SellerSettlement.objects.create(seller=self.seller_profile, status="pending", razorpay_payout_id="pout_test999")
+        
+        # Call webhook with status processed
+        payload = {
+            "event": "payout.processed",
+            "payload": {
+                "payout": {
+                    "entity": {
+                        "id": "pout_test999",
+                        "status": "processed"
+                    }
+                }
+            }
+        }
+        response = self.client.post(
+            reverse('orders:razorpayx_webhook'),
+            data=json.dumps(payload),
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+        sett.refresh_from_db()
+        self.assertEqual(sett.status, "processed")
+        
+        # Call webhook with status failed
+        payload["event"] = "payout.failed"
+        payload["payload"]["payout"]["entity"]["status"] = "failed"
+        response = self.client.post(
+            reverse('orders:razorpayx_webhook'),
+            data=json.dumps(payload),
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+        sett.refresh_from_db()
+        self.assertEqual(sett.status, "failed")
+
+    def test_admin_create_settlement_view(self):
+        """Verify admin can create settlements via AJAX endpoint."""
+        self.client.login(phone="9999999999", password="adminpassword")
+        
+        # Test valid item
+        payload = {"order_item_ids": [self.item.id]}
+        response = self.client.post(
+            reverse('orders:admin_create_settlement_ajax', args=[self.seller_profile.id]),
+            data=json.dumps(payload),
+            content_type="application/json",
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest"
+        )
+        self.assertEqual(response.status_code, 200)
+        
+        from orders.models import SellerSettlement
+        # Only 1 settlement is created in this test method since tests are run in isolation.
+        self.assertEqual(SellerSettlement.objects.filter(seller=self.seller_profile).count(), 1)
+

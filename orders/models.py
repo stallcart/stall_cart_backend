@@ -474,3 +474,77 @@ class OrderReturnImage(BaseModel):
                 return_request=self.return_request
             ).exclude(pk=self.pk).update(is_primary=False)
         super().save(*args, **kwargs)
+
+
+class SellerSettlement(BaseModel):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('processed', 'Processed'),
+        ('failed', 'Failed'),
+    ]
+
+    seller = models.ForeignKey(
+        'items.SellerProfile',
+        on_delete=models.CASCADE,
+        related_name='settlements'
+    )
+    settlement_id = models.CharField(max_length=20, unique=True, editable=False, db_index=True)
+    amount = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'), help_text="Net amount paid to seller")
+    commission_deducted = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'), help_text="Platform commission deducted")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    payment_reference = models.CharField(max_length=100, blank=True, null=True, help_text="Transaction reference ID")
+    settled_at = models.DateTimeField(blank=True, null=True)
+    order_items = models.ManyToManyField(OrderItem, related_name='settlements', blank=True)
+    razorpay_payout_id = models.CharField(max_length=100, blank=True, null=True, unique=True, help_text="RazorpayX Payout ID")
+
+    def save(self, *args, **kwargs):
+        if not self.settlement_id:
+            date_str = timezone.now().strftime('%Y%m%d')
+            last_settlement = SellerSettlement.objects.filter(
+                settlement_id__startswith=f'SET-{date_str}-'
+            ).order_by('settlement_id').last()
+            
+            if last_settlement:
+                try:
+                    last_num = int(last_settlement.settlement_id.split('-')[-1])
+                    new_num = last_num + 1
+                except (ValueError, IndexError):
+                    new_num = 1
+            else:
+                new_num = 1
+            self.settlement_id = f'SET-{date_str}-{new_num:04d}'
+        
+        if self.status == 'processed' and not self.settled_at:
+            self.settled_at = timezone.now()
+        elif self.status != 'processed':
+            self.settled_at = None
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.settlement_id} | {self.seller.shop_name} | {self.get_status_display()}"
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Seller Settlement'
+        verbose_name_plural = 'Seller Settlements'
+
+
+from django.db.models.signals import m2m_changed
+from django.dispatch import receiver
+
+@receiver(m2m_changed, sender=SellerSettlement.order_items.through)
+def update_settlement_totals(sender, instance, action, **kwargs):
+    if action in ('post_add', 'post_remove', 'post_clear'):
+        total_earnings = Decimal('0.00')
+        total_commission = Decimal('0.00')
+        for item in instance.order_items.all():
+            total_earnings += item.seller_earnings
+            total_commission += item.commission_amount
+        
+        SellerSettlement.objects.filter(pk=instance.pk).update(
+            amount=total_earnings,
+            commission_deducted=total_commission
+        )
+        instance.amount = total_earnings
+        instance.commission_deducted = total_commission
