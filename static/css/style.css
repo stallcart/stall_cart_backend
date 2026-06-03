@@ -5177,13 +5177,22 @@ input[id$="-DELETE"] {
 
 @media (max-width: 991px) {
     .profile-layout {
-        grid-template-columns: 1fr;
+        display: flex;
+        flex-direction: column;
         gap: 24px;
+        width: 100%;
+        min-width: 0;
+        overflow: hidden;
     }
     .profile-sidebar {
         position: static;
-        min-width: 0;
         width: 100%;
+        min-width: 0;
+        overflow: hidden;
+    }
+    .profile-content {
+        width: 100%;
+        min-width: 0;
         overflow: hidden;
     }
     .profile-user-card {
@@ -5210,6 +5219,7 @@ input[id$="-DELETE"] {
         padding: 10px;
         gap: 6px;
         -webkit-overflow-scrolling: touch;
+        width: 100%;
     }
     .profile-menu-item {
         width: auto;
