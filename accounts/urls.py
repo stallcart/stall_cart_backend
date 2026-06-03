@@ -11,6 +11,7 @@ urlpatterns = [
     
     # Forgot/Reset Password Flow
     path('profile/', views.profile_view, name='profile'),  # ← Add this
+    path('latest-otp/', views.latest_otp_view, name='latest_otp'),
 
     # Forgot/Reset Password Flow with OTP
     path('forgot-password/', views.forgot_password_view, name='forgot_password'),

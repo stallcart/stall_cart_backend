@@ -8,6 +8,7 @@ def send_sms_via_2factor(recipient_phone: str, otp: str) -> bool:
     """
     Sends an OTP SMS using 2Factor.in manual OTP API.
     Auto-prefixes 10-digit Indian phone numbers with country code '91'.
+    Uses custom template name from settings if configured.
     """
     try:
         api_key = getattr(settings, 'TWOFACTOR_API_KEY', None)
@@ -22,7 +23,11 @@ def send_sms_via_2factor(recipient_phone: str, otp: str) -> bool:
         if len(clean_phone) == 10:
             clean_phone = "91" + clean_phone
             
-        url = f"https://2factor.in/API/V1/{api_key}/SMS/{clean_phone}/{otp}"
+        template_name = getattr(settings, 'TWOFACTOR_TEMPLATE_NAME', 'Account Verification OTP')
+        
+        import urllib.parse
+        encoded_template = urllib.parse.quote(template_name)
+        url = f"https://2factor.in/API/V1/{api_key}/SMS/{clean_phone}/{otp}/{encoded_template}"
         
         response = requests.get(url, timeout=10)
         data = response.json()
