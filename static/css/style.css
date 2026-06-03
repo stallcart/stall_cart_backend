@@ -5376,8 +5376,8 @@ input[id$="-DELETE"] {
         min-width: 0 !important;
         max-width: 100% !important;
     }
-    .filters-bar .btn-outline, .filters-bar .btn-clear,
-    .filter-bar .btn-outline, .filter-bar .btn-clear {
+    .filters-bar .btn-primary, .filters-bar .btn-outline, .filters-bar .btn-clear,
+    .filter-bar .btn-primary, .filter-bar .btn-outline, .filter-bar .btn-clear {
         width: 100% !important;
         justify-content: center;
     }

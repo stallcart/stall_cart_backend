@@ -122,9 +122,13 @@
             {% endfor %}
         </select>
         {% endif %}
-        <button type="submit" class="btn-outline" style="padding: 10px 18px; border-color: var(--blue-200); color: var(--blue-600); display: inline-flex; align-items: center; gap: 6px; width: auto;">🔍 Filter</button>
+        <button type="submit" class="btn-primary" style="padding: 10px 18px; display: inline-flex; align-items: center; gap: 8px; justify-content: center; border: none;">
+            <i class="fa fa-filter"></i> Filter
+        </button>
         {% if filters.search or filters.status or filters.category or filters.seller %}
-            <a href="{% url 'items:admin_dashboard' %}" class="btn-clear">Clear</a>
+            <a href="{% url 'items:admin_dashboard' %}" class="btn-outline" style="padding: 10px 18px; display: inline-flex; align-items: center; gap: 8px; justify-content: center;">
+                <i class="fa fa-times"></i> Clear
+            </a>
         {% endif %}
     </form>    <!-- ══ Products Table ════════════════════════════════════════════════════ -->
     <div class="table-wrapper">
