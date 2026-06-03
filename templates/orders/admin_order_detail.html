@@ -117,7 +117,7 @@
                             {{ log.get_new_status_display }}
                         </strong>
                         <span style="font-size: 0.75rem; color: var(--gray-500);">
-                            Changed by: {{ log.changed_by.full_name|default:log.changed_by.phone|default:"System" }} 
+                            Changed by: {% if log.changed_by %}{{ log.changed_by.full_name|default:log.changed_by.phone }}{% else %}System{% endif %}
                             • {{ log.timestamp|date:"d M Y, h:i A" }}
                         </span>
                         {% if log.remarks %}
