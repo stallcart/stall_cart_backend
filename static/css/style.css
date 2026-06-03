@@ -5361,3 +5361,24 @@ input[id$="-DELETE"] {
         font-size: 0.65rem;
     }
 }
+
+@media (max-width: 576px) {
+    .filters-bar, .filter-bar, .filter-bar-admin {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        padding: 12px;
+    }
+    .filters-bar .form-input, .filters-bar .form-select,
+    .filter-bar .form-input, .filter-bar .form-select,
+    .filter-bar-admin .form-input, .filter-bar-admin .form-select {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+    }
+    .filters-bar .btn-outline, .filters-bar .btn-clear,
+    .filter-bar .btn-outline, .filter-bar .btn-clear {
+        width: 100% !important;
+        justify-content: center;
+    }
+}

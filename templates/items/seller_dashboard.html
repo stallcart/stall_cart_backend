@@ -30,7 +30,7 @@
 
     <!-- Filters -->
     <form method="get" class="filters-bar">
-        <input type="text" name="search" placeholder="Search by name or SKU..." value="{{ filters.search }}" class="form-input" style="flex: 1; min-width: 180px;">
+        <input type="text" name="search" placeholder="Search by name or SKU..." value="{{ filters.search }}" class="form-input" style="flex: 1; min-width: 180px; max-width: 360px;">
         <select name="category" class="form-select" style="min-width: 150px;">
             <option value="">All Categories</option>
             {% for cat in categories %}
