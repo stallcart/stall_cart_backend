@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.translation import gettext_lazy as _
 
-from .models import User, Address, SellerShopAddress, Wallet, WalletTransaction
+from .models import User, Address, SellerShopAddress, Wallet, WalletTransaction, OTPRequest
 
 
 # ===============================
@@ -123,3 +123,15 @@ class WalletTransactionAdmin(admin.ModelAdmin):
     list_filter = ('transaction_type', 'timestamp')
     search_fields = ('wallet__user__phone', 'wallet__user__full_name', 'reference_id')
     readonly_fields = ('timestamp',)
+
+
+# ===============================
+# ✅ OTP REQUEST ADMIN
+# ===============================
+@admin.register(OTPRequest)
+class OTPRequestAdmin(admin.ModelAdmin):
+    list_display = ('phone', 'purpose', 'otp', 'is_verified', 'expires_at', 'created_at')
+    list_filter = ('purpose', 'is_verified', 'expires_at', 'created_at')
+    search_fields = ('phone', 'otp')
+    ordering = ('-created_at',)
+    readonly_fields = ('created_at', 'updated_at')

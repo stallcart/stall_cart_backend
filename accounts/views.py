@@ -144,7 +144,7 @@ def register_view(request):
                 
                 return JsonResponse({
                     'status': 'success',
-                    'message': f'Verification OTPs sent to email: {email} and mobile: {phone}. (For demo testing, Email OTP: {otp_email_req.otp}, Mobile OTP: {otp_phone_req.otp})'
+                    'message': f'Verification OTPs sent to email: {email} and mobile: {phone}.'
                 })
             
             # Action 2: Verify OTPs and complete registration
@@ -287,7 +287,7 @@ def send_change_password_otp(request):
     
     return JsonResponse({
         'status': 'success',
-        'message': f'OTP sent successfully to your registered email: {recipient}. (For testing, OTP is: {otp_req.otp})'
+        'message': f'OTP sent successfully to your registered email: {recipient}.'
     })
 
 
@@ -364,7 +364,7 @@ def forgot_password_view(request):
         
         # Save to session
         request.session['forgot_phone'] = phone
-        messages.success(request, f"OTP sent to your registered email address: {recipient}. (For testing, OTP is: {otp_req.otp})")
+        messages.success(request, f"OTP sent to your registered email address: {recipient}.")
         return redirect('accounts:forgot_password_verify')
         
     return render(request, 'accounts/forgot_password.html')
@@ -934,19 +934,9 @@ def profile_view(request):
                 if phone_sent:
                     msg_parts.append(f"OTP sent to new mobile: {new_phone}")
                 
-                # Help text showing demo OTPs to make it easy for user testing
-                demo_help = ""
-                if email_sent and phone_sent:
-                    # Both changed, show both OTPs in demo
-                    demo_help = f" (For demo, Email OTP: {email_otp_req.otp}, Mobile OTP: {phone_otp_req.otp})"
-                elif email_sent:
-                    demo_help = f" (For demo, Email OTP: {email_otp_req.otp})"
-                elif phone_sent:
-                    demo_help = f" (For demo, Mobile OTP: {phone_otp_req.otp})"
-                
                 return JsonResponse({
                     'status': 'success',
-                    'message': " & ".join(msg_parts) + "." + demo_help,
+                    'message': " & ".join(msg_parts) + ".",
                     'email_sent': email_sent,
                     'phone_sent': phone_sent
                 })
