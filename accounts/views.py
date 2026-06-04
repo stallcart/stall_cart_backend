@@ -148,93 +148,95 @@ def register_view(request):
             
             # Action 2: Verify OTPs and complete registration
             elif action == 'register':
-                form = UserRegistrationForm(data)
-                if not form.is_valid():
-                    return JsonResponse({'status': 'error', 'errors': form.errors}, status=400)
-                
-                email_otp = data.get('email_otp', '').strip()
-                phone_otp = data.get('phone_otp', '').strip()
-                
-                if not email_otp or not phone_otp:
-                    return JsonResponse({'status': 'error', 'message': 'Email OTP and Mobile OTP are required to verify and create account.'}, status=400)
-                
-                phone = form.cleaned_data['phone']
-                email = form.cleaned_data['email']
-                from django.utils import timezone
-                
-                # Verify Phone OTP
-                otp_phone_req = OTPRequest.objects.filter(
-                    phone=phone,
-                    purpose='register_phone',
-                    otp=phone_otp,
-                    is_verified=False,
-                    expires_at__gt=timezone.now()
-                ).first()
-                
-                # Verify Email OTP
-                otp_email_req = OTPRequest.objects.filter(
-                    phone=email,
-                    purpose='register_email',
-                    otp=email_otp,
-                    is_verified=False,
-                    expires_at__gt=timezone.now()
-                ).first()
-                
-                if not otp_phone_req:
-                    return JsonResponse({'status': 'error', 'message': 'Invalid or expired Mobile OTP'}, status=400)
-                if not otp_email_req:
-                    return JsonResponse({'status': 'error', 'message': 'Invalid or expired Email OTP'}, status=400)
-                
-                # Mark OTPs as verified
-                otp_phone_req.is_verified = True
-                otp_phone_req.save()
-                otp_email_req.is_verified = True
-                otp_email_req.save()
-                
-                # Create user
-                user = form.save(commit=False)
-                user.role = form.cleaned_data['user_role']
-                user.save()
-                
-                # If seller, create SellerProfile
-                if user.role == 'seller':
-                    profile = SellerProfile.objects.create(
-                        user=user,
-                        shop_name=form.cleaned_data['shop_name'],
-                        shop_description=form.cleaned_data.get('shop_description', ''),
-                        gst_number=form.cleaned_data.get('gst_number'),
-                        phone=user.phone,
+                from django.db import transaction
+                with transaction.atomic():
+                    form = UserRegistrationForm(data)
+                    if not form.is_valid():
+                        return JsonResponse({'status': 'error', 'errors': form.errors}, status=400)
+                    
+                    email_otp = data.get('email_otp', '').strip()
+                    phone_otp = data.get('phone_otp', '').strip()
+                    
+                    if not email_otp or not phone_otp:
+                        return JsonResponse({'status': 'error', 'message': 'Email OTP and Mobile OTP are required to verify and create account.'}, status=400)
+                    
+                    phone = form.cleaned_data['phone']
+                    email = form.cleaned_data['email']
+                    from django.utils import timezone
+                    
+                    # Verify Phone OTP
+                    otp_phone_req = OTPRequest.objects.filter(
+                        phone=phone,
+                        purpose='register_phone',
+                        otp=phone_otp,
                         is_verified=False,
-                        created_by=user
-                    )
-                    # Notify admin of new seller pending verification via dynamic template
-                    try:
-                        from common.email_service import send_dynamic_email
-                        from accounts.models import User as AuthUser
-                        admins = AuthUser.objects.filter(role='admin', is_active=True)
-                        admin_emails = [admin.email for admin in admins if admin.email]
-                        if admin_emails:
-                            send_dynamic_email('admin_notify_verification', admin_emails, {
-                                'shop_name': profile.shop_name,
-                                'seller_name': user.full_name or user.phone,
-                                'phone': user.phone,
-                                'email': user.email,
-                                'dashboard_url': request.build_absolute_uri('/items/admin/verify-sellers/')
-                            })
-                    except Exception as e:
-                        logger.error(f"Failed to notify admins of new seller: {e}")
+                        expires_at__gt=timezone.now()
+                    ).first()
+                    
+                    # Verify Email OTP
+                    otp_email_req = OTPRequest.objects.filter(
+                        phone=email,
+                        purpose='register_email',
+                        otp=email_otp,
+                        is_verified=False,
+                        expires_at__gt=timezone.now()
+                    ).first()
+                    
+                    if not otp_phone_req:
+                        return JsonResponse({'status': 'error', 'message': 'Invalid or expired Mobile OTP'}, status=400)
+                    if not otp_email_req:
+                        return JsonResponse({'status': 'error', 'message': 'Invalid or expired Email OTP'}, status=400)
+                    
+                    # Mark OTPs as verified
+                    otp_phone_req.is_verified = True
+                    otp_phone_req.save()
+                    otp_email_req.is_verified = True
+                    otp_email_req.save()
+                    
+                    # Create user
+                    user = form.save(commit=False)
+                    user.role = form.cleaned_data['user_role']
+                    user.save()
+                    
+                    # If seller, create SellerProfile
+                    if user.role == 'seller':
+                        profile = SellerProfile.objects.create(
+                            user=user,
+                            shop_name=form.cleaned_data['shop_name'],
+                            shop_description=form.cleaned_data.get('shop_description', ''),
+                            gst_number=form.cleaned_data.get('gst_number'),
+                            phone=user.phone,
+                            is_verified=False,
+                            created_by=user
+                        )
+                        # Notify admin of new seller pending verification via dynamic template
+                        try:
+                            from common.email_service import send_dynamic_email
+                            from accounts.models import User as AuthUser
+                            admins = AuthUser.objects.filter(role='admin', is_active=True)
+                            admin_emails = [admin.email for admin in admins if admin.email]
+                            if admin_emails:
+                                send_dynamic_email('admin_notify_verification', admin_emails, {
+                                    'shop_name': profile.shop_name,
+                                    'seller_name': user.full_name or user.phone,
+                                    'phone': user.phone,
+                                    'email': user.email,
+                                    'dashboard_url': request.build_absolute_uri('/items/admin/verify-sellers/')
+                                })
+                        except Exception as e:
+                            logger.error(f"Failed to notify admins of new seller: {e}")
 
-                    messages.success(request, f"🎉 Seller account created! Your shop '{form.cleaned_data['shop_name']}' is pending verification.")
-                else:
-                    messages.success(request, "✅ Account created successfully! Welcome to StallCart.")
-                
-                # Auto-login
-                login(request, user)
-                
-                return JsonResponse({
-                    'status': 'success', 
-                    'redirect': '/'
-                })
+                        messages.success(request, f"🎉 Seller account created! Your shop '{form.cleaned_data['shop_name']}' is pending verification.")
+                    else:
+                        messages.success(request, "✅ Account created successfully! Welcome to StallCart.")
+                    
+                    # Auto-login
+                    login(request, user)
+                    
+                    return JsonResponse({
+                        'status': 'success', 
+                        'redirect': '/'
+                    })
             
             return JsonResponse({'status': 'error', 'message': 'Invalid AJAX action'}, status=400)
             
@@ -1174,6 +1176,21 @@ def profile_view(request):
     # ===== GET REQUEST: Render Profile Page =====
     # ... (rest of your GET logic remains unchanged) ...
     is_customer = request.user.role == 'customer'
+    
+    # Auto-heal: Create a default SellerProfile if it was missed during registration (e.g. database migration delay)
+    if request.user.role == 'seller' and not hasattr(request.user, 'seller_profile'):
+        from items.models import SellerProfile
+        try:
+            SellerProfile.objects.create(
+                user=request.user,
+                shop_name=f"Shop_{request.user.phone}",
+                phone=request.user.phone,
+                is_verified=False,
+                created_by=request.user
+            )
+        except Exception as e:
+            logger.error(f"Failed to auto-heal/create SellerProfile in profile view: {e}")
+
     is_seller = request.user.role == 'seller' and hasattr(request.user, 'seller_profile')
     is_admin = request.user.is_superuser
     
