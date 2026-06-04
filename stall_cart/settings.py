@@ -24,6 +24,15 @@ SECRET_KEY = env('SECRET_KEY')
 DEBUG = env('DEBUG')
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
 
+# Configure CSRF trusted origins dynamically based on ALLOWED_HOSTS
+CSRF_TRUSTED_ORIGINS = []
+for host in ALLOWED_HOSTS:
+    if host == '*':
+        continue
+    domain = host[1:] if host.startswith('.') else host
+    CSRF_TRUSTED_ORIGINS.append(f"https://{domain}")
+    CSRF_TRUSTED_ORIGINS.append(f"http://{domain}")
+
 INSTALLED_APPS = [
     'colorfield',  # Required dependency for admin_interface
     'admin_interface',
