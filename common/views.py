@@ -26,10 +26,16 @@ def custom_400(request, exception=None):
     return redirect_to_safe_location(request)
 
 def custom_500(request):
-    """Show 500 as toast popup (no exception param)"""
-    messages.error(request, "💥 Something went wrong on our end. We've been notified!")
-    # For 500 errors, always go home to avoid cascading failures
-    return redirect(reverse('shop:home'))
+    """Render the premium 500 error page and log the traceback to error.log"""
+    import logging
+    import traceback
+    from django.shortcuts import render
+    
+    logger = logging.getLogger('django')
+    tb_info = traceback.format_exc()
+    logger.error(f"Internal Server Error on {request.path}:\n{tb_info}")
+    
+    return render(request, 'errors/500.html', status=500)
 
 def redirect_to_safe_location(request):
     """Redirect to referrer or home, avoiding open redirect vulnerabilities"""
