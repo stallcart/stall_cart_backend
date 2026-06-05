@@ -47,6 +47,18 @@ def _build_message(token: str, payload: NotificationPayload) -> messaging.Messag
         'tag': payload.tag,
         **{k: str(v) for k, v in payload.data.items()},
     }
+    
+    # Ensure the webpush link is a valid absolute HTTPS URL
+    click_url = payload.click_action
+    if click_url:
+        if click_url.startswith('/'):
+            click_url = f"https://stallcart.in{click_url}"
+        elif click_url.startswith('http://'):
+            click_url = click_url.replace('http://', 'https://', 1)
+        
+        if not click_url.startswith('https://'):
+            click_url = None
+
     return messaging.Message(
         token=token,
         notification=messaging.Notification(
@@ -67,7 +79,7 @@ def _build_message(token: str, payload: NotificationPayload) -> messaging.Messag
                     messaging.WebpushNotificationAction(action='close', title='Dismiss'),
                 ],
             ),
-            fcm_options=messaging.WebpushFCMOptions(link=payload.click_action),
+            fcm_options=messaging.WebpushFCMOptions(link=click_url) if click_url else None,
         ),
         data=extra_data,
     )

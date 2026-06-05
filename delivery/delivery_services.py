@@ -166,11 +166,36 @@ class ShiprocketService:
         first_name = name_parts[0] if name_parts else "Customer"
         last_name = name_parts[1] if len(name_parts) > 1 else ""
 
+        # Email fallback (required by Shiprocket)
+        email_val = ""
+        if order.user and order.user.email:
+            email_val = order.user.email.strip()
+        elif order.guest_email:
+            email_val = order.guest_email.strip()
+            
+        if not email_val or "@" not in email_val:
+            email_val = "customer@stallcart.in"
+
+        # Try to resolve seller pickup location dynamically from SellerShopAddress
+        pickup_loc_name = getattr(settings, "SHIPROCKET_PICKUP_LOCATION", "Primary")
+        try:
+            first_item = items.first()
+            if first_item and first_item.product.seller:
+                seller = first_item.product.seller
+                if hasattr(seller, 'shop_address') and seller.shop_address:
+                    shop_addr = seller.shop_address
+                    if shop_addr.address_line1 and shop_addr.city and shop_addr.state and shop_addr.postal_code:
+                        pickup_loc_name = f"Seller_{seller.id}"
+                        # Ensure this pickup location exists in Shiprocket
+                        self._ensure_pickup_location_registered(pickup_loc_name, seller, shop_addr)
+        except Exception as e:
+            logger.warning(f"Failed to resolve seller pickup address dynamically: {e}")
+
         order_payload = {
             "order_id": order.unique_order_id,
             "order_date": order.created_at.strftime("%Y-%m-%d %H:%M"),
             "channel_id": getattr(settings, "SHIPROCKET_CHANNEL_ID", ""),
-            "pickup_location": getattr(settings, "SHIPROCKET_PICKUP_LOCATION", "Primary"),
+            "pickup_location": pickup_loc_name,
             
             "billing_customer_name": first_name,
             "billing_last_name": last_name,
@@ -180,7 +205,7 @@ class ShiprocketService:
             "billing_pincode": addr.get("postal_code", ""),
             "billing_state": addr.get("state", ""),
             "billing_country": addr.get("country", "India"),
-            "billing_email": order.user.email if order.user else order.guest_email or "",
+            "billing_email": email_val,
             "billing_phone": addr.get("phone", ""),
             
             "shipping_is_billing": True,
@@ -192,7 +217,7 @@ class ShiprocketService:
             "shipping_pincode": addr.get("postal_code", ""),
             "shipping_state": addr.get("state", ""),
             "shipping_country": addr.get("country", "India"),
-            "shipping_email": order.user.email if order.user else order.guest_email or "",
+            "shipping_email": email_val,
             "shipping_phone": addr.get("phone", ""),
             
             "order_items": [
@@ -305,6 +330,47 @@ class ShiprocketService:
         except Exception as e:
             logger.error(f"Shiprocket AWB assignment failed: {e}")
             return {}
+
+    def _ensure_pickup_location_registered(self, nickname, seller, shop_addr):
+        """Register the seller's shop address as a pickup location in Shiprocket."""
+        # Clean up phone
+        clean_phone = "".join(c for c in str(shop_addr.shop_phone or seller.user.phone) if c.isdigit())
+        if len(clean_phone) >= 10:
+            clean_phone = clean_phone[-10:]
+        else:
+            clean_phone = "9999999999"
+            
+        # Clean up pincode
+        clean_pincode = "".join(c for c in str(shop_addr.postal_code) if c.isdigit()).strip()
+        if len(clean_pincode) != 6:
+            clean_pincode = "221005"
+            
+        payload = {
+            "pickup_location": nickname[:36],  # Max 36 chars
+            "name": (shop_addr.shop_name or seller.shop_name or "Seller")[:40],
+            "email": shop_addr.shop_email or seller.user.email or "seller@stallcart.in",
+            "phone": clean_phone,
+            "address": shop_addr.address_line1[:80],  # Max 80 chars
+            "address_2": shop_addr.address_line2[:80] if shop_addr.address_line2 else "",
+            "city": shop_addr.city[:50],
+            "state": shop_addr.state[:50],
+            "pincode": clean_pincode,
+            "country": shop_addr.country or "India"
+        }
+        
+        try:
+            res = requests.post(
+                f"{SHIPROCKET_API}/settings/company/addpickup",
+                json=payload,
+                headers=self._headers(),
+                timeout=10
+            )
+            if res.status_code == 200:
+                logger.info(f"Registered pickup location '{nickname}' in Shiprocket: {res.json()}")
+            else:
+                logger.info(f"Add pickup location returned status {res.status_code}: {res.text}")
+        except Exception as e:
+            logger.warning(f"Error registering pickup location '{nickname}' in Shiprocket: {e}")
  
     # ── Tracking ──────────────────────────────────────────────────────────────
  
