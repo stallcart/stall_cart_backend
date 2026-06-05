@@ -36,6 +36,45 @@ razorpay_client = razorpay.Client(auth=(
     settings.RAZORPAY_KEY_SECRET
 ))
 
+def build_cleaned_timeline(order):
+    """
+    Builds a list of status log entries for public/seller timelines.
+    Excludes internal developer debug logs (where status didn't transition)
+    and logs containing technical/system messages (like API payloads or alert emails).
+    """
+    status_logs = order.status_logs.select_related('changed_by').order_by('timestamp')
+    status_labels = {
+        'pending': 'Order Placed', 
+        'confirmed': 'Order Confirmed',
+        'processing': 'Processing', 
+        'shipped': 'Shipped',
+        'out_for_delivery': 'Out for Delivery', 
+        'delivered': 'Delivered',
+        'returned_to_source': 'Returned to Source (RTO)',
+        'returned': 'Returned & Refunded',
+        'cancelled': 'Cancelled',
+    }
+    
+    cleaned_timeline = []
+    for log in status_logs:
+        # Skip internal updates where status didn't change (e.g. debug payloads/alerts)
+        if log.old_status == log.new_status:
+            continue
+            
+        # Skip explicit developer debug/error remarks
+        remarks = log.remarks or ""
+        if remarks.startswith("❌") or remarks.startswith("⚠️") or "API Request Payload" in remarks or "Failed to auto-push" in remarks:
+            continue
+            
+        cleaned_timeline.append({
+            'status': log.new_status,
+            'label': status_labels.get(log.new_status, log.new_status),
+            'get_new_status_display': log.get_new_status_display(),
+            'timestamp': log.timestamp,
+            'remarks': remarks,
+        })
+    return cleaned_timeline
+
 # ==================== CUSTOMER VIEWS ====================
 
 # orders/views.py
@@ -128,27 +167,7 @@ def order_detail(request, order_id):
     # Live Shiprocket sync
     shiprocket_tracking = sync_shiprocket_tracking(order)
     
-    timeline = []
-    status_logs = order.status_logs.select_related('changed_by').order_by('timestamp')
-    status_labels = {
-        'pending': 'Order Placed', 
-        'confirmed': 'Order Confirmed',
-        'processing': 'Processing', 
-        'shipped': 'Shipped',
-        'out_for_delivery': 'Out for Delivery', 
-        'delivered': 'Delivered',
-        'returned_to_source': 'Returned to Source (RTO)',
-        'returned': 'Returned & Refunded',
-        'cancelled': 'Cancelled',
-    }
-    
-    for log in status_logs:
-        timeline.append({
-            'status': log.new_status,
-            'label': status_labels.get(log.new_status, log.new_status),
-            'timestamp': log.timestamp,
-            'remarks': log.remarks,
-        })
+    timeline = build_cleaned_timeline(order)
     
     context = {
         'order': order,
@@ -606,20 +625,7 @@ def seller_order_detail(request, order_id):
         seller_commission_total += item.commission_amount
         seller_earnings_total += item.seller_earnings
 
-    timeline = []
-    status_logs = order.status_logs.select_related('changed_by').order_by('timestamp')
-    status_labels = {
-        'pending': 'Order Placed', 'confirmed': 'Order Confirmed',
-        'processing': 'Processing', 'shipped': 'Shipped',
-        'out_for_delivery': 'Out for Delivery', 'delivered': 'Delivered',
-        'returned_to_source': 'Returned to Source', 'returned': 'Returned',
-    }
-    for log in status_logs:
-        timeline.append({
-            'status': log.new_status,
-            'label': status_labels.get(log.new_status, log.new_status),
-            'timestamp': log.timestamp, 'remarks': log.remarks,
-        })
+    timeline = build_cleaned_timeline(order)
     
     pending_returns = ReturnRequest.objects.filter(
         order_item__order=order,
@@ -1031,7 +1037,7 @@ def track_order_public(request, order_id):
     # Live Shiprocket sync
     shiprocket_tracking = sync_shiprocket_tracking(order)
     
-    timeline = OrderStatusLog.objects.filter(order=order).order_by('timestamp')
+    timeline = build_cleaned_timeline(order)
     context = {
         'order': order, 
         'timeline': timeline,
