@@ -52,6 +52,16 @@ DEFAULT_TEMPLATES = {
         'subject': "StallCart Seller - New Order {{ order_id }} Received",
         'body': "Hello {{ seller_name }},\n\nYou have received a new order #{{ order_id }} containing your products.\n\n--- Items to Prepare ---\n{{ items_list }}\n\n--- Shipping Address ---\n{{ shipping_address }}\n\nPlease prepare the items for pickup/shipping.\n\nBest Regards,\nStallCart Team",
         'description': "Email notification sent to seller when a customer orders their products"
+    },
+    'admin_seller_awb_alert': {
+        'subject': "StallCart Action Required - Update Tracking AWB for Order {{ order_id }}",
+        'body': "Hello,\n\nOrder #{{ order_id }} is currently in '{{ status }}' status but does not have a tracking AWB number assigned in StallCart.\n\nResolved Pickup Location: {{ pickup_location }}\nCustomer Name: {{ customer_name }}\n\nPlease update the tracking/AWB number for this order in the admin portal to keep the customer updated.\n\nLink to Order: {{ admin_order_url }}\n\nBest Regards,\nStallCart Team",
+        'description': "Alert sent to admin or seller when an order is processing/confirmed but has no tracking/AWB assigned"
+    },
+    'awb_assigned_notification': {
+        'subject': "StallCart - Tracking AWB assigned for Order {{ order_id }}",
+        'body': "Hello,\n\nTracking AWB number {{ tracking_number }} ({{ courier_name }}) has been assigned to Order #{{ order_id }}.\n\nLink to Order: {{ admin_order_url }}\n\nBest Regards,\nStallCart Team",
+        'description': "Notification sent to admin/seller when AWB tracking is automatically synced"
     }
 }
 

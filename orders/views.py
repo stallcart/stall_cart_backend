@@ -969,24 +969,44 @@ def shiprocket_webhook(request):
         }
         
         new_local_status = status_map.get(sr_status)
-        if new_local_status and new_local_status != order.status:
+        tracking_updated = False
+        if awb and not order.tracking_number:
+            order.tracking_number = awb
+            tracking_updated = True
+
+        if (new_local_status and new_local_status != order.status) or tracking_updated:
             old_status = order.status
-            order.status = new_local_status
-            if new_local_status == 'delivered':
-                order.delivered_at = timezone.now()
-            elif new_local_status == 'shipped' and not order.shipped_at:
-                order.shipped_at = timezone.now()
-                
-            order.save(update_fields=['status', 'delivered_at', 'shipped_at', 'updated_at'])
+            update_fields = ['updated_at']
             
-            # Log status change in OrderStatusLog
+            if new_local_status and new_local_status != order.status:
+                order.status = new_local_status
+                update_fields.append('status')
+                if new_local_status == 'delivered':
+                    order.delivered_at = timezone.now()
+                    update_fields.append('delivered_at')
+                elif new_local_status == 'shipped' and not order.shipped_at:
+                    order.shipped_at = timezone.now()
+                    update_fields.append('shipped_at')
+                    
+            if tracking_updated:
+                update_fields.append('tracking_number')
+                
+            order.save(update_fields=update_fields)
+            
+            # Log status/tracking change in OrderStatusLog
+            remarks_parts = []
+            if new_local_status and new_local_status != old_status:
+                remarks_parts.append(f"Status changed to {sr_status}")
+            if tracking_updated:
+                remarks_parts.append(f"AWB tracking number set to {awb}")
+                
             OrderStatusLog.objects.create(
                 order=order,
                 old_status=old_status,
-                new_status=new_local_status,
-                remarks=f"Automatic update via Shiprocket Webhook (Status: {sr_status})"
+                new_status=order.status,
+                remarks=f"Automatic update via Shiprocket Webhook ({', '.join(remarks_parts)})"
             )
-            logger.info(f"Shiprocket Webhook: Updated order {order.unique_order_id} status from {old_status} to {new_local_status}")
+            logger.info(f"Shiprocket Webhook: Updated order {order.unique_order_id}. Status: {old_status} -> {order.status}. AWB updated: {tracking_updated}")
             
         return HttpResponse("OK", status=200)
         
