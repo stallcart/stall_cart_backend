@@ -95,15 +95,21 @@ def run_debug():
         if len(clean_pincode) != 6:
             clean_pincode = "221005"
             
+        # Ensure address contains at least one digit (Shiprocket requires house/flat/road number)
+        address_line = (shop_addr.address_line1 or "").strip()
+        if not any(c.isdigit() for c in address_line):
+            address_line = f"Shop No. 1, {address_line}"
+            
         pickup_payload = {
             "pickup_location": pickup_loc_name[:36],
             "name": (shop_addr.shop_name or seller.shop_name or "Seller")[:40],
             "email": shop_addr.shop_email or seller.user.email or "seller@stallcart.in",
             "phone": clean_phone,
-            "address": shop_addr.address_line1[:80],
+            "address": address_line[:80],
             "address_2": shop_addr.address_line2[:80] if shop_addr.address_line2 else "",
-            "city": shop_addr.city[:50],
-            "state": shop_addr.state[:50],
+            "city": shop_addr.city[:50].strip(),
+            "state": shop_addr.state[:50].strip(),
+            "pin_code": clean_pincode,
             "pincode": clean_pincode,
             "country": shop_addr.country or "India"
         }

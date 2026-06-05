@@ -99,6 +99,12 @@ def repair_address(addr, order=None):
     if not addr.get("country"):
         addr["country"] = "India"
 
+    # 8. Ensure address_line1 contains at least one digit (Shiprocket requires house/flat/road number)
+    if addr.get("address_line1"):
+        addr_line = str(addr["address_line1"])
+        if not any(c.isdigit() for c in addr_line):
+            addr["address_line1"] = f"House No. 1, {addr_line}"
+
     # Clean up keys and values again after any edits
     for k, v in list(addr.items()):
         if isinstance(v, str):
@@ -359,15 +365,21 @@ class ShiprocketService:
         if len(clean_pincode) != 6:
             clean_pincode = "221005"
             
+        # Ensure address contains at least one digit (Shiprocket requires house/flat/road number)
+        address_line = (shop_addr.address_line1 or "").strip()
+        if not any(c.isdigit() for c in address_line):
+            address_line = f"Shop No. 1, {address_line}"
+            
         payload = {
             "pickup_location": nickname[:36],  # Max 36 chars
             "name": (shop_addr.shop_name or seller.shop_name or "Seller")[:40],
             "email": shop_addr.shop_email or seller.user.email or "seller@stallcart.in",
             "phone": clean_phone,
-            "address": shop_addr.address_line1[:80],  # Max 80 chars
+            "address": address_line[:80],  # Max 80 chars
             "address_2": shop_addr.address_line2[:80] if shop_addr.address_line2 else "",
-            "city": shop_addr.city[:50],
-            "state": shop_addr.state[:50],
+            "city": shop_addr.city[:50].strip(),
+            "state": shop_addr.state[:50].strip(),
+            "pin_code": clean_pincode,
             "pincode": clean_pincode,
             "country": shop_addr.country or "India"
         }
