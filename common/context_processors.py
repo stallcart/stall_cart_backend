@@ -9,7 +9,10 @@ def site_settings(request):
     logo_url = settings.logo_primary.url if settings.logo_primary else ''
     
     # Build absolute URL for Open Graph
-    og_logo = request.build_absolute_uri(logo_url) if logo_url and request else ''
+    try:
+        og_logo = request.build_absolute_uri(logo_url) if logo_url and request else ''
+    except Exception:
+        og_logo = logo_url  # Fallback to relative URL if get_host() raises DisallowedHost
     
     return {
         'site_settings': settings,
