@@ -346,28 +346,41 @@ def forgot_password_view(request):
             messages.error(request, "Mobile number not registered.")
             return render(request, 'accounts/forgot_password.html')
             
-        recipient = user.email
-        if not recipient:
-            messages.error(request, "Registered user does not have an email address. Please contact support.")
-            return render(request, 'accounts/forgot_password.html')
-            
-        otp_req, err = OTPRequest.check_and_create_otp(recipient, 'forgot_password')
+        # Create OTP request on the phone number
+        otp_req, err = OTPRequest.check_and_create_otp(phone, 'forgot_password')
         if err:
             messages.error(request, err)
             return render(request, 'accounts/forgot_password.html')
             
-        # Try sending via dynamic email
+        # Send OTP via 2Factor SMS
+        sms_sent = False
         try:
-            from common.email_service import send_dynamic_email
-            send_dynamic_email('forgot_password_otp', [recipient], {'otp': otp_req.otp, 'user': user})
+            from common.sms_service import send_sms_via_2factor
+            sms_sent = send_sms_via_2factor(phone, otp_req.otp)
         except Exception as e:
-            logger.error(f"Dynamic email OTP send failed: {e}")
+            logger.error(f"Failed to send forgot password SMS OTP: {e}")
             
-        print(f"🔑 [EMAIL OTP DEMO] Sent OTP to {recipient} for password reset: {otp_req.otp}")
+        print(f"📱 [PHONE OTP DEMO] Sent OTP to {phone} for password reset: {otp_req.otp}")
         
+        # Also try sending via dynamic email if user has email
+        email_sent = False
+        recipient = user.email
+        if recipient:
+            try:
+                from common.email_service import send_dynamic_email
+                email_sent = send_dynamic_email('forgot_password_otp', [recipient], {'otp': otp_req.otp, 'user': user})
+            except Exception as e:
+                logger.error(f"Dynamic email OTP send failed: {e}")
+            print(f"🔑 [EMAIL OTP DEMO] Sent OTP to {recipient} for password reset: {otp_req.otp}")
+
         # Save to session
         request.session['forgot_phone'] = phone
-        messages.success(request, f"OTP sent to your registered email address: {recipient}.")
+        
+        if email_sent:
+            messages.success(request, f"OTP sent successfully via SMS to {phone} and email to {recipient}.")
+        else:
+            messages.success(request, f"OTP sent successfully via SMS to {phone}.")
+            
         return redirect('accounts:forgot_password_verify')
         
     return render(request, 'accounts/forgot_password.html')
@@ -386,15 +399,9 @@ def forgot_password_verify_view(request):
             messages.error(request, "OTP is required.")
             return render(request, 'accounts/forgot_password_verify.html', {'phone': phone})
             
-        user = User.objects.filter(phone=phone).first()
-        recipient = user.email if (user and user.email) else None
-        if not recipient:
-            messages.error(request, "Registered user does not have an email address.")
-            return render(request, 'accounts/forgot_password_verify.html', {'phone': phone})
-
         from django.utils import timezone
         otp_req = OTPRequest.objects.filter(
-            phone=recipient,
+            phone=phone,
             purpose='forgot_password',
             otp=otp_code,
             is_verified=False,
