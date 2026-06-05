@@ -131,5 +131,6 @@ urlpatterns = [
      path('admin/settlement/<int:settlement_id>/payout/', views.admin_trigger_payout_ajax, name='admin_trigger_payout_ajax'),
      path('admin/seller/<int:seller_id>/create-settlement/', views.admin_create_settlement_ajax, name='admin_create_settlement_ajax'),
      path('razorpayx-webhook/', views.razorpayx_webhook, name='razorpayx_webhook'),
+     path('admin/toggle-jobs/', admin_only(views.admin_toggle_jobs_ajax), name='admin_toggle_jobs_ajax'),
          
 ]

@@ -936,4 +936,26 @@ class BackgroundJobAndEmailSyncTests(TestCase):
         call_command("sync_shiprocket_awb", stdout=out)
         self.assertIn("globally disabled in Site Settings", out.getvalue())
 
+    def test_admin_toggle_jobs_ajax_view(self):
+        """Verify only admins can toggle jobs via AJAX."""
+        # 1. Non-admin customer gets blocked (redirect or 403)
+        self.client.login(phone="9876543211", password="password")
+        response = self.client.post(reverse('orders:admin_toggle_jobs_ajax'))
+        self.assertNotEqual(response.status_code, 200)
+        
+        # 2. Superuser succeeds
+        self.client.login(phone="9999999999", password="adminpassword")
+        self.site_settings.enable_background_jobs = True
+        self.site_settings.save()
+        
+        response = self.client.post(reverse('orders:admin_toggle_jobs_ajax'))
+        self.assertEqual(response.status_code, 200)
+        
+        data = response.json()
+        self.assertEqual(data['status'], 'success')
+        self.assertFalse(data['enable_background_jobs'])
+        
+        self.site_settings.refresh_from_db()
+        self.assertFalse(self.site_settings.enable_background_jobs)
+
 

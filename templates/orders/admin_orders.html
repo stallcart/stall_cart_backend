@@ -28,6 +28,32 @@
         </div>
     </div>
 
+    <!-- ⚙️ Background Jobs Control Dashboard -->
+    <div class="jobs-control-panel" style="background: white; padding: 20px; border-radius: var(--r-xl); border: 1.5px solid var(--gray-100); box-shadow: var(--sh-md); margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="background: var(--gray-50); padding: 12px; border-radius: var(--r-xl); color: var(--gray-700); border: 1px solid var(--gray-100);">
+                <i class="fa fa-cogs" style="font-size: 1.4rem;"></i>
+            </div>
+            <div>
+                <h4 style="margin: 0 0 2px; font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.05rem; color: var(--gray-900);">Background Sync & Email Jobs</h4>
+                <p style="margin: 0; font-size: 0.82rem; color: var(--gray-500);">Configure automatic Shiprocket tracking updates and email retry delivery schedules.</p>
+            </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+            <div style="font-size: 0.9rem; font-weight: 700; color: var(--gray-700);">
+                Status: 
+                <span id="job-status-label" style="padding: 6px 12px; border-radius: var(--r-xl); font-weight: 800; font-size: 0.8rem; transition: all 0.3s ease;
+                    {% if site_settings.enable_background_jobs %}background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0;{% else %}background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5;{% endif %}">
+                    {% if site_settings.enable_background_jobs %}🟢 RUNNING (Enabled){% else %}🔴 STOPPED (Disabled){% endif %}
+                </span>
+            </div>
+            <button id="toggle-jobs-btn" onclick="toggleBackgroundJobs()" class="btn-primary" style="padding: 10px 20px; border-radius: var(--r-md); font-size: 0.85rem; font-weight: 700; border: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; height: 38px; transition: all 0.3s ease;
+                {% if site_settings.enable_background_jobs %}background: #dc2626; color: white;{% else %}background: #16a34a; color: white;{% endif %}">
+                {% if site_settings.enable_background_jobs %}Stop Jobs{% else %}Start Jobs{% endif %}
+            </button>
+        </div>
+    </div>
+
     <!-- Return Requests Section -->
     {% include "orders/return_requests_panel.html" with pending_returns=pending_returns %}
 
@@ -318,5 +344,60 @@ document.getElementById('trackingForm')?.addEventListener('submit', async (e) =>
         alert(err.message);
     }
 });
+
+window.toggleBackgroundJobs = async () => {
+    const btn = document.getElementById('toggle-jobs-btn');
+    const label = document.getElementById('job-status-label');
+    if (!btn || !label) return;
+    
+    try {
+        btn.disabled = true;
+        btn.innerText = 'Updating...';
+        
+        const res = await fetch("{% url 'orders:admin_toggle_jobs_ajax' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
+        });
+        
+        if (!res.ok) {
+            throw new Error('Failed to update background job status.');
+        }
+        
+        const data = await res.json();
+        const enabled = data.enable_background_jobs;
+        
+        // Update label
+        if (enabled) {
+            label.innerText = '🟢 RUNNING (Enabled)';
+            label.style.background = '#dcfce7';
+            label.style.color = '#15803d';
+            label.style.border = '1px solid #bbf7d0';
+            
+            btn.innerText = 'Stop Jobs';
+            btn.style.background = '#dc2626';
+        } else {
+            label.innerText = '🔴 STOPPED (Disabled)';
+            label.style.background = '#fee2e2';
+            label.style.color = '#b91c1c';
+            label.style.border = '1px solid #fca5a5';
+            
+            btn.innerText = 'Start Jobs';
+            btn.style.background = '#16a34a';
+        }
+        
+        if (typeof showToast === 'function') {
+            showToast(enabled ? 'Background jobs started' : 'Background jobs stopped', 'success');
+        } else {
+            alert(enabled ? 'Background jobs enabled successfully' : 'Background jobs disabled successfully');
+        }
+    } catch (err) {
+        alert(err.message);
+    } finally {
+        btn.disabled = false;
+    }
+};
 </script>
 {% endblock %}
