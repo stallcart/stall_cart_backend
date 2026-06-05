@@ -8,22 +8,81 @@ from datetime import timedelta
 logger = logging.getLogger(__name__)
  
 SHIPROCKET_API = "https://apiv2.shiprocket.in/v1/external"
- 
- 
+
+import re
+
+def repair_address(addr, order=None):
+    """
+    Attempts to repair missing fields in the address dictionary
+    by extracting them from other fields or looking up the user's default address.
+    """
+    if not isinstance(addr, dict):
+        addr = {}
+    else:
+        addr = addr.copy()
+
+    # Clean up keys and values
+    for k, v in list(addr.items()):
+        if isinstance(v, str):
+            addr[k] = v.strip()
+
+    # 1. If user is present and we have missing critical fields, try to get them from their active addresses
+    if order and order.user and (not addr.get("postal_code") or not addr.get("city") or not addr.get("state")):
+        try:
+            default_addr = order.user.addresses.filter(is_active=True).first()
+            if default_addr:
+                if not addr.get("name"): addr["name"] = default_addr.name
+                if not addr.get("phone"): addr["phone"] = default_addr.phone
+                if not addr.get("address_line1"): addr["address_line1"] = default_addr.address_line1
+                if not addr.get("address_line2"): addr["address_line2"] = default_addr.address_line2
+                if not addr.get("city"): addr["city"] = default_addr.city
+                if not addr.get("state"): addr["state"] = default_addr.state
+                if not addr.get("postal_code"): addr["postal_code"] = default_addr.postal_code
+                if not addr.get("country"): addr["country"] = default_addr.country
+        except Exception as e:
+            logger.warning(f"Failed to load user addresses for fallback: {e}")
+
+    # 2. Clean up state if it got contaminated with pincode (e.g. "Uttar Pradesh - 221005" or "UP – 221001")
+    if addr.get("state"):
+        state_val = str(addr["state"])
+        for separator in ["-", "–"]:
+            if separator in state_val:
+                parts = state_val.split(separator)
+                if len(parts) > 1 and parts[1].strip().isdigit() and len(parts[1].strip()) == 6:
+                    if not addr.get("postal_code"):
+                        addr["postal_code"] = parts[1].strip()
+                    addr["state"] = parts[0].strip()
+                    break
+
+    # 3. Try to extract postal code (6-digit pincode for India) from any address fields if still missing
+    if not addr.get("postal_code"):
+        full_text = " ".join([str(addr.get(k, "")) for k in ["address_line1", "address_line2", "city", "state"] if addr.get(k)])
+        pincode_match = re.search(r"\b\d{6}\b", full_text)
+        if pincode_match:
+            addr["postal_code"] = pincode_match.group(0)
+
+    # Clean up keys and values again after any edits
+    for k, v in list(addr.items()):
+        if isinstance(v, str):
+            addr[k] = v.strip()
+            
+    return addr
+
+
 class ShiprocketService:
     """Handles Shiprocket API operations."""
- 
+
     def __init__(self):
         self._token = None
         self._token_expiry = None
- 
+
     # ── Auth ──────────────────────────────────────────────────────────────────
- 
+
     def _get_token(self):
         """Get/refresh Shiprocket JWT token (valid 10 days)."""
         if self._token and self._token_expiry and timezone.now() < self._token_expiry:
             return self._token
- 
+
         try:
             res = requests.post(
                 f"{SHIPROCKET_API}/auth/login",
@@ -41,22 +100,27 @@ class ShiprocketService:
         except Exception as e:
             logger.error(f"Shiprocket auth failed: {e}")
             raise
- 
+
     def _headers(self):
         return {
             "Authorization": f"Bearer {self._get_token()}",
             "Content-Type": "application/json",
         }
- 
+
     # ── Create Order + Shipment ────────────────────────────────────────────────
- 
+
     def create_shipment(self, order):
         """
         Create a Shiprocket order and request AWB + courier assignment.
         Returns dict with shiprocket_order_id, shipment_id, awb, courier_name.
         Call this when order status moves to 'processing' or 'confirmed'.
         """
-        addr = order.shipping_address  # JSONField dict
+        # Try to repair and clean the address
+        addr = repair_address(order.shipping_address, order)
+        if addr != order.shipping_address:
+            order.shipping_address = addr
+            order.save(update_fields=["shipping_address"])
+
         items = order.items.select_related("product")
  
         order_payload = {
@@ -91,7 +155,22 @@ class ShiprocketService:
             "height": 10,
             "weight": 0.5,  # kg — update with real product weight
         }
- 
+
+        # Validate that all required fields are present for Shiprocket
+        required_fields = {
+            "billing_customer_name": order_payload["billing_customer_name"],
+            "billing_address": order_payload["billing_address"],
+            "billing_city": order_payload["billing_city"],
+            "billing_pincode": order_payload["billing_pincode"],
+            "billing_state": order_payload["billing_state"],
+            "billing_phone": order_payload["billing_phone"],
+        }
+        missing = [k for k, v in required_fields.items() if not str(v).strip()]
+        if missing:
+            err_msg = f"Missing required address fields: {', '.join(missing)}"
+            logger.error(f"Cannot push order {order.unique_order_id} to Shiprocket. {err_msg}")
+            return {"success": False, "error": err_msg}
+
         try:
             res = requests.post(
                 f"{SHIPROCKET_API}/orders/create/adhoc",

@@ -31,7 +31,16 @@
                     
                     <div class="address-card">
                         {% if selected_address %}
-                            <div class="address-info" id="selectedAddressInfo">
+                            <div class="address-info" id="selectedAddressInfo"
+                                 data-id="{{ selected_address.id }}"
+                                 data-name="{{ selected_address.name }}"
+                                 data-phone="{{ selected_address.phone }}"
+                                 data-address-line1="{{ selected_address.address_line1 }}"
+                                 data-address-line2="{{ selected_address.address_line2|default:'' }}"
+                                 data-city="{{ selected_address.city }}"
+                                 data-state="{{ selected_address.state }}"
+                                 data-postal-code="{{ selected_address.postal_code }}"
+                                 data-country="{{ selected_address.country|default:'India' }}">
                                 <p style="margin:0 0 8px;font-size:0.95rem;color:var(--gray-800);">
                                     <strong id="addrName">{{ selected_address.name }}</strong>
                                     <span class="address-tag" id="addrType">{{ selected_address.get_address_type_display|slice:":8" }}</span>
@@ -397,6 +406,16 @@ function showCustomAlert(title, message, type = 'error') {
                     if (addrPhone) addrPhone.textContent = addr.phone;
                     if (addrCountry) addrCountry.textContent = addr.country;
                     if (addrInfo) {
+                        addrInfo.setAttribute('data-id', addr.id);
+                        addrInfo.setAttribute('data-name', addr.name);
+                        addrInfo.setAttribute('data-phone', addr.phone);
+                        addrInfo.setAttribute('data-address-line1', addr.address_line1);
+                        addrInfo.setAttribute('data-address-line2', addr.address_line2 || '');
+                        addrInfo.setAttribute('data-city', addr.city);
+                        addrInfo.setAttribute('data-state', addr.state);
+                        addrInfo.setAttribute('data-postal-code', addr.postal_code);
+                        addrInfo.setAttribute('data-country', addr.country || 'India');
+
                         const defaultBadge = addrInfo.querySelector('.badge-success');
                         if (addr.is_default) { 
                             if (!defaultBadge) { 
@@ -557,15 +576,17 @@ function showCustomAlert(title, message, type = 'error') {
         btn.disabled = true;
         btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Processing...';
 
-        // Extract address from DOM
+        // Extract address from data attributes of selectedAddressInfo
+        const addrInfo = document.getElementById('selectedAddressInfo');
         const address = {
-            name: document.getElementById('addrName')?.textContent?.trim() || '{{ user.full_name|escapejs }}',
-            phone: document.getElementById('addrPhone')?.textContent?.trim() || '{{ user.phone|escapejs }}',
-            address_line1: document.getElementById('addrLine1')?.textContent?.trim() || '',
-            city: document.getElementById('addrCity')?.textContent?.trim().split(',')[0] || '',
-            state: document.getElementById('addrCity')?.textContent?.trim().split(',')[1]?.split('–')[0]?.trim() || '',
-            postal_code: document.getElementById('addrCity')?.textContent?.trim().split('–')[1]?.trim() || '',
-            country: 'India'
+            name: addrInfo?.getAttribute('data-name') || '{{ user.full_name|escapejs }}',
+            phone: addrInfo?.getAttribute('data-phone') || '{{ user.phone|escapejs }}',
+            address_line1: addrInfo?.getAttribute('data-address-line1') || '',
+            address_line2: addrInfo?.getAttribute('data-address-line2') || '',
+            city: addrInfo?.getAttribute('data-city') || '',
+            state: addrInfo?.getAttribute('data-state') || '',
+            postal_code: addrInfo?.getAttribute('data-postal-code') || '',
+            country: addrInfo?.getAttribute('data-country') || 'India'
         };
         
         const paymentMethod = document.querySelector('input[name="payment_method"]:checked').value;
