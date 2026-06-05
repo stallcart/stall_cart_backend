@@ -257,7 +257,7 @@ class ShiprocketService:
         if missing:
             err_msg = f"Missing required address fields: {', '.join(missing)}"
             logger.error(f"Cannot push order {order.unique_order_id} to Shiprocket. {err_msg}")
-            return {"success": False, "error": err_msg}
+            return {"success": False, "error": err_msg, "payload": order_payload}
 
         # Validate postal code / pincode formats (exactly 6 digits for India)
         for k in ["billing_pincode", "shipping_pincode"]:
@@ -265,7 +265,7 @@ class ShiprocketService:
             if not val.isdigit() or len(val) != 6:
                 err_msg = f"Invalid pincode format '{val}' for {k}. Must be exactly 6 digits."
                 logger.error(f"Cannot push order {order.unique_order_id} to Shiprocket. {err_msg}")
-                return {"success": False, "error": err_msg}
+                return {"success": False, "error": err_msg, "payload": order_payload}
 
         # Validate phone number formats (exactly 10 digits)
         for k in ["billing_phone", "shipping_phone"]:
@@ -273,7 +273,7 @@ class ShiprocketService:
             if not val.isdigit() or len(val) != 10:
                 err_msg = f"Invalid phone format '{val}' for {k}. Must be exactly 10 digits."
                 logger.error(f"Cannot push order {order.unique_order_id} to Shiprocket. {err_msg}")
-                return {"success": False, "error": err_msg}
+                return {"success": False, "error": err_msg, "payload": order_payload}
 
         try:
             res = requests.post(
@@ -310,10 +310,18 @@ class ShiprocketService:
                 err_msg = json.loads(err_body).get("message", err_body)
             except Exception:
                 err_msg = err_body
-            return {"success": False, "error": f"Shiprocket HTTP {e.response.status_code}: {err_msg}"}
+            return {
+                "success": False, 
+                "error": f"Shiprocket HTTP {e.response.status_code}: {err_msg}",
+                "payload": order_payload
+            }
         except Exception as e:
             logger.error(f"Shiprocket create order error: {e}")
-            return {"success": False, "error": str(e)}
+            return {
+                "success": False, 
+                "error": str(e),
+                "payload": order_payload if 'order_payload' in locals() else None
+            }
  
     def _assign_awb(self, shipment_id):
         """Auto-assign best courier and get AWB number."""
@@ -583,10 +591,12 @@ def auto_push_order_to_shiprocket(order):
                 )
             else:
                 err_msg = res.get('error', 'Unknown error')
+                payload = res.get('payload')
                 logger.error(f"Failed to auto-push order {order.unique_order_id} to Shiprocket: {err_msg}")
                 
                 # Create a status log for tracing the Shiprocket push failure with addresses and pickup location info
                 from orders.models import OrderStatusLog
+                import json
                 
                 # Safe fetching of debug info
                 addr = order.shipping_address or {}
@@ -614,7 +624,8 @@ def auto_push_order_to_shiprocket(order):
                     f"- Customer Delivery Pincode: {addr.get('postal_code', 'N/A')}\n"
                     f"- Customer Delivery City: {addr.get('city', 'N/A')}\n"
                     f"- Customer Delivery State: {addr.get('state', 'N/A')}\n"
-                    f"- Customer Delivery Address: {addr.get('address_line1', 'N/A')}"
+                    f"- Customer Delivery Address: {addr.get('address_line1', 'N/A')}\n\n"
+                    f"📦 API Request Payload:\n{json.dumps(payload, indent=2) if payload else 'None'}"
                 )
                 OrderStatusLog.objects.create(
                     order=order,
