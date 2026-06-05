@@ -255,7 +255,7 @@ class Order(BaseModel):
         # Default to Shiprocket tracking if tracking number is present
         if self.courier_name == 'Delhivery':
             return f"https://tracking.delhivery.com/{self.tracking_number}"
-        return f"https://track.shiprocket.in/tracking/{self.tracking_number}"
+        return f"https://shiprocket.co/tracking/{self.tracking_number}"
 
     @property
     def cleaned_status_logs(self):
