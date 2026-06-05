@@ -677,7 +677,7 @@ def seller_update_status(request, order_id):
             changed_by=request.user, remarks='Updated by seller/admin'
         )
         
-        if new_status == 'confirmed':
+        if new_status in ['confirmed', 'processing']:
             from delivery.delivery_services import auto_push_order_to_shiprocket
             transaction.on_commit(lambda: auto_push_order_to_shiprocket(order))
     
@@ -801,7 +801,7 @@ def admin_update_status(request, order_id):
             changed_by=request.user, remarks='Updated by admin'
         )
         
-        if new_status == 'confirmed':
+        if new_status in ['confirmed', 'processing']:
             from delivery.delivery_services import auto_push_order_to_shiprocket
             transaction.on_commit(lambda: auto_push_order_to_shiprocket(order))
     
