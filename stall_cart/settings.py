@@ -224,8 +224,8 @@ SHIPROCKET_PASSWORD = env('SHIPROCKET_PASSWORD', default='')
 # 🔔 FIREBASE / FCM CONFIGURATION
 # ═══════════════════════════════════════════════════════════
 
-# Firebase Admin SDK credentials path (relative to project root)
-FIREBASE_CREDENTIALS_PATH = env('FIREBASE_CREDENTIALS_PATH', default='firebase_service_account.json')
+# Firebase Admin SDK credentials path (absolute using BASE_DIR)
+FIREBASE_CREDENTIALS_PATH = os.path.join(BASE_DIR, env('FIREBASE_CREDENTIALS_PATH', default='firebase_service_account.json'))
 
 # VAPID Public Key for Web Push Notifications (required for frontend)
 FIREBASE_VAPID_PUBLIC_KEY = env('FIREBASE_VAPID_PUBLIC_KEY', default='')
