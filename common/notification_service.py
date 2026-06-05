@@ -2,8 +2,11 @@
 import logging
 from dataclasses import dataclass, field
 from typing import Optional
+from pathlib import Path
 from django.utils import timezone
-from firebase_admin import messaging
+from django.conf import settings
+import firebase_admin
+from firebase_admin import credentials, messaging
 from fcm_django.models import FCMDevice
 
 logger = logging.getLogger(__name__)
@@ -18,6 +21,23 @@ class NotificationPayload:
     click_action: str = '/'
     tag: str = 'stallcart'
     data: dict = field(default_factory=dict)
+
+
+def _ensure_firebase_initialized():
+    """Ensure Firebase Admin SDK is initialized before operations."""
+    if not firebase_admin._apps:
+        creds_path = getattr(settings, 'FIREBASE_CREDENTIALS_PATH', None)
+        if creds_path and Path(creds_path).exists():
+            try:
+                cred = credentials.Certificate(creds_path)
+                firebase_admin.initialize_app(cred, {
+                    'messagingSenderId': getattr(settings, 'FIREBASE_MESSAGING_SENDER_ID', '')
+                })
+                logger.info("✅ Firebase Admin SDK dynamically initialized successfully in notification_service.")
+            except Exception as e:
+                logger.error(f"❌ Failed to dynamically initialize Firebase Admin SDK: {e}")
+        else:
+            logger.warning(f"⚠️ Firebase credentials file not found at '{creds_path}' during dynamic check — push notifications disabled")
 
 
 def _build_message(token: str, payload: NotificationPayload) -> messaging.Message:
@@ -59,6 +79,7 @@ def send_to_user(user, payload: NotificationPayload) -> dict:
     Automatically deactivates stale tokens.
     Returns {'sent': int, 'failed': int, 'deactivated': int}
     """
+    _ensure_firebase_initialized()
     devices = FCMDevice.objects.filter(user=user, active=True, type='web')
     sent = failed = deactivated = 0
 
@@ -82,6 +103,7 @@ def send_to_user(user, payload: NotificationPayload) -> dict:
 
 def send_to_token(token: str, payload: NotificationPayload) -> bool:
     """Send directly to a single raw token (used for test-on-login)."""
+    _ensure_firebase_initialized()
     try:
         msg = _build_message(token, payload)
         messaging.send(msg)

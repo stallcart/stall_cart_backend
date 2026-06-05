@@ -15,11 +15,21 @@ def repair_address(addr, order=None):
     """
     Attempts to repair missing fields in the address dictionary
     by extracting them from other fields or looking up the user's default address.
+    Also cleans up phone numbers, postal codes, names, and country fields.
     """
     if not isinstance(addr, dict):
         addr = {}
     else:
         addr = addr.copy()
+
+    # Backwards compatibility fallbacks for keys
+    if not addr.get("address_line1") and addr.get("address"):
+        addr["address_line1"] = addr["address"]
+    if not addr.get("postal_code"):
+        if addr.get("pincode"):
+            addr["postal_code"] = addr["pincode"]
+        elif addr.get("zip"):
+            addr["postal_code"] = addr["zip"]
 
     # Clean up keys and values
     for k, v in list(addr.items()):
@@ -27,7 +37,7 @@ def repair_address(addr, order=None):
             addr[k] = v.strip()
 
     # 1. If user is present and we have missing critical fields, try to get them from their active addresses
-    if order and order.user and (not addr.get("postal_code") or not addr.get("city") or not addr.get("state")):
+    if order and order.user and (not addr.get("postal_code") or not addr.get("city") or not addr.get("state") or not addr.get("name") or not addr.get("phone")):
         try:
             default_addr = order.user.addresses.filter(is_active=True).first()
             if default_addr:
@@ -42,7 +52,19 @@ def repair_address(addr, order=None):
         except Exception as e:
             logger.warning(f"Failed to load user addresses for fallback: {e}")
 
-    # 2. Clean up state if it got contaminated with pincode (e.g. "Uttar Pradesh - 221005" or "UP – 221001")
+    # 2. General fallbacks using order/user details directly if fields are still missing
+    if not addr.get("name"):
+        if order and order.user and order.user.full_name:
+            addr["name"] = order.user.full_name
+        elif order:
+            addr["name"] = order.guest_email or "Customer"
+        else:
+            addr["name"] = "Customer"
+            
+    if not addr.get("phone") and order and order.user:
+        addr["phone"] = order.user.phone
+
+    # 3. Clean up state if it got contaminated with pincode (e.g. "Uttar Pradesh - 221005" or "UP – 221001")
     if addr.get("state"):
         state_val = str(addr["state"])
         for separator in ["-", "–"]:
@@ -54,12 +76,28 @@ def repair_address(addr, order=None):
                     addr["state"] = parts[0].strip()
                     break
 
-    # 3. Try to extract postal code (6-digit pincode for India) from any address fields if still missing
+    # 4. Try to extract postal code (6-digit pincode for India) from any address fields if still missing
     if not addr.get("postal_code"):
         full_text = " ".join([str(addr.get(k, "")) for k in ["address_line1", "address_line2", "city", "state"] if addr.get(k)])
         pincode_match = re.search(r"\b\d{6}\b", full_text)
         if pincode_match:
             addr["postal_code"] = pincode_match.group(0)
+
+    # 5. Clean up phone number to contain only the last 10 digits
+    if addr.get("phone"):
+        phone_digits = "".join(c for c in str(addr["phone"]) if c.isdigit())
+        if len(phone_digits) >= 10:
+            addr["phone"] = phone_digits[-10:]
+        else:
+            addr["phone"] = phone_digits
+
+    # 6. Clean up postal code to contain only digits
+    if addr.get("postal_code"):
+        addr["postal_code"] = "".join(c for c in str(addr["postal_code"]) if c.isdigit()).strip()
+
+    # 7. Default country to India if missing
+    if not addr.get("country"):
+        addr["country"] = "India"
 
     # Clean up keys and values again after any edits
     for k, v in list(addr.items()):
@@ -123,13 +161,19 @@ class ShiprocketService:
 
         items = order.items.select_related("product")
  
+        full_name = addr.get("name", "").strip()
+        name_parts = full_name.split(None, 1)
+        first_name = name_parts[0] if name_parts else "Customer"
+        last_name = name_parts[1] if len(name_parts) > 1 else ""
+
         order_payload = {
             "order_id": order.unique_order_id,
             "order_date": order.created_at.strftime("%Y-%m-%d %H:%M"),
             "channel_id": getattr(settings, "SHIPROCKET_CHANNEL_ID", ""),
             "pickup_location": getattr(settings, "SHIPROCKET_PICKUP_LOCATION", "Primary"),
-            "billing_customer_name": addr.get("name", ""),
-            "billing_last_name": "",
+            
+            "billing_customer_name": first_name,
+            "billing_last_name": last_name,
             "billing_address": addr.get("address_line1", ""),
             "billing_address_2": addr.get("address_line2", ""),
             "billing_city": addr.get("city", ""),
@@ -138,7 +182,19 @@ class ShiprocketService:
             "billing_country": addr.get("country", "India"),
             "billing_email": order.user.email if order.user else order.guest_email or "",
             "billing_phone": addr.get("phone", ""),
+            
             "shipping_is_billing": True,
+            "shipping_customer_name": first_name,
+            "shipping_last_name": last_name,
+            "shipping_address": addr.get("address_line1", ""),
+            "shipping_address_2": addr.get("address_line2", ""),
+            "shipping_city": addr.get("city", ""),
+            "shipping_pincode": addr.get("postal_code", ""),
+            "shipping_state": addr.get("state", ""),
+            "shipping_country": addr.get("country", "India"),
+            "shipping_email": order.user.email if order.user else order.guest_email or "",
+            "shipping_phone": addr.get("phone", ""),
+            
             "order_items": [
                 {
                     "name": item.product.name,
@@ -150,10 +206,10 @@ class ShiprocketService:
             ],
             "payment_method": "Prepaid" if order.payment_method == "razorpay" else "COD",
             "sub_total": float(order.total_amount - order.delivery_charge),
-            "length": 10,   # cm — update with real product dimensions
+            "length": 10,   # cm
             "breadth": 10,
             "height": 10,
-            "weight": 0.5,  # kg — update with real product weight
+            "weight": 0.5,  # kg
         }
 
         # Validate that all required fields are present for Shiprocket
@@ -164,12 +220,35 @@ class ShiprocketService:
             "billing_pincode": order_payload["billing_pincode"],
             "billing_state": order_payload["billing_state"],
             "billing_phone": order_payload["billing_phone"],
+            
+            "shipping_customer_name": order_payload["shipping_customer_name"],
+            "shipping_address": order_payload["shipping_address"],
+            "shipping_city": order_payload["shipping_city"],
+            "shipping_pincode": order_payload["shipping_pincode"],
+            "shipping_state": order_payload["shipping_state"],
+            "shipping_phone": order_payload["shipping_phone"],
         }
         missing = [k for k, v in required_fields.items() if not str(v).strip()]
         if missing:
             err_msg = f"Missing required address fields: {', '.join(missing)}"
             logger.error(f"Cannot push order {order.unique_order_id} to Shiprocket. {err_msg}")
             return {"success": False, "error": err_msg}
+
+        # Validate postal code / pincode formats (exactly 6 digits for India)
+        for k in ["billing_pincode", "shipping_pincode"]:
+            val = str(order_payload[k]).strip()
+            if not val.isdigit() or len(val) != 6:
+                err_msg = f"Invalid pincode format '{val}' for {k}. Must be exactly 6 digits."
+                logger.error(f"Cannot push order {order.unique_order_id} to Shiprocket. {err_msg}")
+                return {"success": False, "error": err_msg}
+
+        # Validate phone number formats (exactly 10 digits)
+        for k in ["billing_phone", "shipping_phone"]:
+            val = str(order_payload[k]).strip()
+            if not val.isdigit() or len(val) != 10:
+                err_msg = f"Invalid phone format '{val}' for {k}. Must be exactly 10 digits."
+                logger.error(f"Cannot push order {order.unique_order_id} to Shiprocket. {err_msg}")
+                return {"success": False, "error": err_msg}
 
         try:
             res = requests.post(
