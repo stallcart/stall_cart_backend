@@ -447,6 +447,10 @@ def create_order(request):
                     notify_order_placed(order)
                 except Exception as ne:
                     logger.error(f"[FCM] Wallet placement notification failed: {ne}")
+                
+                # Auto-push to Shiprocket after transaction commits
+                from delivery.delivery_services import auto_push_order_to_shiprocket
+                transaction.on_commit(lambda: auto_push_order_to_shiprocket(order))
             
             return JsonResponse({
                 'status': 'success',
@@ -597,6 +601,10 @@ def create_order(request):
                     notify_order_placed(order)
                 except Exception as ne:
                     logger.error(f"[FCM] COD placement notification failed: {ne}")
+                
+                # Auto-push to Shiprocket after transaction commits
+                from delivery.delivery_services import auto_push_order_to_shiprocket
+                transaction.on_commit(lambda: auto_push_order_to_shiprocket(order))
             
             return JsonResponse({
                 'status': 'success',
@@ -985,6 +993,10 @@ def verify_payment(request):
                 changed_by=request.user,
                 remarks='Payment verified via Razorpay - order created'
             )
+            
+            # Auto-push to Shiprocket after transaction commits
+            from delivery.delivery_services import auto_push_order_to_shiprocket
+            transaction.on_commit(lambda: auto_push_order_to_shiprocket(order))
         
         # Send Push Notification
         try:

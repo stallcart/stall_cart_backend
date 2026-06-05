@@ -676,6 +676,10 @@ def seller_update_status(request, order_id):
             order=order, old_status=old_status, new_status=new_status,
             changed_by=request.user, remarks='Updated by seller/admin'
         )
+        
+        if new_status == 'confirmed':
+            from delivery.delivery_services import auto_push_order_to_shiprocket
+            transaction.on_commit(lambda: auto_push_order_to_shiprocket(order))
     
     if new_status == 'shipped':
         try:
@@ -796,6 +800,10 @@ def admin_update_status(request, order_id):
             order=order, old_status=old_status, new_status=new_status,
             changed_by=request.user, remarks='Updated by admin'
         )
+        
+        if new_status == 'confirmed':
+            from delivery.delivery_services import auto_push_order_to_shiprocket
+            transaction.on_commit(lambda: auto_push_order_to_shiprocket(order))
     
     if new_status != old_status:
         try:

@@ -313,3 +313,45 @@ class ShiprocketService:
                 "estimated_date": (timezone.now() + timedelta(days=delivery_days)).strftime("%d %b"),
                 "is_fallback": True
             }
+
+
+def auto_push_order_to_shiprocket(order):
+    """
+    Checks if Shiprocket credentials are set, and pushes the order if confirmed.
+    Saves AWB and courier info.
+    """
+    from django.conf import settings
+    email = getattr(settings, 'SHIPROCKET_EMAIL', None)
+    password = getattr(settings, 'SHIPROCKET_PASSWORD', None)
+    if not email or not password:
+        logger.warning("Shiprocket credentials not configured. Skipping auto-push.")
+        return
+        
+    if order.status == 'confirmed' and not order.tracking_number:
+        try:
+            srv = ShiprocketService()
+            res = srv.create_shipment(order)
+            if res.get('success') and res.get('awb'):
+                order.tracking_number = res.get('awb')
+                order.courier_name = res.get('courier_name', 'Shiprocket')
+                if res.get('estimated_delivery'):
+                    from datetime import datetime
+                    try:
+                        order.estimated_delivery = datetime.strptime(res['estimated_delivery'], "%Y-%m-%d").date()
+                    except Exception:
+                        pass
+                order.save(update_fields=['tracking_number', 'courier_name', 'estimated_delivery', 'updated_at'])
+                logger.info(f"Automatically pushed order {order.unique_order_id} to Shiprocket. AWB: {order.tracking_number}")
+                
+                # Create a status log for tracing the Shiprocket push
+                from orders.models import OrderStatusLog
+                OrderStatusLog.objects.create(
+                    order=order,
+                    old_status=order.status,
+                    new_status=order.status,
+                    remarks=f"Automatically pushed to Shiprocket (AWB: {order.tracking_number}, Courier: {order.courier_name})"
+                )
+            else:
+                logger.error(f"Failed to auto-push order {order.unique_order_id} to Shiprocket: {res.get('error')}")
+        except Exception as e:
+            logger.error(f"Error during auto-pushing order to Shiprocket: {e}", exc_info=True)
