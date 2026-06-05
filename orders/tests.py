@@ -3,6 +3,8 @@ from django.test import TestCase
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from django.core.management import call_command
+from common.models import SiteSettings
 from decimal import Decimal
 from datetime import date
 import json
@@ -798,4 +800,140 @@ class SellerSettlementAndBankDetailsTests(TestCase):
         from orders.models import SellerSettlement
         # Only 1 settlement is created in this test method since tests are run in isolation.
         self.assertEqual(SellerSettlement.objects.filter(seller=self.seller_profile).count(), 1)
+
+
+class BackgroundJobAndEmailSyncTests(TestCase):
+    def setUp(self):
+        from accounts.models import User
+        from items.models import Category, Product, SellerProfile
+        
+        # Create user / admin / seller
+        self.customer = User.objects.create_user(phone="9876543211", password="password", email="customer@example.com")
+        self.admin = User.objects.create_superuser(phone="9999999999", password="adminpassword", email="admin@example.com")
+        self.seller_user = User.objects.create_user(phone="8888888888", password="sellerpassword", email="seller@example.com", role="seller")
+        
+        # Create seller profile
+        self.seller_profile = SellerProfile.objects.create(
+            user=self.seller_user,
+            shop_name="Test Shop",
+            gst_number="09AAAAA0000A1Z5",
+            account_number="1234567890",
+            ifsc_code="SBIN0000001",
+            account_holder_name="Test Shop Owner"
+        )
+        
+        # Create category & product
+        self.category = Category.objects.create(name="Shirts", commision_percentage=10)
+        self.product = Product.objects.create(
+            name="Test Shirt",
+            description="Test Description",
+            price=500.00,
+            stock=10,
+            category=self.category,
+            seller=self.seller_profile
+        )
+        
+        # Ensure SiteSettings exists
+        SiteSettings.objects.all().delete()
+        self.site_settings = SiteSettings.objects.create(
+            site_name="StallCart",
+            enable_background_jobs=True
+        )
+
+    def test_email_flags_on_order_and_log(self):
+        """Test database flags for order placement and status change emails."""
+        # Create order
+        order = Order.objects.create(
+            user=self.customer,
+            total_amount=500.00,
+            payment_method="cod",
+            payment_status="pending",
+            status="pending"
+        )
+        # Check initial flags
+        self.assertFalse(order.customer_placed_email_sent)
+        self.assertFalse(order.seller_placed_email_sent)
+        self.assertFalse(order.customer_payment_email_sent)
+        self.assertFalse(order.seller_payment_email_sent)
+        
+        # Trigger notify_order_placed
+        from common.notification_service import notify_order_placed
+        notify_order_placed(order)
+        
+        order.refresh_from_db()
+        # They should be True since mock email backend succeeds in tests
+        self.assertTrue(order.customer_placed_email_sent)
+        self.assertTrue(order.seller_placed_email_sent)
+        
+        # Create a log manually / change status
+        log = OrderStatusLog.objects.create(
+            order=order,
+            old_status="confirmed",
+            new_status="processing",
+            remarks="Status updated"
+        )
+        self.assertFalse(log.customer_email_sent)
+        self.assertFalse(log.seller_email_sent)
+        
+        from common.notification_service import notify_order_status_change
+        notify_order_status_change(order, "confirmed", "processing")
+        
+        log.refresh_from_db()
+        self.assertTrue(log.customer_email_sent)
+        self.assertTrue(log.seller_email_sent)
+
+    def test_payment_and_refund_email_flags(self):
+        """Verify payment success and refund email dispatches set flags correctly."""
+        order = Order.objects.create(
+            user=self.customer,
+            total_amount=500.00,
+            payment_method="razorpay",
+            payment_status="pending",
+            status="pending"
+        )
+        
+        # Update payment status to paid
+        order.payment_status = "paid"
+        order.save()
+        
+        order.refresh_from_db()
+        self.assertTrue(order.customer_payment_email_sent)
+        self.assertTrue(order.seller_payment_email_sent)
+        
+        # Update payment status to refunded
+        order.payment_status = "refunded"
+        order.save()
+        
+        order.refresh_from_db()
+        self.assertTrue(order.customer_refund_email_sent)
+        self.assertTrue(order.seller_refund_email_sent)
+
+    def test_toggle_jobs_management_command(self):
+        """Test toggle_jobs command enables/disables background jobs flag."""
+        # Test status command
+        call_command("toggle_jobs", "status")
+        
+        # Test stop
+        call_command("toggle_jobs", "stop")
+        self.site_settings.refresh_from_db()
+        self.assertFalse(self.site_settings.enable_background_jobs)
+        
+        # Test start
+        call_command("toggle_jobs", "start")
+        self.site_settings.refresh_from_db()
+        self.assertTrue(self.site_settings.enable_background_jobs)
+
+    def test_sync_command_early_exit(self):
+        """Verify background sync command exits immediately when kill switch is active."""
+        # Disable background jobs
+        self.site_settings.enable_background_jobs = False
+        self.site_settings.save()
+        
+        # Run sync command; it should not raise error and should exit early
+        # We can capture output to verify message
+        import io
+        out = io.StringIO()
+        call_command("sync_shiprocket_awb", stdout=out)
+        self.assertIn("globally disabled in Site Settings", out.getvalue())
+
 

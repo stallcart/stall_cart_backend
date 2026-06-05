@@ -62,6 +62,31 @@ DEFAULT_TEMPLATES = {
         'subject': "StallCart - Tracking AWB assigned for Order {{ order_id }}",
         'body': "Hello,\n\nTracking AWB number {{ tracking_number }} ({{ courier_name }}) has been assigned to Order #{{ order_id }}.\n\nLink to Order: {{ admin_order_url }}\n\nBest Regards,\nStallCart Team",
         'description': "Notification sent to admin/seller when AWB tracking is automatically synced"
+    },
+    'customer_payment_success': {
+        'subject': "StallCart - Payment Received for Order {{ order_id }}",
+        'body': "Hello {{ customer_name }},\n\nWe have successfully received payment of ₹{{ amount }} for your order #{{ order_id }}.\n\nPayment Method: {{ payment_method }}\n{% if payment_id %}Transaction ID: {{ payment_id }}{% endif %}\n\nThank you for shopping with StallCart!",
+        'description': "Payment success notification sent to customer"
+    },
+    'seller_payment_success': {
+        'subject': "StallCart Seller - Payment Confirmed for Order {{ order_id }}",
+        'body': "Hello {{ seller_name }},\n\nPayment has been successfully received/confirmed for order #{{ order_id }}.\n\n--- Items ---\n{{ items_list }}\n\nPlatform Commission: ₹{{ commission_amount }}\nYour Net Earnings: ₹{{ net_earnings }}\n\nBest Regards,\nStallCart Team",
+        'description': "Payment success notification sent to seller"
+    },
+    'customer_payment_refunded': {
+        'subject': "StallCart - Refund Processed for Order {{ order_id }}",
+        'body': "Hello {{ customer_name }},\n\nA refund of ₹{{ refund_amount }} has been processed for your order #{{ order_id }}.\n\n{% if refund_id %}Refund ID: {{ refund_id }}{% endif %}\n\nIt should reflect in your account within 3-5 business days.\n\nBest Regards,\nStallCart Team",
+        'description': "Refund confirmation email sent to customer"
+    },
+    'seller_payment_refunded': {
+        'subject': "StallCart Seller - Refund Processed for Order {{ order_id }}",
+        'body': "Hello {{ seller_name }},\n\nA refund has been processed for order #{{ order_id }}.\n\n--- Items ---\n{{ items_list }}\n\nRefunded Amount: ₹{{ refund_amount }}\nThe earnings adjustment will be reflected in your next settlement.\n\nBest Regards,\nStallCart Team",
+        'description': "Refund notification email sent to seller"
+    },
+    'seller_order_status_update': {
+        'subject': "StallCart Seller - Order {{ order_id }} Update: {{ status }}",
+        'body': "Hello {{ seller_name }},\n\nOrder #{{ order_id }} status has been updated to: {{ status }}.\n\n{% if courier_name %}Courier: {{ courier_name }}{% endif %}\n{% if tracking_number %}Tracking AWB: {{ tracking_number }}{% endif %}\n\nBest Regards,\nStallCart Team",
+        'description': "Order status update notification sent to seller"
     }
 }
 
