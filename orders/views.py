@@ -1506,3 +1506,16 @@ def razorpayx_webhook(request):
     except Exception as e:
         logger.exception(f"Error processing RazorpayX webhook: {e}")
         return JsonResponse({'error': 'Internal error'}, status=500)
+
+
+@admin_only
+def admin_toggle_jobs_ajax(request):
+    """Admin: Toggle background jobs switch"""
+    from common.models import SiteSettings
+    settings = SiteSettings.get_singleton()
+    settings.enable_background_jobs = not settings.enable_background_jobs
+    settings.save(update_fields=['enable_background_jobs'])
+    return JsonResponse({
+        'status': 'success',
+        'enable_background_jobs': settings.enable_background_jobs
+    })
