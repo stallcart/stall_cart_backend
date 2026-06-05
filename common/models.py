@@ -110,6 +110,7 @@ class SiteSettings(models.Model):
 
     # Site Status
     is_maintenance_mode = models.BooleanField(default=False, help_text='Enable maintenance mode for non-admins')
+    enable_background_jobs = models.BooleanField(default=True, help_text='Enable or disable background jobs/cron tasks (e.g. Shiprocket tracking, email dispatch)')
     daily_otp_limit = models.IntegerField(default=5, help_text='Maximum OTP requests allowed per recipient in a 24-hour window')
     daily_email_otp_limit = models.IntegerField(default=5, help_text='Maximum Email OTP requests allowed per recipient in a 24-hour window')
     daily_sms_otp_limit = models.IntegerField(default=5, help_text='Maximum SMS OTP requests allowed per recipient in a 24-hour window')

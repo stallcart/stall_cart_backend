@@ -1,6 +1,9 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from django.utils import timezone
+from django.urls import path, reverse
+from django.http import HttpResponseRedirect
+from django.contrib import messages
 from .models import SiteSettings, EmailTemplate
 
 class BaseModelAdmin(admin.ModelAdmin):
@@ -30,10 +33,10 @@ class SiteSettingsAdmin(admin.ModelAdmin):
         return False
     
     # Display in admin list view
-    list_display = ('site_name', 'logo_preview', 'primary_color', 'is_maintenance_mode', 'updated_at')
-    list_filter = ('is_maintenance_mode', 'updated_at')
+    list_display = ('site_name', 'logo_preview', 'primary_color', 'is_maintenance_mode', 'enable_background_jobs', 'updated_at')
+    list_filter = ('is_maintenance_mode', 'enable_background_jobs', 'updated_at')
     search_fields = ('site_name', 'site_tagline')
-    readonly_fields = ('created_at', 'updated_at', 'logo_preview', 'favicon_preview')
+    readonly_fields = ('created_at', 'updated_at', 'logo_preview', 'favicon_preview', 'jobs_status_control')
     
     # Organize fields into logical sections
     fieldsets = (
@@ -66,7 +69,7 @@ class SiteSettingsAdmin(admin.ModelAdmin):
             'description': 'Manage site-wide legal policies. Content supports rich text and HTML.'
         }),
         ('⚙️ Site Status & System Settings', {
-            'fields': ('is_maintenance_mode', 'daily_email_otp_limit', 'daily_sms_otp_limit', 'slider_autoplay_seconds'),
+            'fields': ('is_maintenance_mode', 'enable_background_jobs', 'jobs_status_control', 'daily_email_otp_limit', 'daily_sms_otp_limit', 'slider_autoplay_seconds'),
         }),
         ('📅 Audit', {
             'fields': ('created_at', 'updated_at'),
@@ -96,6 +99,36 @@ class SiteSettingsAdmin(admin.ModelAdmin):
             )
         return 'No favicon'
     favicon_preview.short_description = 'Favicon Preview'
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path('toggle-jobs/', self.admin_site.admin_view(self.toggle_jobs_view), name='common_sitesettings_toggle_jobs'),
+        ]
+        return custom_urls + urls
+
+    def toggle_jobs_view(self, request):
+        obj = SiteSettings.get_singleton()
+        obj.enable_background_jobs = not obj.enable_background_jobs
+        obj.save(update_fields=['enable_background_jobs'])
+        status = "ENABLED" if obj.enable_background_jobs else "DISABLED"
+        messages.success(request, f"Background jobs have been successfully {status}!")
+        return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('admin:common_sitesettings_changelist')))
+
+    def jobs_status_control(self, obj):
+        status_label = "🟢 Running" if obj.enable_background_jobs else "🔴 Stopped"
+        btn_text = "Stop Jobs" if obj.enable_background_jobs else "Start Jobs"
+        btn_color = "#dc2626" if obj.enable_background_jobs else "#16a34a"
+        url = reverse('admin:common_sitesettings_toggle_jobs')
+        
+        return format_html(
+            '<div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; max-width: 400px;">'
+            '  <div style="font-size: 14px; margin-bottom: 12px; color: #1e293b;">Current Status: <strong style="font-size: 15px;">{}</strong></div>'
+            '  <a href="{}" class="button" style="background: {}; color: white; padding: 8px 16px; border-radius: 4px; text-decoration: none; font-weight: bold; display: inline-block;">{}</a>'
+            '</div>',
+            status_label, url, btn_color, btn_text
+        )
+    jobs_status_control.short_description = "Background Jobs Control Dashboard"
 
 
 @admin.register(EmailTemplate)

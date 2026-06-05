@@ -105,6 +105,13 @@ class Order(BaseModel):
     refund_at = models.DateTimeField(null=True, blank=True)
     razorpay_refund_id = models.CharField(max_length=100, blank=True, null=True)
  
+    # Email tracking flags
+    customer_placed_email_sent = models.BooleanField(default=False)
+    seller_placed_email_sent = models.BooleanField(default=False)
+    customer_payment_email_sent = models.BooleanField(default=False)
+    seller_payment_email_sent = models.BooleanField(default=False)
+    customer_refund_email_sent = models.BooleanField(default=False)
+    seller_refund_email_sent = models.BooleanField(default=False)
    
     # Metadata
     notes = models.TextField(blank=True)
@@ -156,19 +163,57 @@ class Order(BaseModel):
                 new_num = 1
             self.unique_order_id= f'ORD-{date_str}-{new_num:06d}'
         
-        # Detect status change
+        # Detect status and payment status changes
         is_new = self._state.adding
         old_status = None
         status_changed = False
+        old_payment_status = None
+        payment_status_changed = False
         if not is_new:
             try:
-                old_status = type(self).objects.filter(pk=self.pk).values_list('status', flat=True).first()
-                if old_status != self.status:
-                    status_changed = True
+                old_obj = type(self).objects.filter(pk=self.pk).values('status', 'payment_status').first()
+                if old_obj:
+                    old_status = old_obj.get('status')
+                    if old_status != self.status:
+                        status_changed = True
+                    old_payment_status = old_obj.get('payment_status')
+                    if old_payment_status != self.payment_status:
+                        payment_status_changed = True
             except Exception:
                 pass
                 
         super().save(*args, **kwargs)
+        
+        # Immediate dispatch of payment/refund emails if status has changed
+        if payment_status_changed or (is_new and self.payment_status == 'paid'):
+            if self.payment_status == 'paid':
+                try:
+                    from common.notification_service import send_payment_email_customer, send_payment_email_sellers
+                    if not self.customer_payment_email_sent:
+                        self.customer_payment_email_sent = send_payment_email_customer(self)
+                    if not self.seller_payment_email_sent:
+                        self.seller_payment_email_sent = send_payment_email_sellers(self)
+                    type(self).objects.filter(pk=self.pk).update(
+                        customer_payment_email_sent=self.customer_payment_email_sent,
+                        seller_payment_email_sent=self.seller_payment_email_sent
+                    )
+                except Exception as e:
+                    import logging
+                    logging.getLogger(__name__).error(f"Failed to send payment success emails on save for order {self.unique_order_id}: {e}")
+            elif self.payment_status == 'refunded':
+                try:
+                    from common.notification_service import send_refund_email_customer, send_refund_email_sellers
+                    if not self.customer_refund_email_sent:
+                        self.customer_refund_email_sent = send_refund_email_customer(self)
+                    if not self.seller_refund_email_sent:
+                        self.seller_refund_email_sent = send_refund_email_sellers(self)
+                    type(self).objects.filter(pk=self.pk).update(
+                        customer_refund_email_sent=self.customer_refund_email_sent,
+                        seller_refund_email_sent=self.seller_refund_email_sent
+                    )
+                except Exception as e:
+                    import logging
+                    logging.getLogger(__name__).error(f"Failed to send refund emails on save for order {self.unique_order_id}: {e}")
         
         if status_changed:
             # Handle restocking and refunding automatically if status transitions to cancelled/returned/RTO
@@ -368,6 +413,10 @@ class OrderStatusLog(BaseModel):
     changed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     remarks = models.TextField(blank=True)
     timestamp = models.DateTimeField(auto_now_add=True)
+    
+    # Email tracking flags
+    customer_email_sent = models.BooleanField(default=False)
+    seller_email_sent = models.BooleanField(default=False)
     
     class Meta:
         ordering = ['-timestamp']

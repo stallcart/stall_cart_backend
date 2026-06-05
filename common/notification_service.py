@@ -198,61 +198,11 @@ def notify_order_placed(order):
 
     # 4. Email notifications to Customer and Sellers
     try:
-        from common.email_service import send_dynamic_email
-        
-        # Format shipping address nicely
-        addr = order.shipping_address or {}
-        addr_parts = [
-            addr.get("name", ""),
-            addr.get("address_line1", ""),
-            addr.get("address_line2", ""),
-            f"{addr.get('city', '')}, {addr.get('state', '')} - {addr.get('postal_code', '')}",
-            f"Phone: {addr.get('phone', '')}"
-        ]
-        shipping_address_str = "\n".join([p.strip() for p in addr_parts if p.strip()])
-
-        # Customer Email
-        cust_email = order.user.email if (order.user and order.user.email) else order.guest_email
-        if cust_email:
-            # Build customer items list
-            cust_items_str = ""
-            for item in order.items.select_related('product', 'variant').all():
-                variant_info = f" ({item.variant.size_value} / {item.variant.color})" if item.variant else ""
-                cust_items_str += f"- {item.product.name}{variant_info} x {item.quantity} (₹{item.price:.2f} each)\n"
-            
-            send_dynamic_email(
-                'customer_order_placed',
-                [cust_email],
-                {
-                    'customer_name': (order.user.full_name or order.user.phone) if order.user else "Customer",
-                    'order_id': order.unique_order_id,
-                    'items_list': cust_items_str,
-                    'shipping_address': shipping_address_str,
-                    'payment_method': order.get_payment_method_display() if hasattr(order, 'get_payment_method_display') else order.payment_method.upper(),
-                    'total_amount': str(order.total_amount),
-                }
-            )
-
-        # Seller Emails
-        for seller in sellers:
-            if seller.email:
-                # Build items list specifically for this seller
-                seller_items = order.items.filter(seller=seller.seller_profile).select_related('product', 'variant')
-                seller_items_str = ""
-                for item in seller_items:
-                    variant_info = f" ({item.variant.size_value} / {item.variant.color})" if item.variant else ""
-                    seller_items_str += f"- {item.product.name}{variant_info} x {item.quantity}\n"
-                
-                send_dynamic_email(
-                    'seller_new_order',
-                    [seller.email],
-                    {
-                        'seller_name': seller.full_name or seller.seller_profile.shop_name or "Seller",
-                        'order_id': order.unique_order_id,
-                        'items_list': seller_items_str,
-                        'shipping_address': shipping_address_str,
-                    }
-                )
+        if not order.customer_placed_email_sent:
+            order.customer_placed_email_sent = send_order_placed_email_customer(order)
+        if not order.seller_placed_email_sent:
+            order.seller_placed_email_sent = send_order_placed_email_sellers(order)
+        order.save(update_fields=['customer_placed_email_sent', 'seller_placed_email_sent'])
     except Exception as e:
         logger.error(f"Failed to send order placed emails: {e}", exc_info=True)
 
@@ -392,17 +342,27 @@ def notify_order_status_change(order, old_status, new_status):
         except Exception as e:
             logger.error(f"[FCM] Failed to notify customer on status change: {e}")
         
-        # Send dynamic email notification to the customer
+        # Send dynamic email notification to the customer & seller
         try:
-            from common.email_service import send_dynamic_email
-            if order.user.email:
-                send_dynamic_email('order_status_update', [order.user.email], {
-                    'customer_name': order.user.full_name or order.user.phone,
-                    'order_id': order.unique_order_id,
-                    'status': new_status.replace('_', ' ').title(),
-                    'courier_name': order.courier_name,
-                    'tracking_number': order.tracking_number,
-                })
+            from orders.models import OrderStatusLog
+            log_entry = OrderStatusLog.objects.filter(order=order, new_status=new_status).order_by('-timestamp').first()
+            if log_entry:
+                if not log_entry.customer_email_sent:
+                    log_entry.customer_email_sent = send_status_email_customer(log_entry)
+                if not log_entry.seller_email_sent:
+                    log_entry.seller_email_sent = send_status_email_sellers(log_entry)
+                log_entry.save(update_fields=['customer_email_sent', 'seller_email_sent'])
+            else:
+                # Fallback if no status log entry was found
+                if order.user and order.user.email:
+                    from common.email_service import send_dynamic_email
+                    send_dynamic_email('order_status_update', [order.user.email], {
+                        'customer_name': order.user.full_name or order.user.phone,
+                        'order_id': order.unique_order_id,
+                        'status': new_status.replace('_', ' ').title(),
+                        'courier_name': order.courier_name or "",
+                        'tracking_number': order.tracking_number or "",
+                    })
         except Exception as e:
             logger.error(f"Failed to send order status update email: {e}")
         
@@ -445,3 +405,246 @@ def notify_order_out_for_delivery(order):
 
 def notify_order_delivered(order):
     return notify_order_status_change(order, order.status, 'delivered')
+
+
+def format_shipping_address(order):
+    addr = order.shipping_address or {}
+    name = addr.get("name") or addr.get("delivery_name") or ""
+    phone = addr.get("phone") or addr.get("delivery_phone") or ""
+    pincode = addr.get("postal_code") or addr.get("pincode") or addr.get("delivery_pincode") or ""
+    city = addr.get("city") or addr.get("delivery_city") or ""
+    state = addr.get("state") or addr.get("delivery_state") or ""
+    address = addr.get("address_line1") or addr.get("address") or addr.get("delivery_address") or ""
+    address2 = addr.get("address_line2") or ""
+    landmark = addr.get("landmark") or ""
+    
+    parts = [name]
+    if address:
+        parts.append(address)
+    if address2:
+        parts.append(address2)
+    if landmark:
+        parts.append(f"Landmark: {landmark}")
+    
+    city_state_pin = []
+    if city:
+        city_state_pin.append(city)
+    if state:
+        city_state_pin.append(state)
+    if pincode:
+        city_state_pin.append(pincode)
+    if city_state_pin:
+        parts.append(" - ".join(city_state_pin))
+        
+    if phone:
+        parts.append(f"Phone: {phone}")
+        
+    return "\n".join([p.strip() for p in parts if p.strip()])
+
+
+def send_order_placed_email_customer(order) -> bool:
+    from common.email_service import send_dynamic_email
+    cust_email = order.user.email if (order.user and order.user.email) else order.guest_email
+    if not cust_email:
+        return False
+        
+    cust_items_str = ""
+    for item in order.items.select_related('product', 'variant').all():
+        variant_info = f" ({item.variant.size_value} / {item.variant.color})" if item.variant else ""
+        cust_items_str += f"- {item.product.name}{variant_info} x {item.quantity} (₹{item.price:.2f} each)\n"
+        
+    return send_dynamic_email(
+        'customer_order_placed',
+        [cust_email],
+        {
+            'customer_name': (order.user.full_name or order.user.phone) if order.user else "Customer",
+            'order_id': order.unique_order_id,
+            'items_list': cust_items_str,
+            'shipping_address': format_shipping_address(order),
+            'payment_method': order.get_payment_method_display() if hasattr(order, 'get_payment_method_display') else order.payment_method.upper(),
+            'total_amount': str(order.total_amount),
+        }
+    )
+
+
+def send_order_placed_email_sellers(order) -> bool:
+    from common.email_service import send_dynamic_email
+    from accounts.models import User
+    
+    seller_ids = list(order.items.values_list('seller', flat=True).distinct())
+    sellers = list(User.objects.filter(role='seller', seller_profile__id__in=seller_ids))
+    
+    success = True
+    shipping_address_str = format_shipping_address(order)
+    for seller in sellers:
+        if seller.email:
+            seller_items = order.items.filter(seller=seller.seller_profile).select_related('product', 'variant')
+            seller_items_str = ""
+            for item in seller_items:
+                variant_info = f" ({item.variant.size_value} / {item.variant.color})" if item.variant else ""
+                seller_items_str += f"- {item.product.name}{variant_info} x {item.quantity}\n"
+                
+            sent = send_dynamic_email(
+                'seller_new_order',
+                [seller.email],
+                {
+                    'seller_name': seller.full_name or seller.seller_profile.shop_name or "Seller",
+                    'order_id': order.unique_order_id,
+                    'items_list': seller_items_str,
+                    'shipping_address': shipping_address_str,
+                }
+            )
+            if not sent:
+                success = False
+    return success
+
+
+def send_payment_email_customer(order) -> bool:
+    from common.email_service import send_dynamic_email
+    cust_email = order.user.email if (order.user and order.user.email) else order.guest_email
+    if not cust_email:
+        return False
+        
+    return send_dynamic_email(
+        'customer_payment_success',
+        [cust_email],
+        {
+            'customer_name': (order.user.full_name or order.user.phone) if order.user else "Customer",
+            'order_id': order.unique_order_id,
+            'amount': str(order.total_amount),
+            'payment_method': order.get_payment_method_display() if hasattr(order, 'get_payment_method_display') else order.payment_method.upper(),
+            'payment_id': order.razorpay_payment_id or "",
+        }
+    )
+
+
+def send_payment_email_sellers(order) -> bool:
+    from common.email_service import send_dynamic_email
+    from accounts.models import User
+    
+    seller_ids = list(order.items.values_list('seller', flat=True).distinct())
+    sellers = list(User.objects.filter(role='seller', seller_profile__id__in=seller_ids))
+    
+    success = True
+    for seller in sellers:
+        if seller.email:
+            seller_items = order.items.filter(seller=seller.seller_profile).select_related('product', 'variant')
+            seller_items_str = ""
+            total_commission = 0
+            total_earnings = 0
+            for item in seller_items:
+                variant_info = f" ({item.variant.size_value} / {item.variant.color})" if item.variant else ""
+                seller_items_str += f"- {item.product.name}{variant_info} x {item.quantity} (₹{item.price:.2f} each)\n"
+                total_commission += item.commission_amount
+                total_earnings += item.seller_earnings
+                
+            sent = send_dynamic_email(
+                'seller_payment_success',
+                [seller.email],
+                {
+                    'seller_name': seller.full_name or seller.seller_profile.shop_name or "Seller",
+                    'order_id': order.unique_order_id,
+                    'items_list': seller_items_str,
+                    'commission_amount': str(total_commission),
+                    'net_earnings': str(total_earnings),
+                }
+            )
+            if not sent:
+                success = False
+    return success
+
+
+def send_refund_email_customer(order) -> bool:
+    from common.email_service import send_dynamic_email
+    cust_email = order.user.email if (order.user and order.user.email) else order.guest_email
+    if not cust_email:
+        return False
+        
+    return send_dynamic_email(
+        'customer_payment_refunded',
+        [cust_email],
+        {
+            'customer_name': (order.user.full_name or order.user.phone) if order.user else "Customer",
+            'order_id': order.unique_order_id,
+            'refund_amount': str(order.refund_amount or order.total_amount),
+            'refund_id': order.razorpay_refund_id or "",
+        }
+    )
+
+
+def send_refund_email_sellers(order) -> bool:
+    from common.email_service import send_dynamic_email
+    from accounts.models import User
+    
+    seller_ids = list(order.items.values_list('seller', flat=True).distinct())
+    sellers = list(User.objects.filter(role='seller', seller_profile__id__in=seller_ids))
+    
+    success = True
+    for seller in sellers:
+        if seller.email:
+            seller_items = order.items.filter(seller=seller.seller_profile).select_related('product', 'variant')
+            seller_items_str = ""
+            for item in seller_items:
+                variant_info = f" ({item.variant.size_value} / {item.variant.color})" if item.variant else ""
+                seller_items_str += f"- {item.product.name}{variant_info} x {item.quantity}\n"
+                
+            sent = send_dynamic_email(
+                'seller_payment_refunded',
+                [seller.email],
+                {
+                    'seller_name': seller.full_name or seller.seller_profile.shop_name or "Seller",
+                    'order_id': order.unique_order_id,
+                    'items_list': seller_items_str,
+                    'refund_amount': str(order.refund_amount or order.total_amount),
+                }
+            )
+            if not sent:
+                success = False
+    return success
+
+
+def send_status_email_customer(log_entry) -> bool:
+    from common.email_service import send_dynamic_email
+    order = log_entry.order
+    cust_email = order.user.email if (order.user and order.user.email) else order.guest_email
+    if not cust_email:
+        return False
+        
+    return send_dynamic_email(
+        'order_status_update',
+        [cust_email],
+        {
+            'customer_name': (order.user.full_name or order.user.phone) if order.user else "Customer",
+            'order_id': order.unique_order_id,
+            'status': log_entry.new_status.replace('_', ' ').title(),
+            'courier_name': order.courier_name or "",
+            'tracking_number': order.tracking_number or "",
+        }
+    )
+
+
+def send_status_email_sellers(log_entry) -> bool:
+    from common.email_service import send_dynamic_email
+    from accounts.models import User
+    order = log_entry.order
+    
+    seller_ids = list(order.items.values_list('seller', flat=True).distinct())
+    sellers = list(User.objects.filter(role='seller', seller_profile__id__in=seller_ids))
+    
+    success = True
+    for seller in sellers:
+        if seller.email:
+            sent = send_dynamic_email(
+                'seller_order_status_update',
+                [seller.email],
+                {
+                    'seller_name': seller.full_name or seller.seller_profile.shop_name or "Seller",
+                    'order_id': order.unique_order_id,
+                    'status': log_entry.new_status.replace('_', ' ').title(),
+                    'courier_name': order.courier_name or "",
+                    'tracking_number': order.tracking_number or "",
+                }
+            )
+            if not sent:
+                success = False
+    return success

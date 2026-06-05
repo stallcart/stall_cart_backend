@@ -17,18 +17,28 @@ class Command(BaseCommand):
     help = "Sync missing Shiprocket AWB numbers and auto-update tracking status for active shipments"
 
     def handle(self, *args, **options):
+        # Check global background jobs status
+        from common.models import SiteSettings
+        if not SiteSettings.get_singleton().enable_background_jobs:
+            self.stdout.write(self.style.WARNING("Background jobs are globally disabled in Site Settings. Exiting..."))
+            return
+
         self.stdout.write("=" * 60)
-        self.stdout.write("Starting Shiprocket AWB & Status Sync Job...")
+        self.stdout.write("Starting StallCart Background Jobs & Sync...")
         self.stdout.write("=" * 60)
 
         # Initialize Shiprocket service and authenticate
         srv = ShiprocketService()
         try:
             token = srv._get_token()
-            self.stdout.write("Authenticated with Shiprocket API successfully.")
+            self.stdout.write("Authenticated with Shiprocket API successfully. Starting Sync...")
+            self.run_shiprocket_sync(srv, token)
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f"Shiprocket authentication failed: {e}"))
-            return
+            self.stdout.write(self.style.ERROR(f"Shiprocket sync skipped/failed: {e}"))
+
+        self.run_email_retry()
+
+    def run_shiprocket_sync(self, srv, token):
 
         # ── PART 1: Sync Missing AWBs ──────────────────────────────────────────
         orders_missing_awb = Order.objects.filter(
@@ -244,5 +254,107 @@ class Command(BaseCommand):
             except Exception as e:
                 self.stdout.write(self.style.ERROR(f"Error querying tracking status for order {order.unique_order_id}: {e}"))
                 logger.error(f"Status sync error for order {order.unique_order_id}: {e}", exc_info=True)
+
+    def run_email_retry(self):
+        # ── PART 3: Email Sync & Retry ──────────────────────────────────────────
+        self.stdout.write("\n" + "=" * 60)
+        self.stdout.write("[Part 3] Starting Pending Email Dispatch & Retry Job...")
+        self.stdout.write("=" * 60)
+        
+        from django.db.models import Q
+        from common.notification_service import (
+            send_order_placed_email_customer,
+            send_order_placed_email_sellers,
+            send_payment_email_customer,
+            send_payment_email_sellers,
+            send_refund_email_customer,
+            send_refund_email_sellers,
+            send_status_email_customer,
+            send_status_email_sellers
+        )
+        
+        # 1. Retry Placed/Confirmed Order Emails
+        pending_placed_cust = Order.objects.filter(customer_placed_email_sent=False)
+        self.stdout.write(f"Found {pending_placed_cust.count()} pending customer order confirmation email(s).")
+        for order in pending_placed_cust:
+            self.stdout.write(f"  Sending order placement email to customer for Order {order.unique_order_id}...")
+            if send_order_placed_email_customer(order):
+                order.customer_placed_email_sent = True
+                order.save(update_fields=['customer_placed_email_sent'])
+                self.stdout.write(self.style.SUCCESS(f"    Sent successfully."))
+                
+        pending_placed_seller = Order.objects.filter(seller_placed_email_sent=False)
+        self.stdout.write(f"Found {pending_placed_seller.count()} pending seller order placement email(s).")
+        for order in pending_placed_seller:
+            self.stdout.write(f"  Sending order placement email to sellers for Order {order.unique_order_id}...")
+            if send_order_placed_email_sellers(order):
+                order.seller_placed_email_sent = True
+                order.save(update_fields=['seller_placed_email_sent'])
+                self.stdout.write(self.style.SUCCESS(f"    Sent successfully."))
+
+        # 2. Retry Payment Emails
+        pending_pay_cust = Order.objects.filter(payment_status='paid', customer_payment_email_sent=False)
+        self.stdout.write(f"Found {pending_pay_cust.count()} pending customer payment confirmation email(s).")
+        for order in pending_pay_cust:
+            self.stdout.write(f"  Sending payment success email to customer for Order {order.unique_order_id}...")
+            if send_payment_email_customer(order):
+                order.customer_payment_email_sent = True
+                order.save(update_fields=['customer_payment_email_sent'])
+                self.stdout.write(self.style.SUCCESS(f"    Sent successfully."))
+                
+        pending_pay_seller = Order.objects.filter(payment_status='paid', seller_payment_email_sent=False)
+        self.stdout.write(f"Found {pending_pay_seller.count()} pending seller payment confirmation email(s).")
+        for order in pending_pay_seller:
+            self.stdout.write(f"  Sending payment success email to sellers for Order {order.unique_order_id}...")
+            if send_payment_email_sellers(order):
+                order.seller_payment_email_sent = True
+                order.save(update_fields=['seller_payment_email_sent'])
+                self.stdout.write(self.style.SUCCESS(f"    Sent successfully."))
+
+        # 3. Retry Refund Emails
+        pending_ref_cust = Order.objects.filter(payment_status='refunded', customer_refund_email_sent=False)
+        self.stdout.write(f"Found {pending_ref_cust.count()} pending customer refund confirmation email(s).")
+        for order in pending_ref_cust:
+            self.stdout.write(f"  Sending refund email to customer for Order {order.unique_order_id}...")
+            if send_refund_email_customer(order):
+                order.customer_refund_email_sent = True
+                order.save(update_fields=['customer_refund_email_sent'])
+                self.stdout.write(self.style.SUCCESS(f"    Sent successfully."))
+                
+        pending_ref_seller = Order.objects.filter(payment_status='refunded', seller_refund_email_sent=False)
+        self.stdout.write(f"Found {pending_ref_seller.count()} pending seller refund confirmation email(s).")
+        for order in pending_ref_seller:
+            self.stdout.write(f"  Sending refund email to sellers for Order {order.unique_order_id}...")
+            if send_refund_email_sellers(order):
+                order.seller_refund_email_sent = True
+                order.save(update_fields=['seller_refund_email_sent'])
+                self.stdout.write(self.style.SUCCESS(f"    Sent successfully."))
+
+        # 4. Retry Status Change Log Emails
+        pending_logs = OrderStatusLog.objects.filter(
+            Q(customer_email_sent=False) | Q(seller_email_sent=False)
+        ).select_related('order', 'order__user').order_by('timestamp')
+        
+        self.stdout.write(f"Found {pending_logs.count()} status transition logs pending emails.")
+        for log in pending_logs:
+            # Skip logs where old_status == new_status (debug/alert logs)
+            if log.old_status == log.new_status:
+                continue
+                
+            self.stdout.write(f"  Processing log: Order {log.order.unique_order_id} ({log.old_status} -> {log.new_status})...")
+            
+            if not log.customer_email_sent:
+                self.stdout.write(f"    Sending status update email to customer...")
+                if send_status_email_customer(log):
+                    log.customer_email_sent = True
+                    log.save(update_fields=['customer_email_sent'])
+                    self.stdout.write(self.style.SUCCESS(f"      Customer email sent successfully."))
+                    
+            if not log.seller_email_sent:
+                self.stdout.write(f"    Sending status update email to sellers...")
+                if send_status_email_sellers(log):
+                    log.seller_email_sent = True
+                    log.save(update_fields=['seller_email_sent'])
+                    self.stdout.write(self.style.SUCCESS(f"      Seller email sent successfully."))
 
         self.stdout.write("\nShiprocket sync job complete.")
