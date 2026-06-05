@@ -42,6 +42,16 @@ DEFAULT_TEMPLATES = {
         'subject': "StallCart Admin - New Seller Registration: {{ shop_name }}",
         'body': "Hello Admin,\n\nA new seller has registered on StallCart and is pending verification:\n\nShop Name: {{ shop_name }}\nSeller Name: {{ seller_name }}\nPhone: {{ phone }}\nEmail: {{ email }}\n\nPlease review and take action from the admin dashboard: {{ dashboard_url }}.",
         'description': "Email notification sent to admins when a new seller registers"
+    },
+    'customer_order_placed': {
+        'subject': "StallCart - Order {{ order_id }} Placed Successfully",
+        'body': "Hello {{ customer_name }},\n\nYour order #{{ order_id }} has been placed successfully!\n\n--- Items ---\n{{ items_list }}\n\n--- Delivery Address ---\n{{ shipping_address }}\n\nPayment Method: {{ payment_method }}\nGrand Total: ₹{{ total_amount }}\n\nThank you for shopping with StallCart!",
+        'description': "Email confirmation sent to customer when order is successfully placed"
+    },
+    'seller_new_order': {
+        'subject': "StallCart Seller - New Order {{ order_id }} Received",
+        'body': "Hello {{ seller_name }},\n\nYou have received a new order #{{ order_id }} containing your products.\n\n--- Items to Prepare ---\n{{ items_list }}\n\n--- Shipping Address ---\n{{ shipping_address }}\n\nPlease prepare the items for pickup/shipping.\n\nBest Regards,\nStallCart Team",
+        'description': "Email notification sent to seller when a customer orders their products"
     }
 }
 
