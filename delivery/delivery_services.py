@@ -327,7 +327,7 @@ def auto_push_order_to_shiprocket(order):
         logger.warning("Shiprocket credentials not configured. Skipping auto-push.")
         return
         
-    if order.status == 'confirmed' and not order.tracking_number:
+    if order.status in ['confirmed', 'processing'] and not order.tracking_number:
         try:
             srv = ShiprocketService()
             res = srv.create_shipment(order)
