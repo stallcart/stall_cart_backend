@@ -12,17 +12,26 @@ import json
 
 def custom_404(request, exception=None):
     """Show 404 as toast popup, redirect to home or referrer"""
-    messages.warning(request, "🔍 Page not found. The link may be broken or the page was removed.")
+    try:
+        messages.warning(request, "🔍 Page not found. The link may be broken or the page was removed.")
+    except Exception:
+        pass
     return redirect_to_safe_location(request)
 
 def custom_403(request, exception=None):
     """Show 403 as toast popup"""
-    messages.error(request, "⛔ Access denied. You don't have permission to view this page.")
+    try:
+        messages.error(request, "⛔ Access denied. You don't have permission to view this page.")
+    except Exception:
+        pass
     return redirect_to_safe_location(request)
 
 def custom_400(request, exception=None):
     """Show 400 as toast popup"""
-    messages.error(request, "⚠️ Invalid request. Please try again.")
+    try:
+        messages.error(request, "⚠️ Invalid request. Please try again.")
+    except Exception:
+        pass
     return redirect_to_safe_location(request)
 
 def custom_500(request):
