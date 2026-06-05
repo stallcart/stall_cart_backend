@@ -143,7 +143,7 @@
             </div>
 
             <!-- Mini Timeline -->
-            {% with logs=order.status_logs.all %}
+            {% with logs=order.cleaned_status_logs %}
             {% if logs %}
             <div class="quick-timeline">
                 <div class="timeline-steps">

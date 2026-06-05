@@ -256,6 +256,12 @@ class Order(BaseModel):
         if self.courier_name == 'Delhivery':
             return f"https://tracking.delhivery.com/{self.tracking_number}"
         return f"https://track.shiprocket.in/tracking/{self.tracking_number}"
+
+    @property
+    def cleaned_status_logs(self):
+        """Returns only the status logs that represent real status transitions, excluding debug/alert logs."""
+        logs = self.status_logs.all().order_by('timestamp')
+        return [log for log in logs if log.old_status != log.new_status]
  
     @property
     def can_be_refunded(self):

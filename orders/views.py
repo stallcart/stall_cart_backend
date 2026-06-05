@@ -42,7 +42,7 @@ def build_cleaned_timeline(order):
     Excludes internal developer debug logs (where status didn't transition)
     and logs containing technical/system messages (like API payloads or alert emails).
     """
-    status_logs = order.status_logs.select_related('changed_by').order_by('timestamp')
+    status_logs = order.cleaned_status_logs
     status_labels = {
         'pending': 'Order Placed', 
         'confirmed': 'Order Confirmed',
@@ -57,10 +57,6 @@ def build_cleaned_timeline(order):
     
     cleaned_timeline = []
     for log in status_logs:
-        # Skip internal updates where status didn't change (e.g. debug payloads/alerts)
-        if log.old_status == log.new_status:
-            continue
-            
         # Skip explicit developer debug/error remarks
         remarks = log.remarks or ""
         if remarks.startswith("❌") or remarks.startswith("⚠️") or "API Request Payload" in remarks or "Failed to auto-push" in remarks:
