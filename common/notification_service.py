@@ -131,9 +131,10 @@ def notify_order_placed(order):
         send_to_user(order.user, cust_payload)
     
     # 2. Seller notifications
+    sellers = []
     try:
-        seller_ids = order.items.values_list('seller', flat=True).distinct()
-        sellers = User.objects.filter(role='seller', seller_profile__id__in=seller_ids)
+        seller_ids = list(order.items.values_list('seller', flat=True).distinct())
+        sellers = list(User.objects.filter(role='seller', seller_profile__id__in=seller_ids))
         for seller in sellers:
             seller_payload = NotificationPayload(
                 title='📦 New Order Received!',
@@ -160,6 +161,66 @@ def notify_order_placed(order):
             send_to_user(admin, admin_payload)
     except Exception as e:
         logger.error(f"[FCM] Failed to send order placed notification to admins: {e}")
+
+    # 4. Email notifications to Customer and Sellers
+    try:
+        from common.email_service import send_dynamic_email
+        
+        # Format shipping address nicely
+        addr = order.shipping_address or {}
+        addr_parts = [
+            addr.get("name", ""),
+            addr.get("address_line1", ""),
+            addr.get("address_line2", ""),
+            f"{addr.get('city', '')}, {addr.get('state', '')} - {addr.get('postal_code', '')}",
+            f"Phone: {addr.get('phone', '')}"
+        ]
+        shipping_address_str = "\n".join([p.strip() for p in addr_parts if p.strip()])
+
+        # Customer Email
+        cust_email = order.user.email if (order.user and order.user.email) else order.guest_email
+        if cust_email:
+            # Build customer items list
+            cust_items_str = ""
+            for item in order.items.select_related('product', 'variant').all():
+                variant_info = f" ({item.variant.size_value} / {item.variant.color})" if item.variant else ""
+                cust_items_str += f"- {item.product.name}{variant_info} x {item.quantity} (₹{item.price:.2f} each)\n"
+            
+            send_dynamic_email(
+                'customer_order_placed',
+                [cust_email],
+                {
+                    'customer_name': (order.user.full_name or order.user.phone) if order.user else "Customer",
+                    'order_id': order.unique_order_id,
+                    'items_list': cust_items_str,
+                    'shipping_address': shipping_address_str,
+                    'payment_method': order.get_payment_method_display() if hasattr(order, 'get_payment_method_display') else order.payment_method.upper(),
+                    'total_amount': str(order.total_amount),
+                }
+            )
+
+        # Seller Emails
+        for seller in sellers:
+            if seller.email:
+                # Build items list specifically for this seller
+                seller_items = order.items.filter(seller=seller.seller_profile).select_related('product', 'variant')
+                seller_items_str = ""
+                for item in seller_items:
+                    variant_info = f" ({item.variant.size_value} / {item.variant.color})" if item.variant else ""
+                    seller_items_str += f"- {item.product.name}{variant_info} x {item.quantity}\n"
+                
+                send_dynamic_email(
+                    'seller_new_order',
+                    [seller.email],
+                    {
+                        'seller_name': seller.full_name or seller.seller_profile.shop_name or "Seller",
+                        'order_id': order.unique_order_id,
+                        'items_list': seller_items_str,
+                        'shipping_address': shipping_address_str,
+                    }
+                )
+    except Exception as e:
+        logger.error(f"Failed to send order placed emails: {e}", exc_info=True)
 
 
 def notify_order_status_change(order, old_status, new_status):

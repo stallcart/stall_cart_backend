@@ -78,3 +78,98 @@ class RepairAddressTests(TestCase):
         self.assertEqual(repaired["postal_code"], "221005")
         self.assertEqual(repaired["city"], "Varanasi")
         self.assertEqual(repaired["phone"], "9876543210")
+
+from django.core import mail
+from decimal import Decimal
+from orders.models import Order, OrderItem
+from items.models import Product, Category, SellerProfile
+from common.notification_service import notify_order_placed
+
+class OrderPlacedEmailNotificationTests(TestCase):
+    def setUp(self):
+        # Clean users if already exist to prevent duplicate phone errors
+        User.objects.filter(phone__in=["9998887776", "8887776665"]).delete()
+
+        self.user = User.objects.create_user(phone="9998887776", email="customer@example.com", password="password123")
+        
+        # Create a seller
+        self.seller_user = User.objects.create_user(phone="8887776665", email="seller@example.com", password="password123", role="seller")
+        self.seller_profile = SellerProfile.objects.create(
+            user=self.seller_user,
+            shop_name="Test Shop",
+            bank_name="Test Bank",
+            account_number="1234567890",
+            ifsc_code="ABCD0123456",
+            account_holder_name="Test Holder",
+            is_verified=True
+        )
+
+        # Create Category and Product
+        self.category, _ = Category.objects.get_or_create(name="Apparel", slug="apparel", defaults={"commision_percentage": Decimal("10.00")})
+        self.product = Product.objects.create(
+            seller=self.seller_profile,
+            category=self.category,
+            name="Cool T-Shirt",
+            description="Description",
+            price=Decimal("500.00"),
+            mrp=Decimal("600.00"),
+            stock=10,
+            status="published",
+            is_active=True
+        )
+
+        # Create Order
+        self.order = Order.objects.create(
+            user=self.user,
+            total_amount=Decimal("500.00"),
+            delivery_charge=Decimal("0.00"),
+            shipping_address={
+                "name": "John Customer",
+                "phone": "9998887776",
+                "address_line1": "123 Main Street",
+                "city": "Varanasi",
+                "state": "Uttar Pradesh",
+                "postal_code": "221005",
+                "country": "India"
+            },
+            payment_method="cod",
+            payment_status="pending",
+            status="pending"
+        )
+        
+        # Create OrderItem
+        self.order_item = OrderItem.objects.create(
+            order=self.order,
+            product=self.product,
+            seller=self.seller_profile,
+            quantity=1,
+            price=Decimal("500.00"),
+            total=Decimal("500.00")
+        )
+
+    def test_notify_order_placed_sends_emails(self):
+        # Clear outbox
+        mail.outbox = []
+
+        # Trigger order placed notifications
+        notify_order_placed(self.order)
+
+        # We expect two emails: one to the customer, one to the seller
+        emails = [m for m in mail.outbox]
+        self.assertGreaterEqual(len(emails), 2)
+        
+        # Check customer email contents
+        customer_email = next((m for m in emails if "customer@example.com" in m.to), None)
+        self.assertIsNotNone(customer_email)
+        self.assertIn("Placed Successfully", customer_email.subject)
+        self.assertIn("Cool T-Shirt", customer_email.body)
+        self.assertIn("John Customer", customer_email.body)
+        self.assertIn("Varanasi", customer_email.body)
+        self.assertIn("221005", customer_email.body)
+
+        # Check seller email contents
+        seller_email = next((m for m in emails if "seller@example.com" in m.to), None)
+        self.assertIsNotNone(seller_email)
+        self.assertIn("New Order", seller_email.subject)
+        self.assertIn("Cool T-Shirt", seller_email.body)
+
