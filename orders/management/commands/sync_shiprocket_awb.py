@@ -14,41 +14,37 @@ from common.notification_service import notify_order_status_change
 logger = logging.getLogger(__name__)
 
 class Command(BaseCommand):
-    help = "Sync missing Shiprocket AWB tracking numbers for processing/confirmed orders and send email alerts if needed"
+    help = "Sync missing Shiprocket AWB numbers and auto-update tracking status for active shipments"
 
     def handle(self, *args, **options):
         self.stdout.write("=" * 60)
-        self.stdout.write("Starting Shiprocket AWB Sync Job...")
+        self.stdout.write("Starting Shiprocket AWB & Status Sync Job...")
         self.stdout.write("=" * 60)
 
-        # 1. Initialize Shiprocket service and authenticate
+        # Initialize Shiprocket service and authenticate
         srv = ShiprocketService()
         try:
             token = srv._get_token()
-            self.stdout.write(f"Authenticated with Shiprocket API successfully.")
+            self.stdout.write("Authenticated with Shiprocket API successfully.")
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"Shiprocket authentication failed: {e}"))
             return
 
-        # 2. Query orders pending AWB tracking numbers
-        orders = Order.objects.filter(
+        # ── PART 1: Sync Missing AWBs ──────────────────────────────────────────
+        orders_missing_awb = Order.objects.filter(
             status__in=['confirmed', 'processing'],
             tracking_number__isnull=True
         ) | Order.objects.filter(
             status__in=['confirmed', 'processing'],
             tracking_number=''
         )
-        # Remove duplicate querysets and fetch unique list
-        orders = orders.distinct()
+        orders_missing_awb = orders_missing_awb.distinct()
 
-        self.stdout.write(f"Found {orders.count()} order(s) requiring AWB synchronization.")
+        self.stdout.write(f"\n[Part 1] Checking {orders_missing_awb.count()} order(s) missing AWB tracking numbers...")
 
-        for order in orders:
-            self.stdout.write("-" * 50)
-            self.stdout.write(f"Checking Order {order.unique_order_id} (Status: {order.status})...")
-
+        for order in orders_missing_awb:
+            self.stdout.write(f"Checking Order {order.unique_order_id} for AWB...")
             try:
-                # 3. Query Shiprocket for the order details using channel_order_id
                 res = requests.get(
                     "https://apiv2.shiprocket.in/v1/external/orders",
                     params={
@@ -60,15 +56,10 @@ class Command(BaseCommand):
                 )
 
                 if res.status_code != 200:
-                    self.stdout.write(self.style.WARNING(f"Shiprocket API returned status {res.status_code} for order {order.unique_order_id}: {res.text}"))
+                    self.stdout.write(self.style.WARNING(f"Shiprocket API returned status {res.status_code} for order {order.unique_order_id}"))
                     continue
 
                 orders_list = res.json().get("data", [])
-                if not orders_list:
-                    self.stdout.write(f"Order {order.unique_order_id} not found on Shiprocket system yet.")
-                    continue
-
-                # Parse the matching order object
                 sr_order = None
                 for o in orders_list:
                     if o.get("channel_order_id") == order.unique_order_id:
@@ -76,12 +67,9 @@ class Command(BaseCommand):
                         break
 
                 if not sr_order:
-                    self.stdout.write(f"No exact channel order matching {order.unique_order_id} found in Shiprocket results.")
+                    self.stdout.write(f"  Order {order.unique_order_id} not found on Shiprocket system yet.")
                     continue
 
-                self.stdout.write(f"Found order in Shiprocket (Shiprocket ID: {sr_order.get('id')}). Checking shipment tracking details...")
-
-                # 4. Extract AWB and Courier details
                 awb_code = sr_order.get("awb_code") or sr_order.get("awb")
                 courier_name = sr_order.get("courier_name")
                 
@@ -93,7 +81,7 @@ class Command(BaseCommand):
                         awb_code = first_shipment.get("awb_code") or first_shipment.get("awb")
                         courier_name = first_shipment.get("courier_name") or first_shipment.get("courier_company_name")
 
-                # Recipient list setup (Sellers & Admin)
+                # Setup recipient list (Sellers & Admin)
                 seller_emails = set()
                 for item in order.items.all():
                     if item.product.seller and item.product.seller.user.email:
@@ -106,13 +94,12 @@ class Command(BaseCommand):
                 recipient_list = list(seller_emails) + admin_emails
                 recipient_list = [email for email in recipient_list if email]
 
-                # 5. Handle tracking assignment/alerts
                 if awb_code and str(awb_code).strip():
                     awb_code = str(awb_code).strip()
                     courier_name = str(courier_name or "Shiprocket").strip()
-                    self.stdout.write(self.style.SUCCESS(f"Tracking AWB detected: {awb_code} ({courier_name}). Updating database..."))
+                    self.stdout.write(self.style.SUCCESS(f"  AWB detected: {awb_code} ({courier_name}). Updating database..."))
 
-                    # Update order
+                    # Update order AWB
                     old_status = order.status
                     order.tracking_number = awb_code
                     order.courier_name = courier_name
@@ -143,7 +130,7 @@ class Command(BaseCommand):
                         logger.error(f"Failed to send customer status change notification: {ex}")
 
                 else:
-                    self.stdout.write(f"Order exists in Shiprocket but has no tracking AWB assigned yet.")
+                    self.stdout.write(f"  Order exists in Shiprocket but has no tracking AWB assigned yet.")
 
                     # Check if alert email has already been sent
                     alert_exists = OrderStatusLog.objects.filter(
@@ -152,9 +139,7 @@ class Command(BaseCommand):
                     ).exists()
 
                     if not alert_exists:
-                        self.stdout.write("No previous alert email sent. Dispatching manual update notification to seller/admin...")
-
-                        # Resolve pickup location label
+                        self.stdout.write("  Dispatching manual AWB update notification to seller/admin...")
                         pickup_loc = "Primary"
                         try:
                             first_item = order.items.first()
@@ -174,22 +159,90 @@ class Command(BaseCommand):
                             "admin_order_url": f"https://stallcart.in/orders/admin/order/{order.unique_order_id}/"
                         }
 
-                        # Send the alert email
                         email_sent = send_dynamic_email('admin_seller_awb_alert', recipient_list, context)
                         if email_sent:
-                            # Log that the alert was sent to prevent repeating on next runs
                             OrderStatusLog.objects.create(
                                 order=order,
                                 old_status=order.status,
                                 new_status=order.status,
                                 remarks="⚠️ Sent manual AWB update alert email to seller/admin. Awaiting tracking details."
                             )
-                            self.stdout.write("Alert email dispatched successfully and logged.")
+                            self.stdout.write("  Alert email dispatched and logged.")
                     else:
-                        self.stdout.write("Manual AWB update alert email was already sent previously. Skipping email dispatch to avoid spam.")
+                        self.stdout.write("  Manual AWB update alert email already sent. Skipping.")
 
             except Exception as e:
-                self.stdout.write(self.style.ERROR(f"Error checking order {order.unique_order_id}: {e}"))
-                logger.error(f"AWB Sync command error for order {order.unique_order_id}: {e}", exc_info=True)
+                self.stdout.write(self.style.ERROR(f"Error checking AWB for order {order.unique_order_id}: {e}"))
+                logger.error(f"AWB Sync error for order {order.unique_order_id}: {e}", exc_info=True)
 
-        self.stdout.write("\nAWB sync job complete.")
+        # ── PART 2: Sync Delivery Statuses ─────────────────────────────────────
+        active_tracked_orders = Order.objects.filter(
+            status__in=['confirmed', 'processing', 'shipped', 'out_for_delivery'],
+            tracking_number__isnull=False
+        ).exclude(tracking_number='').distinct()
+
+        self.stdout.write(f"\n[Part 2] Checking {active_tracked_orders.count()} active tracked order(s) for status updates...")
+
+        status_map = {
+            'AWB Assigned': 'confirmed',
+            'Manifested': 'processing',
+            'In Transit': 'shipped',
+            'Shipped': 'shipped',
+            'Out for Delivery': 'out_for_delivery',
+            'Delivered': 'delivered',
+            'RTO': 'returned_to_source',
+            'Returned to Source': 'returned_to_source',
+            'Cancelled': 'cancelled'
+        }
+
+        for order in active_tracked_orders:
+            self.stdout.write(f"Querying status for Order {order.unique_order_id} (AWB: {order.tracking_number})...")
+            try:
+                tracking_data = srv.get_tracking(order.tracking_number)
+                sr_status = tracking_data.get("current_status")
+
+                if not sr_status:
+                    self.stdout.write(f"  No tracking status returned from Shiprocket for AWB {order.tracking_number}.")
+                    continue
+
+                sr_status = sr_status.strip()
+                new_local_status = status_map.get(sr_status)
+                self.stdout.write(f"  Shiprocket Status: '{sr_status}' -> Mapped Local Status: '{new_local_status}'")
+
+                if new_local_status and new_local_status != order.status:
+                    old_status = order.status
+                    order.status = new_local_status
+                    update_fields = ['status', 'updated_at']
+
+                    if new_local_status == 'delivered':
+                        order.delivered_at = timezone.now()
+                        update_fields.append('delivered_at')
+                    elif new_local_status == 'shipped' and not order.shipped_at:
+                        order.shipped_at = timezone.now()
+                        update_fields.append('shipped_at')
+
+                    order.save(update_fields=update_fields)
+
+                    # Log the automatic status update
+                    OrderStatusLog.objects.create(
+                        order=order,
+                        old_status=old_status,
+                        new_status=new_local_status,
+                        remarks=f"🔄 Automatically updated status via Shiprocket Sync (Status: {sr_status})"
+                    )
+
+                    self.stdout.write(self.style.SUCCESS(f"  Successfully updated status from '{old_status}' to '{new_local_status}'!"))
+
+                    # Trigger push notifications & emails
+                    try:
+                        notify_order_status_change(order, old_status, order.status)
+                    except Exception as ex:
+                        logger.error(f"Failed to trigger status change notification: {ex}")
+                else:
+                    self.stdout.write("  Status is already up-to-date. No changes made.")
+
+            except Exception as e:
+                self.stdout.write(self.style.ERROR(f"Error querying tracking status for order {order.unique_order_id}: {e}"))
+                logger.error(f"Status sync error for order {order.unique_order_id}: {e}", exc_info=True)
+
+        self.stdout.write("\nShiprocket sync job complete.")
