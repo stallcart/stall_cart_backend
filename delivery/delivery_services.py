@@ -303,8 +303,14 @@ class ShiprocketService:
             }
  
         except requests.exceptions.HTTPError as e:
-            logger.error(f"Shiprocket create order HTTP error: {e.response.text}")
-            return {"success": False, "error": str(e)}
+            err_body = e.response.text
+            logger.error(f"Shiprocket create order HTTP error: {err_body}")
+            try:
+                import json
+                err_msg = json.loads(err_body).get("message", err_body)
+            except Exception:
+                err_msg = err_body
+            return {"success": False, "error": f"Shiprocket HTTP {e.response.status_code}: {err_msg}"}
         except Exception as e:
             logger.error(f"Shiprocket create order error: {e}")
             return {"success": False, "error": str(e)}
@@ -576,6 +582,45 @@ def auto_push_order_to_shiprocket(order):
                     remarks=f"Automatically pushed to Shiprocket (AWB: {order.tracking_number}, Courier: {order.courier_name})"
                 )
             else:
-                logger.error(f"Failed to auto-push order {order.unique_order_id} to Shiprocket: {res.get('error')}")
+                err_msg = res.get('error', 'Unknown error')
+                logger.error(f"Failed to auto-push order {order.unique_order_id} to Shiprocket: {err_msg}")
+                
+                # Create a status log for tracing the Shiprocket push failure with addresses and pickup location info
+                from orders.models import OrderStatusLog
+                
+                # Safe fetching of debug info
+                addr = order.shipping_address or {}
+                pickup_loc = "Unknown (Failed before building payload)"
+                
+                # Reconstruct the pickup location details
+                try:
+                    first_item = order.items.select_related("product__seller__shop_address").first()
+                    if first_item and first_item.product.seller:
+                        seller = first_item.product.seller
+                        if hasattr(seller, 'shop_address') and seller.shop_address:
+                            sa = seller.shop_address
+                            pickup_loc = f"Seller_{seller.id} ({sa.shop_name} - {sa.city}, {sa.state} {sa.postal_code})"
+                        else:
+                            pickup_loc = "Primary (No seller shop address created in DB)"
+                except Exception:
+                    pass
+
+                remarks = (
+                    f"❌ Failed to auto-push to Shiprocket: {err_msg}\n\n"
+                    f"🔍 Debug Info:\n"
+                    f"- Resolved Pickup Location: {pickup_loc}\n"
+                    f"- Customer Delivery Name: {addr.get('name', 'N/A')}\n"
+                    f"- Customer Delivery Phone: {addr.get('phone', 'N/A')}\n"
+                    f"- Customer Delivery Pincode: {addr.get('postal_code', 'N/A')}\n"
+                    f"- Customer Delivery City: {addr.get('city', 'N/A')}\n"
+                    f"- Customer Delivery State: {addr.get('state', 'N/A')}\n"
+                    f"- Customer Delivery Address: {addr.get('address_line1', 'N/A')}"
+                )
+                OrderStatusLog.objects.create(
+                    order=order,
+                    old_status=order.status,
+                    new_status=order.status,
+                    remarks=remarks
+                )
         except Exception as e:
             logger.error(f"Error during auto-pushing order to Shiprocket: {e}", exc_info=True)
