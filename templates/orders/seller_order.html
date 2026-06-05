@@ -154,7 +154,7 @@
 </div>
 
 <!-- ✅ Status Update Modal -->
-<div id="statusModal" class="modal" style="display:none;">
+<div id="statusModal" class="modal">
     <div class="modal-content">
         <span class="modal-close" onclick="closeModal('statusModal')">&times;</span>
         <h3>Update Order Status</h3>
@@ -176,7 +176,7 @@
 </div>
 
 <!-- ✅ Tracking Add Modal -->
-<div id="trackingModal" class="modal" style="display:none;">
+<div id="trackingModal" class="modal">
     <div class="modal-content">
         <span class="modal-close" onclick="closeModal('trackingModal')">&times;</span>
         <h3>Add/Edit Tracking Details</h3>
@@ -213,7 +213,7 @@ window.openStatusModal = (orderId, currentStatus = '') => {
     if (select && currentStatus) {
         select.value = currentStatus;
     }
-    document.getElementById('statusModal').style.display = 'flex';
+    document.getElementById('statusModal').classList.add('show');
 };
 window.openTrackingModal = (orderId, courierName = '', trackingNumber = '') => {
     document.getElementById('trackingOrderId').value = orderId;
@@ -221,11 +221,11 @@ window.openTrackingModal = (orderId, courierName = '', trackingNumber = '') => {
     if (numInput) numInput.value = trackingNumber;
     const select = document.getElementById('courierNameSelect');
     if (select) select.value = courierName || 'Shiprocket';
-    document.getElementById('trackingModal').style.display = 'flex';
+    document.getElementById('trackingModal').classList.add('show');
 };
-window.closeModal = (id) => { document.getElementById(id).style.display = 'none'; };
+window.closeModal = (id) => { document.getElementById(id).classList.remove('show'); };
 window.onclick = (e) => {
-    if (e.target.classList.contains('modal')) e.target.style.display = 'none';
+    if (e.target.classList.contains('modal')) e.target.classList.remove('show');
 };
 
 // Status Update AJAX

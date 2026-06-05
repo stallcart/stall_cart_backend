@@ -6,13 +6,35 @@
 {% block content %}
 <div class="order-tracking-container">
     <!-- Order Header -->
-    <div class="order-header">
-        <h1>Order {{ order.order_id }}</h1>
-        <span class="status-badge status-{{ order.status }}">
-            {{ order.get_status_display }}
-        </span>
-        <p class="order-date">Placed on {{ order.created_at|date:"d M Y, h:i A" }}</p>
-        <p class="text-muted">Customer: {{ order.user.full_name|default:order.guest_email }}</p>
+    <div class="order-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; background: white; padding: 24px; border-radius: 12px; margin-bottom: 20px; border: 1.5px solid var(--gray-100);">
+        <div>
+            <h1 style="margin: 0 0 6px;">Order {{ order.order_id }}</h1>
+            <p class="order-date" style="margin: 0 0 4px; color: #666; font-size: 0.9rem;">Placed on {{ order.created_at|date:"d M Y, h:i A" }}</p>
+            <p class="text-muted" style="margin: 0; color: #666; font-size: 0.9rem;">Customer: {{ order.user.full_name|default:order.guest_email }}</p>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
+            <span class="status-badge status-{{ order.status }}" style="margin: 0;">
+                {{ order.get_status_display }}
+            </span>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                {% if order.status in 'pending,confirmed,processing,shipped,delivered' %}
+                <button class="btn-primary" onclick="openStatusModal()" style="font-size: 0.85rem; padding: 8px 16px; height: 36px; border-radius: 8px; width: auto; font-weight: 700; border: none; cursor: pointer;">
+                    Update Status
+                </button>
+                {% endif %}
+                {% if order.status in 'confirmed,processing,shipped,delivered' %}
+                    {% if not order.tracking_number %}
+                    <button class="btn-outline" onclick="openTrackingModal('', '')" style="font-size: 0.85rem; padding: 8px 16px; height: 36px; border-radius: 8px; font-weight: 700; border: 2px solid #2874f0; cursor: pointer; background: white; color: #2874f0;">
+                        📦 Add Tracking
+                    </button>
+                    {% else %}
+                    <button class="btn-outline" onclick="openTrackingModal('{{ order.courier_name|escapejs }}', '{{ order.tracking_number|escapejs }}')" style="font-size: 0.85rem; padding: 8px 16px; height: 36px; border-radius: 8px; font-weight: 700; border: 2px solid #2874f0; cursor: pointer; background: white; color: #2874f0;">
+                        📝 Edit Tracking
+                    </button>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
     </div>
 
     <!-- Return Requests Section -->
@@ -143,6 +165,51 @@
         </div>
     </div>
 </div>
+
+<!-- ✅ Status Update Modal -->
+<div id="statusModal" class="modal">
+    <div class="modal-content" style="max-width: 440px;">
+        <span class="modal-close" onclick="closeModal('statusModal')">&times;</span>
+        <h3>Update Order Status</h3>
+        <form id="statusForm">
+            {% csrf_token %}
+            <div class="form-group">
+                <label>Select New Status</label>
+                <select name="status" id="statusSelect" class="form-input" required style="width: 100%;">
+                    <option value="processing" {% if order.status == 'processing' %}selected{% endif %}>⚙️ Processing</option>
+                    <option value="shipped" {% if order.status == 'shipped' %}selected{% endif %}>🚚 Shipped</option>
+                    <option value="delivered" {% if order.status == 'delivered' %}selected{% endif %}>🟢 Delivered</option>
+                    <option value="returned" {% if order.status == 'returned' %}selected{% endif %}>🔄 Returned</option>
+                </select>
+            </div>
+            <button type="submit" class="btn-primary">Confirm Update</button>
+        </form>
+    </div>
+</div>
+
+<!-- ✅ Tracking Add Modal -->
+<div id="trackingModal" class="modal">
+    <div class="modal-content" style="max-width: 440px;">
+        <span class="modal-close" onclick="closeModal('trackingModal')">&times;</span>
+        <h3>Add/Edit Tracking Details</h3>
+        <form id="trackingForm">
+            {% csrf_token %}
+            <div class="form-group">
+                <label>Courier Name</label>
+                <select name="courier_name" id="courierNameSelect" class="form-input" style="width: 100%;">
+                    <option value="Shiprocket" {% if order.courier_name == 'Shiprocket' %}selected{% endif %}>🚀 Shiprocket</option>
+                    <option value="Delhivery" {% if order.courier_name == 'Delhivery' %}selected{% endif %}>📦 Delhivery</option>
+                    <option value="BlueDart" {% if order.courier_name == 'BlueDart' %}selected{% endif %}>🔵 BlueDart</option>
+                    <option value="Other" {% if order.courier_name == 'Other' %}selected{% endif %}>📋 Other</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Tracking Number (AWB)</label>
+                <input type="text" name="tracking_number" id="trackingNumberInput" class="form-input" required placeholder="e.g., AWB123456789" value="{{ order.tracking_number|default:'' }}" style="width: 100%;">
+            </div>
+            <button type="submit" class="btn-primary">Save Tracking</button>
+        </form>
+    </div>
 {% endblock %}
 
 {% block extra_css %}
@@ -185,13 +252,74 @@
 
 {% block scripts %}
 <script>
+const csrfToken = '{{ csrf_token }}';
+
+window.openStatusModal = () => {
+    document.getElementById('statusModal').classList.add('show');
+};
+window.openTrackingModal = (courierName = '', trackingNumber = '') => {
+    const numInput = document.getElementById('trackingNumberInput');
+    if (numInput) numInput.value = trackingNumber;
+    const select = document.getElementById('courierNameSelect');
+    if (select) select.value = courierName || 'Shiprocket';
+    document.getElementById('trackingModal').classList.add('show');
+};
+window.closeModal = (id) => { document.getElementById(id).classList.remove('show'); };
+window.onclick = (e) => {
+    if (e.target.classList.contains('modal')) e.target.classList.remove('show');
+};
+
+// Status Update AJAX
+document.getElementById('statusForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const status = e.target.status.value;
+    
+    try {
+        const res = await fetch(`/orders/seller/order/{{ order.unique_order_id }}/update-status/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify({ status })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            location.reload();
+        } else {
+            alert(data.error || 'Failed to update status');
+        }
+    } catch (err) {
+        alert('Network error. Please try again.');
+    }
+});
+
+// Tracking Add AJAX
+document.getElementById('trackingForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData.entries());
+    
+    try {
+        const res = await fetch(`/orders/seller/order/{{ order.unique_order_id }}/add-tracking/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        if (result.status === 'success') {
+            location.reload();
+        } else {
+            alert(result.error || 'Failed to save tracking');
+        }
+    } catch (err) {
+        alert('Network error. Please try again.');
+    }
+});
+
 function confirmRtoReceipt(orderId) {
     if (!confirm("Are you sure you have received this returned-to-source shipment and want to process the refund?")) {
         return;
     }
     
     const url = `/orders/order/${orderId}/confirm-rto/`;
-    const csrfToken = '{{ csrf_token }}';
     
     const btn = document.getElementById('confirmRtoBtn');
     if (btn) {
