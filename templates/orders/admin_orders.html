@@ -28,6 +28,7 @@
         </div>
     </div>
 
+    {% if user.is_superuser or user.role == 'admin' %}
     <!-- ⚙️ Background Jobs Control Dashboard -->
     <div class="jobs-control-panel" style="background: white; padding: 20px; border-radius: var(--r-xl); border: 1.5px solid var(--gray-100); box-shadow: var(--sh-md); margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
         <div style="display: flex; align-items: center; gap: 12px;">
@@ -53,6 +54,7 @@
             </button>
         </div>
     </div>
+    {% endif %}
 
     <!-- Return Requests Section -->
     {% include "orders/return_requests_panel.html" with pending_returns=pending_returns %}

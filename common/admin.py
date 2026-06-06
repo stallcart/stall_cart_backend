@@ -100,6 +100,25 @@ class SiteSettingsAdmin(admin.ModelAdmin):
         return 'No favicon'
     favicon_preview.short_description = 'Favicon Preview'
 
+    def get_fieldsets(self, request, obj=None):
+        fieldsets = super().get_fieldsets(request, obj)
+        if not request.user.is_superuser and getattr(request.user, 'role', None) != 'admin':
+            new_fieldsets = []
+            for name, opts in fieldsets:
+                opts = opts.copy()
+                fields = list(opts.get('fields', []))
+                fields = [f for f in fields if f not in ('enable_background_jobs', 'jobs_status_control')]
+                opts['fields'] = tuple(fields)
+                new_fieldsets.append((name, opts))
+            return tuple(new_fieldsets)
+        return fieldsets
+
+    def get_list_display(self, request):
+        list_display = super().get_list_display(request)
+        if not request.user.is_superuser and getattr(request.user, 'role', None) != 'admin':
+            return [f for f in list_display if f != 'enable_background_jobs']
+        return list_display
+
     def get_urls(self):
         urls = super().get_urls()
         custom_urls = [
@@ -108,6 +127,9 @@ class SiteSettingsAdmin(admin.ModelAdmin):
         return custom_urls + urls
 
     def toggle_jobs_view(self, request):
+        if not request.user.is_superuser and getattr(request.user, 'role', None) != 'admin':
+            messages.error(request, "🔐 Permission Denied: Staff/regular users cannot toggle background jobs.")
+            return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('admin:common_sitesettings_changelist')))
         obj = SiteSettings.get_singleton()
         obj.enable_background_jobs = not obj.enable_background_jobs
         obj.save(update_fields=['enable_background_jobs'])

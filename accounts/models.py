@@ -24,6 +24,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         ('seller', 'Seller'),
         ('delivery_partner', 'Delivery Partner'),
         ('admin', 'Admin'),
+        ('staff', 'Staff'),
     ]
 
     phone = models.CharField(max_length=15, unique=True)
@@ -48,6 +49,14 @@ class User(AbstractBaseUser, PermissionsMixin):
     objects = UserManager()
     USERNAME_FIELD = 'phone'
     REQUIRED_FIELDS = ['full_name']
+
+    def save(self, *args, **kwargs):
+        if self.role in ['staff', 'admin']:
+            self.is_staff = True
+        else:
+            if not self.is_superuser:
+                self.is_staff = False
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.phone} | {self.role}"

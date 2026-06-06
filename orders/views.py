@@ -1843,6 +1843,8 @@ def razorpayx_webhook(request):
 @admin_only
 def admin_toggle_jobs_ajax(request):
     """Admin: Toggle background jobs switch"""
+    if not request.user.is_superuser and request.user.role != 'admin':
+        return JsonResponse({'error': '🔐 Permission denied. Only superadmins can toggle background jobs.'}, status=403)
     from common.models import SiteSettings
     settings = SiteSettings.get_singleton()
     settings.enable_background_jobs = not settings.enable_background_jobs
