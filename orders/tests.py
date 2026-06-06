@@ -281,18 +281,45 @@ class OrderManagementTests(TestCase):
         # Verify initial stock
         initial_stock = self.product1.stock
         
-        # Approve using Admin
+        # Login using Admin
         self.client.login(phone="9999999999", password="adminpassword")
+        
+        # 1. Approve return request
         response = self.client.post(
             reverse('orders:approve_return', args=[return_req.id]),
             data=json.dumps({"action": "approve"}),
             content_type="application/json"
         )
         self.assertEqual(response.status_code, 200)
+        return_req.refresh_from_db()
+        self.assertEqual(return_req.status, 'approved')
+        self.assertEqual(return_req.refund_status, 'pending') # Refund not yet processed
+        
+        # Verify stock was NOT replenished yet
+        self.product1.refresh_from_db()
+        self.assertEqual(self.product1.stock, initial_stock)
+
+        # 2. Mark return request as received
+        response = self.client.post(
+            reverse('orders:approve_return', args=[return_req.id]),
+            data=json.dumps({"action": "mark_received"}),
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+        return_req.refresh_from_db()
+        self.assertEqual(return_req.status, 'received')
+
+        # 3. Approve and process refund
+        response = self.client.post(
+            reverse('orders:approve_return', args=[return_req.id]),
+            data=json.dumps({"action": "approve_refund"}),
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
         
         # Verify return request status and refund status/method
         return_req.refresh_from_db()
-        self.assertEqual(return_req.status, 'approved')
+        self.assertEqual(return_req.status, 'completed')
         self.assertEqual(return_req.refund_status, 'manual_pending')
         self.assertEqual(return_req.refund_method, 'bank')
         
@@ -321,18 +348,40 @@ class OrderManagementTests(TestCase):
         wallet.balance = Decimal("50.00")
         wallet.save()
         
-        # Approve using Admin
+        # Login using Admin
         self.client.login(phone="9999999999", password="adminpassword")
+        
+        # 1. Approve return request
         response = self.client.post(
             reverse('orders:approve_return', args=[return_req.id]),
             data=json.dumps({"action": "approve"}),
             content_type="application/json"
         )
         self.assertEqual(response.status_code, 200)
+        return_req.refresh_from_db()
+        self.assertEqual(return_req.status, 'approved')
+
+        # 2. Mark as received
+        response = self.client.post(
+            reverse('orders:approve_return', args=[return_req.id]),
+            data=json.dumps({"action": "mark_received"}),
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+        return_req.refresh_from_db()
+        self.assertEqual(return_req.status, 'received')
+
+        # 3. Approve refund
+        response = self.client.post(
+            reverse('orders:approve_return', args=[return_req.id]),
+            data=json.dumps({"action": "approve_refund"}),
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
         
         # Verify return request status and refund status/method (redirected to manual bank transfer)
         return_req.refresh_from_db()
-        self.assertEqual(return_req.status, 'approved')
+        self.assertEqual(return_req.status, 'completed')
         self.assertEqual(return_req.refund_status, 'manual_pending')
         self.assertEqual(return_req.refund_method, 'bank')
         

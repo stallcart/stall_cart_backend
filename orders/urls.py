@@ -30,7 +30,7 @@ urlpatterns = [
     
     # Return Request Detail
     path('return/<int:return_id>/', 
-         customer_only(views.return_detail), 
+         views.return_detail, 
          name='return_detail'),
     
     # Download Invoice
@@ -129,7 +129,6 @@ urlpatterns = [
 
      # Return management
      path('return/<int:return_id>/approve/', views.approve_return, name='approve_return'),
-     path('return/<int:return_id>/', customer_only(views.return_detail), name='return_detail'),
      path('order/<str:order_id>/confirm-rto/', views.confirm_rto_refund, name='confirm_rto_refund'),
 
      # Settlement & Payout management

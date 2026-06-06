@@ -5,7 +5,14 @@ from django.utils.text import slugify
 from common.models import BaseModel  # Your existing BaseModel
 from decimal import Decimal
 from django.urls import reverse
-from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.validators import MinValueValidator, MaxValueValidator, FileExtensionValidator
+from django.core.exceptions import ValidationError
+
+def validate_video_size(value):
+    limit = 20 * 1024 * 1024  # 20MB
+    if value.size > limit:
+        raise ValidationError('Video file size cannot exceed 20MB.')
+
 
 class SellerProfile(BaseModel):
     """Extended profile for sellers"""
@@ -32,6 +39,14 @@ class SellerProfile(BaseModel):
     # RazorpayX Payout IDs
     razorpay_contact_id = models.CharField(max_length=100, blank=True, null=True)
     razorpay_fund_account_id = models.CharField(max_length=100, blank=True, null=True)
+    def _update_rating_cache(self):
+        """Update average rating from approved seller reviews"""
+        stats = self.reviews.filter(is_approved=True).aggregate(
+            avg=models.Avg('rating')
+        )
+        self.rating = stats['avg'] or 0.0
+        self.save(update_fields=['rating'])
+
     def __str__(self):
         return f"{self.shop_name} ({self.user.phone})"
         
@@ -316,6 +331,16 @@ class Product(BaseModel):
             return False
     def get_absolute_url(self):
         return reverse('items:product_detail', kwargs={'slug': self.slug})
+
+    def _update_rating_cache(self):
+        """Update review_count and rating_avg fields based on approved reviews"""
+        stats = self.reviews.filter(is_approved=True).aggregate(
+            avg=models.Avg('rating'),
+            count=models.Count('id')
+        )
+        self.rating_avg = stats['avg'] or 0.00
+        self.review_count = stats['count'] or 0
+        self.save(update_fields=['rating_avg', 'review_count'])
     class Meta:
         verbose_name_plural = 'Products'
         ordering = ['-created_at']
@@ -608,6 +633,12 @@ class ProductReview(BaseModel):
         blank=True, null=True,
         help_text="Optional: Upload photos of the product"
     )
+    video = models.FileField(
+        upload_to='reviews/videos/',
+        blank=True, null=True,
+        validators=[FileExtensionValidator(allowed_extensions=['mp4', 'mov', 'avi', 'mkv', 'webm']), validate_video_size],
+        help_text="Optional: Upload video of the product"
+    )
     
     # Moderation
     is_verified_purchase = models.BooleanField(default=False, help_text="Auto-set if user bought this product")
@@ -638,7 +669,88 @@ class ProductReview(BaseModel):
                 order__status='delivered'
             ).exists()
         super().save(*args, **kwargs)
+        self.product._update_rating_cache()
+
+    def delete(self, *args, **kwargs):
+        product = self.product
+        super().delete(*args, **kwargs)
+        product._update_rating_cache()
     
+    @property
+    def rating_display(self):
+        """Return star string for templates: ★★★★☆"""
+        return '★' * self.rating + '☆' * (5 - self.rating)
+
+
+class SellerReview(BaseModel):
+    """User reviews and ratings for sellers"""
+    
+    RATING_CHOICES = [(i, f'{i} Star{"s" if i > 1 else ""}') for i in range(1, 6)]
+    
+    seller = models.ForeignKey(
+        SellerProfile,
+        on_delete=models.CASCADE,
+        related_name='reviews'
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='seller_reviews'
+    )
+    rating = models.IntegerField(
+        choices=RATING_CHOICES,
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+        help_text="Rating from 1 to 5 stars"
+    )
+    title = models.CharField(max_length=200, blank=True, help_text="Optional review title")
+    review = models.TextField(max_length=2000, help_text="Your detailed review")
+    
+    images = models.ImageField(
+        upload_to='reviews/sellers/',
+        blank=True, null=True,
+        help_text="Optional: Upload photos of the packaging/delivery"
+    )
+    video = models.FileField(
+        upload_to='reviews/sellers/videos/',
+        blank=True, null=True,
+        validators=[FileExtensionValidator(allowed_extensions=['mp4', 'mov', 'avi', 'mkv', 'webm']), validate_video_size],
+        help_text="Optional: Upload video of the packaging/delivery"
+    )
+    
+    is_verified_purchase = models.BooleanField(default=False, help_text="Auto-set if user bought from this seller")
+    is_approved = models.BooleanField(default=True, help_text="Set to False for moderation queue")
+    helpful_count = models.PositiveIntegerField(default=0)
+    
+    class Meta:
+        verbose_name = 'Seller Review'
+        verbose_name_plural = 'Seller Reviews'
+        ordering = ['-created_at']
+        unique_together = ['seller', 'user']
+        indexes = [
+            models.Index(fields=['seller', '-rating']),
+            models.Index(fields=['seller', '-created_at']),
+            models.Index(fields=['is_approved', '-created_at']),
+        ]
+        
+    def __str__(self):
+        return f"{self.user.phone} rated {self.seller.shop_name} ⭐{self.rating}"
+        
+    def save(self, *args, **kwargs):
+        if not self.is_verified_purchase and self.pk is None:
+            from orders.models import OrderItem
+            self.is_verified_purchase = OrderItem.objects.filter(
+                seller=self.seller,
+                order__user=self.user,
+                order__status='delivered'
+            ).exists()
+        super().save(*args, **kwargs)
+        self.seller._update_rating_cache()
+
+    def delete(self, *args, **kwargs):
+        seller = self.seller
+        super().delete(*args, **kwargs)
+        seller._update_rating_cache()
+
     @property
     def rating_display(self):
         """Return star string for templates: ★★★★☆"""

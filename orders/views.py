@@ -256,8 +256,20 @@ def request_return(request, order_item_id):
 
 @login_required
 def return_detail(request, return_id):
-    """Customer: View return request status"""
-    return_req = get_object_or_404(ReturnRequest, id=return_id, user=request.user)
+    """View return request status (Customer, Seller of item, or Admin)"""
+    return_req = get_object_or_404(ReturnRequest, id=return_id)
+    
+    # Check permissions:
+    is_authorized = False
+    if request.user == return_req.user or request.user.is_staff or request.user.is_superuser:
+        is_authorized = True
+    elif hasattr(request.user, 'seller_profile') and return_req.order_item.product.seller == request.user.seller_profile:
+        is_authorized = True
+        
+    if not is_authorized:
+        from django.http import Http404
+        raise Http404("You are not authorized to view this return request.")
+        
     context = {'return_request': return_req}
     return render(request, 'orders/return_detail.html', context)
 
@@ -685,7 +697,7 @@ def seller_orders(request):
     delivered_count = order_items.filter(order__status='delivered').count()
     pending_returns = ReturnRequest.objects.filter(
         order_item__product__seller=seller,
-        status='requested'
+        status__in=['requested', 'approved', 'pickup_scheduled', 'picked_up', 'received']
     ).select_related('order_item__product', 'order_item__order', 'order_item__variant').order_by('-created_at')
 
     context = {'order_items': order_items, 'seller': seller, 'filters': request.GET.dict(),
@@ -728,7 +740,7 @@ def seller_order_detail(request, order_id):
     pending_returns = ReturnRequest.objects.filter(
         order_item__order=order,
         order_item__product__seller=seller,
-        status='requested'
+        status__in=['requested', 'approved', 'pickup_scheduled', 'picked_up', 'received']
     ).select_related('order_item__product', 'order_item__order', 'order_item__variant')
     
     context = {
@@ -862,7 +874,7 @@ def admin_orders(request):
     delivered_count = Order.objects.filter(status='delivered').count()
     
     pending_returns = ReturnRequest.objects.filter(
-        status='requested'
+        status__in=['requested', 'approved', 'pickup_scheduled', 'picked_up', 'received']
     ).select_related('order_item__product', 'order_item__order', 'order_item__variant').order_by('-created_at')
     
     context = {
@@ -889,7 +901,7 @@ def admin_update_status(request, order_id):
     data = json.loads(request.body)
     new_status = data.get('status')
     
-    if new_status not in dict(Order.STATUS_CHOICES):
+    if new_status not in dict(Order.STATUS_CHOICES) or new_status == 'cancelled':
         return JsonResponse({'error': 'Invalid status'}, status=400)
     
     with transaction.atomic():
@@ -1181,21 +1193,13 @@ def is_seller_or_admin(user):
 @require_POST
 def approve_return(request, return_id):
     """
-    Approve or reject a return request.
+    Approve, reject, mark received, or approve refund for a return request.
     
     POST payload:
     {
-        "action": "approve" | "reject",
+        "action": "approve" | "reject" | "mark_received" | "approve_refund",
         "rejection_reason": "string (required if action=reject)"
     }
-    
-    On approve:
-    - Restocks the product/variant
-    - Marks order item as returned
-    - Initiates Razorpay refund for ONLINE payments
-    - Marks COD for manual bank transfer
-    
-    Returns JSON response for frontend integration.
     """
     try:
         import json
@@ -1204,8 +1208,8 @@ def approve_return(request, return_id):
         return JsonResponse({'status': 'error', 'message': 'Invalid JSON payload'}, status=400)
     
     action = data.get('action', '').lower()
-    if action not in ['approve', 'reject']:
-        return JsonResponse({'status': 'error', 'message': 'Invalid action. Use "approve" or "reject"'}, status=400)
+    if action not in ['approve', 'reject', 'mark_received', 'approve_refund']:
+        return JsonResponse({'status': 'error', 'message': 'Invalid action. Use "approve", "reject", "mark_received", or "approve_refund"'}, status=400)
     
     # Get return request with related objects
     return_req = get_object_or_404(
@@ -1218,21 +1222,14 @@ def approve_return(request, return_id):
         id=return_id
     )
     
-    # Permission check: seller can only approve returns for their own products
+    # Permission check: seller can only manage returns for their own products
     if not request.user.is_staff and not request.user.is_superuser:
         if not hasattr(request.user, 'seller_profile') or return_req.order_item.product.seller != request.user.seller_profile:
             return JsonResponse(
                 {'status': 'error', 'message': 'You can only manage returns for your own products'}, 
                 status=403
             )
-    
-    # Only pending/requested returns can be actioned
-    if return_req.status != 'requested':
-        return JsonResponse(
-            {'status': 'error', 'message': f'Return request is already {return_req.status}'}, 
-            status=400
-        )
-    
+            
     order_item = return_req.order_item
     order = order_item.order
     product = order_item.product
@@ -1240,21 +1237,17 @@ def approve_return(request, return_id):
     
     # === REJECT FLOW ===
     if action == 'reject':
+        if return_req.status not in ['requested', 'received']:
+            return JsonResponse({'status': 'error', 'message': f'Return request cannot be rejected from status {return_req.status}'}, status=400)
         rejection_reason = data.get('rejection_reason', '').strip()
         if not rejection_reason:
-            return JsonResponse(
-                {'status': 'error', 'message': 'Rejection reason is required'}, 
-                status=400
-            )
+            return JsonResponse({'status': 'error', 'message': 'Rejection reason is required'}, status=400)
         
         return_req.status = 'rejected'
         return_req.rejection_reason = rejection_reason
         return_req.actioned_by = request.user
         return_req.actioned_at = timezone.now()
         return_req.save(update_fields=['status', 'rejection_reason', 'actioned_by', 'actioned_at', 'updated_at'])
-        
-        # Optional: Notify customer of rejection (implement your notification system)
-        # send_return_rejected_notification(return_req, rejection_reason)
         
         logger.info(f"Return #{return_id} rejected by {request.user}: {rejection_reason}")
         return JsonResponse({
@@ -1263,58 +1256,88 @@ def approve_return(request, return_id):
             'return_id': return_req.id,
             'new_status': 'rejected'
         })
-    
-    # === APPROVE FLOW ===
-    with transaction.atomic():
-        # 1. Restock the product/variant
-        qty_to_restock = return_req.quantity
         
-        if variant:
-            # Restock specific variant
-            variant.stock = (variant.stock or 0) + qty_to_restock
-            variant.save(update_fields=['stock', 'updated_at'])
-            logger.info(f"Restocked {qty_to_restock} units of variant #{variant.id}")
-        else:
-            # Restock base product
-            product.stock = (product.stock or 0) + qty_to_restock
-            product.save(update_fields=['stock', 'updated_at'])
-            logger.info(f"Restocked {qty_to_restock} units of product #{product.id}")
-        
-        # 2. Mark order item as returned
-        order_item.is_returned = True
-        order_item.returned_quantity = (order_item.returned_quantity or 0) + qty_to_restock
-        order_item.save(update_fields=['is_returned', 'returned_quantity', 'updated_at'])
-        
-        # 3. Update return request
+    # === APPROVE RETURN REQUEST FLOW ===
+    elif action == 'approve':
+        if return_req.status != 'requested':
+            return JsonResponse({'status': 'error', 'message': f'Return request is already {return_req.status}'}, status=400)
+            
         return_req.status = 'approved'
         return_req.actioned_by = request.user
         return_req.actioned_at = timezone.now()
-        return_req.refund_initiated_at = timezone.now()
-        return_req.save(update_fields=[
-            'status', 'actioned_by', 'actioned_at', 
-            'refund_initiated_at', 'updated_at'
-        ])
+        return_req.save(update_fields=['status', 'actioned_by', 'actioned_at', 'updated_at'])
         
-        # 4. Process refund based on payment method
-        refund_result = _process_refund(order, return_req, qty_to_restock)
+        logger.info(f"Return #{return_id} approved (pickup authorized) by {request.user}")
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Return request approved. Courier pickup authorized.',
+            'return_id': return_req.id,
+            'new_status': 'approved'
+        })
+
+    # === MARK RECEIVED FLOW ===
+    elif action == 'mark_received':
+        if return_req.status not in ['approved', 'pickup_scheduled', 'picked_up']:
+            return JsonResponse({'status': 'error', 'message': f'Return request cannot be marked as received from status {return_req.status}'}, status=400)
+            
+        return_req.status = 'received'
+        return_req.save(update_fields=['status', 'updated_at'])
         
-        # 5. Update order status if all items are returned
-        _update_order_status_if_fully_returned(order)
-    
-    logger.info(f"Return #{return_id} approved by {request.user}, refund: {refund_result}")
-    
-    return JsonResponse({
-        'status': 'success',
-        'message': 'Return approved & refund initiated',
-        'return_id': return_req.id,
-        'new_status': 'approved',
-        'refund': refund_result,
-        'restocked': {
-            'product': product.name,
-            'variant': variant.name if variant else None,
-            'quantity': qty_to_restock
-        }
-    })
+        logger.info(f"Return #{return_id} marked as received at warehouse by {request.user}")
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Return marked as received at warehouse.',
+            'return_id': return_req.id,
+            'new_status': 'received'
+        })
+
+    # === APPROVE REFUND FLOW ===
+    elif action == 'approve_refund':
+        if return_req.status != 'received':
+            return JsonResponse({'status': 'error', 'message': f'Refund can only be approved for received returns. Current status: {return_req.status}'}, status=400)
+            
+        with transaction.atomic():
+            # 1. Restock the product/variant
+            qty_to_restock = return_req.quantity
+            if variant:
+                variant.stock = (variant.stock or 0) + qty_to_restock
+                variant.save(update_fields=['stock', 'updated_at'])
+                logger.info(f"Restocked {qty_to_restock} units of variant #{variant.id}")
+            else:
+                product.stock = (product.stock or 0) + qty_to_restock
+                product.save(update_fields=['stock', 'updated_at'])
+                logger.info(f"Restocked {qty_to_restock} units of product #{product.id}")
+            
+            # 2. Mark order item as returned
+            order_item.is_returned = True
+            order_item.returned_quantity = (order_item.returned_quantity or 0) + qty_to_restock
+            order_item.save(update_fields=['is_returned', 'returned_quantity', 'updated_at'])
+            
+            # 3. Update return request status
+            return_req.status = 'completed'
+            return_req.refund_initiated_at = timezone.now()
+            return_req.save(update_fields=['status', 'refund_initiated_at', 'updated_at'])
+            
+            # 4. Process refund based on payment method
+            refund_result = _process_refund(order, return_req, qty_to_restock)
+            
+            # 5. Update order status if all items are returned
+            _update_order_status_if_fully_returned(order)
+            
+        logger.info(f"Refund for return #{return_id} approved & processed by {request.user}, result: {refund_result}")
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Refund approved & processed successfully.',
+            'return_id': return_req.id,
+            'new_status': 'completed',
+            'refund': refund_result,
+            'restocked': {
+                'product': product.name,
+                'variant': variant.name if variant else None,
+                'quantity': qty_to_restock
+            }
+        })
+
 
 
 def _process_refund(order, return_req, qty_to_restock):

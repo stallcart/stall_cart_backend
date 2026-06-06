@@ -739,17 +739,23 @@ def product_list(request):
     )
 
     # Filters
-    category_slug = request.GET.get('category')
-    gender = request.GET.get('gender')
+    category_slugs = request.GET.getlist('category')
+    if not category_slugs and request.GET.get('category'):
+        category_slugs = [request.GET.get('category')]
+        
+    genders = request.GET.getlist('gender')
+    if not genders and request.GET.get('gender'):
+        genders = [request.GET.get('gender')]
+
     min_price = request.GET.get('min_price')
     max_price = request.GET.get('max_price')
     search = request.GET.get('search')
     sort = request.GET.get('sort', '-created_at')
 
-    if category_slug:
-        products = products.filter(category__slug=category_slug)
-    if gender:  # ✅ Apply gender filter
-        products = products.filter(gender=gender)    
+    if category_slugs:
+        products = products.filter(category__slug__in=category_slugs)
+    if genders:
+        products = products.filter(gender__in=genders)    
     if min_price:
         products = products.filter(price__gte=min_price)
     if max_price:
@@ -777,6 +783,10 @@ def product_list(request):
         'categories': Category.objects.filter(is_active=True),
         'genders': Product.GENDER_CHOICES,
         'filters': request.GET.dict(),
+        'selected_categories': category_slugs,
+        'selected_genders': genders,
+        'min_price': min_price,
+        'max_price': max_price,
         'sort': sort,
     }
     return render(request, 'shop/product_list.html', context)
@@ -1279,74 +1289,60 @@ def submit_review(request, product_slug):
         messages.warning(request, 'You have already reviewed this product')
         return redirect('items:product_detail', slug=product_slug)
     
-    # Process form
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        # AJAX submission
-        try:
-            import json
-            data = json.loads(request.body)
-            form = ProductReviewForm(data)
-            if form.is_valid():
-                review = form.save(commit=False)
-                review.product = product
-                review.user = request.user
-                review.is_verified_purchase = True
-                review.save()
-                
-                # Update product rating cache
-                product._update_rating_cache()
-                
-                return JsonResponse({
-                    'status': 'success',
-                    'message': 'Review submitted! Thank you for your feedback.',
-                    'review': {
-                        'id': review.id,
-                        'rating': review.rating,
-                        'title': review.title,
-                        'review': review.review,
-                        'user_name': request.user.full_name or request.user.phone,
-                        'created_at': review.created_at.strftime('%b %d, %Y'),
-                        'is_verified_purchase': review.is_verified_purchase,
-                    }
-                })
-            return JsonResponse({'status': 'error', 'errors': form.errors}, status=400)
-        except json.JSONDecodeError:
-            return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.headers.get('Accept') == 'application/json'
     
-    else:
-        # Regular form submission
-        form = ProductReviewForm(request.POST, request.FILES)
-        if form.is_valid():
-            review = form.save(commit=False)
-            review.product = product
-            review.user = request.user
-            review.is_verified_purchase = True
-            review.save()
-            product._update_rating_cache()
+    form = ProductReviewForm(request.POST, request.FILES)
+    if form.is_valid():
+        review = form.save(commit=False)
+        review.product = product
+        review.user = request.user
+        review.is_verified_purchase = True
+        review.save()  # Auto updates rating cache
+        
+        if is_ajax:
+            return JsonResponse({
+                'status': 'success',
+                'message': 'Review submitted! Thank you for your feedback.',
+                'review': {
+                    'id': review.id,
+                    'rating': review.rating,
+                    'title': review.title,
+                    'review': review.review,
+                    'user_name': request.user.full_name or request.user.phone,
+                    'created_at': review.created_at.strftime('%b %d, %Y'),
+                    'is_verified_purchase': review.is_verified_purchase,
+                }
+            })
+        else:
             messages.success(request, 'Review submitted! Thank you for your feedback.')
+            return redirect('items:product_detail', slug=product_slug)
+    else:
+        if is_ajax:
+            return JsonResponse({'status': 'error', 'errors': form.errors}, status=400)
         else:
             messages.error(request, 'Please correct the errors below')
-        return redirect('items:product_detail', slug=product_slug)
+            return redirect('items:product_detail', slug=product_slug)
 
 @login_required
 @require_POST
 def update_review(request, review_id):
     """Update an existing review"""
     review = get_object_or_404(ProductReview, id=review_id, user=request.user)
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
     
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        try:
-            import json
-            data = json.loads(request.body)
-            form = ProductReviewForm(data, instance=review)
-            if form.is_valid():
-                form.save()
-                review.product._update_rating_cache()
-                return JsonResponse({'status': 'success', 'message': 'Review updated'})
+    form = ProductReviewForm(request.POST, request.FILES, instance=review)
+    if form.is_valid():
+        form.save()  # Auto updates rating cache
+        if is_ajax:
+            return JsonResponse({'status': 'success', 'message': 'Review updated'})
+        else:
+            messages.success(request, 'Review updated')
+    else:
+        if is_ajax:
             return JsonResponse({'status': 'error', 'errors': form.errors}, status=400)
-        except json.JSONDecodeError:
-            return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
-    
+        else:
+            messages.error(request, 'Failed to update review')
+            
     return redirect('items:product_detail', slug=review.product.slug)
 
 @login_required
@@ -1355,8 +1351,7 @@ def delete_review(request, review_id):
     """Delete a review"""
     review = get_object_or_404(ProductReview, id=review_id, user=request.user)
     product_slug = review.product.slug
-    review.delete()
-    review.product._update_rating_cache()
+    review.delete()  # Auto updates rating cache
     
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return JsonResponse({'status': 'success', 'message': 'Review deleted'})
@@ -1369,14 +1364,113 @@ def delete_review(request, review_id):
 def mark_helpful(request, review_id):
     """Mark a review as helpful"""
     review = get_object_or_404(ProductReview, id=review_id)
-    # Prevent self-voting & duplicate votes (simplified - use session/DB for production)
-    review.helpful_count = models.F('helpful_count') + 1
+    review.helpful_count = F('helpful_count') + 1
     review.save(update_fields=['helpful_count'])
     
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        # Refresh to get evaluated value of F() expression
+        review.refresh_from_db()
         return JsonResponse({'status': 'success', 'helpful_count': review.helpful_count})
     
     return redirect('items:product_detail', slug=review.product.slug)
+
+
+@login_required
+@require_POST
+def submit_seller_review(request, seller_id):
+    """Handle seller review submission via AJAX or form"""
+    seller = get_object_or_404(SellerProfile, id=seller_id)
+    
+    # Check if user can review (only verified purchasers from this seller)
+    from orders.models import OrderItem
+    has_purchased = OrderItem.objects.filter(
+        seller=seller,
+        order__user=request.user,
+        order__status='delivered'
+    ).exists()
+    
+    if not has_purchased:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'status': 'error', 'message': 'Only customers who purchased from this seller can review'}, status=403)
+        messages.error(request, 'Only customers who purchased from this seller can review')
+        return redirect('shop:home')
+        
+    # Check if already reviewed
+    existing_review = SellerReview.objects.filter(seller=seller, user=request.user).first()
+    if existing_review:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'status': 'error', 'message': 'You have already reviewed this seller'}, status=400)
+        messages.warning(request, 'You have already reviewed this seller')
+        return redirect('shop:home')
+        
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.headers.get('Accept') == 'application/json'
+    
+    form = SellerReviewForm(request.POST, request.FILES)
+    if form.is_valid():
+        review = form.save(commit=False)
+        review.seller = seller
+        review.user = request.user
+        review.is_verified_purchase = True
+        review.save()  # Auto updates seller rating cache
+        
+        if is_ajax:
+            return JsonResponse({
+                'status': 'success',
+                'message': 'Seller review submitted! Thank you for your feedback.',
+                'review': {
+                    'id': review.id,
+                    'rating': review.rating,
+                    'title': review.title,
+                    'review': review.review,
+                    'user_name': request.user.full_name or request.user.phone,
+                    'created_at': review.created_at.strftime('%b %d, %Y'),
+                    'is_verified_purchase': review.is_verified_purchase,
+                }
+            })
+        else:
+            messages.success(request, 'Seller review submitted! Thank you for your feedback.')
+            return redirect('shop:home')
+    else:
+        if is_ajax:
+            return JsonResponse({'status': 'error', 'errors': form.errors}, status=400)
+        else:
+            messages.error(request, 'Please correct the errors below')
+            return redirect('shop:home')
+
+
+@login_required
+@require_POST
+def update_seller_review(request, review_id):
+    """Update an existing seller review"""
+    review = get_object_or_404(SellerReview, id=review_id, user=request.user)
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    
+    form = SellerReviewForm(request.POST, request.FILES, instance=review)
+    if form.is_valid():
+        form.save()  # Auto updates seller rating cache
+        if is_ajax:
+            return JsonResponse({'status': 'success', 'message': 'Review updated'})
+        messages.success(request, 'Review updated')
+    else:
+        if is_ajax:
+            return JsonResponse({'status': 'error', 'errors': form.errors}, status=400)
+        messages.error(request, 'Failed to update review')
+        
+    return redirect('shop:home')
+
+
+@login_required
+@require_POST
+def delete_seller_review(request, review_id):
+    """Delete a seller review"""
+    review = get_object_or_404(SellerReview, id=review_id, user=request.user)
+    review.delete()  # Auto updates seller rating cache
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'status': 'success', 'message': 'Review deleted'})
+    
+    messages.success(request, 'Review deleted')
+    return redirect('shop:home')
 
 @admin_only
 def verify_sellers_view(request):

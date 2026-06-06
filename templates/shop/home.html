@@ -626,7 +626,7 @@
                 <p class="sale-subtitle">{{ announcement_banner.subtitle }}</p>
                 <div class="sale-features-strip">
                     <span class="sale-feat-item"><i class="fa fa-truck"></i> Free Delivery</span>
-                    <span class="sale-feat-item"><i class="fa fa-undo"></i> 7-Day Easy Returns</span>
+                    <span class="sale-feat-item" onclick="openPolicyModal('return'); return false;" style="cursor: pointer;"><i class="fa fa-undo"></i> 7-Day Easy Returns</span>
                     {% if announcement_banner.coupon_code %}
                     <span class="sale-feat-item"><i class="fa fa-gift"></i> Use Coupon: <strong>{{ announcement_banner.coupon_code }}</strong></span>
                     {% endif %}
@@ -779,9 +779,9 @@
     <div class="container">
         <div class="feature-strip-track">
             <div class="feature-item"><i class="fa fa-truck"></i> Free Delivery ₹499+</div>
-            <div class="feature-item"><i class="fa fa-undo"></i> 7-Day Easy Returns</div>
-            <div class="feature-item"><i class="fa fa-shield-alt"></i> 100% Genuine</div>
-            <div class="feature-item"><i class="fa fa-lock"></i> Secure Payments</div>
+            <div class="feature-item" onclick="openPolicyModal('return'); return false;" style="cursor: pointer;"><i class="fa fa-undo"></i> 7-Day Easy Returns</div>
+            <div class="feature-item" onclick="openPolicyModal('terms'); return false;" style="cursor: pointer;"><i class="fa fa-shield-alt"></i> 100% Genuine</div>
+            <div class="feature-item" onclick="openPolicyModal('terms'); return false;" style="cursor: pointer;"><i class="fa fa-lock"></i> Secure Payments</div>
         </div>
     </div>
 </div>
@@ -804,8 +804,9 @@
         <div class="collections-grid">
             {% for cat in categories|slice:":8" %}
             <a href="{% url 'items:product_list' %}?category={{ cat.slug }}" class="collection-card">
-                <div class="collection-circle cat-{{ cat.slug|default:'other' }}">
-                    <span class="collection-emoji">
+                <div class="collection-circle cat-{{ cat.slug|default:'other' }}" style="padding: 0; overflow: hidden; border: 2px solid var(--gray-100);">
+                    <img src="/static/images/categories/{{ cat.slug }}.png" alt="{{ cat.name }}" class="collection-img" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <span class="collection-emoji" style="display: none; font-size: 1.6rem; line-height: 1;">
                         {% if "women" in cat.name|lower %}👗
                         {% elif "men" in cat.name|lower %}👔
                         {% elif "footwear" in cat.name|lower or "shoe" in cat.name|lower %}👟
@@ -824,8 +825,9 @@
             {% empty %}
             {% for pair in "👗 Women,👔 Men,👟 Footwear,💍 Jewellery,🛋️ Furniture,👕 Clothes,💄 Beauty,⚽ Sports"|split:"," %}
             <a href="{% url 'items:product_list' %}" class="collection-card">
-                <div class="collection-circle cat-{{ pair|slice:"3:"|lower|slugify }}">
-                    <span class="collection-emoji">{{ pair|slice:":2" }}</span>
+                <div class="collection-circle cat-{{ pair|slice:"3:"|lower|slugify }}" style="padding: 0; overflow: hidden; border: 2px solid var(--gray-100);">
+                    <img src="/static/images/categories/{{ pair|slice:"3:"|lower|slugify }}.png" alt="{{ pair|slice:"3:" }}" class="collection-img" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <span class="collection-emoji" style="display: none; font-size: 1.6rem; line-height: 1;">{{ pair|slice:":2" }}</span>
                 </div>
                 <span class="collection-name">{{ pair|slice:"3:" }}</span>
             </a>
@@ -1169,17 +1171,17 @@
                 <h4>Free Delivery</h4>
                 <p>On all orders above ₹499 — delivered to your doorstep</p>
             </div>
-            <div class="trust-card">
+            <div class="trust-card" onclick="openPolicyModal('return'); return false;" style="cursor: pointer;">
                 <span class="trust-emoji">↩️</span>
                 <h4>Easy Returns</h4>
                 <p>7-day hassle-free return policy on all products</p>
             </div>
-            <div class="trust-card">
+            <div class="trust-card" onclick="openPolicyModal('terms'); return false;" style="cursor: pointer;">
                 <span class="trust-emoji">✅</span>
                 <h4>100% Genuine</h4>
                 <p>Every product is verified authentic before listing</p>
             </div>
-            <div class="trust-card">
+            <div class="trust-card" onclick="openPolicyModal('terms'); return false;" style="cursor: pointer;">
                 <span class="trust-emoji">🔒</span>
                 <h4>Secure Payments</h4>
                 <p>Encrypted checkout with Razorpay & UPI support</p>

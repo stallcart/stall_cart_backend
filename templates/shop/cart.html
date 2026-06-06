@@ -463,6 +463,17 @@
                 <div class="savings-msg info"><i class="fa fa-info-circle"></i> No discounts applied</div>
                 {% endif %}
                 
+                <div class="return-policy-info-box" style="margin: 15px 0; padding: 12px; background: #ebf2ff; border: 1.5px solid #dbeafe; border-radius: var(--r-md); font-size: 0.8rem; line-height: 1.4; color: #1e40af; text-align: left;">
+                    <strong style="display: block; margin-bottom: 4px; color: #1d4ed8;"><i class="fa fa-info-circle"></i> 7-Day Return Policy</strong>
+                    • Returns are accepted within 7 days of delivery for unused items with original tags intact.
+                    <br>
+                    • <strong>Footwear Special Clause:</strong> Original brand box is preferred. However, if the box is damaged but the shoes themselves are perfect and unused, the return is acceptable.
+                    <br>
+                    • <strong>QC Inspection:</strong> Items must be unworn, unwashed, unaltered, and hygiene-sensitive items (socks, innerwear, etc.) are non-returnable.
+                    <br>
+                    • <strong>Unboxing Video:</strong> A clear unboxing video is highly recommended for claims on missing or damaged items on delivery.
+                </div>
+                
                 {% if user.is_authenticated %}
                     <button id="placeOrderBtn" class="btn-primary"><i class="fa fa-lock"></i> PLACE ORDER SECURELY</button>
                 {% else %}

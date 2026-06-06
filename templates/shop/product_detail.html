@@ -498,7 +498,14 @@
                                     {% if review.images %}
                                     <div style="margin-top:10px;">
                                         <img src="{{ review.images.url }}" alt="Review photo" 
-                                            class="review-image">
+                                            class="review-image" style="max-width:100%;max-height:200px;border-radius:8px;object-fit:cover;">
+                                    </div>
+                                    {% endif %}
+                                    
+                                    {% if review.video %}
+                                    <div style="margin-top:10px;">
+                                        <video src="{{ review.video.url }}" controls 
+                                            class="review-video" style="max-width:100%;max-height:240px;border-radius:8px;background:#000;display:block;"></video>
                                     </div>
                                     {% endif %}
                                     
@@ -669,7 +676,7 @@
         </div>
         
         <div class="modal-body">
-            <form id="reviewForm">
+            <form id="reviewForm" enctype="multipart/form-data">
                 {% csrf_token %}
                 <input type="hidden" id="reviewId" value="">
                 <input type="hidden" id="productSlug" value="{{ product.slug }}">
@@ -701,6 +708,18 @@
                               rows="4" maxlength="2000" required></textarea>
                     <div class="form-hint"><span id="charCount">0</span>/2000 characters</div>
                     <div id="reviewError" class="error-text"></div>
+                </div>
+
+                <!-- Media Uploads -->
+                <div class="form-group" style="margin-top: 12px;">
+                    <label class="form-label" for="reviewImages">Upload Photo (Optional)</label>
+                    <input type="file" id="reviewImages" name="images" class="form-input" accept="image/*" style="padding: 6px 12px;">
+                    <small style="color:var(--gray-500);font-size:0.75rem;display:block;margin-top:4px;">Supported formats: JPG, PNG, WebP. Max 5MB.</small>
+                </div>
+                <div class="form-group" style="margin-top: 12px;">
+                    <label class="form-label" for="reviewVideo">Upload Video (Optional)</label>
+                    <input type="file" id="reviewVideo" name="video" class="form-input" accept="video/*" style="padding: 6px 12px;">
+                    <small style="color:var(--gray-500);font-size:0.75rem;display:block;margin-top:4px;">Supported formats: MP4, WebM, MOV. Max 20MB.</small>
                 </div>
                 
                 <div id="formError" class="form-error-box"></div>
@@ -815,6 +834,14 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
     isPageLoad = false;
+
+    // Auto-open review modal if ?rate=1 is in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('rate') === '1' && typeof openReviewModal === 'function') {
+        const reviewsTabBtn = document.querySelector('.tab-btn[data-tab="reviews"]');
+        if (reviewsTabBtn) reviewsTabBtn.click();
+        openReviewModal();
+    }
 });
 
 // ── Image Gallery ────────────────────────────────────────────────

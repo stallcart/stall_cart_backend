@@ -5,239 +5,475 @@
 {% block title %}Shop | {{ site_settings.site_name|default:"StallCart" }}{% endblock %}
 {% block meta_description %}Browse our premium collection. Free delivery, secure payments, and 100% original products.{% endblock %}
 
+{% block extra_css %}
+<style>
+/* Premium Shop Grid and Filter Layout */
+.shop-layout {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: 32px;
+    margin-top: 24px;
+    align-items: start;
+}
+
+.shop-sidebar {
+    background: #fff;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--r-xl);
+    padding: 24px;
+    position: sticky;
+    top: 90px;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.02);
+}
+
+.filter-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1.5px solid var(--gray-100);
+}
+
+.filter-title-row h4 {
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--gray-800);
+    margin: 0;
+}
+
+.clear-filters-link {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--gray-500);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.clear-filters-link:hover {
+    color: var(--red);
+}
+
+.filter-section {
+    border-bottom: 1px solid var(--gray-100);
+    padding-bottom: 18px;
+    margin-bottom: 18px;
+}
+
+.filter-section:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: 0;
+}
+
+.filter-section-title {
+    font-weight: 700;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 12px;
+    color: var(--gray-800);
+}
+
+.filter-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.875rem;
+    color: var(--gray-600);
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: color 0.15s ease;
+}
+
+.filter-checkbox-label:hover {
+    color: var(--blue-600);
+}
+
+.filter-checkbox-input {
+    accent-color: var(--blue-600);
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+/* Category Quick Card scroll list */
+.category-scroll-container {
+    display: flex;
+    gap: 16px;
+    overflow-x: auto;
+    padding: 8px 4px 16px;
+    scrollbar-width: none; /* Firefox */
+}
+
+.category-scroll-container::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
+}
+
+/* Mobile Filter Bar triggers */
+.mobile-filter-bar {
+    display: none;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.btn-mobile-trigger {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: #fff;
+    border: 1.5px solid var(--gray-200);
+    border-radius: 10px;
+    padding: 12px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--gray-700);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-mobile-trigger:hover {
+    border-color: var(--blue-500);
+    color: var(--blue-600);
+}
+
+/* Responsive sidebar overlay for mobile */
+@media (max-width: 768px) {
+    .shop-layout {
+        grid-template-columns: 1fr;
+    }
+    
+    .shop-sidebar {
+        position: fixed;
+        top: 0;
+        left: -100%;
+        bottom: 0;
+        width: 300px;
+        z-index: 2100;
+        box-shadow: 0 0 30px rgba(0,0,0,0.15);
+        transition: left 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        max-height: 100vh;
+        border-radius: 0;
+        border: none;
+    }
+    
+    .shop-sidebar.active {
+        left: 0;
+    }
+    
+    .mobile-filter-bar {
+        display: flex;
+    }
+    
+    .sidebar-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.4);
+        backdrop-filter: blur(2px);
+        z-index: 2050;
+        display: none;
+    }
+    
+    .sidebar-overlay.active {
+        display: block;
+    }
+}
+</style>
+{% endblock %}
+
 {% block content %}
-<!-- ══════════════════════════════════════
-     PRODUCT LIST SECTION
-══════════════════════════════════════ -->
 <section class="section-wrap">
     <div class="container">
 
-        <!-- Section Header + Filters -->
-        <div class="section-row">
+        <!-- Header -->
+        <div class="section-row" style="margin-bottom: 20px;">
             <div>
-              
-            <h2 class="section-title">
-                <i class="fa fa-box-open" style="color: var(--blue-500); margin-right: 8px;"></i>
-                Products<span class="accent"></span>
-            </h2>               
-             <p class="section-subtitle">{{ products|length }} item{{ products|length|pluralize }} found</p>
-            </div>
-            
-            <!-- Filter Controls -->
-            <div class="filter-controls">
-                <form method="get" class="filter-form" id="filterForm">
-                    <select name="category" class="form-select-sm" aria-label="Filter by category" onchange="this.form.submit()">
-                        <option value="">All Categories</option>
-                        {% for cat in categories %}
-                            <option value="{{ cat.slug }}" {% if request.GET.category == cat.slug %}selected{% endif %}>
-                                {{ cat.name }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                    
-                    <select name="gender" class="form-select-sm" aria-label="Filter by gender" onchange="this.form.submit()">
-                        <option value="">All Genders</option>
-                        {% for value, label in genders %}
-                            <option value="{{ value }}" {% if request.GET.gender == value %}selected{% endif %}>
-                                {{ label }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                    
-                    <select name="sort" class="form-select-sm" aria-label="Sort products" onchange="this.form.submit()">
-                        <option value="-created_at" {% if request.GET.sort == '-created_at' %}selected{% endif %}>✨ Newest</option>
-                        <option value="price_asc" {% if request.GET.sort == 'price_asc' %}selected{% endif %}>💰 Price ↑</option>
-                        <option value="price_desc" {% if request.GET.sort == 'price_desc' %}selected{% endif %}>💎 Price ↓</option>
-                        <option value="-views_count" {% if request.GET.sort == '-views_count' %}selected{% endif %}>🔥 Popular</option>
-                    </select>
-                </form>
+                <h2 class="section-title">
+                    <i class="fa fa-box-open" style="color: var(--blue-500); margin-right: 8px;"></i>
+                    Products<span class="accent"></span>
+                </h2>
+                <p class="section-subtitle">{{ products|length }} item{{ products|length|pluralize }} found</p>
             </div>
         </div>
 
         <!-- Horizontal Category Quick Filters -->
         <div class="category-scroll-wrapper" style="margin-bottom: 24px;">
             <div class="category-scroll-container">
-                <a href="{% url 'items:product_list' %}{% if request.GET.gender %}?gender={{ request.GET.gender }}{% endif %}{% if request.GET.sort %}{% if request.GET.gender %}&{% else %}?{% endif %}sort={{ request.GET.sort }}{% endif %}" class="category-quick-card {% if not request.GET.category %}active{% endif %}">
-                    <div class="category-quick-icon">🛍️</div>
-                    <span class="category-quick-name">All Shop</span>
+                <a href="{% url 'items:product_list' %}{% if request.GET.sort %}?sort={{ request.GET.sort }}{% endif %}" class="category-quick-card {% if not selected_categories %}active{% endif %}" style="display: flex; flex-direction: column; align-items: center; text-decoration: none; min-width: 70px; padding: 4px;">
+                    <div class="category-quick-icon" style="width: 50px; height: 50px; border-radius: 50%; overflow: hidden; border: 2px solid {% if not selected_categories %}var(--blue-500){% else %}var(--gray-200){% endif %}; margin-bottom: 6px; display: flex; align-items: center; justify-content: center; background: var(--gray-50);">
+                        <span style="font-size: 1.4rem;">🛍️</span>
+                    </div>
+                    <span class="category-quick-name" style="font-size: 0.75rem; font-weight: 600; color: {% if not selected_categories %}var(--blue-600){% else %}var(--gray-700){% endif %};">All Shop</span>
                 </a>
                 {% for cat in categories %}
-                <a href="{% url 'items:product_list' %}?category={{ cat.slug }}{% if request.GET.gender %}&gender={{ request.GET.gender }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}" 
-                   class="category-quick-card {% if request.GET.category == cat.slug %}active{% endif %}">
-                    <div class="category-quick-icon">
-                        {% if "women" in cat.name|lower %}👗
-                        {% elif "men" in cat.name|lower %}👔
-                        {% elif "footwear" in cat.name|lower or "shoe" in cat.name|lower %}👟
-                        {% elif "jewel" in cat.name|lower %}💍
-                        {% elif "beauty" in cat.name|lower %}💄
-                        {% elif "sport" in cat.name|lower %}⚽
-                        {% elif "book" in cat.name|lower %}📚
-                        {% elif "kid" in cat.name|lower or "toy" in cat.name|lower %}🧸
-                        {% elif "furniture" in cat.name|lower %}🛋️
-                        {% elif "cloth" in cat.name|lower %}👕
-                        {% else %}🛍️{% endif %}
+                <a href="{% url 'items:product_list' %}?category={{ cat.slug }}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}" 
+                   class="category-quick-card {% if cat.slug in selected_categories %}active{% endif %}" style="display: flex; flex-direction: column; align-items: center; text-decoration: none; min-width: 70px; padding: 4px;">
+                    <div class="category-quick-icon" style="width: 50px; height: 50px; border-radius: 50%; overflow: hidden; border: 2px solid {% if cat.slug in selected_categories %}var(--blue-500){% else %}var(--gray-200){% endif %}; margin-bottom: 6px; display: flex; align-items: center; justify-content: center;">
+                        <img src="/static/images/categories/{{ cat.slug }}.png" alt="{{ cat.name }}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <span style="display: none; font-size: 1.4rem;">🛍️</span>
                     </div>
-                    <span class="category-quick-name">{{ cat.name }}</span>
+                    <span class="category-quick-name" style="font-size: 0.75rem; font-weight: 600; color: {% if cat.slug in selected_categories %}var(--blue-600){% else %}var(--gray-700){% endif %};">{{ cat.name }}</span>
                 </a>
                 {% endfor %}
             </div>
         </div>
 
-        <!-- Active Filter Tags -->
-        {% if request.GET.category or request.GET.gender or request.GET.search %}
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;">
-            {% if request.GET.search %}
-                <span style="background:var(--blue-50);color:var(--blue-700);padding:4px 12px;border-radius:20px;font-size:0.75rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;">
-                    🔍 "{{ request.GET.search }}"
-                    <a href="?{% for key, value in request.GET.items %}{% if key != 'search' %}{{ key }}={{ value }}&{% endif %}{% endfor %}" style="color:inherit;text-decoration:none;font-weight:700;margin-left:4px;">×</a>
-                </span>
-            {% endif %}
-            {% if request.GET.category %}
-                <span style="background:var(--blue-50);color:var(--blue-700);padding:4px 12px;border-radius:20px;font-size:0.75rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;">
-                    📁 {{ request.GET.category }}
-                    <a href="?{% for key, value in request.GET.items %}{% if key != 'category' %}{{ key }}={{ value }}&{% endif %}{% endfor %}" style="color:inherit;text-decoration:none;font-weight:700;margin-left:4px;">×</a>
-                </span>
-            {% endif %}
-            {% if request.GET.gender %}
-                <span style="background:var(--blue-50);color:var(--blue-700);padding:4px 12px;border-radius:20px;font-size:0.75rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;">
-                    👤 {{ request.GET.gender }}
-                    <a href="?{% for key, value in request.GET.items %}{% if key != 'gender' %}{{ key }}={{ value }}&{% endif %}{% endfor %}" style="color:inherit;text-decoration:none;font-weight:700;margin-left:4px;">×</a>
-                </span>
-            {% endif %}
-            <a href="{% url 'items:product_list' %}" style="font-size:0.75rem;color:var(--gray-500);text-decoration:none;font-weight:600;">Clear all</a>
+        <!-- Mobile triggers -->
+        <div class="mobile-filter-bar">
+            <button type="button" class="btn-mobile-trigger" onclick="openFiltersMobile()">
+                <i class="fa fa-filter"></i> Filters
+            </button>
+            <button type="button" class="btn-mobile-trigger" onclick="openFiltersMobile()">
+                <i class="fa fa-sort-amount-down-alt"></i> Sort By
+            </button>
         </div>
-        {% endif %}
 
-        <!-- Product Grid -->
-        {% if products %}
-        <div class="product-grid">
-            {% for product in products %}
-            <article class="product-card" data-product-id="{{ product.id }}">
-                
-                <div class="img-wrap">
-                    <a href="{% url 'items:product_detail' product.slug %}" style="display:block; width: 100%; height: 100%;">
-                        {% if product.primary_image %}
-                            <img src="{{ product.primary_image.url }}" 
-                                 alt="{{ product.name }}" 
-                                 loading="lazy"
-                                 onerror="this.closest('.img-wrap').innerHTML='<div class=\'no-img\'><i class=\'fa fa-image\'></i><span>Image unavailable</span></div>'">
-                        {% else %}
-                            <div class="no-img">
-                                <i class="fa fa-image"></i>
-                                <span>No image</span>
-                            </div>
-                        {% endif %}
-                    </a>
-                    
-                    <!-- Badges -->
-                    {% if product.gender %}
-                        <span class="badge-gender">{{ product.get_gender_display }}</span>
-                    {% endif %}
-                    {% if product.discount_percent > 0 %}
-                        <span class="badge-discount">-{{ product.discount_percent }}%</span>
-                    {% endif %}
-                    {% if product.is_hot_deal %}
-                        <span class="badge-hot">🔥 Hot</span>
-                    {% endif %}
-                    
-                    {% if product.stock <= 0 %}
-                        <div class="out-of-stock-overlay">
-                            <span><i class="fa fa-ban" style="margin-right:5px;"></i>Out of Stock</span>
+        <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeFiltersMobile()"></div>
+
+        <!-- Unified form -->
+        <form id="shopFilterForm" method="get" action="{% url 'items:product_list' %}">
+            {% if request.GET.search %}
+                <input type="hidden" name="search" value="{{ request.GET.search }}">
+            {% endif %}
+
+            <div class="shop-layout">
+                <!-- Sidebar -->
+                <aside class="shop-sidebar" id="shopSidebar">
+                    <div class="filter-title-row">
+                        <h4>Filters</h4>
+                        <button type="button" class="btn-close-sidebar" onclick="closeFiltersMobile()" style="display: none; background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--gray-500);"><i class="fa fa-times"></i></button>
+                        <a href="{% url 'items:product_list' %}" class="clear-filters-link">Clear All</a>
+                    </div>
+
+                    <!-- Sort By (Mobile only) -->
+                    <div class="filter-section mobile-only-sort" style="display: none;">
+                        <h5 class="filter-section-title">Sort By</h5>
+                        <select name="sort" class="form-select-sm" style="width: 100%; border: 1.5px solid var(--gray-200); border-radius: 8px; padding: 10px 12px; font-size: 0.875rem; font-weight: 600;" onchange="submitFilterForm()">
+                            <option value="newest" {% if sort == 'newest' or not sort %}selected{% endif %}>✨ Newest</option>
+                            <option value="price_asc" {% if sort == 'price_asc' %}selected{% endif %}>💰 Price: Low to High</option>
+                            <option value="price_desc" {% if sort == 'price_desc' %}selected{% endif %}>💎 Price: High to Low</option>
+                            <option value="popular" {% if sort == 'popular' %}selected{% endif %}>🔥 Popularity</option>
+                            <option value="name_asc" {% if sort == 'name_asc' %}selected{% endif %}>🔤 Name: A-Z</option>
+                        </select>
+                    </div>
+
+                    <!-- Categories -->
+                    <div class="filter-section">
+                        <h5 class="filter-section-title">Categories</h5>
+                        {% for cat in categories %}
+                        <label class="filter-checkbox-label">
+                            <input type="checkbox" name="category" value="{{ cat.slug }}" {% if cat.slug in selected_categories %}checked{% endif %} onchange="submitFilterForm()" class="filter-checkbox-input">
+                            {{ cat.name }}
+                        </label>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Genders -->
+                    <div class="filter-section">
+                        <h5 class="filter-section-title">Genders</h5>
+                        {% for value, label in genders %}
+                        <label class="filter-checkbox-label">
+                            <input type="checkbox" name="gender" value="{{ value }}" {% if value in selected_genders %}checked{% endif %} onchange="submitFilterForm()" class="filter-checkbox-input">
+                            {{ label }}
+                        </label>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Price (₹) -->
+                    <div class="filter-section">
+                        <h5 class="filter-section-title">Price Range</h5>
+                        <div style="display: flex; gap: 8px; align-items: center; margin-top: 8px;">
+                            <input type="number" name="min_price" value="{{ min_price|default:'' }}" placeholder="Min" style="width: 100%; padding: 8px 12px; border: 1.5px solid var(--gray-200); border-radius: 8px; font-size: 0.85rem;" min="0">
+                            <span style="color: var(--gray-400); font-size: 0.8rem;">to</span>
+                            <input type="number" name="max_price" value="{{ max_price|default:'' }}" placeholder="Max" style="width: 100%; padding: 8px 12px; border: 1.5px solid var(--gray-200); border-radius: 8px; font-size: 0.85rem;" min="0">
+                            <button type="submit" class="btn-primary" style="padding: 9px 12px; border-radius: 8px; font-size: 0.85rem; width: auto; background: var(--blue-600);"><i class="fa fa-play" style="font-size: 0.75rem;"></i></button>
                         </div>
+                    </div>
+                </aside>
+
+                <!-- Catalog Content -->
+                <div class="shop-catalog-content" style="width: 100%;">
+                    <!-- Top control bar (Sort By etc.) -->
+                    <div class="shop-catalog-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 12px; border-bottom: 1px solid var(--gray-100);">
+                        <span style="font-size: 0.875rem; color: var(--gray-600); font-weight: 600;">Showing {{ products|length }} product{{ products|length|pluralize }}</span>
+                        
+                        <!-- Sort by Dropdown (Desktop only) -->
+                        <div class="sort-by-container desktop-only-sort" style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 0.85rem; color: var(--gray-500); font-weight: 500;">Sort By:</span>
+                            <select name="sort" class="form-select-sm" style="border: 1.5px solid var(--gray-200); border-radius: 8px; padding: 6px 12px; font-size: 0.85rem; font-weight: 600; cursor: pointer;" onchange="submitFilterForm()">
+                                <option value="newest" {% if sort == 'newest' or not sort %}selected{% endif %}>✨ Newest</option>
+                                <option value="price_asc" {% if sort == 'price_asc' %}selected{% endif %}>💰 Price: Low to High</option>
+                                <option value="price_desc" {% if sort == 'price_desc' %}selected{% endif %}>💎 Price: High to Low</option>
+                                <option value="popular" {% if sort == 'popular' %}selected{% endif %}>🔥 Popularity</option>
+                                <option value="name_asc" {% if sort == 'name_asc' %}selected{% endif %}>🔤 Name: A-Z</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Active Filter Tags -->
+                    {% if selected_categories or selected_genders or request.GET.search or min_price or max_price %}
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;align-items:center;">
+                        {% if request.GET.search %}
+                            <span style="background:var(--blue-50);color:var(--blue-700);padding:4px 12px;border-radius:20px;font-size:0.75rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;">
+                                🔍 "{{ request.GET.search }}"
+                            </span>
+                        {% endif %}
+                        {% for cat in selected_categories %}
+                            <span style="background:var(--blue-50);color:var(--blue-700);padding:4px 12px;border-radius:20px;font-size:0.75rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;">
+                                📁 {{ cat }}
+                            </span>
+                        {% endfor %}
+                        {% for gender in selected_genders %}
+                            <span style="background:var(--blue-50);color:var(--blue-700);padding:4px 12px;border-radius:20px;font-size:0.75rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;">
+                                👤 {{ gender }}
+                            </span>
+                        {% endfor %}
+                        {% if min_price or max_price %}
+                            <span style="background:var(--blue-50);color:var(--blue-700);padding:4px 12px;border-radius:20px;font-size:0.75rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;">
+                                💵 ₹{{ min_price|default:"0" }} - ₹{{ max_price|default:"∞" }}
+                            </span>
+                        {% endif %}
+                        <a href="{% url 'items:product_list' %}" style="font-size:0.75rem;color:var(--gray-500);text-decoration:none;font-weight:600;margin-left:4px;">Clear all</a>
+                    </div>
                     {% endif %}
 
-                    <!-- Floating Interactions -->
-                    {% if not user.role or user.role == 'customer' %}
-                    <button type="button" class="float-wishlist btn-wishlist-toggle {% if user.is_authenticated and product|is_in_wishlist:user %}active{% endif %}" data-product-id="{{ product.id }}" aria-label="Wishlist">
-                        <i class="{% if user.is_authenticated and product|is_in_wishlist:user %}fa{% else %}far{% endif %} fa-heart"></i>
-                    </button>
-                    {% endif %}
-                </div>
+                    <!-- Product Grid -->
+                    {% if products %}
+                    <div class="product-grid" style="margin-top: 0;">
+                        {% for product in products %}
+                        <article class="product-card" data-product-id="{{ product.id }}">
+                            
+                            <div class="img-wrap">
+                                <a href="{% url 'items:product_detail' product.slug %}" style="display:block; width: 100%; height: 100%;">
+                                    {% if product.primary_image %}
+                                        <img src="{{ product.primary_image.url }}" 
+                                             alt="{{ product.name }}" 
+                                             loading="lazy"
+                                             onerror="this.closest('.img-wrap').innerHTML='<div class=\'no-img\'><i class=\'fa fa-image\'></i><span>Image unavailable</span></div>'">
+                                    {% else %}
+                                        <div class="no-img">
+                                            <i class="fa fa-image"></i>
+                                            <span>No image</span>
+                                        </div>
+                                    {% endif %}
+                                </a>
+                                
+                                <!-- Badges -->
+                                {% if product.gender %}
+                                    <span class="badge-gender">{{ product.get_gender_display }}</span>
+                                {% endif %}
+                                {% if product.discount_percent > 0 %}
+                                    <span class="badge-discount">-{{ product.discount_percent }}%</span>
+                                {% endif %}
+                                {% if product.is_hot_deal %}
+                                    <span class="badge-hot">🔥 Hot</span>
+                                {% endif %}
+                                
+                                {% if product.stock <= 0 %}
+                                    <div class="out-of-stock-overlay">
+                                        <span><i class="fa fa-ban" style="margin-right:5px;"></i>Out of Stock</span>
+                                    </div>
+                                {% endif %}
 
-                
-                <!-- Product Info -->
-                <div class="product-info">
-                    <div class="product-seller">by {{ product.seller.shop_name|truncatechars:22 }}</div>
-                    <h4 class="product-name">
-                        <a href="{% url 'items:product_detail' product.slug %}">{{ product.name|truncatechars:45 }}</a>
-                    </h4>
-                    
-                    <!-- Price Row -->
-                    <div class="price-row">
-                        {% if product.discount_percent > 0 and product.mrp %}
-                            <span class="price-mrp">₹{{ product.mrp|floatformat:0 }}</span>
-                            <span class="price-current">₹{{ product.discount_price|floatformat:0 }}</span>
-                            <span class="price-off">-{{ product.discount_percent }}%</span>
-                        {% elif product.discount_percent > 0 %}
-                            <span class="price-mrp">₹{{ product.price|floatformat:0 }}</span>
-                            <span class="price-current">₹{{ product.discount_price|floatformat:0 }}</span>
-                            <span class="price-off">-{{ product.discount_percent }}%</span>
-                        {% else %}
-                            <span class="price-current">₹{{ product.price|floatformat:0 }}</span>
+                                <!-- Floating Interactions -->
+                                {% if not user.role or user.role == 'customer' %}
+                                <button type="button" class="float-wishlist btn-wishlist-toggle {% if user.is_authenticated and product|is_in_wishlist:user %}active{% endif %}" data-product-id="{{ product.id }}" aria-label="Wishlist">
+                                    <i class="{% if user.is_authenticated and product|is_in_wishlist:user %}fa{% else %}far{% endif %} fa-heart"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+
+                            <!-- Product Info -->
+                            <div class="product-info">
+                                <div class="product-seller">by {{ product.seller.shop_name|truncatechars:22 }}</div>
+                                <h4 class="product-name">
+                                    <a href="{% url 'items:product_detail' product.slug %}">{{ product.name|truncatechars:45 }}</a>
+                                </h4>
+                                
+                                <!-- Price Row -->
+                                <div class="price-row">
+                                    {% if product.discount_percent > 0 and product.mrp %}
+                                        <span class="price-mrp">₹{{ product.mrp|floatformat:0 }}</span>
+                                        <span class="price-current">₹{{ product.discount_price|floatformat:0 }}</span>
+                                        <span class="price-off">-{{ product.discount_percent }}%</span>
+                                    {% elif product.discount_percent > 0 %}
+                                        <span class="price-mrp">₹{{ product.price|floatformat:0 }}</span>
+                                        <span class="price-current">₹{{ product.discount_price|floatformat:0 }}</span>
+                                        <span class="price-off">-{{ product.discount_percent }}%</span>
+                                    {% else %}
+                                        <span class="price-current">₹{{ product.price|floatformat:0 }}</span>
+                                    {% endif %}
+                                </div>
+                                
+                                <!-- Low Stock Warning -->
+                                {% if product.stock <= product.low_stock_threshold and product.stock > 0 %}
+                                    <div class="low-stock-tag">
+                                        <i class="fa fa-exclamation-triangle"></i>
+                                        Only {{ product.stock }} left!
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="card-action-row">
+                                <a href="{% url 'items:product_detail' product.slug %}"
+                                   class="btn-view"
+                                   style="{% if product.stock <= 0 %}opacity:0.6;pointer-events:none;{% endif %}">
+                                    <i class="fa fa-eye"></i>
+                                    {% if product.stock > 0 %}View Details{% else %}Out of Stock{% endif %}
+                                </a>
+                                <button type="button" class="card-share-btn btn-share"
+                                        data-name="{{ product.name }}"
+                                        data-url="{{ request.scheme }}://{{ request.get_host }}{% url 'items:product_detail' product.slug %}"
+                                        aria-label="Share">
+                                    <i class="fa fa-share-alt"></i>
+                                </button>
+                            </div>
+                        </article>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if is_paginated %}
+                    <div style="display:flex;justify-content:center;gap:10px;margin-top:36px;flex-wrap:wrap;">
+                        {% if page_obj.has_previous %}
+                            <a href="?page=1{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}" 
+                               class="btn-outline" style="width:auto;padding:10px 18px;">« First</a>
+                            <a href="?page={{ page_obj.previous_page_number }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}" 
+                               class="btn-outline" style="width:auto;padding:10px 18px;">‹ Prev</a>
+                        {% endif %}
+                        
+                        <span style="padding:10px 18px;background:var(--blue-50);color:var(--blue-700);border-radius:var(--r-md);font-weight:700;font-size:0.875rem;border:1.5px solid var(--blue-200);">
+                            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                        </span>
+                        
+                        {% if page_obj.has_next %}
+                            <a href="?page={{ page_obj.next_page_number }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}" 
+                               class="btn-outline" style="width:auto;padding:10px 18px;">Next ›</a>
+                            <a href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}" 
+                               class="btn-outline" style="width:auto;padding:10px 18px;">Last »</a>
                         {% endif %}
                     </div>
-                    
-                    <!-- Low Stock Warning -->
-                    {% if product.stock <= product.low_stock_threshold and product.stock > 0 %}
-                        <div class="low-stock-tag">
-                            <i class="fa fa-exclamation-triangle"></i>
-                            Only {{ product.stock }} left!
-                        </div>
                     {% endif %}
-                </div>
 
-                <div class="card-action-row">
-                    <a href="{% url 'items:product_detail' product.slug %}"
-                       class="btn-view"
-                       style="{% if product.stock <= 0 %}opacity:0.6;pointer-events:none;{% endif %}">
-                        <i class="fa fa-eye"></i>
-                        {% if product.stock > 0 %}View Details{% else %}Out of Stock{% endif %}
-                    </a>
-                    <button type="button" class="card-share-btn btn-share"
-                            data-name="{{ product.name }}"
-                            data-url="{{ request.scheme }}://{{ request.get_host }}{% url 'items:product_detail' product.slug %}"
-                            aria-label="Share">
-                        <i class="fa fa-share-alt"></i>
-                    </button>
-                </div>
-            </article>
-            {% endfor %}
-        </div>
-        
-        <!-- Pagination (using btn-outline from style.css) -->
-        {% if is_paginated %}
-        <div style="display:flex;justify-content:center;gap:10px;margin-top:36px;flex-wrap:wrap;">
-            {% if page_obj.has_previous %}
-                <a href="?page=1{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}" 
-                   class="btn-outline" style="width:auto;padding:10px 18px;">« First</a>
-                <a href="?page={{ page_obj.previous_page_number }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}" 
-                   class="btn-outline" style="width:auto;padding:10px 18px;">‹ Prev</a>
-            {% endif %}
-            
-            <span style="padding:10px 18px;background:var(--blue-50);color:var(--blue-700);border-radius:var(--r-md);font-weight:700;font-size:0.875rem;border:1.5px solid var(--blue-200);">
-                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
-            </span>
-            
-            {% if page_obj.has_next %}
-                <a href="?page={{ page_obj.next_page_number }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}" 
-                   class="btn-outline" style="width:auto;padding:10px 18px;">Next ›</a>
-                <a href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}" 
-                   class="btn-outline" style="width:auto;padding:10px 18px;">Last »</a>
-            {% endif %}
-        </div>
-        {% endif %}
-        
-        {% else %}
-        <!-- Empty State (using style.css .empty-state) -->
-        <div class="empty-state">
-            <div class="empty-state-icon"><i class="fa fa-search"></i></div>
-            <h3>No products found</h3>
-            <p>Try adjusting your filters or search term.</p>
-            <a href="{% url 'items:product_list' %}" class="btn-primary" style="width:auto;padding:11px 28px;margin:0 auto;">
-                Clear Filters
-            </a>
-        </div>
-        {% endif %}
+                    {% else %}
+                    <!-- Empty State -->
+                    <div class="empty-state">
+                        <div class="empty-state-icon"><i class="fa fa-search"></i></div>
+                        <h3>No products found</h3>
+                        <p>Try adjusting your filters or search term.</p>
+                        <a href="{% url 'items:product_list' %}" class="btn-primary" style="width:auto;padding:11px 28px;margin:0 auto;">
+                            Clear Filters
+                        </a>
+                    </div>
+                    {% endif %}
+                </div><!-- /.shop-catalog-content -->
+            </div><!-- /.shop-layout -->
+        </form>
 
     </div>
 </section>
@@ -245,18 +481,23 @@
 
 {% block scripts %}
 <script>
-// ── Filter Form: Smooth Visual Feedback ─────────────────────
-document.getElementById('filterForm')?.addEventListener('submit', (e) => {
-    const selects = e.target.querySelectorAll('select');
-    selects.forEach(s => {
-        s.style.opacity = '0.7';
-        s.style.pointerEvents = 'none';
-    });
-    setTimeout(() => selects.forEach(s => {
-        s.style.opacity = '1';
-        s.style.pointerEvents = 'auto';
-    }), 300);
-});
+// ── Form Submit Helper ──────────────────────────────────────
+function submitFilterForm() {
+    document.getElementById('shopFilterForm').submit();
+}
+
+// ── Mobile Sidebar Controls ──────────────────────────────────
+function openFiltersMobile() {
+    document.getElementById('shopSidebar').classList.add('active');
+    document.getElementById('sidebarOverlay').classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeFiltersMobile() {
+    document.getElementById('shopSidebar').classList.remove('active');
+    document.getElementById('sidebarOverlay').classList.remove('active');
+    document.body.style.overflow = '';
+}
 
 // ── Share Button Functionality ──────────────────────────────
 document.querySelectorAll('.btn-share').forEach(btn => {
