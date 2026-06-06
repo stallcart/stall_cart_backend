@@ -413,7 +413,8 @@ def create_order(request):
                         variant=item.variant,
                         quantity=item.quantity,
                         price=item_price,
-                        total=item.subtotal
+                        total=item.subtotal,
+                        status=order.status
                     )
                 
                 # Deduct stock
@@ -567,7 +568,8 @@ def create_order(request):
                         variant=item.variant,
                         quantity=item.quantity,
                         price=item_price,
-                        total=item.subtotal
+                        total=item.subtotal,
+                        status=order.status
                     )
                 
                 # Deduct stock for COD
@@ -961,7 +963,8 @@ def verify_payment(request):
                     variant=variant,
                     quantity=item_data['quantity'],
                     price=unit_price,
-                    total=unit_price * item_data['quantity']
+                    total=unit_price * item_data['quantity'],
+                    status=order.status
                 )
                 
                 # Deduct stock (payment confirmed!)

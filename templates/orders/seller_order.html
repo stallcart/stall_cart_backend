@@ -79,8 +79,8 @@
                 <p class="text-muted">Placed on {{ order_group.grouper.created_at|date:"M d, Y, h:i A" }}</p>
                 <p class="text-muted">Customer: {{ order_group.grouper.user.full_name|default:order_group.grouper.guest_email }}</p>
             </div>
-            <div class="order-status-badge badge-{{ order_group.grouper.status }}">
-                {{ order_group.grouper.get_status_display }}
+            <div class="order-status-badge badge-{{ order_group.list.0.status }}">
+                {{ order_group.list.0.get_status_display }}
             </div>
         </div>
 
@@ -102,9 +102,9 @@
                 </div>
                 <div class="item-price" style="text-align: right;">
                     <div style="font-weight: 700; color: #2874f0;">₹{{ item.total|floatformat:2 }}</div>
-                    {% if order_group.grouper.status == 'delivered' %}
+                    {% if item.status == 'delivered' %}
                         <div style="font-size: 0.75rem; color: #2e7d32; font-weight: 600;">Earnings: ₹{{ item.seller_earnings|floatformat:2 }}</div>
-                    {% elif order_group.grouper.status == 'cancelled' %}
+                    {% elif item.status == 'cancelled' %}
                         <div style="font-size: 0.75rem; color: #c62828;">Earnings: ₹0.00</div>
                     {% else %}
                         <div style="font-size: 0.75rem; color: #666; font-style: italic;">Est. Earnings: ₹{{ item.seller_earnings|floatformat:2 }}</div>
@@ -134,19 +134,19 @@
                 {% endif %}
             {% endwith %}
             
-            {% if order_group.grouper.status in 'pending,confirmed,processing,shipped,delivered' %}
-            <button class="btn-primary btn-sm" onclick="openStatusModal('{{ order_group.grouper.unique_order_id }}', '{{ order_group.grouper.status }}')">
+            {% if order_group.list.0.status in 'pending,confirmed,processing,shipped,delivered' %}
+            <button class="btn-primary btn-sm" onclick="openStatusModal('{{ order_group.grouper.unique_order_id }}', '{{ order_group.list.0.status }}')">
                 Update Status
             </button>
             {% endif %}
             
-            {% if order_group.grouper.status in 'confirmed,processing,shipped,delivered' %}
-                {% if not order_group.grouper.tracking_number %}
+            {% if order_group.list.0.status in 'confirmed,processing,shipped,delivered' %}
+                {% if not order_group.list.0.tracking_number %}
                 <button class="btn-outline btn-sm" onclick="openTrackingModal('{{ order_group.grouper.unique_order_id }}', '', '')">
                     📦 Add Tracking
                 </button>
                 {% else %}
-                <button class="btn-outline btn-sm" onclick="openTrackingModal('{{ order_group.grouper.unique_order_id }}', '{{ order_group.grouper.courier_name|escapejs }}', '{{ order_group.grouper.tracking_number|escapejs }}')">
+                <button class="btn-outline btn-sm" onclick="openTrackingModal('{{ order_group.grouper.unique_order_id }}', '{{ order_group.list.0.courier_name|escapejs }}', '{{ order_group.list.0.tracking_number|escapejs }}')">
                     📝 Edit Tracking
                 </button>
                 {% endif %}

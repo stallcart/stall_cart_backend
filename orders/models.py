@@ -318,6 +318,57 @@ class Order(BaseModel):
             and self.status not in ('refund_initiated', 'refunded')
         )
 
+    def update_overall_status(self):
+        """Recalculate overall order status based on item statuses."""
+        items = self.items.all()
+        if not items.exists():
+            return
+            
+        active_items = items.exclude(status__in=['cancelled', 'returned', 'returned_to_source', 'refund_initiated', 'refunded'])
+        
+        status_ranks = {
+            'pending': 1,
+            'confirmed': 2,
+            'processing': 3,
+            'shipped': 4,
+            'out_for_delivery': 5,
+            'delivered': 6,
+        }
+        
+        if active_items.exists():
+            min_item = min(active_items, key=lambda item: status_ranks.get(item.status, 1))
+            new_overall_status = min_item.status
+        else:
+            all_statuses = set(item.status for item in items)
+            if 'refunded' in all_statuses:
+                new_overall_status = 'refunded'
+            elif 'refund_initiated' in all_statuses:
+                new_overall_status = 'refund_initiated'
+            elif 'returned_to_source' in all_statuses:
+                new_overall_status = 'returned_to_source'
+            elif 'returned' in all_statuses:
+                new_overall_status = 'returned'
+            else:
+                new_overall_status = 'cancelled'
+                
+        if self.status != new_overall_status:
+            old_status = self.status
+            self.status = new_overall_status
+            if new_overall_status == 'shipped' and not self.shipped_at:
+                self.shipped_at = timezone.now()
+            elif new_overall_status == 'delivered' and not self.delivered_at:
+                self.delivered_at = timezone.now()
+            self.save(update_fields=['status', 'shipped_at', 'delivered_at', 'status_updated_at'])
+            
+            # Create status log
+            OrderStatusLog.objects.create(
+                order=self,
+                old_status=old_status,
+                new_status=new_overall_status,
+                remarks='Overall status updated dynamically based on item statuses.'
+            )
+
+
 
 
 class OrderItem(BaseModel):
@@ -343,6 +394,13 @@ class OrderItem(BaseModel):
     # Return tracking per item
     is_returned = models.BooleanField(default=False)
     returned_quantity = models.PositiveIntegerField(default=0)
+    
+    # Fulfillment tracking per item (ensures multiple sellers can fulfill independently)
+    status = models.CharField(max_length=30, choices=Order.STATUS_CHOICES, default='pending')
+    tracking_number = models.CharField(max_length=100, blank=True, null=True)
+    courier_name = models.CharField(max_length=100, blank=True, null=True)
+    shipped_at = models.DateTimeField(null=True, blank=True)
+    delivered_at = models.DateTimeField(null=True, blank=True)
     
     class Meta:
         ordering = ['id']
@@ -376,10 +434,10 @@ class OrderItem(BaseModel):
     def seller_earnings(self):
         """
         Seller's net earnings for this item.
-        If order is cancelled or item is returned/refunded, earnings are 0.
+        If item is cancelled or returned/refunded, earnings are 0.
         Otherwise, it is total - commission.
         """
-        if self.order.status in ('cancelled', 'returned', 'returned_to_source', 'refund_initiated', 'refunded') or self.is_returned:
+        if self.status in ('cancelled', 'returned', 'returned_to_source', 'refund_initiated', 'refunded') or self.is_returned:
             return Decimal('0.00')
         
         active_qty = self.remaining_quantity
@@ -403,6 +461,15 @@ class OrderItem(BaseModel):
         if self.variant.color:
             parts.append(self.variant.color)
         return ' • '.join(parts) if parts else None
+
+    @property
+    def tracking_url(self):
+        if not self.tracking_number:
+            return None
+        if self.courier_name == 'Delhivery':
+            return f"https://tracking.delhivery.com/{self.tracking_number}"
+        return f"https://shiprocket.co/tracking/{self.tracking_number}"
+
 
 
 class OrderStatusLog(BaseModel):

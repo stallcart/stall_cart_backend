@@ -193,6 +193,7 @@ def cancel_order(request, order_id):
         order.cancellation_reason = reason
         order.cancellation_remarks = remarks
         order.save()
+        order.items.all().update(status='cancelled')
         
         OrderStatusLog.objects.create(
             order=order, old_status=old_status, new_status='cancelled',
@@ -322,6 +323,37 @@ def reorder_order(request, order_id):
         'status': 'error',
         'message': 'No available items to reorder. Products may be out of stock or unpublished.'
     }, status=400)
+def get_invoice_context(request, order):
+    """
+    Build context for the invoice.html template.
+    If the user is a seller, filter the items and calculate seller-specific totals
+    so they only see their own products/totals and no commission/earnings leak.
+    """
+    from decimal import Decimal
+    role = getattr(request.user, 'role', 'customer')
+    is_seller = (role == 'seller')
+    
+    if is_seller and hasattr(request.user, 'seller_profile'):
+        order_items = order.items.filter(seller__user=request.user).select_related('product', 'variant')
+        items_subtotal = sum(item.total for item in order_items)
+        items_commission = sum(item.commission_amount for item in order_items)
+        items_earnings = sum(item.seller_earnings for item in order_items)
+    else:
+        order_items = order.items.all().select_related('product', 'variant')
+        items_subtotal = order.mrp_subtotal
+        items_commission = Decimal('0.00')
+        items_earnings = Decimal('0.00')
+        
+    return {
+        'order': order,
+        'order_items': order_items,
+        'is_seller': is_seller,
+        'items_subtotal': items_subtotal,
+        'items_commission': items_commission,
+        'items_earnings': items_earnings,
+    }
+
+
 @login_required
 def download_invoice(request, order_id):
     """
@@ -347,11 +379,13 @@ def download_invoice(request, order_id):
             user=request.user
         )
     
+    context = get_invoice_context(request, order)
+    
     # 2. Render template WITH request for context processors
     try:
         html_string = render_to_string(
             'orders/invoice.html',
-            {'order': order},
+            context,
             request=request  # 🔑 Critical for site_settings context processor
         )
     except Exception as e:
@@ -397,6 +431,7 @@ def download_invoice(request, order_id):
         logger.error(f"PDF generation failed for order {order_id}: {e}", exc_info=True)
         messages.error(request, f"Could not generate PDF: {str(e)[:100]}")
         return _download_invoice_html(request, order)
+
 
 
 def _link_callback(uri, rel, request):
@@ -448,7 +483,8 @@ def _link_callback(uri, rel, request):
 
 def _download_invoice_html(request, order):
     """Fallback: Download invoice as HTML file for browser PDF conversion"""
-    html_string = render_to_string('orders/invoice.html', {'order': order}, request=request)
+    context = get_invoice_context(request, order)
+    html_string = render_to_string('orders/invoice.html', context, request=request)
     
     response = HttpResponse(html_string, content_type='text/html')
     response['Content-Disposition'] = f'attachment; filename="invoice-{order.unique_order_id}.html"'
@@ -584,9 +620,10 @@ def preview_invoice(request, order_id):
             user=request.user
         )
     
+    context = get_invoice_context(request, order)
     html_string = render_to_string(
         'orders/invoice.html',
-        {'order': order},
+        context,
         request=request
     )
     
@@ -612,7 +649,8 @@ def debug_invoice(request, order_id):
     
     # Test 1: Template render
     try:
-        html = render_to_string('orders/invoice.html', {'order': order}, request=request)
+        context = get_invoice_context(request, order)
+        html = render_to_string('orders/invoice.html', context, request=request)
         test1 = "✅ Template rendered"
     except Exception as e:
         return JsonResponse({'error': f'Template render failed: {str(e)}'}, status=500)
@@ -691,10 +729,10 @@ def seller_orders(request):
             
     status_filter = request.GET.get('status')
     if status_filter:
-        order_items = order_items.filter(order__status=status_filter)
+        order_items = order_items.filter(status=status_filter)
         
-    pending_count = order_items.filter(order__status='pending').count()
-    delivered_count = order_items.filter(order__status='delivered').count()
+    pending_count = order_items.filter(status='pending').count()
+    delivered_count = order_items.filter(status='delivered').count()
     pending_returns = ReturnRequest.objects.filter(
         order_item__product__seller=seller,
         status__in=['requested', 'approved', 'pickup_scheduled', 'picked_up', 'received']
@@ -780,17 +818,28 @@ def seller_update_status(request, order_id):
     
     with transaction.atomic():
         old_status = order.status
-        order.status = new_status
-        order.status_updated_at = timezone.now()
-        if new_status == 'shipped':
-            order.shipped_at = timezone.now()
-        elif new_status == 'delivered':
-            order.delivered_at = timezone.now()
-        order.save()
+        
+        # Identify items to update
+        if request.user.is_superuser:
+            items_to_update = order.items.all()
+        else:
+            items_to_update = order.items.filter(seller=request.user.seller_profile)
+            
+        # Update items
+        for item in items_to_update:
+            item.status = new_status
+            if new_status == 'shipped':
+                item.shipped_at = timezone.now()
+            elif new_status == 'delivered':
+                item.delivered_at = timezone.now()
+            item.save(update_fields=['status', 'shipped_at', 'delivered_at', 'updated_at'])
+            
+        # Update overall order status
+        order.update_overall_status()
         
         OrderStatusLog.objects.create(
             order=order, old_status=old_status, new_status=new_status,
-            changed_by=request.user, remarks='Updated by seller/admin'
+            changed_by=request.user, remarks=f'Updated to {new_status} for seller items.'
         )
         
         if new_status in ['confirmed', 'processing']:
@@ -799,7 +848,9 @@ def seller_update_status(request, order_id):
     
     if new_status == 'shipped':
         try:
-            notify_order_shipped(order, order.tracking_number)
+            first_item = items_to_update.first()
+            tracking_no = first_item.tracking_number if first_item else order.tracking_number
+            notify_order_shipped(order, tracking_no)
         except Exception as e:
             logger.error(f"[FCM] Seller update shipped notification failed for order {order.id}: {e}")
     
@@ -817,14 +868,27 @@ def seller_add_tracking(request, order_id):
     # If seller, verify they own items in the order
     if not request.user.is_superuser:
         seller = request.user.seller_profile
-        if not order.items.filter(product__seller=seller).exists():
+        items_to_update = order.items.filter(seller=seller)
+        if not items_to_update.exists():
             return JsonResponse({'error': 'Unauthorized'}, status=403)
+    else:
+        items_to_update = order.items.all()
             
     data = json.loads(request.body)
-    order.tracking_number = data.get('tracking_number')
-    order.courier_name = data.get('courier_name', 'Shiprocket')
-    order.save()
+    tracking_number = data.get('tracking_number')
+    courier_name = data.get('courier_name', 'Shiprocket')
     
+    # Update tracking details at the item level
+    for item in items_to_update:
+        item.tracking_number = tracking_number
+        item.courier_name = courier_name
+        item.save(update_fields=['tracking_number', 'courier_name', 'updated_at'])
+    
+    # For compatibility/fallback
+    order.tracking_number = tracking_number
+    order.courier_name = courier_name
+    order.save(update_fields=['tracking_number', 'courier_name', 'updated_at'])
+        
     return JsonResponse({'status': 'success', 'message': 'Tracking updated'})
 
 
@@ -872,7 +936,7 @@ def print_shipping_label(request, order_id):
         'city': seller_addr.get('city', ''),
         'state': seller_addr.get('state', ''),
         'pincode': seller_addr.get('postalCode', '') or seller_addr.get('pincode', ''),
-        'phone': seller.phone or (seller.user.phone if seller else ''),
+        'phone': '',
     }
 
     # Format the customer address
@@ -991,6 +1055,15 @@ def admin_update_status(request, order_id):
         if new_status == 'delivered':
             order.delivered_at = timezone.now()
         order.save()
+        
+        # Propagate status to all items
+        for item in order.items.all():
+            item.status = new_status
+            if new_status == 'shipped':
+                item.shipped_at = timezone.now()
+            elif new_status == 'delivered':
+                item.delivered_at = timezone.now()
+            item.save(update_fields=['status', 'shipped_at', 'delivered_at', 'updated_at'])
         
         OrderStatusLog.objects.create(
             order=order, old_status=old_status, new_status=new_status,
@@ -1140,10 +1213,15 @@ def shiprocket_webhook(request):
             logger.warning("Shiprocket webhook received with no current_status.")
             return HttpResponse("Missing current_status", status=400)
             
-        # Find Order
+        # Find Order or OrderItem
+        order_item = None
         order = None
         if awb:
-            order = Order.objects.filter(tracking_number=awb).first()
+            order_item = OrderItem.objects.filter(tracking_number=awb).first()
+            if order_item:
+                order = order_item.order
+            else:
+                order = Order.objects.filter(tracking_number=awb).first()
         if not order and order_id:
             order = Order.objects.filter(unique_order_id=order_id).first()
             
@@ -1165,44 +1243,68 @@ def shiprocket_webhook(request):
         }
         
         new_local_status = status_map.get(sr_status)
-        tracking_updated = False
-        if awb and not order.tracking_number:
-            order.tracking_number = awb
-            tracking_updated = True
+        
+        with transaction.atomic():
+            if new_local_status:
+                if order_item:
+                    # Update status of specific order item
+                    if order_item.status != new_local_status:
+                        old_status = order.status
+                        order_item.status = new_local_status
+                        if new_local_status == 'delivered':
+                            order_item.delivered_at = timezone.now()
+                        elif new_local_status == 'shipped' and not order_item.shipped_at:
+                            order_item.shipped_at = timezone.now()
+                        order_item.save(update_fields=['status', 'shipped_at', 'delivered_at', 'updated_at'])
+                        
+                        # Recalculate overall status
+                        order.update_overall_status()
+                        
+                        logger.info(f"Shiprocket Webhook: Updated order item {order_item.id}. Status: {new_local_status}. Order status recalculated to {order.status}")
+                else:
+                    # Fallback to updating the overall order status and items
+                    tracking_updated = False
+                    if awb and not order.tracking_number:
+                        order.tracking_number = awb
+                        tracking_updated = True
 
-        if (new_local_status and new_local_status != order.status) or tracking_updated:
-            old_status = order.status
-            update_fields = ['updated_at']
-            
-            if new_local_status and new_local_status != order.status:
-                order.status = new_local_status
-                update_fields.append('status')
-                if new_local_status == 'delivered':
-                    order.delivered_at = timezone.now()
-                    update_fields.append('delivered_at')
-                elif new_local_status == 'shipped' and not order.shipped_at:
-                    order.shipped_at = timezone.now()
-                    update_fields.append('shipped_at')
-                    
-            if tracking_updated:
-                update_fields.append('tracking_number')
-                
-            order.save(update_fields=update_fields)
-            
-            # Log status/tracking change in OrderStatusLog
-            remarks_parts = []
-            if new_local_status and new_local_status != old_status:
-                remarks_parts.append(f"Status changed to {sr_status}")
-            if tracking_updated:
-                remarks_parts.append(f"AWB tracking number set to {awb}")
-                
-            OrderStatusLog.objects.create(
-                order=order,
-                old_status=old_status,
-                new_status=order.status,
-                remarks=f"Automatic update via Shiprocket Webhook ({', '.join(remarks_parts)})"
-            )
-            logger.info(f"Shiprocket Webhook: Updated order {order.unique_order_id}. Status: {old_status} -> {order.status}. AWB updated: {tracking_updated}")
+                    if (new_local_status and new_local_status != order.status) or tracking_updated:
+                        old_status = order.status
+                        update_fields = ['updated_at']
+                        
+                        if new_local_status and new_local_status != order.status:
+                            order.status = new_local_status
+                            update_fields.append('status')
+                            if new_local_status == 'delivered':
+                                order.delivered_at = timezone.now()
+                                update_fields.append('delivered_at')
+                            elif new_local_status == 'shipped' and not order.shipped_at:
+                                order.shipped_at = timezone.now()
+                                update_fields.append('shipped_at')
+                                
+                        if tracking_updated:
+                            update_fields.append('tracking_number')
+                            
+                        order.save(update_fields=update_fields)
+                        
+                        # Sync down to all order items that don't have separate tracking numbers
+                        items_to_sync = order.items.filter(tracking_number__isnull=True) | order.items.filter(tracking_number='')
+                        for item in items_to_sync:
+                            item.status = new_local_status
+                            if new_local_status == 'shipped':
+                                item.shipped_at = timezone.now()
+                            elif new_local_status == 'delivered':
+                                item.delivered_at = timezone.now()
+                            item.save(update_fields=['status', 'shipped_at', 'delivered_at', 'updated_at'])
+
+                        # Create status change log
+                        OrderStatusLog.objects.create(
+                            order=order,
+                            old_status=old_status,
+                            new_status=new_local_status,
+                            remarks=f"Automatic update via Shiprocket Webhook (AWB: {awb}, status: {sr_status})"
+                        )
+                        logger.info(f"Shiprocket Webhook: Updated order {order.unique_order_id}. Status: {old_status} -> {order.status}.")
             
         return HttpResponse("OK", status=200)
         
@@ -1524,19 +1626,26 @@ def confirm_rto_refund(request, order_id):
     order = get_object_or_404(Order, unique_order_id=order_id)
     
     # Permission check: seller can only manage their own products in that order
-    if not request.user.is_staff and not request.user.is_superuser:
+    is_seller = not request.user.is_staff and not request.user.is_superuser
+    if is_seller:
         if not hasattr(request.user, 'seller_profile'):
             return JsonResponse({'status': 'error', 'message': 'Unauthorized'}, status=403)
-        has_product = order.items.filter(product__seller=request.user.seller_profile).exists()
-        if not has_product:
+        seller = request.user.seller_profile
+        items_to_rto = order.items.filter(seller=seller)
+        if not items_to_rto.exists():
             return JsonResponse({'status': 'error', 'message': 'Unauthorized'}, status=403)
-            
+    else:
+        items_to_rto = order.items.all()
+        
     if order.status != 'returned_to_source':
-        return JsonResponse({'status': 'error', 'message': f'Order is in {order.status} state, not returned_to_source'}, status=400)
+        has_rto_item = items_to_rto.filter(status='returned_to_source').exists()
+        if not has_rto_item:
+            return JsonResponse({'status': 'error', 'message': f'Order is in {order.status} state, and no items are in returned_to_source state'}, status=400)
         
     with transaction.atomic():
-        # 1. Restock products/variants
-        for item in order.items.all():
+        # 1. Restock products/variants and update status to returned
+        refund_amount = Decimal('0.00')
+        for item in items_to_rto:
             if not item.is_returned:
                 qty = item.quantity
                 if item.variant:
@@ -1548,64 +1657,70 @@ def confirm_rto_refund(request, order_id):
                     
                 item.is_returned = True
                 item.returned_quantity = qty
-                item.save(update_fields=['is_returned', 'returned_quantity', 'updated_at'])
+                item.status = 'returned'
+                item.save(update_fields=['is_returned', 'returned_quantity', 'status', 'updated_at'])
+                refund_amount += item.total
                 
+        if refund_amount <= 0:
+            return JsonResponse({'status': 'error', 'message': 'No items to refund'}, status=400)
+            
         # 2. Refund to customer
         refund_note = ""
         payment_method = order.payment_method.lower()
         if payment_method == 'wallet':
             order.payment_status = 'refunded'
-            order.refund_amount = order.total_amount
+            order.refund_amount = (order.refund_amount or Decimal('0.00')) + refund_amount
             order.refund_at = timezone.now()
-            refund_note = "RTO Refund: pending manual bank transfer (wallet disabled)"
+            refund_note = f"RTO Refund: pending manual bank transfer of Rs. {refund_amount} (wallet disabled)"
         elif payment_method == 'razorpay' and order.razorpay_payment_id:
             client = get_razorpay_client()
             if client:
                 try:
                     razorpay_refund = client.refund.create({
                         'payment_id': order.razorpay_payment_id,
-                        'amount': int(order.total_amount * 100),
+                        'amount': int(refund_amount * 100),
                         'notes': {'order_id': order.unique_order_id, 'reason': 'RTO'}
                     })
                     order.razorpay_refund_id = razorpay_refund.get('id')
                     order.payment_status = 'refunded'
-                    order.refund_amount = order.total_amount
+                    order.refund_amount = (order.refund_amount or Decimal('0.00')) + refund_amount
                     order.refund_at = timezone.now()
-                    refund_note = f"refunded to original source (Razorpay ID: {razorpay_refund.get('id')})"
+                    refund_note = f"refunded Rs. {refund_amount} to original source (Razorpay ID: {razorpay_refund.get('id')})"
                 except Exception as e:
                     logger.error(f"RTO Razorpay refund failed for {order.unique_order_id}: {e}")
                     order.payment_status = 'failed'
-                    refund_note = "Razorpay refund failed; manual refund required"
+                    refund_note = f"Razorpay refund of Rs. {refund_amount} failed; manual refund required"
             else:
                 logger.error(f"RTO Razorpay refund failed for {order.unique_order_id}: Razorpay client not configured")
                 order.payment_status = 'failed'
-                refund_note = "Razorpay client not configured; manual refund required"
+                refund_note = f"Razorpay client not configured; manual refund of Rs. {refund_amount} required"
         elif payment_method == 'cod':
             order.payment_status = 'refunded'
-            order.refund_amount = order.total_amount
-            refund_note = "COD refund: pending manual bank transfer"
+            order.refund_amount = (order.refund_amount or Decimal('0.00')) + refund_amount
+            refund_note = f"COD refund: pending manual bank transfer of Rs. {refund_amount}"
         else:
             order.payment_status = 'failed'
-            refund_note = "Unsupported payment method; manual refund required"
+            refund_note = f"Unsupported payment method; manual refund of Rs. {refund_amount} required"
         
         # 3. Update Order Status
         old_status = order.status
-        order.status = 'returned'
-        order.save(update_fields=['status', 'payment_status', 'refund_amount', 'refund_at', 'razorpay_refund_id', 'updated_at'])
+        order.update_overall_status()
+        
+        order.save(update_fields=['payment_status', 'refund_amount', 'refund_at', 'razorpay_refund_id', 'updated_at'])
         
         # 4. Log status change
         OrderStatusLog.objects.create(
             order=order,
             old_status=old_status,
-            new_status='returned',
+            new_status=order.status,
             changed_by=request.user,
-            remarks=f'RTO delivery receipt confirmed & {refund_note}'
+            remarks=f"RTO refund processed: {refund_note}"
         )
         
     return JsonResponse({
         'status': 'success',
         'message': f'RTO receipt confirmed. Refund details: {refund_note}.',
-        'new_status': 'Returned'
+        'new_status': order.get_status_display()
     })
 
 
