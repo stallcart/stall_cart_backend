@@ -762,7 +762,7 @@
                         <a href="/admin/" class="btn-outline"><i class="fa fa-wrench"></i> Django Admin</a>
                         <a href="{% url 'items:admin_dashboard' %}" class="btn-outline"><i class="fa fa-box"></i> Product Management</a>
                         <a href="/admin/common/sitesettings/1/change/" class="btn-outline"><i class="fa fa-palette"></i> Site Settings</a>
-                        <a href="/admin/auth/user/" class="btn-outline"><i class="fa fa-users"></i> User Management</a>
+                        <a href="{% url 'accounts:admin_user_management' %}" class="btn-outline"><i class="fa fa-users"></i> Account & User Management</a>
                         <a href="{% url 'orders:seller_orders' %}" class="btn-outline"><i class="fa fa-list-alt"></i> All Orders</a>
                     </div>
                 </div>
