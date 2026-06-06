@@ -1480,3 +1480,104 @@ def admin_user_management(request):
         'status_filter': status_filter,
     }
     return render(request, 'accounts/admin_user_management.html', context)
+
+
+@login_required
+def admin_business_dashboard(request):
+    if not request.user.is_superuser and getattr(request.user, 'role', None) != 'admin':
+        messages.error(request, "🔐 Access Denied: Admin privileges required.")
+        return redirect('shop:home')
+
+    # Fetch models
+    from decimal import Decimal
+    from django.db.models import Sum, Count, Q
+    from django.utils import timezone
+    from datetime import timedelta
+    from orders.models import Order, OrderItem
+    from accounts.models import User, OTPRequest
+    from common.models import SiteSettings, EmailTemplate
+
+    # 1. Financial / Revenue Stats
+    total_sales = Order.objects.filter(status='delivered').aggregate(Sum('total_amount'))['total_amount__sum'] or Decimal('0.00')
+    pending_sales = Order.objects.exclude(status__in=['delivered', 'cancelled', 'returned']).aggregate(Sum('total_amount'))['total_amount__sum'] or Decimal('0.00')
+    total_orders_count = Order.objects.count()
+    
+    # Order Status Breakdown
+    order_statuses = Order.objects.values('status').annotate(count=Count('id')).order_by('-count')
+    status_data = {item['status']: item['count'] for item in order_statuses}
+    
+    # 2. Users Stats
+    total_customers = User.objects.filter(role='customer').count()
+    active_customers = User.objects.filter(role='customer', is_active=True).count()
+    
+    total_sellers = User.objects.filter(role='seller').count()
+    active_sellers = User.objects.filter(role='seller', is_active=True).count()
+    pending_sellers = User.objects.filter(role='seller', seller_profile__is_verified=False).count()
+    
+    total_staff = User.objects.filter(role='staff').count()
+    active_staff = User.objects.filter(role='staff', is_active=True).count()
+
+    # 3. OTP Stats
+    total_otps = OTPRequest.objects.count()
+    verified_otps = OTPRequest.objects.filter(is_verified=True).count()
+    otp_success_rate = (verified_otps / total_otps * 100) if total_otps > 0 else 0.0
+
+    # 4. Email Templates
+    total_email_templates = EmailTemplate.objects.count()
+    email_templates = EmailTemplate.objects.all().order_by('name')
+
+    # 5. Site Settings Singleton
+    site_settings = SiteSettings.get_singleton()
+
+    # 6. Recent Orders for Quick Management
+    recent_orders = Order.objects.all().order_by('-created_at')[:5]
+
+    # 7. Recent OTP Requests for Developers/Admins
+    recent_otps = OTPRequest.objects.all().order_by('-created_at')[:8]
+
+    # 8. Business Trends (Last 7 Days Sales)
+    today = timezone.now().date()
+    
+    daily_sales = []
+    # Loop over last 7 days
+    for i in range(7):
+        day = today - timedelta(days=i)
+        day_start = timezone.make_aware(timezone.datetime.combine(day, timezone.datetime.min.time()))
+        day_end = timezone.make_aware(timezone.datetime.combine(day, timezone.datetime.max.time()))
+        sales_sum = Order.objects.filter(
+            created_at__range=(day_start, day_end),
+            status='delivered'
+        ).aggregate(Sum('total_amount'))['total_amount__sum'] or Decimal('0.00')
+        daily_sales.append({
+            'date': day.strftime('%b %d'),
+            'amount': float(sales_sum)
+        })
+    daily_sales.reverse()
+
+    context = {
+        'total_sales': total_sales,
+        'pending_sales': pending_sales,
+        'total_orders_count': total_orders_count,
+        'status_data': status_data,
+        
+        'total_customers': total_customers,
+        'active_customers': active_customers,
+        'total_sellers': total_sellers,
+        'active_sellers': active_sellers,
+        'pending_sellers': pending_sellers,
+        'total_staff': total_staff,
+        'active_staff': active_staff,
+        
+        'total_otps': total_otps,
+        'verified_otps': verified_otps,
+        'otp_success_rate': otp_success_rate,
+        
+        'total_email_templates': total_email_templates,
+        'email_templates': email_templates,
+        
+        'site_settings': site_settings,
+        'recent_orders': recent_orders,
+        'recent_otps': recent_otps,
+        'daily_sales': daily_sales,
+    }
+    return render(request, 'accounts/admin_business_dashboard.html', context)

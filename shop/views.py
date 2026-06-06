@@ -24,6 +24,9 @@ logger = logging.getLogger(__name__)
 
 def home(request):
     """Main shop page - matches index.html"""
+    if request.user.is_authenticated and (request.user.is_superuser or getattr(request.user, 'role', None) == 'admin'):
+        return redirect('accounts:admin_business_dashboard')
+        
     # Only show published, in-stock products
     products = Product.objects.filter(
         status='published',  # ✅ Use status field
