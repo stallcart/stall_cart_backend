@@ -67,7 +67,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     @property
     def is_admin(self):
-        return self.is_superuser or self.role == 'admin'
+        return self.is_superuser or self.is_staff or self.role == 'admin'
 
     def get_display_name(self):
         """Return full_name if available, otherwise phone"""

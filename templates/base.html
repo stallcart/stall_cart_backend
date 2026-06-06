@@ -114,13 +114,13 @@
             </div>
 
             <!-- Role-based nav link -->
-            {% if user.is_authenticated and user.is_seller or user.is_superuser %}
+            {% if user.is_authenticated and user.is_seller or user.is_superuser or user.is_staff %}
                 <a href="{% url 'items:admin_dashboard' %}"
                    class="nav-link {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}">
                     <i class="fa fa-store"></i>
                     <span class="hide-mobile">Seller Panel</span>
                 </a>
-                <a href="{% if user.is_superuser %}{% url 'orders:admin_orders' %}{% else %}{% url 'orders:seller_orders' %}{% endif %}"
+                <a href="{% if user.is_superuser or user.is_staff %}{% url 'orders:admin_orders' %}{% else %}{% url 'orders:seller_orders' %}{% endif %}"
                    class="nav-link {% if request.resolver_match.url_name in 'seller_orders,admin_orders' %}active{% endif %}">
                     <i class="fa fa-clipboard-list"></i>
                     <span class="hide-mobile">Manage Orders</span>
@@ -267,12 +267,12 @@
                     My Orders
                 </a>
             {% endif %}
-            {% if user.is_seller or user.is_superuser %}
+            {% if user.is_seller or user.is_superuser or user.is_staff %}
                 <a href="{% url 'items:admin_dashboard' %}" class="mobile-nav-item">
                     <span class="mobile-nav-icon"><i class="fa fa-store"></i></span>
                     Seller Panel
                 </a>
-                <a href="{% if user.is_superuser %}{% url 'orders:admin_orders' %}{% else %}{% url 'orders:seller_orders' %}{% endif %}" class="mobile-nav-item">
+                <a href="{% if user.is_superuser or user.is_staff %}{% url 'orders:admin_orders' %}{% else %}{% url 'orders:seller_orders' %}{% endif %}" class="mobile-nav-item">
                     <span class="mobile-nav-icon"><i class="fa fa-clipboard-list"></i></span>
                     Manage Orders
                 </a>
@@ -521,12 +521,12 @@
         {% if wishlist_count > 0 %}<span class="bottom-nav-badge" style="background:#e53935;">{{ wishlist_count }}</span>{% endif %}
     </a>
     {% endif %}
-    {% if user.is_authenticated and user.is_seller or user.is_superuser %}
+    {% if user.is_authenticated and user.is_seller or user.is_superuser or user.is_staff %}
     <a href="{% url 'items:admin_dashboard' %}" class="bottom-nav-item {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}">
         <i class="fa fa-store"></i>
         <span>Dashboard</span>
     </a>
-    <a href="{% if user.is_superuser %}{% url 'orders:admin_orders' %}{% else %}{% url 'orders:seller_orders' %}{% endif %}" class="bottom-nav-item {% if request.resolver_match.url_name in 'seller_orders,admin_orders' %}active{% endif %}">
+    <a href="{% if user.is_superuser or user.is_staff %}{% url 'orders:admin_orders' %}{% else %}{% url 'orders:seller_orders' %}{% endif %}" class="bottom-nav-item {% if request.resolver_match.url_name in 'seller_orders,admin_orders' %}active{% endif %}">
         <i class="fa fa-clipboard-list"></i>
         <span>Orders</span>
     </a>
