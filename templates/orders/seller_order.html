@@ -126,6 +126,9 @@
                     <a href="{% url 'orders:invoice_download_csv' order_id %}" class="btn-outline btn-sm" style="text-decoration: none; display: inline-flex; align-items: center; gap: 4px; border-color: #10b981; color: #10b981;">
                         📊 CSV
                     </a>
+                    <a href="{% url 'orders:print_shipping_label' order_id %}" target="_blank" class="btn-outline btn-sm" style="text-decoration: none; display: inline-flex; align-items: center; gap: 4px; border-color: #eab308; color: #eab308;">
+                        🏷️ Label
+                    </a>
                 {% else %}
                     <span class="text-muted" title="Order ID missing">⚠️ Invalid Order</span>
                 {% endif %}

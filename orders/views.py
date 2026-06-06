@@ -827,6 +827,86 @@ def seller_add_tracking(request, order_id):
     
     return JsonResponse({'status': 'success', 'message': 'Tracking updated'})
 
+
+@login_required
+def print_shipping_label(request, order_id):
+    """
+    Seller/Admin: Print a clean shipping label for a specific order.
+    Shows FROM (seller) and TO (customer shipping) details with a mock barcode.
+    No financial information is displayed.
+    """
+    role = getattr(request.user, 'role', 'customer')
+    if role == 'seller':
+        if not hasattr(request.user, 'seller_profile'):
+            messages.error(request, "Only verified sellers can access this page.")
+            return redirect('shop:home')
+        seller = request.user.seller_profile
+        order = get_object_or_404(
+            Order.objects.prefetch_related('items__product', 'items__seller'),
+            unique_order_id=order_id
+        )
+        # Verify the seller has items in this order
+        seller_items = order.items.filter(product__seller=seller)
+        if not seller_items.exists():
+            messages.error(request, "You are not authorized to print the label for this order.")
+            return redirect('shop:home')
+    elif request.user.is_staff or request.user.is_superuser:
+        order = get_object_or_404(
+            Order.objects.prefetch_related('items__product', 'items__seller'),
+            unique_order_id=order_id
+        )
+        seller = order.items.first().seller if order.items.exists() else None
+        seller_items = order.items.all()
+    else:
+        messages.error(request, "Access denied.")
+        return redirect('shop:home')
+
+    # Calculate total quantity of seller's items in this order
+    total_qty = sum(item.quantity for item in seller_items)
+
+    # Format the seller address from JSON
+    seller_addr = seller.address if seller else {}
+    from_details = {
+        'name': seller.shop_name if seller else 'StallCart Seller',
+        'address': seller_addr.get('address', ''),
+        'city': seller_addr.get('city', ''),
+        'state': seller_addr.get('state', ''),
+        'pincode': seller_addr.get('postalCode', '') or seller_addr.get('pincode', ''),
+        'phone': seller.phone or (seller.user.phone if seller else ''),
+    }
+
+    # Format the customer address
+    to_details = {
+        'name': order.shipping_address.get('name', ''),
+        'address_line1': order.shipping_address.get('address_line1', ''),
+        'address_line2': order.shipping_address.get('address_line2', ''),
+        'city': order.shipping_address.get('city', ''),
+        'state': order.shipping_address.get('state', ''),
+        'pincode': order.shipping_address.get('postal_code', ''),
+        'phone': order.shipping_address.get('phone', ''),
+    }
+
+    # Generate vector barcode bars pattern based on Order ID
+    bars = []
+    # Ensure start and end quiet zones (Code 39 style start/stop character '*' pattern)
+    barcode_str = f"*{order.unique_order_id}*"
+    for char in barcode_str:
+        val = ord(char)
+        # Output 9 binary bars/spaces per character for Code 39-like look
+        for i in range(9):
+            bars.append(1 if (val & (1 << (i % 8))) else 0)
+            bars.append(0)
+
+    context = {
+        'order': order,
+        'from_details': from_details,
+        'to_details': to_details,
+        'total_qty': total_qty,
+        'bars': bars,
+    }
+    return render(request, 'orders/shipping_label.html', context)
+
+
 # ==================== ADMIN VIEWS ====================
 
 # @login_required

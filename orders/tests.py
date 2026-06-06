@@ -1052,3 +1052,128 @@ class BackgroundJobAndEmailSyncTests(TestCase):
         self.assertFalse(self.site_settings.enable_background_jobs)
 
 
+class ShippingLabelTests(TestCase):
+    def setUp(self):
+        # Create users
+        self.admin_user = User.objects.create_superuser(
+            phone="9999999999",
+            password="adminpassword",
+            full_name="Admin User"
+        )
+        self.seller_user1 = User.objects.create_user(
+            phone="8888888888",
+            password="sellerpassword",
+            role="seller",
+            full_name="Seller One"
+        )
+        self.seller_profile1 = SellerProfile.objects.create(
+            user=self.seller_user1,
+            shop_name="Shop One",
+            is_verified=True,
+            phone="8888888888",
+            address={"address": "Seller 1 Street", "city": "Mumbai", "state": "Maharashtra", "postalCode": "400001"}
+        )
+        self.seller_user2 = User.objects.create_user(
+            phone="7777777777",
+            password="sellerpassword",
+            role="seller",
+            full_name="Seller Two"
+        )
+        self.seller_profile2 = SellerProfile.objects.create(
+            user=self.seller_user2,
+            shop_name="Shop Two",
+            is_verified=True,
+            phone="7777777777",
+            address={"address": "Seller 2 Street", "city": "Pune", "state": "Maharashtra", "postalCode": "411001"}
+        )
+        self.customer = User.objects.create_user(
+            phone="6666666666",
+            password="customerpassword",
+            role="customer",
+            full_name="Customer User"
+        )
+        
+        self.category = Category.objects.create(name="Clothing", commision_percentage=10.0)
+        
+        self.product1 = Product.objects.create(
+            seller=self.seller_profile1,
+            category=self.category,
+            name="Seller One Shirt",
+            price=Decimal("100.00"),
+            stock=10
+        )
+        
+        self.address = {
+            "name": "Customer User",
+            "phone": "6666666666",
+            "address_line1": "123 Street",
+            "city": "Mumbai",
+            "state": "Maharashtra",
+            "postal_code": "400001"
+        }
+        
+        self.order1 = Order.objects.create(
+            user=self.customer,
+            shipping_address=self.address,
+            total_amount=Decimal("100.00"),
+            payment_method="cod",
+            payment_status="pending",
+            status="pending"
+        )
+        self.item1 = OrderItem.objects.create(
+            order=self.order1,
+            product=self.product1,
+            seller=self.seller_profile1,
+            quantity=1,
+            price=Decimal("100.00"),
+            total=Decimal("100.00")
+        )
+
+    def test_unauthorized_access_shipping_label(self):
+        """Guests and customers are denied access to print shipping labels."""
+        url = reverse('orders:print_shipping_label', args=[self.order1.unique_order_id])
+        
+        # 1. Unauthenticated gets redirected to login
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 302)
+        
+        # 2. Customer gets redirected with error message
+        self.client.login(phone="6666666666", password="customerpassword")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 302)
+
+    def test_seller_label_printing_authorization(self):
+        """Sellers can only print labels for orders containing their own items."""
+        url = reverse('orders:print_shipping_label', args=[self.order1.unique_order_id])
+        
+        # 1. Seller 2 (who has no items in order1) gets redirected with error
+        self.client.login(phone="7777777777", password="sellerpassword")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 302)
+        
+        # 2. Seller 1 (owner of items in order1) gets 200 OK
+        self.client.login(phone="8888888888", password="sellerpassword")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'orders/shipping_label.html')
+        
+        # Verify content details in response
+        content = response.content.decode('utf-8')
+        self.assertIn("123 Street", content)
+        self.assertIn("Seller 1 Street", content)
+        self.assertIn("Customer User", content)
+        self.assertIn("Shop One", content)
+        # Ensure no financial details (earnings, commission, prices) are in the printable label
+        self.assertNotIn("Earnings", content)
+        self.assertNotIn("Commission", content)
+
+    def test_admin_access_shipping_label(self):
+        """Admins can view/print shipping labels for any order."""
+        self.client.login(phone="9999999999", password="adminpassword")
+        url = reverse('orders:print_shipping_label', args=[self.order1.unique_order_id])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'orders/shipping_label.html')
+
+
+

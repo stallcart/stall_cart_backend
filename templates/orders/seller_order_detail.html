@@ -39,6 +39,9 @@
                 <a href="{% url 'orders:invoice_download_csv' order.unique_order_id %}" class="btn-outline" style="font-size: 0.85rem; padding: 8px 16px; height: 36px; border-radius: 8px; font-weight: 700; border: 2px solid #10b981; cursor: pointer; background: white; color: #10b981; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
                     📊 CSV Bill
                 </a>
+                <a href="{% url 'orders:print_shipping_label' order.unique_order_id %}" target="_blank" class="btn-outline" style="font-size: 0.85rem; padding: 8px 16px; height: 36px; border-radius: 8px; font-weight: 700; border: 2px solid #eab308; cursor: pointer; background: white; color: #eab308; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+                    🏷️ Print Label
+                </a>
             </div>
         </div>
     </div>
