@@ -527,7 +527,6 @@ def export_invoice_csv(request, order_id):
     writer.writerow([])
     writer.writerow(['Order ID', order.unique_order_id])
     writer.writerow(['Order Date', order.created_at.strftime('%Y-%m-%d %I:%M %p')])
-    writer.writerow(['Order Status', order.get_status_display()])
     writer.writerow([])
     
     # Billing Info

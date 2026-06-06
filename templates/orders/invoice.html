@@ -403,7 +403,6 @@
                 <td style="width: 50%; vertical-align: top; padding-left: 15pt;">
                     <div class="address-label">Order Details</div>
                     <div class="address-line"><strong style="color: #1e293b;">Order ID:</strong> #{{ order.unique_order_id }}</div>
-                    <div class="address-line"><strong style="color: #1e293b;">Order Status:</strong> {{ order.get_status_display }}</div>
                     <div class="address-line"><strong style="color: #1e293b;">Date:</strong> {{ order.created_at|date:"F d, Y, h:i A" }}</div>
                 </td>
             </tr>
