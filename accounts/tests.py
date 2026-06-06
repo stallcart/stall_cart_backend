@@ -663,3 +663,96 @@ class UserManagementTests(TestCase):
         self.assertEqual(response.status_code, 400)
 
 
+class AdminBusinessDashboardTests(TestCase):
+    def setUp(self):
+        self.superuser = User.objects.create_superuser(phone="9999999990", password="pass", full_name="Superuser", role="admin")
+        self.admin_user = User.objects.create_user(phone="9999999991", password="pass", full_name="Admin", role="admin")
+        self.staff_user = User.objects.create_user(phone="9999999992", password="pass", full_name="Staff", role="staff")
+        self.customer_user = User.objects.create_user(phone="9999999993", password="pass", full_name="Customer", role="customer")
+        self.seller_user = User.objects.create_user(phone="9999999994", password="pass", full_name="Seller", role="seller")
+
+    def test_homepage_redirection_for_admins(self):
+        url = reverse('shop:home')
+        
+        # 1. Unauthenticated -> 200 storefront
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'shop/home.html')
+        
+        # 2. Customer -> 200 storefront
+        self.client.login(phone="9999999993", password="pass")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        
+        # 3. Seller -> 200 storefront
+        self.client.login(phone="9999999994", password="pass")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        
+        # 4. Superuser -> 302 redirect to dashboard
+        self.client.login(phone="9999999990", password="pass")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse('accounts:admin_business_dashboard'))
+        
+        # 5. Admin role -> 302 redirect to dashboard
+        self.client.login(phone="9999999991", password="pass")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse('accounts:admin_business_dashboard'))
+
+    def test_dashboard_access_restrictions(self):
+        url = reverse('accounts:admin_business_dashboard')
+        
+        # 1. Unauthenticated -> redirect to login
+        self.client.logout()
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 302)
+        
+        # 2. Customer -> redirect to storefront home
+        self.client.login(phone="9999999993", password="pass")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 302)
+        
+        # 3. Staff -> redirect to storefront home
+        self.client.login(phone="9999999992", password="pass")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 302)
+        
+        # 4. Admin user -> 200 OK
+        self.client.login(phone="9999999991", password="pass")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'accounts/admin_business_dashboard.html')
+        
+        # 5. Superuser -> 200 OK
+        self.client.login(phone="9999999990", password="pass")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+
+    def test_dashboard_context_metrics(self):
+        self.client.login(phone="9999999990", password="pass")
+        url = reverse('accounts:admin_business_dashboard')
+        
+        # Create an order
+        from orders.models import Order
+        Order.objects.create(
+            user=self.customer_user,
+            total_amount=1250.00,
+            status='delivered',
+            payment_method='cod'
+        )
+        
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        
+        # Verify context metrics
+        self.assertEqual(response.context['total_sales'], 1250.00)
+        self.assertEqual(response.context['total_orders_count'], 1)
+        self.assertEqual(response.context['total_customers'], 1)
+        self.assertEqual(response.context['total_sellers'], 1)
+        self.assertEqual(response.context['total_staff'], 1)
+        self.assertIn('daily_sales', response.context)
+        self.assertEqual(len(response.context['daily_sales']), 7)
+
+
