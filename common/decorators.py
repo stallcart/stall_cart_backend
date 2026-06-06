@@ -10,7 +10,24 @@ def is_customer(user):
     return hasattr(user, 'role') and user.role == 'customer'
 
 def is_seller(user):
-    """Check if user is a verified seller"""
+    """Check if user is a verified seller or user is staff/admin"""
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_superuser or user.is_staff or getattr(user, 'role', '') in ['staff', 'admin']:
+        # Auto-create SellerProfile if missing
+        if not hasattr(user, 'seller_profile'):
+            from items.models import SellerProfile
+            try:
+                SellerProfile.objects.create(
+                    user=user,
+                    shop_name=f"Staff_{user.phone}",
+                    phone=user.phone,
+                    is_verified=True,
+                    created_by=user
+                )
+            except Exception:
+                pass
+        return True
     return (hasattr(user, 'role') and user.role == 'seller' and 
             hasattr(user, 'seller_profile') and user.seller_profile.is_verified)
 

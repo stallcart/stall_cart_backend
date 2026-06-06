@@ -20,7 +20,7 @@ class SellerProfile(BaseModel):
         settings.AUTH_USER_MODEL, 
         on_delete=models.CASCADE, 
         related_name='seller_profile',
-        limit_choices_to={'role': 'seller'}  # Only users with role='seller'
+        limit_choices_to={'role__in': ['seller', 'staff', 'admin']}  # Allow seller or staff/admin
     )
     shop_name = models.CharField(max_length=150, unique=True)
     shop_description = models.TextField(blank=True)
