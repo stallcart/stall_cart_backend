@@ -28,11 +28,11 @@ def is_verified_seller(user):
 def _get_product_for_user(user, product_id):
     """
     Return a Product the user is allowed to edit/delete.
-    - Superuser  → any product
-    - Seller     → only their own product
+    - Admin (staff/superuser)  → any product
+    - Seller                 → only their own product
     Raises 404 if not found or not permitted.
     """
-    if user.is_superuser:
+    if user.is_admin:
         return get_object_or_404(Product, pk=product_id)
     return get_object_or_404(Product, pk=product_id, seller__user=user)
 
@@ -45,18 +45,17 @@ def _get_product_for_user(user, product_id):
 def admin_dashboard(request):
     """
     Unified dashboard:
-    - Superuser  → sees ALL products from ALL sellers, can manage any
-    - Seller     → sees ONLY their own products
-    - Others     → redirected with error
+    - Admin (staff/superuser)  → sees ALL products from ALL sellers, can manage any
+    - Seller                 → sees ONLY their own products
+    - Others                 → redirected with error
     """
-    if request.user.is_superuser:
+    if request.user.is_admin:
         products = (
             Product.objects
             .select_related('seller', 'category')
             .prefetch_related('product_image_product')
         )
-        # title = "👑 Superuser Item Management"
-        title = ""
+        title = "👑 Admin Item Management"
     elif hasattr(request.user, 'seller_profile'):
         if not request.user.seller_profile.is_verified:
             messages.error(request, "Your seller account is pending verification.")
@@ -76,7 +75,7 @@ def admin_dashboard(request):
     search   = request.GET.get('search', '').strip()
     status   = request.GET.get('status', '').strip()
     cat_id   = request.GET.get('category', '').strip()
-    seller_id = request.GET.get('seller', '').strip()   # superuser only
+    seller_id = request.GET.get('seller', '').strip()   # admin only
 
     if search:
         products = products.filter(
@@ -88,12 +87,12 @@ def admin_dashboard(request):
         products = products.filter(status=status)
     if cat_id:
         products = products.filter(category_id=cat_id)
-    if seller_id and request.user.is_superuser:
+    if seller_id and request.user.is_admin:
         products = products.filter(seller_id=seller_id)
 
     # ── Stats ─────────────────────────────────────────────────────────────────
     # Use a fresh unfiltered queryset for stats so filters don't skew them
-    if request.user.is_superuser:
+    if request.user.is_admin:
         base_qs = Product.objects.all()
     else:
         base_qs = Product.objects.filter(seller=request.user.seller_profile)
@@ -107,14 +106,14 @@ def admin_dashboard(request):
         'total_value':  base_qs.aggregate(total=Sum('price'))['total'] or 0,
     }
 
-    sellers = SellerProfile.objects.all() if request.user.is_superuser else None
+    sellers = SellerProfile.objects.all() if request.user.is_admin else None
 
     context = {
         'products':     products.order_by('-created_at'),
         'stats':        stats,
         'categories':   Category.objects.filter(is_active=True),
         'sellers':      sellers,
-        'is_superuser': request.user.is_superuser,
+        'is_superuser': request.user.is_admin,
         'page_title':   title,
         'filters': {
             'search':   search,
@@ -178,16 +177,16 @@ def save_product(request):
     product_id = request.POST.get('product_id')
     if product_id:
         product = get_object_or_404(Product, id=product_id)
-        if not request.user.is_superuser and product.seller != request.user.seller_profile:
+        if not request.user.is_admin and product.seller != request.user.seller_profile:
             return JsonResponse({'status': 'error', 'message': 'Permission denied'}, status=403)
-        form = ProductForm(request.POST, request.FILES, instance=product, is_superuser=request.user.is_superuser, request_user=request.user)
+        form = ProductForm(request.POST, request.FILES, instance=product, is_superuser=request.user.is_admin, request_user=request.user)
     else:
-        form = ProductForm(request.POST, request.FILES, is_superuser=request.user.is_superuser, request_user=request.user)
+        form = ProductForm(request.POST, request.FILES, is_superuser=request.user.is_admin, request_user=request.user)
 
     if form.is_valid():
         product = form.save(commit=False)
         if not product_id:
-            if request.user.is_superuser:
+            if request.user.is_admin:
                 product.seller = form.cleaned_data.get('seller')
             else:
                 product.seller = request.user.seller_profile
@@ -471,7 +470,7 @@ def product_create(request):
         form = ProductForm(
             request.POST,
             request.FILES,
-            is_superuser=request.user.is_superuser,
+            is_superuser=request.user.is_admin,
             request_user=request.user,
         )
         variant_formset = ProductVariantFormSet(
@@ -482,7 +481,7 @@ def product_create(request):
         if form.is_valid() and variant_formset.is_valid():
             product = form.save(commit=False)
 
-            if request.user.is_superuser:
+            if request.user.is_admin:
                 product.seller = form.cleaned_data.get('seller')
             else:
                 product.seller = request.user.seller_profile
@@ -544,7 +543,7 @@ def product_create(request):
                         messages.error(request, f"Variant errors: {form_err.errors}")
     else:
         form = ProductForm(
-            is_superuser=request.user.is_superuser,
+            is_superuser=request.user.is_admin,
             request_user=request.user,
         )
         variant_formset = ProductVariantFormSet(prefix='variants')
@@ -554,7 +553,7 @@ def product_create(request):
         'variant_formset': variant_formset,
         'title': 'Add New Product',
         'action': 'Create',
-        'is_superuser': request.user.is_superuser,
+        'is_superuser': request.user.is_admin,
     })
 
 @seller_or_admin_only  
@@ -566,7 +565,7 @@ def product_edit(request, product_id):
             request.POST,
             request.FILES,
             instance=product,
-            is_superuser=request.user.is_superuser,
+            is_superuser=request.user.is_admin,
             request_user=request.user,
         )
         variant_formset = ProductVariantFormSet(
@@ -577,7 +576,7 @@ def product_edit(request, product_id):
  
         if form.is_valid() and variant_formset.is_valid():
             updated = form.save(commit=False)
-            if request.user.is_superuser:
+            if request.user.is_admin:
                 updated.seller = form.cleaned_data.get('seller')
             else:
                 updated.seller = request.user.seller_profile
@@ -649,7 +648,7 @@ def product_edit(request, product_id):
     else:
         form = ProductForm(
             instance=product,
-            is_superuser=request.user.is_superuser,
+            is_superuser=request.user.is_admin,
             request_user=request.user,
         )
         # ✅ Initialize formset with instance and prefix for GET request
@@ -661,7 +660,7 @@ def product_edit(request, product_id):
         'variant_formset': variant_formset,
         'title': f'Edit: {product.name}',
         'action': 'Update',
-        'is_superuser': request.user.is_superuser,
+        'is_superuser': request.user.is_admin,
     })
 # ---------------------------------------------------------------------------
 # Product Toggle Status (AJAX)
@@ -1127,7 +1126,7 @@ def product_detail(request, slug):
     # Permissions
     # ─────────────────────────────────────────────
     can_manage = request.user.is_authenticated and (
-        request.user.is_superuser or product.seller.user_id == request.user.pk
+        request.user.is_admin or product.seller.user_id == request.user.pk
     )
 
     # ─────────────────────────────────────────────
@@ -1182,7 +1181,7 @@ def delete_product_image(request, image_id):
     image = get_object_or_404(ProductImage, pk=image_id)
     
     # Check permissions
-    if not request.user.is_superuser and image.product.seller.user != request.user:
+    if not request.user.is_admin and image.product.seller.user != request.user:
         return JsonResponse({'status': 'error', 'message': 'Permission denied'}, status=403)
     
     # Delete image file and record

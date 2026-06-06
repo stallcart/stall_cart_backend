@@ -1199,7 +1199,7 @@ def profile_view(request):
             logger.error(f"Failed to auto-heal/create SellerProfile in profile view: {e}")
 
     is_seller = request.user.role == 'seller' and hasattr(request.user, 'seller_profile')
-    is_admin = request.user.is_superuser
+    is_admin = request.user.is_admin
     
     user_orders = []
     wishlist_count = 0
