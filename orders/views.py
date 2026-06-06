@@ -320,9 +320,8 @@ def download_invoice(request, order_id):
     role = getattr(request.user, 'role', 'customer')
     if role == 'seller':
         order = get_object_or_404(
-            Order.objects.prefetch_related('items__product', 'items__seller'),
-            unique_order_id=order_id,
-            items__seller__user=request.user
+            Order.objects.filter(items__seller__user=request.user).prefetch_related('items__product', 'items__seller').distinct(),
+            unique_order_id=order_id
         )
     elif request.user.is_staff or request.user.is_superuser:
         order = get_object_or_404(
@@ -449,6 +448,107 @@ def _download_invoice_html(request, order):
 
 
 @login_required
+def export_invoice_csv(request, order_id):
+    """
+    Export single order invoice details as CSV for the seller, customer, or admin.
+    """
+    role = getattr(request.user, 'role', 'customer')
+    if role == 'seller':
+        order = get_object_or_404(
+            Order.objects.filter(items__seller__user=request.user).prefetch_related('items__product', 'items__seller').distinct(),
+            unique_order_id=order_id
+        )
+    elif request.user.is_staff or request.user.is_superuser:
+        order = get_object_or_404(
+            Order.objects.prefetch_related('items__product', 'items__seller'),
+            unique_order_id=order_id
+        )
+    else:
+        order = get_object_or_404(
+            Order.objects.prefetch_related('items__product', 'items__seller'),
+            unique_order_id=order_id,
+            user=request.user
+        )
+        
+    import csv
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="invoice-{order.unique_order_id}.csv"'
+    
+    writer = csv.writer(response)
+    writer.writerow(['INVOICE / BILL DETAILS'])
+    writer.writerow([])
+    writer.writerow(['Order ID', order.unique_order_id])
+    writer.writerow(['Order Date', order.created_at.strftime('%Y-%m-%d %I:%M %p')])
+    writer.writerow(['Order Status', order.get_status_display()])
+    writer.writerow([])
+    
+    # Billing Info
+    billing = order.billing_address
+    writer.writerow(['BILL TO'])
+    writer.writerow(['Name', billing.name if billing else (order.user.full_name if order.user else order.guest_email)])
+    writer.writerow(['Address Line 1', billing.address_line1 if billing else ''])
+    writer.writerow(['Address Line 2', billing.address_line2 if billing else ''])
+    writer.writerow(['City', billing.city if billing else ''])
+    writer.writerow(['State', billing.state if billing else ''])
+    writer.writerow(['Postal Code', billing.postal_code if billing else ''])
+    writer.writerow(['Country', billing.country if billing else 'India'])
+    writer.writerow(['Phone', billing.phone if billing else (order.guest_phone or (order.user.phone if order.user else ''))])
+    writer.writerow([])
+    
+    # Seller Info
+    seller = order.items.first().seller if order.items.exists() else None
+    if seller:
+        writer.writerow(['SELLER DETAILS'])
+        writer.writerow(['Shop Name', seller.shop_name])
+        writer.writerow(['GSTIN', seller.gst_number if seller.gst_number else 'N/A'])
+        writer.writerow(['Email', seller.user.email])
+        writer.writerow([])
+        
+    # Write Items
+    writer.writerow(['ORDER ITEMS'])
+    writer.writerow(['Product Name', 'SKU', 'Seller', 'Price (Rs.)', 'Quantity', 'Total (Rs.)'])
+    
+    items = order.items.all()
+    if role == 'seller':
+        items = items.filter(seller__user=request.user)
+        
+    for item in items:
+        writer.writerow([
+            item.product.name,
+            item.product.sku or 'N/A',
+            item.seller.shop_name if item.seller else 'StallCart',
+            f"{item.price:.2f}",
+            item.quantity,
+            f"{item.total:.2f}"
+        ])
+    
+    writer.writerow([])
+    
+    # Summary
+    if role == 'seller':
+        subtotal = sum(i.total for i in items)
+        commission = sum(i.commission_amount for i in items)
+        earnings = sum(i.seller_earnings for i in items)
+        writer.writerow(['SUMMARY (YOUR ITEMS)'])
+        writer.writerow(['Items Total', f"Rs. {subtotal:.2f}"])
+        writer.writerow(['Platform Commission', f"-Rs. {commission:.2f}"])
+        writer.writerow(['Your Earnings', f"Rs. {earnings:.2f}"])
+    else:
+        writer.writerow(['SUMMARY'])
+        writer.writerow(['MRP Subtotal', f"Rs. {order.mrp_subtotal:.2f}"])
+        if order.discount_amount:
+            writer.writerow(['Discount', f"-Rs. {order.discount_amount:.2f}"])
+        if order.delivery_charge:
+            writer.writerow(['Delivery Charge', f"Rs. {order.delivery_charge:.2f}"])
+        tax_amount = getattr(order, 'tax_amount', 0) or 0
+        if tax_amount:
+            writer.writerow(['Tax (GST)', f"Rs. {tax_amount:.2f}"])
+        writer.writerow(['Grand Total', f"Rs. {order.total_amount:.2f}"])
+        
+    return response
+
+
+@login_required
 def preview_invoice(request, order_id):
     """
     Preview invoice in browser (HTML) for client-side PDF export.
@@ -457,9 +557,8 @@ def preview_invoice(request, order_id):
     role = getattr(request.user, 'role', 'customer')
     if role == 'seller':
         order = get_object_or_404(
-            Order.objects.prefetch_related('items__product'),
-            unique_order_id=order_id,
-            items__seller__user=request.user
+            Order.objects.filter(items__seller__user=request.user).prefetch_related('items__product').distinct(),
+            unique_order_id=order_id
         )
     elif request.user.is_staff or request.user.is_superuser:
         order = get_object_or_404(
@@ -490,7 +589,10 @@ def debug_invoice(request, order_id):
     """
     role = getattr(request.user, 'role', 'customer')
     if role == 'seller':
-        order = get_object_or_404(Order, unique_order_id=order_id, items__seller__user=request.user)
+        order = get_object_or_404(
+            Order.objects.filter(items__seller__user=request.user).distinct(),
+            unique_order_id=order_id
+        )
     elif request.user.is_staff or request.user.is_superuser:
         order = get_object_or_404(Order, unique_order_id=order_id)
     else:

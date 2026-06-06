@@ -41,7 +41,12 @@ urlpatterns = [
         'order/<str:order_id>/invoice/',
         views.download_invoice,
         name='invoice_download'
-    ),
+     ),
+     path(
+        'order/<str:order_id>/invoice/csv/',
+        views.export_invoice_csv,
+        name='invoice_download_csv'
+     ),
     path(
         'order/<str:order_id>/invoice/preview/',
         views.preview_invoice,
