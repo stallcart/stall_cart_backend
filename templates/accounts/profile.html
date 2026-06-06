@@ -3,6 +3,197 @@
 
 {% block title %}My Profile - {{ site_settings.site_name }}{% endblock %}
 
+{% block extra_css %}
+<style>
+/* ===== Profile Page — Premium Design Scopes ===== */
+.profile-container { padding: clamp(24px, 4vw, 40px) 0; }
+
+/* Shipping address layout as a modern grid */
+#addressList {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+    margin-top: 20px;
+}
+@media (min-width: 768px) {
+    #addressList {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.address-card {
+    background: var(--white);
+    padding: 24px;
+    border-radius: var(--r-xl);
+    border: 1px solid var(--gray-200);
+    border-left: 4px solid var(--blue-500) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.01);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100%;
+    margin-bottom: 0 !important;
+}
+.address-card:hover {
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.04), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+    transform: translateY(-2px);
+    border-color: var(--blue-300);
+}
+.address-card.default-address {
+    border-left-color: var(--green) !important;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.02) 0%, var(--white) 100%);
+}
+
+/* Badges */
+.badge-type {
+    background: var(--blue-50);
+    color: var(--blue-600);
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border: 1px solid var(--blue-100);
+}
+.badge-success {
+    background: var(--green-light);
+    color: #065f46;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    border: 1px solid #bbf7d0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Modern clean tables */
+.profile-card table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin-top: 15px;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--r-lg);
+    overflow: hidden;
+}
+.profile-card th {
+    padding: 14px 16px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--gray-500);
+    border-bottom: 2px solid var(--gray-100);
+    background: var(--gray-50);
+}
+.profile-card td {
+    padding: 16px;
+    font-size: 0.9rem;
+    color: var(--gray-700);
+    border-bottom: 1px solid var(--gray-100);
+    vertical-align: middle;
+}
+.profile-card tr:last-child td {
+    border-bottom: none;
+}
+.profile-card tr:hover td {
+    background: #f8fafc;
+}
+
+/* Settlement Status Badges */
+.badge-paid {
+    background: #ecfdf5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 20px;
+}
+.badge-failed {
+    background: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 20px;
+}
+.badge-pending {
+    background: #fffbeb;
+    color: #92400e;
+    border: 1px solid #fde68a;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 20px;
+}
+
+/* Form inputs styling */
+.form-input {
+    border: 1.5px solid var(--gray-200) !important;
+    border-radius: var(--r-md) !important;
+    padding: 10px 14px !important;
+    font-size: 0.9rem !important;
+    transition: all 0.2s ease !important;
+    width: 100% !important;
+    background: var(--white) !important;
+}
+.form-input:focus {
+    outline: none !important;
+    border-color: var(--blue-500) !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
+}
+
+/* Avatar glow */
+.profile-avatar-large {
+    box-shadow: 0 8px 30px rgba(40, 116, 240, 0.25);
+    border: 3px solid var(--white);
+    transition: transform var(--tr);
+}
+.profile-user-card:hover .profile-avatar-large {
+    transform: scale(1.05);
+}
+
+/* Orders List Custom layout */
+.orders-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 16px;
+}
+.order-preview-item {
+    background: #f8fafc;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--r-xl);
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    transition: all 0.3s;
+}
+.order-preview-item:hover {
+    border-color: var(--blue-200);
+    background: var(--white);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.02);
+}
+.order-status {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+}
+.view-order-btn {
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="profile-container">
     <!-- Page Header -->
@@ -71,7 +262,7 @@
                 <div class="profile-card">
                     <div class="card-header">
                         <h3><i class="fa fa-user"></i> Personal Information</h3>
-                        <button type="button" class="btn-outline btn-sm" id="editProfileBtn">✏️ Edit</button>
+                        <button type="button" class="btn-outline btn-sm" id="editProfileBtn"><i class="fa fa-pencil-alt"></i> Edit</button>
                     </div>
                     
                     <form id="profileForm" method="post">
@@ -106,7 +297,7 @@
                         </div>
                         
                         <div class="form-actions">
-                            <button type="submit" class="btn-primary" id="saveProfileBtn" style="display:none;">💾 Save Changes</button>
+                            <button type="submit" class="btn-primary" id="saveProfileBtn" style="display:none;"><i class="fa fa-save"></i> Save Changes</button>
                             <button type="button" class="btn-outline" id="cancelEditBtn" style="display:none; margin-left:10px;">Cancel</button>
                         </div>
                     </form>
@@ -130,7 +321,7 @@
                                     <div class="address-title">
                                         <strong>{{ addr.name }}</strong>
                                         {% if addr.is_default %}
-                                            <span class="badge badge-success">✓ Default</span>
+                                            <span class="badge badge-success"><i class="fa fa-check"></i> Default</span>
                                         {% endif %}
                                     </div>
                                     <span class="badge badge-type">{{ addr.get_address_type_display }}</span>
@@ -138,7 +329,7 @@
                                 <div class="address-body">
                                     <p class="address-line">{{ addr.address_line1 }}{% if addr.address_line2 %}, {{ addr.address_line2 }}{% endif %}</p>
                                     <p class="address-line">{{ addr.city }}, {{ addr.state }} - {{ addr.postal_code }}</p>
-                                    <p class="address-line">📞 {{ addr.phone }} • {{ addr.country }}</p>
+                                    <p class="address-line"><i class="fa fa-phone"></i> {{ addr.phone }} • {{ addr.country }}</p>
                                 </div>
                                 <div class="address-actions">
                                     {% if not addr.is_default %}
@@ -147,10 +338,10 @@
                                     </button>
                                     {% endif %}
                                     <button class="btn-action btn-edit" onclick="openAddressModal('edit', {{ addr.id }})">
-                                        ✏️ Edit
+                                        <i class="fa fa-pencil-alt"></i> Edit
                                     </button>
                                     <button class="btn-action btn-delete" onclick="deleteAddress({{ addr.id }})">
-                                        🗑️ Delete
+                                        <i class="fa fa-trash-alt"></i> Delete
                                     </button>
                                 </div>
                             </div>
@@ -210,7 +401,7 @@
                     <div class="card-header">
                         <h3><i class="fa fa-store"></i> Shop Address</h3>
                         <button type="button" class="btn-outline btn-sm" id="editShopAddressBtn">
-                            {% if shop_address %}✏️ Edit{% else %}+ Add Shop Address{% endif %}
+                            {% if shop_address %}<i class="fa fa-pencil-alt"></i> Edit{% else %}<i class="fa fa-plus"></i> Add Shop Address{% endif %}
                         </button>
                     </div>
                     
@@ -221,7 +412,7 @@
                             <p><strong>{{ shop_address.shop_name }}</strong></p>
                             <p>{{ shop_address.address_line1 }}{% if shop_address.address_line2 %}, {{ shop_address.address_line2 }}{% endif %}</p>
                             <p>{{ shop_address.city }}, {{ shop_address.state }} - {{ shop_address.postal_code }}</p>
-                            <p>📞 {{ shop_address.shop_phone }} • {{ shop_address.country }}</p>
+                            <p><i class="fa fa-phone"></i> {{ shop_address.shop_phone }} • {{ shop_address.country }}</p>
                             {% if shop_address.gst_number %}
                                 <p><strong>GST:</strong> {{ shop_address.gst_number }}</p>
                             {% endif %}
@@ -229,7 +420,7 @@
                                 <p><strong>Pickup Instructions:</strong> {{ shop_address.pickup_instructions }}</p>
                             {% endif %}
                             <p class="text-muted">
-                                Status: {% if shop_address.is_verified %}✅ Verified{% else %}⏳ Pending Verification{% endif %}
+                                Status: {% if shop_address.is_verified %}<span class="badge badge-success"><i class="fa fa-check-circle"></i> Verified</span>{% else %}<span class="badge badge-pending"><i class="fa fa-clock"></i> Pending Verification</span>{% endif %}
                             </p>
                         </div>
                         {% else %}
@@ -349,7 +540,7 @@
                         </div>
                         
                         <div class="form-actions">
-                            <button type="submit" class="btn-primary">💾 Save Shop Address</button>
+                            <button type="submit" class="btn-primary"><i class="fa fa-save"></i> Save Shop Address</button>
                             <button type="button" class="btn-outline" id="cancelShopAddressBtn" style="margin-left:10px;">Cancel</button>
                         </div>
                     </form>
@@ -363,7 +554,7 @@
                     <div class="card-header">
                         <h3><i class="fa fa-university"></i> Bank Account Details</h3>
                         <button type="button" class="btn-outline btn-sm" id="editBankDetailsBtn">
-                            ✏️ Edit Bank Details
+                            <i class="fa fa-pencil-alt"></i> Edit Bank Details
                         </button>
                     </div>
 
@@ -430,7 +621,7 @@
                         </div>
                         
                         <div class="form-actions" style="margin-top: 20px;">
-                            <button type="submit" class="btn-primary">💾 Save Bank Details</button>
+                            <button type="submit" class="btn-primary"><i class="fa fa-save"></i> Save Bank Details</button>
                             <button type="button" class="btn-outline" id="cancelBankDetailsBtn" style="margin-left:10px;">Cancel</button>
                         </div>
                     </form>
@@ -458,8 +649,8 @@
                                 {% for sett in seller_settlements %}
                                 <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
                                     <td style="padding: 12px 8px;"><strong>{{ sett.settlement_id }}</strong></td>
-                                    <td style="padding: 12px 8px; color: var(--green-400);">₹{{ sett.amount|floatformat:2 }}</td>
-                                    <td style="padding: 12px 8px; color: var(--red-400);">₹{{ sett.commission_deducted|floatformat:2 }}</td>
+                                    <td style="padding: 12px 8px; color: var(--green); font-weight: 600;">₹{{ sett.amount|floatformat:2 }}</td>
+                                    <td style="padding: 12px 8px; color: var(--red); font-weight: 600;">₹{{ sett.commission_deducted|floatformat:2 }}</td>
                                     <td style="padding: 12px 8px;">
                                         <span class="badge {% if sett.status == 'processed' %}badge-paid{% elif sett.status == 'failed' %}badge-failed{% else %}badge-pending{% endif %}" style="font-size: 0.75rem;">
                                             {{ sett.get_status_display }}
@@ -568,11 +759,11 @@
                         <h3><i class="fa fa-cogs"></i> Admin Tools</h3>
                     </div>
                     <div class="admin-links">
-                        <a href="/admin/" class="btn-outline">🔧 Django Admin</a>
-                        <a href="{% url 'items:admin_dashboard' %}" class="btn-outline">📦 Product Management</a>
-                        <a href="/admin/common/sitesettings/1/change/" class="btn-outline">🎨 Site Settings</a>
-                        <a href="/admin/auth/user/" class="btn-outline">👥 User Management</a>
-                        <a href="{% url 'orders:seller_orders' %}" class="btn-outline">📋 All Orders</a>
+                        <a href="/admin/" class="btn-outline"><i class="fa fa-wrench"></i> Django Admin</a>
+                        <a href="{% url 'items:admin_dashboard' %}" class="btn-outline"><i class="fa fa-box"></i> Product Management</a>
+                        <a href="/admin/common/sitesettings/1/change/" class="btn-outline"><i class="fa fa-palette"></i> Site Settings</a>
+                        <a href="/admin/auth/user/" class="btn-outline"><i class="fa fa-users"></i> User Management</a>
+                        <a href="{% url 'orders:seller_orders' %}" class="btn-outline"><i class="fa fa-list-alt"></i> All Orders</a>
                     </div>
                 </div>
             </div>
@@ -745,7 +936,7 @@
 <div id="verifyProfileModal" class="modal" role="dialog" aria-modal="true">
     <div class="modal-content">
         <div class="modal-header-bar">
-            <h3>🔒 Verify OTP</h3>
+            <h3><i class="fa fa-lock"></i> Verify OTP</h3>
             <button type="button" class="modal-close" id="closeVerifyProfileBtn" aria-label="Close">&times;</button>
         </div>
         <div class="modal-body">
