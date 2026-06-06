@@ -19,5 +19,5 @@ urlpatterns = [
     path('forgot-password/reset/', views.forgot_password_reset_view, name='forgot_password_reset'),
     path('api/send-change-password-otp/', views.send_change_password_otp, name='send_change_password_otp'),
     path('api/address/<int:address_id>/', views.api_address_detail, name='api_address_detail'),
-
+    path('admin/users/', views.admin_user_management, name='admin_user_management'),
 ]

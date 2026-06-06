@@ -493,3 +493,173 @@ class DynamicEmailTemplateTests(TestCase):
         self.assertEqual(mail.outbox[0].body, "Hello, your shop My Shop is verified.")
 
 
+from items.models import SellerProfile
+
+class UserManagementTests(TestCase):
+    def setUp(self):
+        # Create users for testing
+        self.superuser = User.objects.create_superuser(phone="9999999990", password="pass", full_name="Superuser")
+        self.admin_user = User.objects.create_user(phone="9999999991", password="pass", full_name="Admin", role="admin")
+        self.staff_user = User.objects.create_user(phone="9999999992", password="pass", full_name="Staff", role="staff")
+        self.customer_user = User.objects.create_user(phone="9999999993", password="pass", full_name="Customer", role="customer")
+        
+        self.target_user = User.objects.create_user(phone="8888888880", password="pass", full_name="Target Staff", role="staff")
+        self.seller_user = User.objects.create_user(phone="8888888881", password="pass", full_name="Target Seller", role="seller")
+        self.seller_profile = SellerProfile.objects.create(
+            user=self.seller_user,
+            shop_name="Test Shop",
+            gst_number="27AAAAA1111A1Z1",
+            is_verified=False
+        )
+
+    def test_access_restrictions(self):
+        url = reverse('accounts:admin_user_management')
+        
+        # 1. Customer blocked
+        self.client.login(phone="9999999993", password="pass")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 302)
+        
+        # 2. Staff blocked (only superuser/admin can manage users)
+        self.client.login(phone="9999999992", password="pass")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 302)
+        
+        # 3. Admin user allowed
+        self.client.login(phone="9999999991", password="pass")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        
+        # 4. Superuser allowed
+        self.client.login(phone="9999999990", password="pass")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+
+    def test_ajax_get_user_details(self):
+        self.client.login(phone="9999999990", password="pass")
+        url = reverse('accounts:admin_user_management')
+        
+        # Test standard user details
+        payload = {'action': 'get_user', 'user_id': self.target_user.id}
+        response = self.client.post(url, data=json.dumps(payload), content_type="application/json", HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['status'], 'success')
+        self.assertEqual(data['user']['full_name'], 'Target Staff')
+        
+        # Test seller details (with shop fields)
+        payload = {'action': 'get_user', 'user_id': self.seller_user.id}
+        response = self.client.post(url, data=json.dumps(payload), content_type="application/json", HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['user']['shop_name'], 'Test Shop')
+        self.assertEqual(data['user']['gst_number'], '27AAAAA1111A1Z1')
+
+    def test_ajax_create_staff(self):
+        self.client.login(phone="9999999990", password="pass")
+        url = reverse('accounts:admin_user_management')
+        
+        # 1. Success case
+        payload = {
+            'action': 'create_staff',
+            'full_name': 'New Staff',
+            'phone': '7777777777',
+            'email': 'newstaff@example.com',
+            'password': 'securepassword'
+        }
+        response = self.client.post(url, data=json.dumps(payload), content_type="application/json", HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(response.status_code, 200)
+        
+        new_staff = User.objects.filter(phone='7777777777').first()
+        self.assertIsNotNone(new_staff)
+        self.assertEqual(new_staff.role, 'staff')
+        self.assertTrue(new_staff.is_staff)
+        
+        # 2. Validation: duplicate phone
+        payload['phone'] = '9999999990' # superuser phone
+        response = self.client.post(url, data=json.dumps(payload), content_type="application/json", HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(response.status_code, 400)
+        
+        # 3. Validation: short/invalid phone
+        payload['phone'] = '123'
+        response = self.client.post(url, data=json.dumps(payload), content_type="application/json", HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(response.status_code, 400)
+
+    def test_ajax_update_user(self):
+        self.client.login(phone="9999999990", password="pass")
+        url = reverse('accounts:admin_user_management')
+        
+        # 1. Update Staff credentials
+        payload = {
+            'action': 'update_user',
+            'user_id': self.target_user.id,
+            'full_name': 'Updated Target Staff',
+            'phone': '8888888882',
+            'email': 'updated_staff@example.com',
+            'password': 'newpassword123'
+        }
+        response = self.client.post(url, data=json.dumps(payload), content_type="application/json", HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(response.status_code, 200)
+        
+        self.target_user.refresh_from_db()
+        self.assertEqual(self.target_user.full_name, 'Updated Target Staff')
+        self.assertEqual(self.target_user.phone, '8888888882')
+        self.assertEqual(self.target_user.email, 'updated_staff@example.com')
+        self.assertTrue(self.target_user.check_password('newpassword123'))
+        
+        # 2. Update Seller and SellerProfile
+        payload = {
+            'action': 'update_user',
+            'user_id': self.seller_user.id,
+            'full_name': 'Updated Owner',
+            'phone': '8888888881',
+            'email': 'seller@example.com',
+            'shop_name': 'Updated Shop',
+            'gst_number': '27BBBBB1111B1Z2',
+            'is_verified': True,
+            'password': '' # no change
+        }
+        response = self.client.post(url, data=json.dumps(payload), content_type="application/json", HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(response.status_code, 200)
+        
+        self.seller_user.refresh_from_db()
+        self.seller_profile.refresh_from_db()
+        self.assertEqual(self.seller_user.full_name, 'Updated Owner')
+        self.assertEqual(self.seller_profile.shop_name, 'Updated Shop')
+        self.assertEqual(self.seller_profile.gst_number, '27BBBBB1111B1Z2')
+        self.assertTrue(self.seller_profile.is_verified)
+
+    def test_ajax_delete_user(self):
+        self.client.login(phone="9999999990", password="pass")
+        url = reverse('accounts:admin_user_management')
+        
+        # 1. Success case
+        payload = {'action': 'delete_user', 'user_id': self.target_user.id}
+        response = self.client.post(url, data=json.dumps(payload), content_type="application/json", HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(User.objects.filter(id=self.target_user.id).exists())
+        
+        # 2. Block self deletion
+        payload = {'action': 'delete_user', 'user_id': self.superuser.id}
+        response = self.client.post(url, data=json.dumps(payload), content_type="application/json", HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(response.status_code, 400)
+
+    def test_ajax_toggle_active(self):
+        self.client.login(phone="9999999990", password="pass")
+        url = reverse('accounts:admin_user_management')
+        
+        # 1. Success case
+        self.assertTrue(self.target_user.is_active)
+        payload = {'action': 'toggle_active', 'user_id': self.target_user.id}
+        response = self.client.post(url, data=json.dumps(payload), content_type="application/json", HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(response.status_code, 200)
+        
+        self.target_user.refresh_from_db()
+        self.assertFalse(self.target_user.is_active)
+        
+        # 2. Block self deactivation
+        payload = {'action': 'toggle_active', 'user_id': self.superuser.id}
+        response = self.client.post(url, data=json.dumps(payload), content_type="application/json", HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(response.status_code, 400)
+
+

@@ -1299,3 +1299,184 @@ def latest_otp_view(request):
     )[:10]
     
     return render(request, 'accounts/latest_otp.html', {'otps': otps})
+
+
+@login_required
+def admin_user_management(request):
+    # Enforce admin permission: only superusers or users with the 'admin' role
+    if not request.user.is_superuser and getattr(request.user, 'role', None) != 'admin':
+        messages.error(request, "🔐 Access Denied: Only administrators can manage users.")
+        return redirect('shop:home')
+
+    is_ajax = request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest' or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    
+    if is_ajax and request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            action = data.get('action')
+            
+            if action == 'get_user':
+                user_id = data.get('user_id')
+                user = get_object_or_404(User, id=user_id)
+                user_data = {
+                    'id': user.id,
+                    'full_name': user.full_name,
+                    'phone': user.phone,
+                    'email': user.email or '',
+                    'role': user.role,
+                    'is_active': user.is_active,
+                }
+                if user.role == 'seller' and hasattr(user, 'seller_profile'):
+                    sp = user.seller_profile
+                    user_data.update({
+                        'shop_name': sp.shop_name,
+                        'gst_number': sp.gst_number or '',
+                        'is_verified': sp.is_verified,
+                    })
+                return JsonResponse({'status': 'success', 'user': user_data})
+                
+            elif action == 'create_staff':
+                full_name = data.get('full_name', '').strip()
+                phone = data.get('phone', '').strip()
+                email = data.get('email', '').strip().lower()
+                password = data.get('password', '')
+                
+                if not full_name or not phone or not password:
+                    return JsonResponse({'status': 'error', 'message': 'Full Name, Phone Number, and Password are required.'}, status=400)
+                
+                if not phone.isdigit() or len(phone) != 10:
+                    return JsonResponse({'status': 'error', 'message': 'Phone number must be a 10-digit number.'}, status=400)
+                
+                if User.objects.filter(phone=phone).exists():
+                    return JsonResponse({'status': 'error', 'message': 'Mobile number already registered.'}, status=400)
+                
+                if email and User.objects.filter(email__iexact=email).exists():
+                    return JsonResponse({'status': 'error', 'message': 'Email address already registered.'}, status=400)
+                
+                user = User.objects.create_user(
+                    phone=phone,
+                    email=email or None,
+                    password=password,
+                    role='staff',
+                    full_name=full_name
+                )
+                return JsonResponse({'status': 'success', 'message': f'Staff member "{full_name}" created successfully!'})
+                
+            elif action == 'update_user':
+                user_id = data.get('user_id')
+                user = get_object_or_404(User, id=user_id)
+                
+                full_name = data.get('full_name', '').strip()
+                phone = data.get('phone', '').strip()
+                email = data.get('email', '').strip().lower()
+                password = data.get('password', '')
+                
+                if not full_name or not phone:
+                    return JsonResponse({'status': 'error', 'message': 'Full Name and Phone Number are required.'}, status=400)
+                
+                if not phone.isdigit() or len(phone) != 10:
+                    return JsonResponse({'status': 'error', 'message': 'Phone number must be a 10-digit number.'}, status=400)
+                
+                if User.objects.filter(phone=phone).exclude(pk=user.pk).exists():
+                    return JsonResponse({'status': 'error', 'message': 'Mobile number already registered by another user.'}, status=400)
+                
+                if email and User.objects.filter(email__iexact=email).exclude(pk=user.pk).exists():
+                    return JsonResponse({'status': 'error', 'message': 'Email address already registered by another user.'}, status=400)
+                
+                user.full_name = full_name
+                user.phone = phone
+                user.email = email or None
+                
+                if password:
+                    user.set_password(password)
+                    
+                user.save()
+                
+                if user.role == 'seller':
+                    shop_name = data.get('shop_name', '').strip()
+                    gst_number = data.get('gst_number', '').strip() or None
+                    is_verified = bool(data.get('is_verified', False))
+                    
+                    if not shop_name:
+                        return JsonResponse({'status': 'error', 'message': 'Shop Name is required for sellers.'}, status=400)
+                    
+                    if SellerProfile.objects.filter(shop_name__iexact=shop_name).exclude(user=user).exists():
+                        return JsonResponse({'status': 'error', 'message': 'Shop Name is already taken.'}, status=400)
+                    
+                    sp, created = SellerProfile.objects.get_or_create(
+                        user=user,
+                        defaults={
+                            'shop_name': shop_name,
+                            'gst_number': gst_number,
+                            'is_verified': is_verified,
+                            'phone': phone
+                        }
+                    )
+                    if not created:
+                        sp.shop_name = shop_name
+                        sp.gst_number = gst_number
+                        sp.is_verified = is_verified
+                        sp.phone = phone
+                        sp.save()
+                        
+                return JsonResponse({'status': 'success', 'message': 'Account updated successfully!'})
+                
+            elif action == 'delete_user':
+                user_id = data.get('user_id')
+                if int(user_id) == request.user.id:
+                    return JsonResponse({'status': 'error', 'message': 'You cannot delete your own admin account.'}, status=400)
+                
+                user = get_object_or_404(User, id=user_id)
+                name = user.full_name or user.phone
+                user.delete()
+                return JsonResponse({'status': 'success', 'message': f'User "{name}" has been deleted.'})
+                
+            elif action == 'toggle_active':
+                user_id = data.get('user_id')
+                if int(user_id) == request.user.id:
+                    return JsonResponse({'status': 'error', 'message': 'You cannot deactivate your own admin account.'}, status=400)
+                
+                user = get_object_or_404(User, id=user_id)
+                user.is_active = not user.is_active
+                user.save()
+                status_str = "activated" if user.is_active else "deactivated"
+                return JsonResponse({'status': 'success', 'message': f'Account "{user.full_name or user.phone}" has been {status_str}.'})
+                
+            return JsonResponse({'status': 'error', 'message': 'Invalid action.'}, status=400)
+            
+        except json.JSONDecodeError:
+            return JsonResponse({'status': 'error', 'message': 'Invalid JSON data.'}, status=400)
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+    # For standard GET requests, render user management view with search / filters
+    search_query = request.GET.get('search', '').strip()
+    status_filter = request.GET.get('is_active', '').strip()
+    
+    # Querysets for staff, sellers, customers
+    staff_qs = User.objects.filter(role='staff')
+    seller_qs = User.objects.filter(role='seller').select_related('seller_profile')
+    customer_qs = User.objects.filter(role='customer')
+    
+    # Apply search filter
+    if search_query:
+        q_filter = Q(full_name__icontains=search_query) | Q(phone__icontains=search_query) | Q(email__icontains=search_query)
+        staff_qs = staff_qs.filter(q_filter)
+        seller_qs = seller_qs.filter(q_filter | Q(seller_profile__shop_name__icontains=search_query))
+        customer_qs = customer_qs.filter(q_filter)
+        
+    # Apply status filter
+    if status_filter:
+        is_active_val = status_filter == 'true'
+        staff_qs = staff_qs.filter(is_active=is_active_val)
+        seller_qs = seller_qs.filter(is_active=is_active_val)
+        customer_qs = customer_qs.filter(is_active=is_active_val)
+        
+    context = {
+        'staff_list': staff_qs.order_by('-created_at'),
+        'seller_list': seller_qs.order_by('-created_at'),
+        'customer_list': customer_qs.order_by('-created_at'),
+        'search_query': search_query,
+        'status_filter': status_filter,
+    }
+    return render(request, 'accounts/admin_user_management.html', context)
