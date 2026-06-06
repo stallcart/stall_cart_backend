@@ -548,7 +548,6 @@ def export_invoice_csv(request, order_id):
         writer.writerow(['SELLER DETAILS'])
         writer.writerow(['Shop Name', seller.shop_name])
         writer.writerow(['GSTIN', seller.gst_number if seller.gst_number else 'N/A'])
-        writer.writerow(['Email', seller.user.email])
         writer.writerow([])
         
     # Write Items
