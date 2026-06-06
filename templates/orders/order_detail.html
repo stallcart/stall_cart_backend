@@ -399,6 +399,24 @@
                         ₹{{ item.price|floatformat:2 }} × {{ item.quantity }}
                     </p>
                     <p class="od-item-total">₹{{ item.total|floatformat:2 }}</p>
+                    
+                    <div style="margin-top: 6px; display: flex; flex-direction: column; gap: 4px;">
+                        <p style="margin: 0; font-size: 0.85rem; display: flex; align-items: center; gap: 6px;">
+                            <span style="color:#666;">Status:</span>
+                            <span class="od-status-badge st-{{ item.status }}" style="padding: 2px 8px; font-size: 0.72rem; border-radius: 4px; font-weight: 700; height: auto;">
+                                {{ item.get_status_display }}
+                            </span>
+                        </p>
+                        {% if item.tracking_number %}
+                        <p style="margin: 0; font-size: 0.82rem; color: #555;">
+                            <span>Tracking:</span>
+                            <strong>{{ item.courier_name|default:"Courier" }} - {{ item.tracking_number }}</strong>
+                            {% if item.tracking_url %}
+                            <a href="{{ item.tracking_url }}" target="_blank" style="margin-left: 6px; color: #2874f0; text-decoration: none; font-weight: 600;">Track Live →</a>
+                            {% endif %}
+                        </p>
+                        {% endif %}
+                    </div>
 
                     {% if item.is_returned %}
                     <span class="badge-returned-item">Returned ({{ item.returned_quantity }})</span>

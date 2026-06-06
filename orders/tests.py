@@ -133,7 +133,8 @@ class OrderManagementTests(TestCase):
             seller=self.seller_profile1,
             quantity=1,
             price=Decimal("100.00"),
-            total=Decimal("100.00")
+            total=Decimal("100.00"),
+            status="confirmed"
         )
 
     def test_seller_orders_isolation(self):
@@ -436,6 +437,8 @@ class OrderManagementTests(TestCase):
 
     def test_seller_update_status_success(self):
         """Seller can successfully update order status to processing and shipped."""
+        # Delete seller 2's item so order 1 only has seller 1's items
+        self.item1_2.delete()
         self.client.login(phone="8888888888", password="sellerpassword")
         
         # Test transition to processing
@@ -481,6 +484,8 @@ class OrderManagementTests(TestCase):
 
     def test_seller_multi_status_and_tracking_update(self):
         """Seller can update status multiple times and add/edit tracking details."""
+        # Delete seller 2's item so order 1 only has seller 1's items
+        self.item1_2.delete()
         self.client.login(phone="8888888888", password="sellerpassword")
         url = reverse('orders:seller_update_status', args=[self.order1.unique_order_id])
         
@@ -1166,6 +1171,8 @@ class ShippingLabelTests(TestCase):
         # Ensure no financial details (earnings, commission, prices) are in the printable label
         self.assertNotIn("Earnings", content)
         self.assertNotIn("Commission", content)
+        # Ensure no seller phone number is in the printable label
+        self.assertNotIn("8888888888", content)
 
     def test_admin_access_shipping_label(self):
         """Admins can view/print shipping labels for any order."""
@@ -1174,6 +1181,133 @@ class ShippingLabelTests(TestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'orders/shipping_label.html')
+
+
+class MultiSellerOrderTests(TestCase):
+    def setUp(self):
+        self.seller_user1 = User.objects.create_user(
+            phone="8888888888", password="sellerpassword", role="seller", full_name="Seller One"
+        )
+        self.seller_profile1 = SellerProfile.objects.create(
+            user=self.seller_user1, shop_name="Shop One", is_verified=True, phone="8888888888",
+            address={"address": "Seller 1 Street", "city": "Mumbai", "state": "Maharashtra", "postalCode": "400001"}
+        )
+        self.seller_user2 = User.objects.create_user(
+            phone="7777777777", password="sellerpassword", role="seller", full_name="Seller Two"
+        )
+        self.seller_profile2 = SellerProfile.objects.create(
+            user=self.seller_user2, shop_name="Shop Two", is_verified=True, phone="7777777777",
+            address={"address": "Seller 2 Street", "city": "Pune", "state": "Maharashtra", "postalCode": "411001"}
+        )
+        self.customer = User.objects.create_user(
+            phone="6666666666", password="customerpassword", role="customer", full_name="Customer User"
+        )
+        self.category = Category.objects.create(name="Clothing", commision_percentage=10.0)
+        self.product1 = Product.objects.create(
+            seller=self.seller_profile1, category=self.category, name="Shirt One", price=Decimal("100.00"), stock=10
+        )
+        self.product2 = Product.objects.create(
+            seller=self.seller_profile2, category=self.category, name="Shirt Two", price=Decimal("200.00"), stock=10
+        )
+        self.address = {
+            "name": "Customer User", "phone": "6666666666", "address_line1": "123 Street",
+            "city": "Mumbai", "state": "Maharashtra", "postal_code": "400001"
+        }
+        self.order = Order.objects.create(
+            user=self.customer, shipping_address=self.address, total_amount=Decimal("300.00"),
+            payment_method="cod", payment_status="pending", status="confirmed"
+        )
+        self.item1 = OrderItem.objects.create(
+            order=self.order, product=self.product1, seller=self.seller_profile1, quantity=1,
+            price=Decimal("100.00"), total=Decimal("100.00"), status="confirmed"
+        )
+        self.item2 = OrderItem.objects.create(
+            order=self.order, product=self.product2, seller=self.seller_profile2, quantity=1,
+            price=Decimal("200.00"), total=Decimal("200.00"), status="confirmed"
+        )
+
+    def test_item_status_update_recalculates_order_status(self):
+        """Updating status of one seller's item updates that item's status, and overall status is aggregated."""
+        self.client.login(phone="8888888888", password="sellerpassword")
+        url = reverse('orders:seller_update_status', args=[self.order.unique_order_id])
+        
+        response = self.client.post(url, data=json.dumps({"status": "shipped"}), content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+        
+        self.item1.refresh_from_db()
+        self.item2.refresh_from_db()
+        self.order.refresh_from_db()
+        
+        # Item 1 status should be updated
+        self.assertEqual(self.item1.status, "shipped")
+        # Item 2 status should remain unchanged
+        self.assertEqual(self.item2.status, "confirmed")
+        # Overall order status should be the minimum rank: confirmed (2) < shipped (4) => confirmed
+        self.assertEqual(self.order.status, "confirmed")
+        
+        # Now update Item 2 as Seller 2
+        self.client.login(phone="7777777777", password="sellerpassword")
+        response = self.client.post(url, data=json.dumps({"status": "shipped"}), content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+        
+        self.item2.refresh_from_db()
+        self.order.refresh_from_db()
+        
+        self.assertEqual(self.item2.status, "shipped")
+        # Overall status should now be shipped (4)
+        self.assertEqual(self.order.status, "shipped")
+
+    def test_seller_invoice_isolation(self):
+        """Sellers only see their own items on the invoice and calculated totals."""
+        self.client.login(phone="8888888888", password="sellerpassword")
+        url = reverse('orders:invoice_preview', args=[self.order.unique_order_id])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        
+        content = response.content.decode('utf-8')
+        # Seller 1 should see Shirt One but NOT Shirt Two
+        self.assertIn("Shirt One", content)
+        self.assertNotIn("Shirt Two", content)
+        
+        # Seller 1 should see correct seller-specific totals
+        # Items Total: ₹100.00, Commission: ₹10.00, Your Earnings: ₹90.00
+        # Grand Total of the order (₹300.00) should NOT be visible under seller summary, instead "Your Earnings" (₹90.00) is shown
+        self.assertIn("Rs. 100.00", content)
+        self.assertIn("Rs. 90.00", content)
+        self.assertNotIn("Rs. 300.00", content)
+
+    def test_rto_receipt_confirm_partial_refund(self):
+        """Seller confirming RTO only restocks their items and triggers partial refund."""
+        # First set both items to returned_to_source
+        OrderItem.objects.filter(pk=self.item1.pk).update(status='returned_to_source')
+        OrderItem.objects.filter(pk=self.item2.pk).update(status='returned_to_source')
+        Order.objects.filter(pk=self.order.pk).update(status='returned_to_source')
+        
+        # Stock initial values
+        self.assertEqual(self.product1.stock, 10)
+        
+        self.client.login(phone="8888888888", password="sellerpassword")
+        url = reverse('orders:confirm_rto_refund', args=[self.order.unique_order_id])
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, 200)
+        
+        self.item1.refresh_from_db()
+        self.item2.refresh_from_db()
+        self.order.refresh_from_db()
+        self.product1.refresh_from_db()
+        
+        # Item 1 restocked and marked returned
+        self.assertTrue(self.item1.is_returned)
+        self.assertEqual(self.product1.stock, 11)
+        self.assertEqual(self.item1.status, 'returned')
+        
+        # Item 2 remains returned_to_source
+        self.assertFalse(self.item2.is_returned)
+        self.assertEqual(self.item2.status, 'returned_to_source')
+        
+        # Order refund amount should only be item 1 total (100.00)
+        self.assertEqual(self.order.refund_amount, Decimal('100.00'))
+
 
 
 
