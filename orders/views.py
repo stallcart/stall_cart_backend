@@ -926,16 +926,30 @@ def print_shipping_label(request, order_id):
     # Calculate total quantity of seller's items in this order
     total_qty = sum(item.quantity for item in seller_items)
 
-    # Format the seller address from JSON
-    seller_addr = seller.address if seller else {}
-    from_details = {
-        'name': seller.shop_name if seller else 'StallCart Seller',
-        'address': seller_addr.get('address', ''),
-        'city': seller_addr.get('city', ''),
-        'state': seller_addr.get('state', ''),
-        'pincode': seller_addr.get('postalCode', '') or seller_addr.get('pincode', ''),
-        'phone': '',
-    }
+    # Format the seller address
+    if seller and hasattr(seller, 'shop_address') and seller.shop_address:
+        shop_addr = seller.shop_address
+        address_parts = [shop_addr.address_line1]
+        if shop_addr.address_line2:
+            address_parts.append(shop_addr.address_line2)
+        from_details = {
+            'name': shop_addr.shop_name or seller.shop_name,
+            'address': ", ".join(address_parts),
+            'city': shop_addr.city,
+            'state': shop_addr.state,
+            'pincode': shop_addr.postal_code,
+            'phone': '',
+        }
+    else:
+        seller_addr = seller.address if seller else {}
+        from_details = {
+            'name': seller.shop_name if seller else 'StallCart Seller',
+            'address': seller_addr.get('address', ''),
+            'city': seller_addr.get('city', ''),
+            'state': seller_addr.get('state', ''),
+            'pincode': seller_addr.get('postalCode', '') or seller_addr.get('pincode', ''),
+            'phone': '',
+        }
 
     # Format the customer address
     to_details = {
