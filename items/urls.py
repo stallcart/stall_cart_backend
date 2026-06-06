@@ -16,6 +16,9 @@ urlpatterns = [
     path('seller/dashboard/', 
          seller_only(views.seller_dashboard), 
          name='seller_dashboard'),
+    path('seller/dashboard/save/', 
+         seller_or_admin_only(views.save_product), 
+         name='save_product'),
 
     # ── Product CRUD (Accessible to Sellers AND Admins) ─────────────────
     path('product/add/',                        

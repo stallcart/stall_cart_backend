@@ -170,6 +170,34 @@ def seller_dashboard(request):
     return render(request, 'items/seller_dashboard.html', context)
 
 
+@require_POST
+@login_required
+@user_passes_test(is_seller_or_superuser, login_url='shop:home')
+def save_product(request):
+    """AJAX endpoint to create or update a product for a seller."""
+    product_id = request.POST.get('product_id')
+    if product_id:
+        product = get_object_or_404(Product, id=product_id)
+        if not request.user.is_superuser and product.seller != request.user.seller_profile:
+            return JsonResponse({'status': 'error', 'message': 'Permission denied'}, status=403)
+        form = ProductForm(request.POST, request.FILES, instance=product, is_superuser=request.user.is_superuser, request_user=request.user)
+    else:
+        form = ProductForm(request.POST, request.FILES, is_superuser=request.user.is_superuser, request_user=request.user)
+
+    if form.is_valid():
+        product = form.save(commit=False)
+        if not product_id:
+            if request.user.is_superuser:
+                product.seller = form.cleaned_data.get('seller')
+            else:
+                product.seller = request.user.seller_profile
+            product.created_by = request.user
+        product.save()
+        return JsonResponse({'status': 'success', 'message': 'Product saved successfully'})
+    else:
+        return JsonResponse({'status': 'error', 'message': 'Validation failed', 'errors': form.errors}, status=400)
+
+
 # ---------------------------------------------------------------------------
 # Product Create
 # ---------------------------------------------------------------------------

@@ -755,4 +755,25 @@ class AdminBusinessDashboardTests(TestCase):
         self.assertIn('daily_sales', response.context)
         self.assertEqual(len(response.context['daily_sales']), 7)
 
+    def test_staff_seller_panel_access(self):
+        # 1. Access seller dashboard as staff
+        self.client.login(phone="9999999992", password="pass")
+        dashboard_url = reverse('items:seller_dashboard')
+        
+        # Verify no seller profile exists initially
+        self.assertFalse(hasattr(self.staff_user, 'seller_profile'))
+        
+        response = self.client.get(dashboard_url)
+        # Should auto-create profile and return 200 OK
+        self.assertEqual(response.status_code, 200)
+        self.staff_user.refresh_from_db()
+        self.assertTrue(hasattr(self.staff_user, 'seller_profile'))
+        self.assertTrue(self.staff_user.seller_profile.is_verified)
+        
+        # 2. Access seller orders view as staff
+        orders_url = reverse('orders:seller_orders')
+        response = self.client.get(orders_url)
+        self.assertEqual(response.status_code, 200)
+
+
 
