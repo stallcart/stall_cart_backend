@@ -379,9 +379,6 @@
                             {{ seller.address.city|default:"" }}{% if seller.address.state %}, {{ seller.address.state }}{% endif %} 
                             {% if seller.address.postalCode %} - {{ seller.address.postalCode }}{% endif %}
                         </div>
-                        {% if seller.user.email %}
-                            <div class="address-phone">Email: {{ seller.user.email }}</div>
-                        {% endif %}
                         {% if seller.gst_number %}
                             <div class="address-phone" style="margin-top: 4pt; font-weight: bold; color: #475569;">GSTIN: {{ seller.gst_number }}</div>
                         {% endif %}
@@ -393,8 +390,6 @@
                             {{ site_settings.contact_state|default:"MH" }} 
                             {{ site_settings.contact_pin|default:"400001" }}
                         </div>
-                        <div class="address-phone">Phone: {{ site_settings.contact_phone|default:"+91 98765 43210" }}</div>
-                        <div class="address-phone">Email: {{ site_settings.contact_email|default:"support@stallcart.com" }}</div>
                     {% endif %}
                     {% endwith %}
                 </td>
