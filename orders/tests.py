@@ -1040,8 +1040,14 @@ class BackgroundJobAndEmailSyncTests(TestCase):
         self.client.login(phone="9876543211", password="password")
         response = self.client.post(reverse('orders:admin_toggle_jobs_ajax'))
         self.assertNotEqual(response.status_code, 200)
+
+        # 2. Staff user gets blocked with 403
+        staff_user = User.objects.create_user(phone="9999999992", password="staffpassword", role="staff")
+        self.client.login(phone="9999999992", password="staffpassword")
+        response = self.client.post(reverse('orders:admin_toggle_jobs_ajax'))
+        self.assertEqual(response.status_code, 403)
         
-        # 2. Superuser succeeds
+        # 3. Superuser succeeds
         self.client.login(phone="9999999999", password="adminpassword")
         self.site_settings.enable_background_jobs = True
         self.site_settings.save()

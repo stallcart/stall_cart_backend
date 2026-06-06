@@ -111,3 +111,77 @@ class FCMNotificationTests(TestCase):
         # but since it's a new session, it should notify again.
         self.assertEqual(response3.status_code, 200)
         self.assertEqual(mock_notify.call_count, 1)
+
+
+from django.contrib.admin.sites import AdminSite
+from common.admin import SiteSettingsAdmin
+
+class SiteSettingsAdminPermissionsTests(TestCase):
+    def setUp(self):
+        SiteSettings.objects.all().delete()
+        self.settings = SiteSettings.objects.create(site_name="Test Shop")
+        self.site = AdminSite()
+        self.admin = SiteSettingsAdmin(SiteSettings, self.site)
+        self.superuser = User.objects.create_superuser(phone="9999999990", password="pass", full_name="Superuser")
+        self.admin_user = User.objects.create_user(phone="9999999991", password="pass", full_name="Admin", role="admin")
+        self.staff_user = User.objects.create_user(phone="9999999992", password="pass", full_name="Staff", role="staff")
+
+    def test_superuser_sees_all_fields(self):
+        request = mock.Mock()
+        request.user = self.superuser
+        fieldsets = self.admin.get_fieldsets(request, self.settings)
+        fields = []
+        for name, opts in fieldsets:
+            fields.extend(opts.get('fields', []))
+        self.assertIn('enable_background_jobs', fields)
+        self.assertIn('jobs_status_control', fields)
+
+        list_display = self.admin.get_list_display(request)
+        self.assertIn('enable_background_jobs', list_display)
+
+    def test_admin_user_sees_all_fields(self):
+        request = mock.Mock()
+        request.user = self.admin_user
+        fieldsets = self.admin.get_fieldsets(request, self.settings)
+        fields = []
+        for name, opts in fieldsets:
+            fields.extend(opts.get('fields', []))
+        self.assertIn('enable_background_jobs', fields)
+        self.assertIn('jobs_status_control', fields)
+
+        list_display = self.admin.get_list_display(request)
+        self.assertIn('enable_background_jobs', list_display)
+
+    def test_staff_user_does_not_see_job_fields(self):
+        request = mock.Mock()
+        request.user = self.staff_user
+        fieldsets = self.admin.get_fieldsets(request, self.settings)
+        fields = []
+        for name, opts in fieldsets:
+            fields.extend(opts.get('fields', []))
+        self.assertNotIn('enable_background_jobs', fields)
+        self.assertNotIn('jobs_status_control', fields)
+
+        list_display = self.admin.get_list_display(request)
+        self.assertNotIn('enable_background_jobs', list_display)
+
+    def test_toggle_jobs_view_permissions(self):
+        # 1. Staff user gets blocked from toggle_jobs_view url
+        request = mock.Mock()
+        request.user = self.staff_user
+        request.META = {'HTTP_REFERER': '/admin/'}
+        # mock messages framework
+        with mock.patch('django.contrib.messages.error') as mock_error:
+            response = self.admin.toggle_jobs_view(request)
+            self.assertEqual(response.status_code, 302)
+            mock_error.assert_called_once()
+            self.assertTrue(self.settings.enable_background_jobs)  # remains unchanged
+
+        # 2. Superuser is allowed to toggle background jobs
+        request.user = self.superuser
+        with mock.patch('django.contrib.messages.success') as mock_success:
+            response = self.admin.toggle_jobs_view(request)
+            self.assertEqual(response.status_code, 302)
+            mock_success.assert_called_once()
+            self.settings.refresh_from_db()
+            self.assertFalse(self.settings.enable_background_jobs)  # toggled from True to False
