@@ -165,3 +165,235 @@ class ProductCalculationAndStockTests(TestCase):
         form_data['cost_price'] = 60.00
         form = ProductForm(data=form_data)
         self.assertTrue(form.is_valid())
+
+
+class ProductAndSellerReviewTests(TestCase):
+    def setUp(self):
+        # Create a verified seller user
+        self.seller_user = User.objects.create_user(
+            phone="9999999999",
+            password="sellerpassword",
+            role="seller",
+            full_name="Review Seller"
+        )
+        self.seller_profile = SellerProfile.objects.create(
+            user=self.seller_user,
+            shop_name="Review Shop",
+            is_verified=True
+        )
+        self.category = Category.objects.create(
+            name="Electronics",
+            commision_percentage=10.0
+        )
+        self.product = Product.objects.create(
+            seller=self.seller_profile,
+            category=self.category,
+            name="Smartphone",
+            price=Decimal("500.00"),
+            stock=10,
+            status="published"
+        )
+        self.customer = User.objects.create_user(
+            phone="7777777777",
+            password="customerpassword",
+            role="customer",
+            full_name="Customer User"
+        )
+
+    def test_validate_video_size(self):
+        """Test that validate_video_size allows small videos and raises ValidationError for > 20MB."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from items.models import validate_video_size
+        
+        # Small file (1MB)
+        small_file = SimpleUploadedFile("small.mp4", b"x" * (1 * 1024 * 1024))
+        try:
+            validate_video_size(small_file)
+        except ValidationError:
+            self.fail("validate_video_size raised ValidationError on 1MB file unexpectedly.")
+            
+        # Large file (21MB)
+        large_file = SimpleUploadedFile("large.mp4", b"x" * (21 * 1024 * 1024))
+        with self.assertRaises(ValidationError) as ctx:
+            validate_video_size(large_file)
+        self.assertEqual(str(ctx.exception.messages[0]), "Video file size cannot exceed 20MB.")
+
+    def test_product_review_cache(self):
+        """Test Product rating_avg and review_count are updated on save and delete."""
+        from items.models import ProductReview
+        
+        self.assertEqual(self.product.rating_avg, Decimal("0.0"))
+        self.assertEqual(self.product.review_count, 0)
+        
+        # Add a review
+        review1 = ProductReview.objects.create(
+            product=self.product,
+            user=self.customer,
+            rating=4,
+            title="Good",
+            review="This is a good product with more than twenty characters."
+        )
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.rating_avg, Decimal("4.00"))
+        self.assertEqual(self.product.review_count, 1)
+        
+        # Add another user and review
+        another_customer = User.objects.create_user(
+            phone="6666666666",
+            password="customerpassword",
+            role="customer",
+            full_name="Another Customer"
+        )
+        review2 = ProductReview.objects.create(
+            product=self.product,
+            user=another_customer,
+            rating=5,
+            title="Excellent",
+            review="This is an excellent product with more than twenty characters."
+        )
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.rating_avg, Decimal("4.50"))
+        self.assertEqual(self.product.review_count, 2)
+        
+        # Delete first review
+        review1.delete()
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.rating_avg, Decimal("5.00"))
+        self.assertEqual(self.product.review_count, 1)
+
+    def test_seller_review_cache(self):
+        """Test SellerProfile rating is updated on save and delete."""
+        from items.models import SellerReview
+        
+        self.assertEqual(self.seller_profile.rating, Decimal("0.0"))
+        
+        # Add seller review
+        review1 = SellerReview.objects.create(
+            seller=self.seller_profile,
+            user=self.customer,
+            rating=3,
+            title="Fair seller",
+            review="The packaging was good and seller was nice enough."
+        )
+        self.seller_profile.refresh_from_db()
+        self.assertEqual(self.seller_profile.rating, Decimal("3.0"))
+        
+        # Add another user and review
+        another_customer = User.objects.create_user(
+            phone="5555555555",
+            password="customerpassword",
+            role="customer",
+            full_name="Yet Another Customer"
+        )
+        review2 = SellerReview.objects.create(
+            seller=self.seller_profile,
+            user=another_customer,
+            rating=5,
+            title="Great seller",
+            review="Perfect communication, very fast shipping. Thank you!"
+        )
+        self.seller_profile.refresh_from_db()
+        self.assertEqual(self.seller_profile.rating, Decimal("4.0"))
+        
+        # Delete first review
+        review1.delete()
+        self.seller_profile.refresh_from_db()
+        self.assertEqual(self.seller_profile.rating, Decimal("5.0"))
+
+    def test_verified_purchase_checks(self):
+        """Test that is_verified_purchase checks if user actually bought/delivered from the product/seller."""
+        from items.models import ProductReview, SellerReview
+        from orders.models import Order, OrderItem
+        
+        # Scenario 1: Review without purchase
+        p_review = ProductReview.objects.create(
+            product=self.product,
+            user=self.customer,
+            rating=4,
+            review="I never bought this item but I can write a review anyway."
+        )
+        self.assertFalse(p_review.is_verified_purchase)
+        
+        s_review = SellerReview.objects.create(
+            seller=self.seller_profile,
+            user=self.customer,
+            rating=4,
+            review="I never bought from this seller but I am rating them."
+        )
+        self.assertFalse(s_review.is_verified_purchase)
+        
+        # Clean up
+        p_review.delete()
+        s_review.delete()
+        
+        # Scenario 2: Review with delivered order
+        order = Order.objects.create(
+            user=self.customer,
+            total_amount=Decimal("500.00"),
+            payment_status="paid",
+            status="delivered"
+        )
+        OrderItem.objects.create(
+            order=order,
+            product=self.product,
+            seller=self.seller_profile,
+            quantity=1,
+            price=Decimal("500.00"),
+            total=Decimal("500.00")
+        )
+        
+        # Now review
+        p_review = ProductReview.objects.create(
+            product=self.product,
+            user=self.customer,
+            rating=5,
+            review="This smartphone is absolutely amazing. Highly recommended!"
+        )
+        self.assertTrue(p_review.is_verified_purchase)
+        
+        s_review = SellerReview.objects.create(
+            seller=self.seller_profile,
+            user=self.customer,
+            rating=5,
+            review="Seller packed it very securely. Fast delivery!"
+        )
+        self.assertTrue(s_review.is_verified_purchase)
+
+    def test_review_forms_validation(self):
+        """Test forms validate rating and character lengths."""
+        from items.forms import ProductReviewForm, SellerReviewForm
+        
+        # Form check: review too short (< 20 chars)
+        form = ProductReviewForm(data={
+            'rating': 4,
+            'title': 'Short review',
+            'review': 'Too short'
+        })
+        self.assertFalse(form.is_valid())
+        self.assertIn('review', form.errors)
+        self.assertEqual(form.errors['review'][0], 'Review must be at least 20 characters')
+        
+        # Form check: correct review passes
+        form = ProductReviewForm(data={
+            'rating': 4,
+            'title': 'Long enough review',
+            'review': 'This is a long enough review that has more than twenty characters.'
+        })
+        self.assertTrue(form.is_valid())
+        
+        # Seller form check: review too short
+        s_form = SellerReviewForm(data={
+            'rating': 3,
+            'title': 'Short',
+            'review': 'Not enough'
+        })
+        self.assertFalse(s_form.is_valid())
+        self.assertIn('review', s_form.errors)
+        
+        # Seller form check: correct review passes
+        s_form = SellerReviewForm(data={
+            'rating': 3,
+            'title': 'Long enough',
+            'review': 'This is a long enough seller review with at least 20 characters.'
+        })
+        self.assertTrue(s_form.is_valid())

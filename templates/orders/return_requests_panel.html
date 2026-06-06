@@ -1,6 +1,6 @@
 {% comment %}
 Return Requests Panel — For Seller/Admin Dashboards
-Include with: {% include "orders/_return_requests_panel.html" with pending_returns=pending_returns order=order %}
+Include with: {% include "orders/return_requests_panel.html" with pending_returns=pending_returns order=order %}
 {% endcomment %}
 
 {% if pending_returns %}
@@ -10,10 +10,10 @@ Include with: {% include "orders/_return_requests_panel.html" with pending_retur
     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
         <h4 style="margin: 0; font-size: 1rem; font-weight: 700; color: #92400e; display: flex; align-items: center; gap: 8px; font-family: 'Syne', sans-serif;">
             <i class="fa fa-undo-alt" style="color: #f59e0b;"></i>
-            Return Requests
+            Return & Refund Requests
             <span class="badge" style="background: #f59e0b; color: white; font-size: 0.7rem; padding: 2px 8px; border-radius: 12px; margin-left: 8px;">{{ pending_returns|length }}</span>
         </h4>
-        <small style="color: #92400e; font-weight: 500;">Awaiting your approval</small>
+        <small style="color: #92400e; font-weight: 500;">Multi-stage processing enabled</small>
     </div>
 
     <!-- Return Items List -->
@@ -24,7 +24,7 @@ Include with: {% include "orders/_return_requests_panel.html" with pending_retur
              data-order-item-id="{{ return_req.order_item.id }}"
              data-refund-amount="{{ return_req.refund_amount }}"
              data-payment-method="{{ return_req.order_item.order.payment_method }}"
-             style="background: white; border: 1.5px solid #fde68a; border-radius: var(--r-lg); padding: 14px 16px; display: grid; grid-template-columns: 60px 1fr auto; gap: 14px; align-items: start;">
+             style="background: white; border: 1.5px solid {% if return_req.status == 'requested' %}#fde68a{% elif return_req.status == 'received' %}#a7f3d0{% else %}#bfdbfe{% endif %}; border-radius: var(--r-lg); padding: 14px 16px; display: grid; grid-template-columns: 60px 1fr auto; gap: 14px; align-items: start;">
             
             <!-- Product Image -->
             <div style="width: 60px; height: 60px; border-radius: var(--r-md); overflow: hidden; background: var(--gray-50); border: 1px solid var(--gray-200); flex-shrink: 0;">
@@ -41,8 +41,14 @@ Include with: {% include "orders/_return_requests_panel.html" with pending_retur
             
             <!-- Return Details -->
             <div style="min-width: 0;">
-                <p style="margin: 0 0 4px; font-weight: 600; font-size: 0.9rem; color: var(--gray-800);">
-                    {{ return_req.order_item.product.name|truncatechars:40 }}
+                <p style="margin: 0 0 4px; font-weight: 600; font-size: 0.9rem; color: var(--gray-800); display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <span>{{ return_req.order_item.product.name|truncatechars:40 }}</span>
+                    <span class="badge" style="padding: 2px 8px; border-radius: 10px; font-weight: 700; font-size: 0.7rem; border-width: 1px; border-style: solid;
+                        {% if return_req.status == 'requested' %}background: #fffbeb; color: #d97706; border-color: #fde68a;
+                        {% elif return_req.status == 'received' %}background: #ecfdf5; color: #047857; border-color: #a7f3d0;
+                        {% else %}background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe;{% endif %}">
+                        {{ return_req.get_status_display }}
+                    </span>
                 </p>
                 {% if return_req.order_item.variant %}
                     <p style="margin: 0 0 4px; font-size: 0.8rem; color: var(--blue-600);">
@@ -51,7 +57,7 @@ Include with: {% include "orders/_return_requests_panel.html" with pending_retur
                 {% endif %}
                 <p style="margin: 0 0 8px; font-size: 0.8rem; color: var(--gray-500);">
                     <a href="{% url 'orders:order_detail' return_req.order_item.order.unique_order_id %}" 
-                       style="color: var(--blue-500); text-decoration: none;">
+                       style="color: var(--blue-500); text-decoration: none; font-weight: 600;">
                         Order #{{ return_req.order_item.order.unique_order_id }}
                     </a> • {{ return_req.order_item.order.user.full_name|default:return_req.order_item.order.guest_email|default:"Guest" }}
                     • Qty: {{ return_req.quantity }}
@@ -72,17 +78,36 @@ Include with: {% include "orders/_return_requests_panel.html" with pending_retur
             
             <!-- Action Buttons -->
             <div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-end;">
-                <button class="btn-sm btn-success" 
-                        onclick="openApproveModal({{ return_req.id }}, '{{ return_req.order_item.product.name|escapejs }}', {{ return_req.refund_amount }})"
-                        style="padding: 6px 14px; font-size: 0.8rem; font-weight: 600;">
-                    <i class="fa fa-check"></i> Approve
-                </button>
-                <button class="btn-sm btn-outline" 
-                        onclick="openRejectModal({{ return_req.id }}, '{{ return_req.order_item.product.name|escapejs }}')"
-                        style="padding: 6px 14px; font-size: 0.8rem; font-weight: 600; border-color: var(--red); color: var(--red);">
-                    <i class="fa fa-times"></i> Reject
-                </button>
-                <small style="font-size: 0.7rem; color: var(--gray-400); text-align: right;">
+                {% if return_req.status == 'requested' %}
+                    <button class="btn-sm" 
+                            onclick="submitReturnActionDirect({{ return_req.id }}, 'approve')"
+                            style="padding: 6px 12px; font-size: 0.8rem; font-weight: 600; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+                        <i class="fa fa-check"></i> Approve Return
+                    </button>
+                    <button class="btn-sm btn-outline" 
+                            onclick="openRejectModal({{ return_req.id }}, '{{ return_req.order_item.product.name|escapejs }}', 'requested')"
+                            style="padding: 6px 12px; font-size: 0.8rem; font-weight: 600; border: 1.5px solid var(--red); color: var(--red); background: white; border-radius: 6px; cursor: pointer;">
+                        <i class="fa fa-times"></i> Reject
+                    </button>
+                {% elif return_req.status in 'approved,pickup_scheduled,picked_up' %}
+                    <button class="btn-sm" 
+                            onclick="submitReturnActionDirect({{ return_req.id }}, 'mark_received')"
+                            style="padding: 6px 12px; font-size: 0.8rem; font-weight: 600; background: #059669; color: white; border: none; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+                        <i class="fa fa-box"></i> Mark as Received
+                    </button>
+                {% elif return_req.status == 'received' %}
+                    <button class="btn-sm" 
+                            onclick="openApproveModal({{ return_req.id }}, '{{ return_req.order_item.product.name|escapejs }}', {{ return_req.refund_amount }}, {{ return_req.quantity }})"
+                            style="padding: 6px 12px; font-size: 0.8rem; font-weight: 600; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+                        <i class="fa fa-check-double"></i> Approve Refund
+                    </button>
+                    <button class="btn-sm btn-outline" 
+                            onclick="openRejectModal({{ return_req.id }}, '{{ return_req.order_item.product.name|escapejs }}', 'received')"
+                            style="padding: 6px 12px; font-size: 0.8rem; font-weight: 600; border: 1.5px solid var(--red); color: var(--red); background: white; border-radius: 6px; cursor: pointer;">
+                        <i class="fa fa-times"></i> Reject
+                    </button>
+                {% endif %}
+                <small style="font-size: 0.7rem; color: var(--gray-400); text-align: right; margin-top: 4px;">
                     {{ return_req.created_at|timesince }} ago
                 </small>
             </div>
@@ -91,12 +116,12 @@ Include with: {% include "orders/_return_requests_panel.html" with pending_retur
     </div>
 </div>
 
-<!-- ✅ Approve Return Modal -->
+<!-- ✅ Approve Refund Modal -->
 <div id="approveReturnModal" class="modal-overlay" style="display: none; z-index: 2000;" role="dialog" aria-modal="true">
     <div class="modal-content" style="background: white; border-radius: var(--r-2xl); width: 100%; max-width: 420px; box-shadow: var(--sh-xl);">
         <div style="padding: 20px 24px; border-bottom: 1px solid var(--gray-100); display: flex; align-items: center; justify-content: space-between;">
             <h4 style="margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--gray-900); font-family: 'Syne', sans-serif;">
-                <i class="fa fa-check-circle" style="color: var(--green); margin-right: 6px;"></i> Approve Return?
+                <i class="fa fa-check-circle" style="color: var(--green); margin-right: 6px;"></i> Approve Refund?
             </h4>
             <button onclick="closeApproveModal()" style="background: none; border: none; font-size: 1.2rem; color: var(--gray-400); cursor: pointer; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: var(--r-md); transition: all var(--tr);">
                 <i class="fa fa-times"></i>
@@ -104,23 +129,23 @@ Include with: {% include "orders/_return_requests_panel.html" with pending_retur
         </div>
         <div style="padding: 20px 24px;">
             <p style="margin: 0 0 16px; font-size: 0.95rem; color: var(--gray-700);">
-                Approving will:
+                Approving this refund will:
             </p>
             <ul style="margin: 0 0 20px 20px; font-size: 0.9rem; color: var(--gray-600); line-height: 1.6;">
                 <li>Restock <strong id="approveProductName"></strong> (Qty: <span id="approveQty"></span>)</li>
-                <li>Mark item as returned in order</li>
+                <li>Mark item as returned in the order</li>
                 <li>
                     Initiate refund of <strong id="approveRefundAmount"></strong>
                     <span id="refundMethodNote" style="font-size: 0.85rem; color: var(--gray-500); display: block; margin-top: 4px;"></span>
                 </li>
             </ul>
             <div style="background: var(--amber-light); border: 1px solid #fcd34d; border-radius: var(--r-md); padding: 12px; font-size: 0.85rem; color: #92400e; margin-bottom: 20px;">
-                <i class="fa fa-info-circle"></i> This action cannot be undone.
+                <i class="fa fa-info-circle"></i> This will finalize the refund and cannot be undone.
             </div>
             <div style="display: flex; gap: 10px; justify-content: flex-end;">
                 <button onclick="closeApproveModal()" class="btn-outline" style="padding: 10px 18px; font-weight: 600;">Cancel</button>
-                <button onclick="submitReturnAction('approve')" class="btn-success" style="padding: 10px 18px; font-weight: 600;">
-                    <i class="fa fa-check"></i> Yes, Approve & Refund
+                <button onclick="submitReturnAction('approve_refund')" class="btn-success" style="padding: 10px 18px; font-weight: 600; cursor: pointer;">
+                    <i class="fa fa-check"></i> Yes, Approve Refund
                 </button>
             </div>
         </div>
@@ -163,9 +188,10 @@ Include with: {% include "orders/_return_requests_panel.html" with pending_retur
 let currentReturnId = null;
 
 // Open Approve Modal
-function openApproveModal(returnId, productName, refundAmount) {
+function openApproveModal(returnId, productName, refundAmount, quantity) {
     currentReturnId = returnId;
     document.getElementById('approveProductName').textContent = productName;
+    document.getElementById('approveQty').textContent = quantity;
     document.getElementById('approveRefundAmount').textContent = '₹' + refundAmount.toFixed(2);
     
     // Show refund method note
@@ -191,7 +217,7 @@ function closeApproveModal() {
 }
 
 // Open Reject Modal
-function openRejectModal(returnId, productName) {
+function openRejectModal(returnId, productName, currentStatus) {
     currentReturnId = returnId;
     document.getElementById('rejectProductName').textContent = productName;
     document.getElementById('rejectReason').value = '';
@@ -209,7 +235,7 @@ function closeRejectModal() {
 document.getElementById('approveReturnModal')?.addEventListener('click', (e) => { if (e.target.id === 'approveReturnModal') closeApproveModal(); });
 document.getElementById('rejectReturnModal')?.addEventListener('click', (e) => { if (e.target.id === 'rejectReturnModal') closeRejectModal(); });
 
-// Submit Return Action (Approve/Reject)
+// Submit Return Action (Reject or Approve Refund via modal)
 async function submitReturnAction(action) {
     if (!currentReturnId) return;
     
@@ -240,38 +266,64 @@ async function submitReturnAction(action) {
         const data = await res.json();
         
         if (data.status === 'success') {
-            // Remove the row with animation
-            const row = document.querySelector(`[data-return-id="${currentReturnId}"]`);
-            if (row) {
-                row.style.transition = 'opacity 0.3s, transform 0.3s';
-                row.style.opacity = '0';
-                row.style.transform = 'translateX(20px)';
-                setTimeout(() => {
-                    row.remove();
-                    // Update badge count
-                    const badge = document.querySelector('.return-requests-panel .badge');
-                    if (badge) {
-                        const count = parseInt(badge.textContent) - 1;
-                        if (count <= 0) {
-                            document.querySelector('.return-requests-panel').remove();
-                        } else {
-                            badge.textContent = count;
-                        }
-                    }
-                }, 300);
-            }
-            
-            // Show toast
+            let actionLabel = action;
+            if (action === 'reject') actionLabel = 'rejected';
+            else if (action === 'approve_refund') actionLabel = 'refund approved';
+
             if (typeof window.showToast === 'function') {
-                window.showToast(`Return ${action === 'approve' ? 'approved' : 'rejected'} successfully!`, 'success');
+                window.showToast(`Return request ${actionLabel} successfully!`, 'success');
             } else {
-                alert(`Return ${action === 'approve' ? 'approved' : 'rejected'}!`);
+                alert(`Return request ${actionLabel}!`);
             }
             
-            // Close modal
-            if (action === 'approve') closeApproveModal();
-            else closeRejectModal();
+            closeApproveModal();
+            closeRejectModal();
             
+            setTimeout(() => { window.location.reload(); }, 800);
+        } else {
+            alert(data.message || `Failed to ${action} return`);
+            if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
+        }
+    } catch (err) {
+        console.error('Return action error:', err);
+        alert('Network error. Please try again.');
+        if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
+    }
+}
+
+// Submit Return Action Direct (Approve request or Mark received)
+async function submitReturnActionDirect(returnId, action) {
+    const confirmMsg = action === 'approve' 
+        ? "Are you sure you want to approve this return request? This authorizes the customer to return/pickup the items."
+        : "Are you sure you want to mark this return request as received at the warehouse?";
+        
+    if (!confirm(confirmMsg)) return;
+    
+    const payload = { action: action };
+    const btn = event?.target;
+    const originalText = btn?.innerHTML;
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> ...'; }
+    
+    try {
+        const res = await fetch(`/orders/return/${returnId}/approve/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        
+        if (data.status === 'success') {
+            const actionLabel = action === 'approve' ? 'approved' : 'marked as received';
+            if (typeof window.showToast === 'function') {
+                window.showToast(`Return request ${actionLabel} successfully!`, 'success');
+            } else {
+                alert(`Return request ${actionLabel}!`);
+            }
+            setTimeout(() => { window.location.reload(); }, 800);
         } else {
             alert(data.message || `Failed to ${action} return`);
             if (btn) { btn.disabled = false; btn.innerHTML = originalText; }

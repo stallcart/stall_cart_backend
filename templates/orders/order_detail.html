@@ -408,6 +408,18 @@
                         <i class="fa fa-undo"></i> Return This Item
                     </button>
                     {% endif %}
+
+                    {% if order.status == 'delivered' %}
+                    <div style="margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap;">
+                        <a href="{% url 'items:product_detail' item.product.slug %}?rate=1" class="od-btn" style="padding:6px 12px;font-size:.78rem;background:#fff;border:1.5px solid #2874f0;color:#2874f0;text-decoration:none;border-radius:4px;display:inline-flex;align-items:center;gap:4px;font-weight:600;">
+                            <i class="fa fa-star"></i> Rate Product
+                        </a>
+                        <button class="od-btn" style="padding:6px 12px;font-size:.78rem;background:#fff;border:1.5px solid #2e7d32;color:#2e7d32;border-radius:4px;display:inline-flex;align-items:center;gap:4px;font-weight:600;cursor:pointer;"
+                                onclick="openSellerReviewModal('{{ item.seller.id }}', '{{ item.seller.shop_name|escapejs }}')">
+                            <i class="fa fa-store"></i> Rate Seller
+                        </button>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
             {% endfor %}
@@ -528,6 +540,81 @@
 </div>
 -->
 
+<!-- SELLER REVIEW MODAL -->
+<div id="sellerReviewModal" class="modal" role="dialog" aria-modal="true">
+    <div class="modal-content">
+        <div class="modal-header-bar">
+            <h3>
+                <i class="fa fa-store" style="color:var(--amber);margin-right:8px;"></i>
+                <span id="sellerModalTitleText">Rate Seller: <span id="sellerShopName" style="color: var(--blue-600);"></span></span>
+            </h3>
+            <button class="modal-close" id="closeSellerReviewModal" aria-label="Close">
+                <i class="fa fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="modal-body" style="padding: 20px 24px;">
+            <form id="sellerReviewForm" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" id="sellerIdInput" name="seller_id" value="">
+                <input type="hidden" id="sellerReviewId" value="">
+                
+                <!-- Rating -->
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label class="form-label" style="display:block; font-size:.82rem; font-weight:600; color:#444; margin-bottom:6px;">Your Rating *</label>
+                    <div id="sellerStarRating" class="star-rating">
+                        {% for i in "12345" %}
+                        <span data-value="{{ i }}">☆</span>
+                        {% endfor %}
+                    </div>
+                    <input type="hidden" id="sellerRatingInput" name="rating" required>
+                    <div id="sellerRatingError" class="error-text" style="color:var(--red); font-size:0.8rem; margin-top:4px; display:none;"></div>
+                </div>
+                
+                <!-- Title -->
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label class="form-label" for="sellerReviewTitle" style="display:block; font-size:.82rem; font-weight:600; color:#444; margin-bottom:6px;">Review Title (Optional)</label>
+                    <input type="text" id="sellerReviewTitle" name="title" class="form-input" 
+                           placeholder="Summarize your experience" maxlength="200" style="width:100%; padding:10px 12px; border:1.5px solid #ddd; border-radius:8px; font-family:inherit; font-size:.875rem; outline:none;">
+                </div>
+                
+                <!-- Review -->
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label class="form-label" for="sellerReviewText" style="display:block; font-size:.82rem; font-weight:600; color:#444; margin-bottom:6px;">Your Review *</label>
+                    <textarea id="sellerReviewText" name="review" class="form-input" 
+                              placeholder="Share details about packaging, delivery speed, and customer service..." 
+                              rows="4" maxlength="2000" required style="width:100%; padding:10px 12px; border:1.5px solid #ddd; border-radius:8px; font-family:inherit; font-size:.875rem; outline:none; resize:vertical;"></textarea>
+                    <div class="form-hint" style="font-size:0.8rem; color:#888; margin-top:4px;"><span id="sellerCharCount">0</span>/2000 characters</div>
+                    <div id="sellerReviewError" class="error-text" style="color:var(--red); font-size:0.8rem; margin-top:4px; display:none;"></div>
+                </div>
+
+                <!-- Media Uploads -->
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label class="form-label" for="sellerReviewImages" style="display:block; font-size:.82rem; font-weight:600; color:#444; margin-bottom:6px;">Upload Photo (Optional)</label>
+                    <input type="file" id="sellerReviewImages" name="images" class="form-input" accept="image/*" style="padding:6px 12px; border:1.5px solid #ddd; border-radius:8px; width:100%;">
+                    <small style="color:#888;font-size:0.75rem;display:block;margin-top:4px;">Supported formats: JPG, PNG, WebP. Max 5MB.</small>
+                </div>
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label class="form-label" for="sellerReviewVideo" style="display:block; font-size:.82rem; font-weight:600; color:#444; margin-bottom:6px;">Upload Video (Optional)</label>
+                    <input type="file" id="sellerReviewVideo" name="video" class="form-input" accept="video/*" style="padding:6px 12px; border:1.5px solid #ddd; border-radius:8px; width:100%;">
+                    <small style="color:#888;font-size:0.75rem;display:block;margin-top:4px;">Supported formats: MP4, WebM, MOV. Max 20MB.</small>
+                </div>
+                
+                <div id="sellerFormError" class="form-error-box" style="background:#ffebee; color:#c62828; padding:10px 14px; border-radius:8px; font-size:.83rem; margin-top:12px; display:none;"></div>
+                
+                <div class="modal-actions" style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
+                    <button type="button" class="btn-outline" id="cancelSellerReviewBtn" style="padding:10px 20px; border-radius:8px; border:1.5px solid #ccc; background:none; cursor:pointer; font-weight:600;">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn-primary" id="submitSellerReviewBtn" style="padding:10px 20px; border-radius:8px; border:none; background:#2e7d32; color:#fff; cursor:pointer; font-weight:700; display:inline-flex; align-items:center; gap:6px;">
+                        <i class="fa fa-paper-plane"></i> Submit Review
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -548,76 +635,143 @@ function odToast(msg, type = 'info') {
     }, 2800);
 }
 
-/* ── Cancel Modal (Commented Out) ──
-function openCancelModal() {
-    document.getElementById('od_cancelRemarks').value = '';
-    document.getElementById('od_cancelError').style.display = 'none';
-    document.getElementById('od_cancelConfirmBtn').disabled = false;
-    document.getElementById('od_cancelConfirmBtn').textContent = 'Confirm Cancellation';
-    document.getElementById('cancelModalOverlay').classList.add('open');
-    document.body.style.overflow = 'hidden';
+// ── Seller Review Modal Interaction ──────────────────────────
+const sellerReviewModal = document.getElementById('sellerReviewModal');
+const sellerReviewForm = document.getElementById('sellerReviewForm');
+const sellerRatingInput = document.getElementById('sellerRatingInput');
+const sellerStarRating = document.getElementById('sellerStarRating');
+const sellerReviewText = document.getElementById('sellerReviewText');
+const sellerCharCount = document.getElementById('sellerCharCount');
+
+if (sellerReviewText && sellerCharCount) {
+    sellerReviewText.addEventListener('input', function() {
+        const count = this.value.length;
+        sellerCharCount.textContent = count;
+    });
 }
 
-function closeCancelModal() {
-    document.getElementById('cancelModalOverlay').classList.remove('open');
-    document.body.style.overflow = '';
-}
-
-async function submitCancellation() {
-    const reason  = document.getElementById('od_cancelReason').value;
-    const remarks = document.getElementById('od_cancelRemarks').value.trim();
-    const btn     = document.getElementById('od_cancelConfirmBtn');
-    const errEl   = document.getElementById('od_cancelError');
-
-    btn.disabled = true;
-    btn.textContent = 'Cancelling…';
-    errEl.style.display = 'none';
-
-    try {
-        const res = await fetch(`/orders/cancel/${ORDER_ID}/`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': CSRF_TOKEN
-            },
-            body: JSON.stringify({ reason, remarks })
+if (sellerStarRating && sellerRatingInput) {
+    const stars = sellerStarRating.querySelectorAll('span');
+    
+    stars.forEach(star => {
+        star.addEventListener('click', function() {
+            const value = parseInt(this.dataset.value);
+            sellerRatingInput.value = value;
+            updateSellerStars(value);
         });
-
-        const contentType = res.headers.get('content-type') || '';
-        if (!contentType.includes('application/json')) {
-            throw new Error(
-                `Server returned status ${res.status}.`
-            );
-        }
-
-        const data = await res.json();
-
-        if (data.status === 'success') {
-            closeCancelModal();
-            odToast('Order cancelled successfully.', 'success');
-            setTimeout(() => {
-                window.location.href = data.redirect || '/orders/';
-            }, 1000);
-        } else {
-            errEl.querySelector('span').textContent = data.error || 'Cancellation failed. Please try again.';
-            errEl.style.display = 'flex';
-            btn.disabled = false;
-            btn.textContent = 'Confirm Cancellation';
-        }
-    } catch (err) {
-        errEl.querySelector('span').textContent = err.message || 'Network error. Please try again.';
-        errEl.style.display = 'flex';
-        btn.disabled = false;
-        btn.textContent = 'Confirm Cancellation';
+        star.addEventListener('mouseenter', function() {
+            const value = parseInt(this.dataset.value);
+            highlightSellerStars(value);
+        });
+        star.addEventListener('mouseleave', function() {
+            const currentValue = parseInt(sellerRatingInput.value) || 0;
+            updateSellerStars(currentValue);
+        });
+    });
+    
+    function updateSellerStars(value) {
+        stars.forEach((star, index) => {
+            star.textContent = index < value ? '★' : '☆';
+            star.classList.toggle('active', index < value);
+        });
+    }
+    function highlightSellerStars(value) {
+        stars.forEach((star, index) => {
+            star.textContent = index < value ? '★' : '☆';
+        });
     }
 }
 
-document.getElementById('cancelModalOverlay').addEventListener('click', function(e) {
-    if (e.target === this) closeCancelModal();
-});
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') closeCancelModal();
-});
-*/
+function openSellerReviewModal(sellerId, shopName) {
+    if (!sellerReviewModal) return;
+    sellerReviewForm.reset();
+    document.getElementById('sellerIdInput').value = sellerId;
+    document.getElementById('sellerShopName').textContent = shopName;
+    document.getElementById('sellerFormError').style.display = 'none';
+    document.getElementById('sellerRatingError').style.display = 'none';
+    document.getElementById('sellerReviewError').style.display = 'none';
+    if (sellerCharCount) sellerCharCount.textContent = 0;
+    updateSellerStars(0);
+    
+    sellerReviewModal.classList.add('show');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeSellerReviewModal() {
+    if (sellerReviewModal) {
+        sellerReviewModal.classList.remove('show');
+        document.body.style.overflow = '';
+        sellerReviewForm.reset();
+        updateSellerStars(0);
+    }
+}
+
+document.getElementById('closeSellerReviewModal')?.addEventListener('click', closeSellerReviewModal);
+document.getElementById('cancelSellerReviewBtn')?.addEventListener('click', closeSellerReviewModal);
+sellerReviewModal?.addEventListener('click', (e) => { if (e.target === sellerReviewModal) closeSellerReviewModal(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && sellerReviewModal?.classList.contains('show')) closeSellerReviewModal(); });
+
+if (sellerReviewForm) {
+    sellerReviewForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const submitBtn = document.getElementById('submitSellerReviewBtn');
+        const originalText = submitBtn.innerHTML;
+        const formError = document.getElementById('sellerFormError');
+        
+        const rating = sellerRatingInput.value;
+        if (!rating || rating < 1) {
+            const ratingErr = document.getElementById('sellerRatingError');
+            ratingErr.textContent = 'Please select a rating';
+            ratingErr.style.display = 'block';
+            return;
+        }
+        document.getElementById('sellerRatingError').style.display = 'none';
+        
+        const review = sellerReviewText.value.trim();
+        if (review.length < 20) {
+            const reviewErr = document.getElementById('sellerReviewError');
+            reviewErr.textContent = 'Review must be at least 20 characters';
+            reviewErr.style.display = 'block';
+            return;
+        }
+        document.getElementById('sellerReviewError').style.display = 'none';
+        
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Submitting...';
+        formError.style.display = 'none';
+        
+        try {
+            const formData = new FormData(sellerReviewForm);
+            const sellerId = document.getElementById('sellerIdInput').value;
+            const url = `/items/seller/${sellerId}/review/submit/`;
+            
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': formData.get('csrfmiddlewaretoken'),
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: formData
+            });
+            const data = await res.json();
+            
+            if (data.status === 'success') {
+                odToast(data.message, 'success');
+                closeSellerReviewModal();
+                setTimeout(() => location.reload(), 800);
+            } else {
+                formError.textContent = data.message || Object.values(data.errors || {}).flat().join(', ');
+                formError.style.display = 'block';
+            }
+        } catch (err) {
+            console.error('Seller review submit error:', err);
+            formError.textContent = 'Network error. Please try again.';
+            formError.style.display = 'block';
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        }
+    });
+}
 </script>
 {% endblock %}

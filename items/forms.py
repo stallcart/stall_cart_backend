@@ -426,7 +426,7 @@ ProductVariantFormSet = inlineformset_factory(
 class ProductReviewForm(forms.ModelForm):
     class Meta:
         model = ProductReview
-        fields = ['rating', 'title', 'review', 'images']
+        fields = ['rating', 'title', 'review', 'images', 'video']
         widgets = {
             'rating': forms.RadioSelect(attrs={'class': 'rating-input'}),
             'title': forms.TextInput(attrs={
@@ -443,6 +443,50 @@ class ProductReviewForm(forms.ModelForm):
             'images': forms.ClearableFileInput(attrs={
                 'class': 'form-input',
                 'accept': 'image/*'
+            }),
+            'video': forms.ClearableFileInput(attrs={
+                'class': 'form-input',
+                'accept': 'video/*'
+            }),
+        }
+    
+    def clean_rating(self):
+        rating = self.cleaned_data.get('rating')
+        if rating and not (1 <= rating <= 5):
+            raise forms.ValidationError('Rating must be between 1 and 5 stars')
+        return rating
+    
+    def clean_review(self):
+        review = self.cleaned_data.get('review')
+        if review and len(review.strip()) < 20:
+            raise forms.ValidationError('Review must be at least 20 characters')
+        return review.strip()
+
+
+class SellerReviewForm(forms.ModelForm):
+    class Meta:
+        model = SellerReview
+        fields = ['rating', 'title', 'review', 'images', 'video']
+        widgets = {
+            'rating': forms.RadioSelect(attrs={'class': 'rating-input'}),
+            'title': forms.TextInput(attrs={
+                'class': 'form-input',
+                'placeholder': 'Summarize your experience (optional)',
+                'maxlength': '200'
+            }),
+            'review': forms.Textarea(attrs={
+                'class': 'form-input',
+                'placeholder': 'Share details about packaging, delivery, service...',
+                'rows': '4',
+                'maxlength': '2000'
+            }),
+            'images': forms.ClearableFileInput(attrs={
+                'class': 'form-input',
+                'accept': 'image/*'
+            }),
+            'video': forms.ClearableFileInput(attrs={
+                'class': 'form-input',
+                'accept': 'video/*'
             }),
         }
     

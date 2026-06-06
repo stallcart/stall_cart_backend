@@ -166,7 +166,8 @@ class SiteSettings(models.Model):
             <ul>
               <li><strong>Tags & Labels:</strong> Brand tags, price labels, and barcodes must remain intact and attached to the product.</li>
               <li><strong>Unused Condition:</strong> Products must be unworn, unwashed, unaltered, and without any stains or odors.</li>
-              <li><strong>Original Packaging:</strong> The item must be returned in its original brand box/packaging along with any manuals or freebies.</li>
+              <li><strong>Footwear Packaging:</strong> Original brand box is preferred. However, if the box is damaged but the shoes/items themselves are perfect and unused, the return is acceptable.</li>
+              <li><strong>Unboxing Video:</strong> A clear unboxing video is highly recommended for claims on missing or damaged items on delivery.</li>
             </ul>
             <p>Our courier agent will perform a quality check at the time of pickup.</p>
 
