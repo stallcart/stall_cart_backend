@@ -2,6 +2,19 @@ import logging
 import requests
 from django.conf import settings
 
+# Force requests/urllib3 to use IPv4 to prevent IPv6 whitelist mismatch with 2Factor API
+try:
+    import urllib3.util.connection as urllib3_connection
+    urllib3_connection.HAS_IPV6 = False
+except Exception:
+    pass
+
+try:
+    import requests.packages.urllib3.util.connection as urllib3_connection
+    urllib3_connection.HAS_IPV6 = False
+except Exception:
+    pass
+
 logger = logging.getLogger(__name__)
 
 def send_sms_via_2factor(recipient_phone: str, otp: str) -> bool:
