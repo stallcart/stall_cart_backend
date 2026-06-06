@@ -114,8 +114,13 @@ def register_fcm_token(request):
         device.user = request.user
         device.save(update_fields=['user'])
 
-    # Fire welcome / test notification immediately
-    delivered = notify_login_welcome(request.user, token)
+    # Fire welcome / test notification immediately, but only once per session per token
+    session_key = f'fcm_welcomed_{token[-20:]}' if len(token) >= 20 else f'fcm_welcomed_{token}'
+    delivered = False
+    if not request.session.get(session_key):
+        delivered = notify_login_welcome(request.user, token)
+        if delivered:
+            request.session[session_key] = True
 
     return JsonResponse({
         'ok':        True,

@@ -46,3 +46,68 @@ class SiteSettingsBrandingTests(TestCase):
         # Clean up files created during test
         if os.path.exists(logo_path):
             os.remove(logo_path)
+
+
+from django.contrib.auth import get_user_model
+from django.urls import reverse
+from unittest import mock
+
+User = get_user_model()
+
+class FCMNotificationTests(TestCase):
+    def setUp(self):
+        self.phone = "9876543210"
+        self.user = User.objects.create_user(
+            phone=self.phone,
+            password="testpassword123",
+            full_name="Test FCM User"
+        )
+        self.client.login(phone=self.phone, password="testpassword123")
+        self.register_url = reverse('common:fcm_register')
+
+    @mock.patch('common.views.notify_login_welcome')
+    def test_welcome_notification_only_sent_once_per_session(self, mock_notify):
+        mock_notify.return_value = True
+
+        payload = {
+            'token': 'test-fcm-token-12345678901234567890',
+            'device_id': 'device-1',
+            'device_name': 'Test Browser'
+        }
+        # First registration in session
+        response = self.client.post(
+            self.register_url,
+            data=payload,
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(mock_notify.call_count, 1)
+        mock_notify.assert_called_once_with(self.user, 'test-fcm-token-12345678901234567890')
+
+        # Reset mock
+        mock_notify.reset_mock()
+
+        # Second registration in the same session (simulates navigation/re-registration)
+        response2 = self.client.post(
+            self.register_url,
+            data=payload,
+            content_type='application/json'
+        )
+        self.assertEqual(response2.status_code, 200)
+        # Should NOT be called again because of session key check
+        self.assertEqual(mock_notify.call_count, 0)
+
+        # Clear session/logout and login again to verify it gets called again on a new session
+        self.client.logout()
+        self.client.login(phone=self.phone, password="testpassword123")
+        
+        mock_notify.reset_mock()
+        response3 = self.client.post(
+            self.register_url,
+            data=payload,
+            content_type='application/json'
+        )
+        # Note: update_or_create won't create a new record now (so status_code 200),
+        # but since it's a new session, it should notify again.
+        self.assertEqual(response3.status_code, 200)
+        self.assertEqual(mock_notify.call_count, 1)
