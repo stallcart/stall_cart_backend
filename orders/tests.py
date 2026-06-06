@@ -527,6 +527,50 @@ class OrderManagementTests(TestCase):
         response = self.client.get(url_debug)
         self.assertEqual(response.status_code, 200)
 
+    def test_invoice_seller_phone_hidden_and_gst_shown_and_csv_download(self):
+        """Test that seller phone is hidden and GST is shown in the invoice, and CSV download works."""
+        # Setup phone and GSTIN on seller profile
+        self.seller_profile1.phone = "8888888888"
+        self.seller_profile1.gst_number = "27AAAAA1111A1Z1"
+        self.seller_profile1.save()
+        
+        # 1. Preview the invoice as a customer and verify phone is hidden and GSTIN is visible
+        self.client.login(phone="6666666666", password="customerpassword")
+        url_preview = reverse('orders:invoice_preview', args=[self.order1.unique_order_id])
+        response = self.client.get(url_preview)
+        self.assertEqual(response.status_code, 200)
+        content_decoded = response.content.decode('utf-8')
+        
+        # Phone should be hidden
+        self.assertNotIn("Phone: 8888888888", content_decoded)
+        self.assertNotIn("8888888888", content_decoded)
+        # GSTIN should be visible
+        self.assertIn("GSTIN: 27AAAAA1111A1Z1", content_decoded)
+        
+        # 2. Test CSV Download as Seller
+        self.client.login(phone="8888888888", password="sellerpassword")
+        url_csv = reverse('orders:invoice_download_csv', args=[self.order1.unique_order_id])
+        response = self.client.get(url_csv)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'text/csv')
+        csv_content = response.content.decode('utf-8')
+        
+        # Seller should see their items and GSTIN, but not phone
+        self.assertNotIn("8888888888", csv_content)
+        self.assertIn("GSTIN,27AAAAA1111A1Z1", csv_content)
+        self.assertIn("Seller One Shirt", csv_content)
+        # For Seller One, Seller Two's product should NOT be in the CSV
+        self.assertNotIn("Seller Two Jeans", csv_content)
+        
+        # 3. Test CSV Download as Admin
+        self.client.login(phone="9999999999", password="adminpassword")
+        response = self.client.get(url_csv)
+        self.assertEqual(response.status_code, 200)
+        csv_content = response.content.decode('utf-8')
+        # Admin should see both items
+        self.assertIn("Seller One Shirt", csv_content)
+        self.assertIn("Seller Two Jeans", csv_content)
+
 
 class SellerSettlementAndBankDetailsTests(TestCase):
     def setUp(self):

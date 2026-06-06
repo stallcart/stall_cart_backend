@@ -120,6 +120,12 @@
                     <a href="{% url 'orders:seller_order_detail' order_id %}" class="btn-outline">
                         View Details →
                     </a>
+                    <a href="{% url 'orders:invoice_download' order_id %}" class="btn-outline btn-sm" style="text-decoration: none; display: inline-flex; align-items: center; gap: 4px; border-color: #2874f0; color: #2874f0;">
+                        📄 PDF
+                    </a>
+                    <a href="{% url 'orders:invoice_download_csv' order_id %}" class="btn-outline btn-sm" style="text-decoration: none; display: inline-flex; align-items: center; gap: 4px; border-color: #10b981; color: #10b981;">
+                        📊 CSV
+                    </a>
                 {% else %}
                     <span class="text-muted" title="Order ID missing">⚠️ Invalid Order</span>
                 {% endif %}

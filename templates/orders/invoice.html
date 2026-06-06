@@ -379,9 +379,6 @@
                             {{ seller.address.city|default:"" }}{% if seller.address.state %}, {{ seller.address.state }}{% endif %} 
                             {% if seller.address.postalCode %} - {{ seller.address.postalCode }}{% endif %}
                         </div>
-                        {% if seller.phone %}
-                            <div class="address-phone">Phone: {{ seller.phone }}</div>
-                        {% endif %}
                         {% if seller.user.email %}
                             <div class="address-phone">Email: {{ seller.user.email }}</div>
                         {% endif %}
