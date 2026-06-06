@@ -684,7 +684,7 @@ def debug_invoice(request, order_id):
 @seller_only
 def seller_orders(request):
     """Seller: View all orders containing their products"""
-    if not ((request.user.role == 'seller' or request.user.is_staff or request.user.is_superuser) and hasattr(request.user, 'seller_profile')):
+    if not ((request.user.role == 'seller' or request.user.is_admin) and hasattr(request.user, 'seller_profile')):
         messages.error(request, "Only sellers and staff can view this page.")
         return redirect('shop:home')
     
@@ -746,7 +746,7 @@ def seller_orders(request):
 @login_required
 def seller_order_detail(request, order_id):
     """Seller: View details of a specific order containing their products"""
-    if not ((request.user.role == 'seller' or request.user.is_staff or request.user.is_superuser) and hasattr(request.user, 'seller_profile')):
+    if not ((request.user.role == 'seller' or request.user.is_admin) and hasattr(request.user, 'seller_profile')):
         messages.error(request, "Only sellers and staff can view this page.")
         return redirect('shop:home')
     

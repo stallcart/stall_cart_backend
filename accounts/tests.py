@@ -775,5 +775,24 @@ class AdminBusinessDashboardTests(TestCase):
         response = self.client.get(orders_url)
         self.assertEqual(response.status_code, 200)
 
+        # 3. Access unified dashboard as staff (without seller_profile initially)
+        # Let's delete the seller profile first to test auto-creation on the unified dashboard decorator
+        self.staff_user.seller_profile.delete()
+        self.staff_user.refresh_from_db()
+        self.assertFalse(hasattr(self.staff_user, 'seller_profile'))
+
+        unified_url = reverse('items:admin_dashboard')
+        response = self.client.get(unified_url)
+        self.assertEqual(response.status_code, 200)
+        self.staff_user.refresh_from_db()
+        self.assertTrue(hasattr(self.staff_user, 'seller_profile'))
+
+        # 4. Access product creation view as staff and ensure is_superuser context parameter is True
+        product_create_url = reverse('items:product_create')
+        response = self.client.get(product_create_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context['is_superuser'])
+
+
 
 
