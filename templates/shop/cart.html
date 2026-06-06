@@ -367,6 +367,16 @@
     .payment-option { flex-direction: column; text-align: center; }
     .offer-badge { margin-top: 8px; }
 }
+
+.return-policy-agreement {
+    margin: 20px 0 16px; padding: 16px; background: #f8fafc; border: 1px dashed var(--gray-300); border-radius: var(--r-lg); text-align: left;
+}
+.return-policy-agreement label {
+    display: flex; align-items: flex-start; gap: 10px; cursor: pointer; font-size: 0.85rem; color: var(--gray-600); line-height: 1.5; user-select: none;
+}
+.return-policy-agreement input[type="checkbox"] {
+    margin-top: 4px; cursor: pointer; width: 16px; height: 16px; accent-color: var(--blue-500); flex-shrink: 0;
+}
 </style>
 {% endblock %}
 
@@ -482,15 +492,20 @@
                 <div class="savings-msg info"><i class="fa fa-info-circle"></i> No discounts applied</div>
                 {% endif %}
                 
-                <div class="return-policy-info-box">
-                    <strong><i class="fa fa-info-circle"></i> 7-Day Return Policy</strong>
-                    • Returns are accepted within 7 days of delivery for unused items with original tags intact.
-                    <br>
-                    • <strong>Footwear Special Clause:</strong> Original brand box is preferred. However, if the box is damaged but the shoes themselves are perfect and unused, the return is acceptable.
-                    <br>
-                    • <strong>QC Inspection:</strong> Items must be unworn, unwashed, unaltered, and hygiene-sensitive items (socks, innerwear, etc.) are non-returnable.
-                    <br>
-                    • <strong>Unboxing Video:</strong> A clear unboxing video is highly recommended for claims on missing or damaged items on delivery.
+                <div class="return-policy-agreement">
+                    <label>
+                        <input type="checkbox" id="agreeReturnPolicy" required>
+                        <span>
+                            I agree to the <strong>7-Day Return & Refund Policy</strong>.
+                            <span style="font-size: 0.78rem; color: var(--gray-500); display: block; margin-top: 6px; line-height: 1.4;">
+                                • Items must be unused, unwashed, with original tags intact.
+                                <br>
+                                • <strong>Footwear:</strong> Original brand box preferred. However, returns with damaged boxes are acceptable if the shoes themselves are perfect and unused.
+                                <br>
+                                • <strong>Exclusions:</strong> Intimate wear, socks, cosmetics, etc. are non-returnable. Unboxing video is recommended for missing/damaged claims.
+                            </span>
+                        </span>
+                    </label>
                 </div>
                 
                 {% if user.is_authenticated %}
@@ -1048,6 +1063,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const placeOrderBtn = document.getElementById('placeOrderBtn');
     if (placeOrderBtn) {
         placeOrderBtn.addEventListener('click', async () => {
+            // Validate return policy agreement
+            const agreeCheckbox = document.getElementById('agreeReturnPolicy');
+            if (agreeCheckbox && !agreeCheckbox.checked) {
+                toast('Please agree to the Return & Refund Policy to place your order', 'error');
+                return;
+            }
+
             // Validate address
             if (!document.querySelector('.address-info')) { 
                 toast('Please add a delivery address first', 'error');
