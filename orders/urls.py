@@ -82,6 +82,11 @@ urlpatterns = [
          seller_or_admin_only(views.seller_add_tracking), 
          name='seller_add_tracking'),
     
+    # Seller: Print Shipping Label
+    path('seller/order/<str:order_id>/print-label/',
+         views.print_shipping_label,
+         name='print_shipping_label'),
+    
     # ==================== ✅ ADMIN URLS (Restricted to superusers only) ====================
     
     # Admin: All Orders
