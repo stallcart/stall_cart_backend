@@ -241,7 +241,7 @@ class OTPRequest(BaseModel):
         return timezone.now() > self.expires_at
 
     @classmethod
-    def check_and_create_otp(cls, phone, purpose, expiry_minutes=10):
+    def check_and_create_otp(cls, phone, purpose, expiry_minutes=None):
         from django.utils import timezone
         from datetime import timedelta
         import random
@@ -254,8 +254,13 @@ class OTPRequest(BaseModel):
                 limit = getattr(site_settings, 'daily_email_otp_limit', 5)
             else:
                 limit = getattr(site_settings, 'daily_sms_otp_limit', 5)
+
+            if expiry_minutes is None:
+                expiry_minutes = getattr(site_settings, 'otp_expiry_minutes', 10)
         except Exception:
             limit = 5
+            if expiry_minutes is None:
+                expiry_minutes = 10
 
         twenty_four_hours_ago = timezone.now() - timedelta(hours=24)
         daily_count = cls.objects.filter(phone=phone, created_at__gte=twenty_four_hours_ago).count()
