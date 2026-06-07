@@ -114,6 +114,7 @@ class SiteSettings(models.Model):
     daily_otp_limit = models.IntegerField(default=5, help_text='Maximum OTP requests allowed per recipient in a 24-hour window')
     daily_email_otp_limit = models.IntegerField(default=5, help_text='Maximum Email OTP requests allowed per recipient in a 24-hour window')
     daily_sms_otp_limit = models.IntegerField(default=5, help_text='Maximum SMS OTP requests allowed per recipient in a 24-hour window')
+    otp_expiry_minutes = models.IntegerField(default=10, help_text='OTP validity duration in minutes')
     slider_autoplay_seconds = models.DecimalField(max_digits=3, decimal_places=1, default=Decimal('1.0'), help_text='Autoplay interval for homepage slider in seconds (e.g. 1.0 or 1.5)')
 
     # Delivery Settings

@@ -73,6 +73,24 @@ class OTPRequestTests(TestCase):
         otp_req, err = OTPRequest.check_and_create_otp(self.phone, 'change_password', expiry_minutes=-1)
         self.assertTrue(otp_req.is_expired())
 
+    def test_custom_otp_expiry_from_settings(self):
+        from common.models import SiteSettings
+        site_settings = SiteSettings.get_singleton()
+        site_settings.otp_expiry_minutes = 25
+        site_settings.save()
+
+        otp_req, err = OTPRequest.check_and_create_otp(self.phone, 'change_password')
+        self.assertIsNone(err)
+        self.assertIsNotNone(otp_req)
+        
+        # Checking if expires_at is approximately 25 minutes from now
+        from django.utils import timezone
+        from datetime import timedelta
+        diff = otp_req.expires_at - timezone.now()
+        # The difference should be around 25 minutes (e.g. between 24 and 26 minutes)
+        self.assertTrue(timedelta(minutes=24) <= diff <= timedelta(minutes=26))
+
+
 
 from django.urls import reverse
 import json
