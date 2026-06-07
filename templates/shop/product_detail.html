@@ -346,9 +346,15 @@
                 {% if product.gender %}
                 <tr><th>Target Audience</th><td>{{ product.get_gender_display }}</td></tr>
                 {% endif %}
-                <tr><th>Material</th><td>{% if "material" in product.description|lower %}As described{% else %}—{% endif %}</td></tr>
-                <tr><th>Warranty</th><td>1 Year Manufacturer Warranty</td></tr>
-                <tr><th>Country of Origin</th><td>India</td></tr>
+                {% if product.material %}
+                <tr><th>Material</th><td>{{ product.material }}</td></tr>
+                {% endif %}
+                {% if product.warranty %}
+                <tr><th>Warranty</th><td>{{ product.warranty }}</td></tr>
+                {% endif %}
+                {% if product.country_of_origin %}
+                <tr><th>Country of Origin</th><td>{{ product.country_of_origin }}</td></tr>
+                {% endif %}
                 {% if has_variants and variants.0.attributes %}
                     {% for key, value in variants.0.attributes.items %}
                     <tr><th>{{ key|title }}</th><td>{{ value }}</td></tr>

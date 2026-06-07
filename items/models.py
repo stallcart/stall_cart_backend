@@ -141,6 +141,9 @@ class Product(BaseModel):
     sku = models.CharField(max_length=50, unique=True, blank=True, null=True)
     weight = models.DecimalField(max_digits=6, decimal_places=2, blank=True, null=True, help_text="in grams")
     dimensions = models.CharField(max_length=50, blank=True, help_text="L x W x H in cm")
+    material = models.CharField(max_length=100, blank=True, null=True, help_text="e.g. Cotton, Leather, Wood")
+    warranty = models.CharField(max_length=100, blank=True, null=True, help_text="e.g. 1 Year Manufacturer Warranty")
+    country_of_origin = models.CharField(max_length=100, blank=True, null=True, default="India", help_text="e.g. India, USA")
     
     # SEO & Marketing
     meta_title = models.CharField(max_length=200, blank=True)

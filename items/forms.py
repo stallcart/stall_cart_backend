@@ -176,8 +176,8 @@ class ProductForm(forms.ModelForm):
             'price', 'mrp', 'cost_price', 'discount_percent',
             'stock', 'low_stock_threshold', 'status',
             'gender', 'primary_image', 'brand', 
-            'weight', 'dimensions', 'meta_title',
-            'meta_description', 'is_featured', 'is_hot_deal',
+            'weight', 'dimensions', 'material', 'warranty', 'country_of_origin',
+            'meta_title', 'meta_description', 'is_featured', 'is_hot_deal',
             'category',
             # ❌ Do NOT include 'seller' here – added conditionally below
         ]
@@ -199,6 +199,9 @@ class ProductForm(forms.ModelForm):
             # 'sku':               forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'SKU-123'}),
             'weight':            forms.NumberInput(attrs={'class': 'form-input', 'step': '0.01', 'placeholder': 'in grams'}),
             'dimensions':        forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'L x W x H in cm'}),
+            'material':          forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'e.g. Cotton, Leather, Wood'}),
+            'warranty':          forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'e.g. 1 Year Manufacturer Warranty'}),
+            'country_of_origin': forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'e.g. India, USA'}),
             'meta_title':        forms.TextInput(attrs={'class': 'form-input', 'maxlength': 200, 'placeholder': 'SEO title'}),
             'meta_description':  forms.Textarea(attrs={'class': 'form-input', 'rows': 2, 'maxlength': 160, 'placeholder': 'SEO description'}),
             'category':          forms.Select(attrs={'class': 'form-select'}),
