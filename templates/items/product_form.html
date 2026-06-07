@@ -184,6 +184,26 @@
                 {{ form.dimensions }}
                 {% if form.dimensions.errors %}<div class="field-error">{{ form.dimensions.errors.0 }}</div>{% endif %}
             </div>
+            
+            <div class="form-row three-col">
+                <div class="form-group">
+                    <label for="{{ form.material.id_for_label }}">Material</label>
+                    {{ form.material }}
+                    {% if form.material.errors %}<div class="field-error">{{ form.material.errors.0 }}</div>{% endif %}
+                </div>
+                
+                <div class="form-group">
+                    <label for="{{ form.warranty.id_for_label }}">Warranty</label>
+                    {{ form.warranty }}
+                    {% if form.warranty.errors %}<div class="field-error">{{ form.warranty.errors.0 }}</div>{% endif %}
+                </div>
+                
+                <div class="form-group">
+                    <label for="{{ form.country_of_origin.id_for_label }}">Country of Origin</label>
+                    {{ form.country_of_origin }}
+                    {% if form.country_of_origin.errors %}<div class="field-error">{{ form.country_of_origin.errors.0 }}</div>{% endif %}
+                </div>
+            </div>
         </div>
 
         <!-- ✅ Section: Images -->
