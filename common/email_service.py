@@ -87,6 +87,21 @@ DEFAULT_TEMPLATES = {
         'subject': "StallCart Seller - Order {{ order_id }} Update: {{ status }}",
         'body': "Hello {{ seller_name }},\n\nOrder #{{ order_id }} status has been updated to: {{ status }}.\n\n{% if courier_name %}Courier: {{ courier_name }}{% endif %}\n{% if tracking_number %}Tracking AWB: {{ tracking_number }}{% endif %}\n\nBest Regards,\nStallCart Team",
         'description': "Order status update notification sent to seller"
+    },
+    'admin_notify_pan_verification': {
+        'subject': "StallCart Admin - Seller PAN Submitted for Verification: {{ shop_name }}",
+        'body': "Hello Admin,\n\nSeller '{{ seller_name }}' (Shop: '{{ shop_name }}') has submitted or updated their PAN details for verification:\n\nPAN Number: {{ pan_number }}\n\nPlease review the PAN details and document in the admin dashboard: {{ dashboard_url }}.\n\nBest Regards,\nStallCart Team",
+        'description': "Email notification sent to admins when a seller submits or updates their PAN details for verification"
+    },
+    'seller_pan_verified': {
+        'subject': "StallCart - PAN Verification Successful!",
+        'body': "Hello {{ seller_name }},\n\nYour PAN Card (PAN Number: {{ pan_number }}) for your shop '{{ shop_name }}' has been successfully verified by our admin team!\n\nYour seller profile is now verified, and you can access all seller features.\n\nBest Regards,\nStallCart Team",
+        'description': "Email notification sent to the seller when their PAN card is verified"
+    },
+    'seller_pan_rejected': {
+        'subject': "StallCart - PAN Verification Rejected",
+        'body': "Hello {{ seller_name }},\n\nYour PAN Card verification request for your shop '{{ shop_name }}' has been rejected by our admin team.\n\nReason: {{ rejection_reason }}\n\nPlease update your PAN details and upload a valid document in your profile page: {{ profile_url }}.\n\nBest Regards,\nStallCart Team",
+        'description': "Email notification sent to the seller when their PAN card is rejected"
     }
 }
 

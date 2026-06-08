@@ -28,6 +28,14 @@ class SellerProfile(BaseModel):
     phone = models.CharField(max_length=15, blank=True)
     address = models.JSONField(default=dict, blank=True)  # {address, city, state, postalCode}
     is_verified = models.BooleanField(default=False)
+    pan_number = models.CharField(max_length=10, blank=True, null=True)
+    pan_card_file = models.FileField(upload_to='seller_pan_cards/', blank=True, null=True)
+    pan_verification_status = models.CharField(
+        max_length=20, 
+        choices=[('pending', 'Pending Verification'), ('verified', 'Verified'), ('rejected', 'Rejected')], 
+        default='pending'
+    )
+    pan_rejection_reason = models.TextField(blank=True, null=True)
     rating = models.DecimalField(max_digits=2, decimal_places=1, default=0.0)    
 
     # Bank account details for payouts/settlements
@@ -39,6 +47,114 @@ class SellerProfile(BaseModel):
     # RazorpayX Payout IDs
     razorpay_contact_id = models.CharField(max_length=100, blank=True, null=True)
     razorpay_fund_account_id = models.CharField(max_length=100, blank=True, null=True)
+
+    def save(self, *args, **kwargs):
+        is_new = self._state.adding
+        old_status = None
+        old_pan_number = None
+        old_pan_card_file = None
+        old_is_verified = None
+        
+        status_changed = False
+        pan_updated = False
+        
+        if not is_new:
+            try:
+                old_obj = type(self).objects.filter(pk=self.pk).values('pan_verification_status', 'pan_number', 'pan_card_file', 'is_verified').first()
+                if old_obj:
+                    old_status = old_obj.get('pan_verification_status')
+                    old_pan_number = old_obj.get('pan_number')
+                    old_pan_card_file = old_obj.get('pan_card_file')
+                    old_is_verified = old_obj.get('is_verified')
+                    
+                    if old_status != self.pan_verification_status:
+                        status_changed = True
+                    
+                    if old_pan_number != self.pan_number or old_pan_card_file != self.pan_card_file:
+                        pan_updated = True
+            except Exception:
+                pass
+        
+        # If the PAN details are updated by the seller, reset status to pending and set is_verified to False
+        if pan_updated:
+            self.pan_verification_status = 'pending'
+            self.is_verified = False
+            self.pan_rejection_reason = None
+            status_changed = True
+            
+        # Sync changes between is_verified and pan_verification_status
+        if is_new:
+            if self.is_verified:
+                self.pan_verification_status = 'verified'
+        else:
+            if self.is_verified and not old_is_verified and self.pan_verification_status != 'verified':
+                self.pan_verification_status = 'verified'
+                status_changed = True
+            elif not self.is_verified and old_is_verified and self.pan_verification_status == 'verified':
+                self.pan_verification_status = 'pending'
+                status_changed = True
+        
+        # For staff/admin users, they are auto-verified
+        if self.user and self.user.role in ['staff', 'admin']:
+            self.is_verified = True
+            self.pan_verification_status = 'verified'
+        
+        # Ensure status consistency
+        if self.pan_verification_status == 'verified':
+            self.is_verified = True
+            self.pan_rejection_reason = None
+        elif self.pan_verification_status in ['pending', 'rejected']:
+            self.is_verified = False
+            
+        # Save first
+        super().save(*args, **kwargs)
+        
+        # Send emails on changes
+        if pan_updated or (is_new and self.pan_number):
+            # Send notification to admins
+            try:
+                from common.email_service import send_dynamic_email
+                from accounts.models import User as AuthUser
+                admins = AuthUser.objects.filter(role__in=['admin', 'staff'], is_active=True)
+                admin_emails = [admin.email for admin in admins if admin.email]
+                if admin_emails:
+                    send_dynamic_email('admin_notify_pan_verification', admin_emails, {
+                        'seller_name': self.user.full_name or self.user.phone,
+                        'shop_name': self.shop_name,
+                        'pan_number': self.pan_number,
+                        'dashboard_url': 'https://stallcart.in/items/admin/verify-sellers/'
+                    })
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"Failed to send PAN update email to admins: {e}")
+                
+        elif status_changed and not is_new:
+            # Send notification to seller and admin
+            try:
+                from common.email_service import send_dynamic_email
+                recipient_list = []
+                if self.user.email:
+                    recipient_list.append(self.user.email)
+                    
+                if self.pan_verification_status == 'verified':
+                    if recipient_list:
+                        send_dynamic_email('seller_pan_verified', recipient_list, {
+                            'seller_name': self.user.full_name or self.shop_name,
+                            'shop_name': self.shop_name,
+                            'pan_number': self.pan_number
+                        })
+                elif self.pan_verification_status == 'rejected':
+                    if recipient_list:
+                        send_dynamic_email('seller_pan_rejected', recipient_list, {
+                            'seller_name': self.user.full_name or self.shop_name,
+                            'shop_name': self.shop_name,
+                            'rejection_reason': self.pan_rejection_reason or "Incomplete or incorrect documents.",
+                            'profile_url': 'https://stallcart.in/accounts/profile/'
+                        })
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"Failed to send PAN status update email to seller: {e}")
+
     def _update_rating_cache(self):
         """Update average rating from approved seller reviews"""
         stats = self.reviews.filter(is_approved=True).aggregate(

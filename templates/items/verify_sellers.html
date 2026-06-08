@@ -654,11 +654,25 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="seller-detail-row"><strong>Owner</strong><span>${data.owner_name || 'N/A'}</span></div>
                     <div class="seller-detail-row"><strong>Phone</strong><span>${data.phone || 'N/A'}</span></div>
                     ${data.gst_number ? `<div class="seller-detail-row"><strong>GST</strong><span>${data.gst_number}</span></div>` : ''}
+                    <div class="seller-detail-row"><strong>PAN Number</strong><span style="letter-spacing: 1px;">${data.pan_number || 'N/A'}</span></div>
+                    <div class="seller-detail-row">
+                        <strong>PAN Document</strong>
+                        <span>
+                            ${data.pan_card_file_url ? `<a href="${data.pan_card_file_url}" target="_blank" class="btn-outline btn-sm" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;"><i class="fa fa-external-link-alt"></i> View Document</a>` : '<span style="color:var(--gray-400);font-weight:normal;font-style:italic;">Not Uploaded</span>'}
+                        </span>
+                    </div>
+                    <div class="seller-detail-row"><strong>PAN Verification Status</strong><span>${data.pan_verification_status ? data.pan_verification_status.toUpperCase() : 'PENDING'}</span></div>
+                    ${data.pan_rejection_reason ? `<div class="seller-detail-row"><strong>Rejection Reason</strong><span style="color:var(--red);">${data.pan_rejection_reason}</span></div>` : ''}
                     <div class="seller-detail-row"><strong>Products</strong><span>${data.product_count || 0} Published</span></div>
                     <div class="seller-detail-row"><strong>Status</strong><span>${data.is_verified ? '✅ Verified' : (data.is_active ? '⏳ Pending' : '❌ Rejected')}</span></div>
                     <div class="seller-detail-row" style="flex-direction:column;align-items:flex-start;padding-top:14px;">
                         <strong style="margin-bottom:6px;">Description</strong>
                         <span style="color:var(--gray-600);line-height:1.5;font-size:0.9rem;">${data.description || 'No description provided'}</span>
+                    </div>
+                    
+                    <div class="modal-footer" style="display:flex;gap:12px;margin-top:24px;border-top:1px solid var(--gray-200);padding-top:16px;">
+                        <button class="btn-primary" style="background:#2e7d32;flex:1;margin:0;border:none;color:white;cursor:pointer;padding:10px 16px;border-radius:4px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;" onclick="triggerSellerAction(${sellerId}, 'verify')"><i class="fa fa-check"></i> Verify Seller</button>
+                        <button class="btn-primary" style="background:#c62828;flex:1;margin:0;border:none;color:white;cursor:pointer;padding:10px 16px;border-radius:4px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;" onclick="triggerSellerAction(${sellerId}, 'reject')"><i class="fa fa-times"></i> Reject Seller</button>
                     </div>
                 `;
             } else {
@@ -666,6 +680,50 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         } catch (err) {
             body.innerHTML = `<p style="color:var(--red);text-align:center;">Failed to load details</p>`;
+        }
+    };
+    
+    window.triggerSellerAction = async function(sellerId, action) {
+        let reason = '';
+        if (action === 'reject') {
+            reason = prompt("Please enter the rejection reason:");
+            if (reason === null) return; // user cancelled
+            if (!reason.trim()) {
+                alert("Rejection reason is required.");
+                return;
+            }
+        }
+        
+        const btn = event?.currentTarget || this;
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Processing...';
+        
+        try {
+            const res = await fetch(`/items/admin/verify-sellers/${sellerId}/action/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ action: action, reason: reason })
+            });
+            
+            const result = await res.json();
+            if (result.status === 'success') {
+                alert(result.message);
+                closeModal(sellerModal);
+                window.location.reload();
+            } else {
+                alert(result.message || 'Operation failed.');
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        } catch (err) {
+            alert('Network error: ' + err.message);
+            btn.disabled = false;
+            btn.innerHTML = originalText;
         }
     };
     

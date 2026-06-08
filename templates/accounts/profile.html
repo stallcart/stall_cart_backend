@@ -233,6 +233,9 @@
                 <button class="profile-menu-item" data-target="shop-address">
                     <i class="fa fa-store"></i> <span>Shop Address</span>
                 </button>
+                <button class="profile-menu-item" data-target="identity-verification">
+                    <i class="fa fa-id-card"></i> <span>PAN Verification</span>
+                </button>
                 <button class="profile-menu-item" data-target="bank-details">
                     <i class="fa fa-university"></i> <span>Bank Details</span>
                 </button>
@@ -546,6 +549,110 @@
                     </form>
                 </div>
             </div>
+
+            <!-- PAN Identity Verification Panel (Sellers Only) -->
+            {% if is_seller and seller_profile %}
+            <div class="profile-section-panel" id="identity-verification">
+                <div class="profile-card">
+                    <div class="card-header">
+                        <h3><i class="fa fa-id-card"></i> PAN Card & Identity Verification</h3>
+                        <button type="button" class="btn-outline btn-sm" id="editPanDetailsBtn">
+                            <i class="fa fa-pencil-alt"></i> Edit PAN Details
+                        </button>
+                    </div>
+
+                    <!-- PAN Verification View -->
+                    <div id="panDetailsView">
+                        <div class="verification-status-box" style="margin-top: 15px; padding: 20px; border-radius: 12px; display: flex; align-items: center; gap: 15px; 
+                            {% if seller_profile.pan_verification_status == 'verified' %}
+                                background: rgba(46, 125, 50, 0.1); border: 1px solid rgba(46, 125, 50, 0.2); color: #2e7d32;
+                            {% elif seller_profile.pan_verification_status == 'rejected' %}
+                                background: rgba(198, 40, 40, 0.1); border: 1px solid rgba(198, 40, 40, 0.2); color: #c62828;
+                            {% else %}
+                                background: rgba(239, 108, 0, 0.1); border: 1px solid rgba(239, 108, 0, 0.2); color: #ef6c00;
+                            {% endif %}">
+                            <div style="font-size: 2rem;">
+                                {% if seller_profile.pan_verification_status == 'verified' %}
+                                    <i class="fa fa-check-circle"></i>
+                                {% elif seller_profile.pan_verification_status == 'rejected' %}
+                                    <i class="fa fa-times-circle"></i>
+                                {% else %}
+                                    <i class="fa fa-hourglass-half"></i>
+                                {% endif %}
+                            </div>
+                            <div style="flex: 1;">
+                                <h4 style="margin: 0 0 5px 0; font-size: 1.1rem; font-weight: 600;">
+                                    {% if seller_profile.pan_verification_status == 'verified' %}
+                                        Identity Verified
+                                    {% elif seller_profile.pan_verification_status == 'rejected' %}
+                                        Verification Rejected
+                                    {% else %}
+                                        Pending Admin Verification
+                                    {% endif %}
+                                </h4>
+                                <p style="margin: 0; font-size: 0.9rem; opacity: 0.9;">
+                                    {% if seller_profile.pan_verification_status == 'verified' %}
+                                        Your PAN card has been successfully verified. Selling privileges are active.
+                                    {% elif seller_profile.pan_verification_status == 'rejected' %}
+                                        Reason: {{ seller_profile.pan_rejection_reason|default:"Incomplete or unreadable documents." }} Please upload valid details.
+                                    {% else %}
+                                        Your PAN card details are currently under review. Selling privileges are suspended until approved.
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="pan-details-card" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 20px; margin-top: 20px;">
+                            <div class="form-grid" style="grid-gap: 15px; margin-bottom: 0;">
+                                <div>
+                                    <span class="text-muted" style="font-size: 0.85rem; display: block;">PAN Card Number</span>
+                                    <strong style="font-size: 1.15rem; letter-spacing: 1px;">{{ seller_profile.pan_number|default:"Not Provided" }}</strong>
+                                </div>
+                                <div>
+                                    <span class="text-muted" style="font-size: 0.85rem; display: block;">PAN Document Link</span>
+                                    {% if seller_profile.pan_card_file %}
+                                        <a href="{{ seller_profile.pan_card_file.url }}" target="_blank" class="btn-outline btn-sm" style="display: inline-flex; align-items: center; gap: 8px; margin-top: 5px; text-decoration: none;">
+                                            <i class="fa fa-external-link-alt"></i> View Uploaded Document
+                                        </a>
+                                    {% else %}
+                                        <span class="text-muted" style="font-size: 0.95rem; font-style: italic; display: block; margin-top: 5px;">No document uploaded</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PAN Verification Form (Hidden) -->
+                    <form id="panDetailsForm" method="post" enctype="multipart/form-data" style="display:none; margin-top: 20px;">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="update_pan_details">
+                        
+                        <div class="alert warning" style="background: rgba(239, 108, 0, 0.1); border-left: 4px solid #ef6c00; color: #ef6c00; padding: 15px; border-radius: 6px; margin-bottom: 20px; font-size: 0.9rem;">
+                            <i class="fa fa-exclamation-triangle"></i> <strong>Important:</strong> Modifying your PAN number or uploading a new card will reset your verification status to **Pending** and immediately suspend your selling privileges until admin review.
+                        </div>
+
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="panNumberInput">PAN Number *</label>
+                                <input type="text" id="panNumberInput" name="pan_number" class="form-input" 
+                                    value="{{ seller_profile.pan_number|default:'' }}" required placeholder="ABCDE1234F" maxlength="10" style="text-transform: uppercase;">
+                                <small class="form-hint">Must be 10 characters in format: ABCDE1234F</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="panCardFileInput">PAN Card Document (PDF or Image)</label>
+                                <input type="file" id="panCardFileInput" name="pan_card_file" class="form-input" accept="image/*,application/pdf">
+                                <small class="form-hint">Optional: Upload a clear photo or PDF scan of your PAN Card</small>
+                            </div>
+                        </div>
+                        
+                        <div class="form-actions" style="margin-top: 20px; display: flex; gap: 10px;">
+                            <button type="submit" class="btn-primary"><i class="fa fa-save"></i> Submit PAN Details</button>
+                            <button type="button" class="btn-outline" id="cancelPanDetailsBtn">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
 
             <!-- Bank Details Panel (Sellers Only) -->
             {% if is_seller and seller_profile %}
@@ -1550,6 +1657,76 @@ document.getElementById('bankDetailsForm')?.addEventListener('submit', async (e)
             setTimeout(() => window.location.reload(), 600);
         } else {
             showToast(data.message || 'Failed to save bank details', 'error');
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    } catch (err) {
+        showToast('Network error: ' + err.message, 'error');
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+});
+
+// ===== PAN CARD DETAILS MANAGEMENT (Sellers Only) =====
+const editPanDetailsBtn = document.getElementById('editPanDetailsBtn');
+const cancelPanDetailsBtn = document.getElementById('cancelPanDetailsBtn');
+const panDetailsView = document.getElementById('panDetailsView');
+const panDetailsForm = document.getElementById('panDetailsForm');
+
+editPanDetailsBtn?.addEventListener('click', () => {
+    panDetailsView.style.display = 'none';
+    panDetailsForm.style.display = 'block';
+    editPanDetailsBtn.style.display = 'none';
+});
+
+cancelPanDetailsBtn?.addEventListener('click', () => {
+    panDetailsView.style.display = 'block';
+    panDetailsForm.style.display = 'none';
+    editPanDetailsBtn.style.display = 'inline-flex';
+});
+
+document.getElementById('panDetailsForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    const originalText = btn.innerHTML;
+    
+    // Read input values
+    const panNumber = document.getElementById('panNumberInput').value.trim().toUpperCase();
+    const panCardFile = document.getElementById('panCardFileInput').files[0];
+    
+    // Client-side format check
+    const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+    if (!panRegex.test(panNumber)) {
+        showToast('Invalid PAN number format. Format must be e.g. ABCDE1234F', 'error');
+        return;
+    }
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Submitting...';
+    
+    const submitFormData = new FormData();
+    submitFormData.append('action', 'update_pan_details');
+    submitFormData.append('pan_number', panNumber);
+    if (panCardFile) {
+        submitFormData.append('pan_card_file', panCardFile);
+    }
+    
+    try {
+        const res = await fetch("{% url 'accounts:profile' %}", {
+            method: 'POST',
+            headers: { 
+                'X-CSRFToken': csrfToken, 
+                'X-Requested-With': 'XMLHttpRequest' 
+            },
+            body: submitFormData
+        });
+        const data = await res.json();
+        
+        if (data.status === 'success') {
+            showToast('PAN details updated successfully!', 'success');
+            setTimeout(() => window.location.reload(), 600);
+        } else {
+            showToast(data.message || 'Failed to update PAN details', 'error');
             btn.disabled = false;
             btn.innerHTML = originalText;
         }

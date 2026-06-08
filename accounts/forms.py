@@ -73,6 +73,23 @@ class UserRegistrationForm(UserCreationForm):
         }),
         label='GST Number'
     )
+    pan_number = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'placeholder': 'PAN Number *',
+            'class': 'form-input seller-field',
+            'maxlength': '10'
+        }),
+        label='PAN Number'
+    )
+    pan_card_file = forms.FileField(
+        required=False,
+        widget=forms.FileInput(attrs={
+            'class': 'form-input seller-field',
+            'accept': 'image/*,application/pdf'
+        }),
+        label='PAN Card Document'
+    )
     
     # Password fields
     password1 = forms.CharField(
@@ -94,6 +111,7 @@ class UserRegistrationForm(UserCreationForm):
         model = User
         fields = ('phone', 'full_name', 'email', 'user_role', 
                   'shop_name', 'shop_description', 'gst_number',
+                  'pan_number', 'pan_card_file',
                   'password1', 'password2')
 
     def clean_phone(self):
@@ -133,6 +151,21 @@ class UserRegistrationForm(UserCreationForm):
         if user_role == 'seller':
             if not cleaned_data.get('shop_name'):
                 self.add_error('shop_name', 'Shop name is required for seller accounts.')
+            
+            # Validate PAN number presence
+            pan_number = cleaned_data.get('pan_number', '').strip().upper()
+            if not pan_number:
+                self.add_error('pan_number', 'PAN number is required for seller accounts.')
+            else:
+                import re
+                if not re.match(r'^[A-Z]{5}[0-9]{4}[A-Z]{1}$', pan_number):
+                    self.add_error('pan_number', 'Invalid PAN number format. Format must be e.g. ABCDE1234F')
+                else:
+                    cleaned_data['pan_number'] = pan_number
+                    # Check uniqueness of PAN number
+                    from items.models import SellerProfile
+                    if SellerProfile.objects.filter(pan_number=pan_number).exists():
+                        self.add_error('pan_number', 'This PAN number is already registered by another seller.')
         
         return cleaned_data
 
