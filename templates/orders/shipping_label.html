@@ -204,7 +204,7 @@
         <!-- Header: Logo and Shipment Type -->
         <div class="label-header">
             <h2>StallCart</h2>
-            <div class="badge-prepaid">PREPAID</div>
+            <div class="badge-prepaid">{% if order.payment_method == 'cod' %}COD{% else %}PREPAID{% endif %}</div>
         </div>
 
         <!-- Big Destination City & Pincode Routing Bar -->
@@ -235,7 +235,7 @@
                     {% endif %}
                 {% endfor %}
             </svg>
-            <div class="barcode-text">{{ order.unique_order_id }}</div>
+            <div class="barcode-text">{% if order.tracking_number %}AWB: {{ order.tracking_number }}{% else %}{{ order.unique_order_id }}{% endif %}</div>
         </div>
 
         <div class="divider-thin"></div>
@@ -254,11 +254,17 @@
         <div class="label-footer-grid">
             <div class="footer-item">
                 <span>Order Date: <strong>{{ order.created_at|date:"d M Y" }}</strong></span>
-                <span>Carrier: <strong>{{ order.courier_name|default:"Shiprocket" }}</strong></span>
+                <span>Order ID: <strong>{{ order.unique_order_id }}</strong></span>
+                {% if order.shiprocket_order_id %}
+                    <span>SR Order ID: <strong>{{ order.shiprocket_order_id }}</strong></span>
+                {% endif %}
             </div>
             <div class="footer-item" style="text-align: right;">
+                <span>Carrier: <strong>{{ order.courier_name|default:"Shiprocket" }}</strong></span>
+                {% if order.shipment_id %}
+                    <span>Shipment ID: <strong>{{ order.shipment_id }}</strong></span>
+                {% endif %}
                 <span>Total Qty: <strong>{{ total_qty }}</strong></span>
-                <span>Weight: <strong>Est. 0.5 kg</strong></span>
             </div>
         </div>
 

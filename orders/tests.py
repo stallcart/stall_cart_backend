@@ -1,6 +1,7 @@
 # orders/tests.py
 from django.test import TestCase
 from django.urls import reverse
+from unittest import mock
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from django.core.management import call_command
@@ -1187,6 +1188,67 @@ class ShippingLabelTests(TestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'orders/shipping_label.html')
+
+    @mock.patch('delivery.delivery_services.ShiprocketService.get_label_url')
+    def test_shiprocket_label_redirect(self, mock_get_label_url):
+        """If Shiprocket is configured and has a shipment_id + label URL, redirect to it."""
+        self.order1.shipment_id = "123456"
+        self.order1.save()
+
+        mock_get_label_url.return_value = "https://shiprocket-mock-pdf.example.com/label.pdf"
+
+        self.client.login(phone="8888888888", password="sellerpassword")
+        url = reverse('orders:print_shipping_label', args=[self.order1.unique_order_id])
+
+        with self.settings(SHIPROCKET_EMAIL="test@example.com", SHIPROCKET_PASSWORD="password"):
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 302)
+            self.assertEqual(response.url, "https://shiprocket-mock-pdf.example.com/label.pdf")
+            mock_get_label_url.assert_called_once_with("123456")
+
+    @mock.patch('delivery.delivery_services.ShiprocketService.get_label_url')
+    @mock.patch('delivery.delivery_services.ShiprocketService.fetch_shipment_details_by_channel_order_id')
+    def test_shiprocket_dynamic_fetch_and_redirect(self, mock_fetch, mock_get_label_url):
+        """If shipment_id is missing, dynamically fetch it and redirect to PDF label URL."""
+        self.order1.shipment_id = ""
+        self.order1.save()
+
+        mock_fetch.return_value = {
+            "shiprocket_order_id": "999999",
+            "shipment_id": "888888"
+        }
+        mock_get_label_url.return_value = "https://shiprocket-mock-pdf.example.com/dynamic-label.pdf"
+
+        self.client.login(phone="8888888888", password="sellerpassword")
+        url = reverse('orders:print_shipping_label', args=[self.order1.unique_order_id])
+
+        with self.settings(SHIPROCKET_EMAIL="test@example.com", SHIPROCKET_PASSWORD="password"):
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 302)
+            self.assertEqual(response.url, "https://shiprocket-mock-pdf.example.com/dynamic-label.pdf")
+            
+            self.order1.refresh_from_db()
+            self.assertEqual(self.order1.shipment_id, "888888")
+            self.assertEqual(self.order1.shiprocket_order_id, "999999")
+            
+            mock_fetch.assert_called_once_with(self.order1.unique_order_id)
+            mock_get_label_url.assert_called_once_with("888888")
+
+    @mock.patch('delivery.delivery_services.ShiprocketService.get_label_url')
+    def test_shiprocket_fallback_on_api_failure(self, mock_get_label_url):
+        """If Shiprocket API fails to generate label URL, fall back gracefully to custom HTML label."""
+        self.order1.shipment_id = "123456"
+        self.order1.save()
+
+        mock_get_label_url.return_value = None
+
+        self.client.login(phone="8888888888", password="sellerpassword")
+        url = reverse('orders:print_shipping_label', args=[self.order1.unique_order_id])
+
+        with self.settings(SHIPROCKET_EMAIL="test@example.com", SHIPROCKET_PASSWORD="password"):
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            self.assertTemplateUsed(response, 'orders/shipping_label.html')
 
 
 class MultiSellerOrderTests(TestCase):

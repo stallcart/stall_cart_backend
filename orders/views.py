@@ -894,8 +894,8 @@ def seller_add_tracking(request, order_id):
 def print_shipping_label(request, order_id):
     """
     Seller/Admin: Print a clean shipping label for a specific order.
-    Shows FROM (seller) and TO (customer shipping) details with a mock barcode.
-    No financial information is displayed.
+    Pulls official Shiprocket label if shipment is registered,
+    otherwise falls back to custom label with full Shiprocket tracking details.
     """
     role = getattr(request.user, 'role', 'customer')
     if role == 'seller':
@@ -922,6 +922,37 @@ def print_shipping_label(request, order_id):
     else:
         messages.error(request, "Access denied.")
         return redirect('shop:home')
+
+    # Try to fetch official Shiprocket label PDF if Shiprocket is configured
+    from django.conf import settings
+    from delivery.delivery_services import ShiprocketService
+
+    shiprocket_email = getattr(settings, 'SHIPROCKET_EMAIL', None)
+    shiprocket_password = getattr(settings, 'SHIPROCKET_PASSWORD', None)
+
+    if shiprocket_email and shiprocket_password:
+        try:
+            shipment_id = order.shipment_id
+            srv = ShiprocketService()
+
+            # If shipment_id is not stored, try to retrieve it dynamically from Shiprocket
+            if not shipment_id:
+                details = srv.fetch_shipment_details_by_channel_order_id(order.unique_order_id)
+                if details:
+                    order.shiprocket_order_id = details.get("shiprocket_order_id")
+                    order.shipment_id = details.get("shipment_id")
+                    order.save(update_fields=["shiprocket_order_id", "shipment_id", "updated_at"])
+                    shipment_id = order.shipment_id
+
+            if shipment_id:
+                label_url = srv.get_label_url(shipment_id)
+                if label_url:
+                    # Redirect directly to official PDF label
+                    return redirect(label_url)
+        except Exception as e:
+            # Log error and fall back gracefully to custom label template
+            import logging
+            logging.getLogger(__name__).error(f"Error fetching Shiprocket label PDF for order {order.unique_order_id}: {e}")
 
     # Calculate total quantity of seller's items in this order
     total_qty = sum(item.quantity for item in seller_items)
@@ -962,10 +993,10 @@ def print_shipping_label(request, order_id):
         'phone': order.shipping_address.get('phone', ''),
     }
 
-    # Generate vector barcode bars pattern based on Order ID
+    # Generate vector barcode bars pattern based on AWB/Tracking number or Order ID
     bars = []
-    # Ensure start and end quiet zones (Code 39 style start/stop character '*' pattern)
-    barcode_str = f"*{order.unique_order_id}*"
+    barcode_val = order.tracking_number or order.unique_order_id
+    barcode_str = f"*{barcode_val}*"
     for char in barcode_str:
         val = ord(char)
         # Output 9 binary bars/spaces per character for Code 39-like look
@@ -979,6 +1010,7 @@ def print_shipping_label(request, order_id):
         'to_details': to_details,
         'total_qty': total_qty,
         'bars': bars,
+        'barcode_val': barcode_val,
     }
     return render(request, 'orders/shipping_label.html', context)
 
