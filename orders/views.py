@@ -117,6 +117,9 @@ def sync_shiprocket_tracking(order):
                 status_map = {
                     'awb assigned': 'confirmed',
                     'manifested': 'processing',
+                    'out for pickup': 'processing',
+                    'pickup scheduled': 'processing',
+                    'pickup queued': 'processing',
                     'pickup': 'shipped',
                     'picked up': 'shipped',
                     'picked-up': 'shipped',
@@ -1280,6 +1283,9 @@ def shiprocket_webhook(request):
         status_map = {
             'awb assigned': 'confirmed',
             'manifested': 'processing',
+            'out for pickup': 'processing',
+            'pickup scheduled': 'processing',
+            'pickup queued': 'processing',
             'pickup': 'shipped',
             'picked up': 'shipped',
             'picked-up': 'shipped',
