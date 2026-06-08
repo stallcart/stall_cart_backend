@@ -59,7 +59,9 @@
             <div class="step-content">
                 <strong>{{ step.label }}</strong>
                 <small>{{ step.timestamp|date:"d M, h:i A" }}</small>
-                {% if step.remarks %}<p class="remarks">{{ step.remarks }}</p>{% endif %}
+                {% if step.remarks and step.status in 'cancelled,returned,returned_to_source,refund_initiated,refunded' %}
+                <p class="remarks">{{ step.remarks }}</p>
+                {% endif %}
             </div>
         </div>
         {% endfor %}
@@ -116,6 +118,44 @@
                 <a href="{{ seller_items.0.tracking_url }}" target="_blank" class="btn-outline">Track Live</a>
             {% endif %}
         {% endif %}
+    </div>
+    {% endif %}
+
+    {% if order.tracking_number %}
+    <div style="background: white; padding: 25px; border-radius: 12px; margin-bottom: 20px; border: 1.5px solid var(--gray-100);">
+        <h3 style="margin-top: 0; margin-bottom: 15px;">📦 Shipment Details</h3>
+        <p style="margin: 0 0 8px;"><strong>Courier Partner:</strong> {{ order.courier_name|default:"Shiprocket" }}</p>
+        <p style="margin: 0 0 8px;"><strong>AWB / Tracking Number:</strong> {{ order.tracking_number }}</p>
+        {% if order.estimated_delivery %}
+        <p style="margin: 0;"><strong>Estimated Delivery:</strong> {{ order.estimated_delivery|date:"d M Y" }}</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if shiprocket_tracking and shiprocket_tracking.activities %}
+    <div style="background: white; padding: 25px; border-radius: 12px; margin-bottom: 20px; border: 1.5px solid var(--gray-100);">
+        <h3 style="margin-top: 0; margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
+            <i class="fa fa-route" style="color:#059669;"></i> Live Tracking History (Shiprocket)
+        </h3>
+        <div style="display: flex; flex-direction: column; gap: 20px; padding-left: 10px; border-left: 2px solid #e2e8f0; margin-left: 10px; position: relative;">
+            {% for act in shiprocket_tracking.activities %}
+            <div style="position: relative;">
+                <div style="position: absolute; left: -16px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: {% if forloop.first %}#059669{% else %}#cbd5e1{% endif %}; border: 2px solid white; box-shadow: 0 0 0 2px {% if forloop.first %}rgba(5, 150, 105, 0.2){% else %}transparent{% endif %};"></div>
+                <div>
+                    <strong style="color: #1e293b; font-size: 0.95rem; display: block;">{{ act.activity }}</strong>
+                    {% if act.location %}
+                    <span style="font-size: 0.8rem; background: #f1f5f9; color: #475569; padding: 2px 6px; border-radius: 4px; margin-top: 4px; display: inline-block;">{{ act.location }}</span>
+                    {% endif %}
+                    <p style="margin: 4px 0 0; color: #64748b; font-size: 0.82rem;">
+                        <i class="fa fa-calendar-alt"></i> {{ act.date }}
+                        {% if act.status %}
+                        • Status: <span style="font-weight: 600;">{{ act.status }}</span>
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
     </div>
     {% endif %}
 

@@ -817,6 +817,9 @@ def seller_order_detail(request, order_id):
         seller_commission_total += item.commission_amount
         seller_earnings_total += item.seller_earnings
 
+    # Live Shiprocket sync
+    shiprocket_tracking = sync_shiprocket_tracking(order)
+
     timeline = build_cleaned_timeline(order)
     
     pending_returns = ReturnRequest.objects.filter(
@@ -832,6 +835,7 @@ def seller_order_detail(request, order_id):
         'seller_commission_total': seller_commission_total,
         'seller_earnings_total': seller_earnings_total,
         'pending_returns': pending_returns,
+        'shiprocket_tracking': shiprocket_tracking,
     }
     return render(request, 'orders/seller_order_detail.html', context)
 
