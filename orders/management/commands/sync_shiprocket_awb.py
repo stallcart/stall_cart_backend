@@ -196,6 +196,9 @@ class Command(BaseCommand):
         status_map = {
             'awb assigned': 'confirmed',
             'manifested': 'processing',
+            'out for pickup': 'processing',
+            'pickup scheduled': 'processing',
+            'pickup queued': 'processing',
             'pickup': 'shipped',
             'picked up': 'shipped',
             'picked-up': 'shipped',

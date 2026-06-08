@@ -1089,6 +1089,27 @@ class BackgroundJobAndEmailSyncTests(TestCase):
         order.refresh_from_db()
         self.assertEqual(order.status, "shipped")
 
+    @mock.patch('delivery.delivery_services.ShiprocketService.get_tracking')
+    def test_sync_out_for_pickup_status(self, mock_get_tracking):
+        """Test that 'Out for Pickup' status is correctly mapped to local 'processing' status."""
+        order = Order.objects.create(
+            user=self.customer,
+            total_amount=Decimal("500.00"),
+            payment_method="cod",
+            status="confirmed",
+            tracking_number="123456789"
+        )
+        mock_get_tracking.return_value = {
+            "current_status": "Out for Pickup",
+            "delivered_date": None,
+            "etd": None,
+            "activities": []
+        }
+        from orders.views import sync_shiprocket_tracking
+        sync_shiprocket_tracking(order)
+        order.refresh_from_db()
+        self.assertEqual(order.status, "processing")
+
 
 class ShippingLabelTests(TestCase):
     def setUp(self):
