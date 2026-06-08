@@ -1231,7 +1231,6 @@ def profile_view(request):
     
     # Auto-heal: Create a default SellerProfile if it was missed during registration (e.g. database migration delay)
     if request.user.role == 'seller' and not hasattr(request.user, 'seller_profile'):
-        from items.models import SellerProfile
         try:
             SellerProfile.objects.create(
                 user=request.user,
