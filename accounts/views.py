@@ -880,7 +880,10 @@ def profile_view(request):
     
     if is_ajax:
         try:
-            data = json.loads(request.body)
+            if request.content_type.startswith('application/json'):
+                data = json.loads(request.body)
+            else:
+                data = request.POST
             action = data.get('action')
             
             # ===== SEND OTPs FOR PROFILE UPDATE =====
