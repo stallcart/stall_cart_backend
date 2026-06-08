@@ -812,5 +812,141 @@ class AdminBusinessDashboardTests(TestCase):
         self.assertTrue(response.context['is_superuser'])
 
 
+class SellerPANVerificationTests(TestCase):
+    def setUp(self):
+        from unittest.mock import patch
+        self.sms_patcher = patch('common.sms_service.send_sms_via_2factor')
+        self.mock_send_sms = self.sms_patcher.start()
+        self.mock_send_sms.return_value = True
 
+        self.email_patcher = patch('common.email_service.send_dynamic_email')
+        self.mock_send_email = self.email_patcher.start()
+        self.mock_send_email.return_value = True
 
+    def tearDown(self):
+        self.sms_patcher.stop()
+        self.email_patcher.stop()
+
+    def test_seller_registration_requires_pan(self):
+        """UserRegistrationForm requires PAN for sellers, validates format and uniqueness."""
+        from accounts.forms import UserRegistrationForm
+        
+        # 1. Missing PAN for seller
+        form_data = {
+            'phone': '9876543210',
+            'email': 'seller@example.com',
+            'full_name': 'Test Seller',
+            'user_role': 'seller',
+            'shop_name': 'My Shop',
+            'password1': 'pass123',
+            'password2': 'pass123',
+            'pan_number': ''
+        }
+        form = UserRegistrationForm(data=form_data)
+        self.assertFalse(form.is_valid())
+        self.assertIn('pan_number', form.errors)
+
+        # 2. Invalid PAN format
+        form_data['pan_number'] = 'INVALID123'
+        form = UserRegistrationForm(data=form_data)
+        self.assertFalse(form.is_valid())
+        self.assertIn('pan_number', form.errors)
+
+        # 3. Valid PAN format
+        form_data['pan_number'] = 'ABCDE1234F'
+        form = UserRegistrationForm(data=form_data)
+        self.assertTrue(form.is_valid())
+
+        # Save to test uniqueness
+        user = form.save(commit=False)
+        user.role = 'seller'
+        user.save()
+        from items.models import SellerProfile
+        SellerProfile.objects.create(
+            user=user,
+            shop_name=form.cleaned_data['shop_name'],
+            pan_number=form.cleaned_data['pan_number'],
+            phone=user.phone
+        )
+
+        # 4. Duplicate PAN
+        form_data2 = {
+            'phone': '9876543211',
+            'email': 'seller2@example.com',
+            'full_name': 'Test Seller 2',
+            'user_role': 'seller',
+            'shop_name': 'My Shop 2',
+            'password1': 'pass123',
+            'password2': 'pass123',
+            'pan_number': 'ABCDE1234F' # duplicate
+        }
+        form2 = UserRegistrationForm(data=form_data2)
+        self.assertFalse(form2.is_valid())
+        self.assertIn('pan_number', form2.errors)
+
+    def test_seller_profile_update_resets_verification(self):
+        """Updating PAN details resets verification status and sends email notification."""
+        # Create an active admin with email to receive notification
+        User.objects.create_user(phone="9999999990", password="pass", role="admin", email="admin@example.com")
+        
+        user = User.objects.create_user(phone="9998887771", password="pass", role="seller")
+        from items.models import SellerProfile
+        profile = SellerProfile.objects.create(
+            user=user,
+            shop_name="Unique Shop",
+            pan_number="ABCDE1234F",
+            pan_verification_status="verified",
+            is_verified=True
+        )
+        self.assertTrue(profile.is_verified)
+
+        # Update PAN number
+        profile.pan_number = "WXYZR9876Q"
+        profile.save()
+
+        profile.refresh_from_db()
+        self.assertFalse(profile.is_verified)
+        self.assertEqual(profile.pan_verification_status, 'pending')
+        # Check that admin notification email was triggered
+        self.assertTrue(self.mock_send_email.called)
+
+    def test_admin_verify_and_reject_actions(self):
+        """Admin actions correctly update status and triggers notifications."""
+        admin = User.objects.create_superuser(phone="9999999999", password="pass", role="admin")
+        self.client.login(phone="9999999999", password="pass")
+
+        seller_user = User.objects.create_user(phone="9998887772", password="pass", role="seller", email="seller@example.com")
+        from items.models import SellerProfile
+        profile = SellerProfile.objects.create(
+            user=seller_user,
+            shop_name="Verification Shop",
+            pan_number="ABCDE1234F",
+            pan_verification_status="pending",
+            is_verified=False
+        )
+
+        # 1. Verify seller
+        action_url = reverse('items:verify_seller_action', kwargs={'seller_id': profile.id})
+        response = self.client.post(
+            action_url,
+            data=json.dumps({'action': 'verify'}),
+            content_type="application/json",
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest"
+        )
+        self.assertEqual(response.status_code, 200)
+        profile.refresh_from_db()
+        self.assertTrue(profile.is_verified)
+        self.assertEqual(profile.pan_verification_status, 'verified')
+
+        # 2. Reject seller
+        response = self.client.post(
+            action_url,
+            data=json.dumps({'action': 'reject', 'reason': 'Documents are blurry'}),
+            content_type="application/json",
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest"
+        )
+        self.assertEqual(response.status_code, 200)
+        profile.refresh_from_db()
+        self.assertFalse(profile.is_verified)
+        self.assertEqual(profile.pan_verification_status, 'rejected')
+        self.assertEqual(profile.pan_rejection_reason, 'Documents are blurry')

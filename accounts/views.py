@@ -83,7 +83,10 @@ def register_view(request):
     # Handle AJAX submissions
     if is_ajax:
         try:
-            data = json.loads(request.body)
+            if request.content_type.startswith('application/json'):
+                data = json.loads(request.body)
+            else:
+                data = request.POST
             action = data.get('action')
             
             # Action 1: Send OTPs for registration
@@ -97,6 +100,7 @@ def register_view(request):
                 shop_name = data.get('shop_name', '').strip()
                 shop_description = data.get('shop_description', '').strip()
                 gst_number = data.get('gst_number', '').strip()
+                pan_number = data.get('pan_number', '').strip()
                 
                 # Check uniqueness and validate form first
                 form_data = {
@@ -109,6 +113,7 @@ def register_view(request):
                     'shop_name': shop_name if user_role == 'seller' else '',
                     'shop_description': shop_description if user_role == 'seller' else '',
                     'gst_number': gst_number if user_role == 'seller' else '',
+                    'pan_number': pan_number if user_role == 'seller' else '',
                 }
                 form = UserRegistrationForm(form_data)
                 if not form.is_valid():
@@ -150,7 +155,10 @@ def register_view(request):
             elif action == 'register':
                 from django.db import transaction
                 with transaction.atomic():
-                    form = UserRegistrationForm(data)
+                    if request.content_type.startswith('application/json'):
+                        form = UserRegistrationForm(data)
+                    else:
+                        form = UserRegistrationForm(data, request.FILES)
                     if not form.is_valid():
                         return JsonResponse({'status': 'error', 'errors': form.errors}, status=400)
                     
@@ -205,6 +213,8 @@ def register_view(request):
                             shop_name=form.cleaned_data['shop_name'],
                             shop_description=form.cleaned_data.get('shop_description', ''),
                             gst_number=form.cleaned_data.get('gst_number'),
+                            pan_number=form.cleaned_data.get('pan_number'),
+                            pan_card_file=form.cleaned_data.get('pan_card_file'),
                             phone=user.phone,
                             is_verified=False,
                             created_by=user
@@ -1169,6 +1179,38 @@ def profile_view(request):
                 seller.save(update_fields=update_fields)
                 
                 return JsonResponse({'status': 'success', 'message': 'Bank details updated successfully!'})
+            
+            # ===== UPDATE PAN DETAILS (Sellers Only) =====
+            elif action == 'update_pan_details':
+                if request.user.role != 'seller' or not hasattr(request.user, 'seller_profile'):
+                    return JsonResponse({'status': 'error', 'message': 'Only sellers can update PAN details'}, status=403)
+                
+                pan_number = data.get('pan_number', '').strip().upper()
+                pan_card_file = request.FILES.get('pan_card_file')
+                
+                if not pan_number:
+                    return JsonResponse({'status': 'error', 'message': 'PAN number is required.'}, status=400)
+                
+                import re
+                if not re.match(r'^[A-Z]{5}[0-9]{4}[A-Z]{1}$', pan_number):
+                    return JsonResponse({'status': 'error', 'message': 'Invalid PAN number format. Format must be e.g. ABCDE1234F'}, status=400)
+                
+                seller = request.user.seller_profile
+                if SellerProfile.objects.filter(pan_number=pan_number).exclude(pk=seller.pk).exists():
+                    return JsonResponse({'status': 'error', 'message': 'This PAN number is already registered by another seller.'}, status=400)
+                
+                seller.pan_number = pan_number
+                if pan_card_file:
+                    seller.pan_card_file = pan_card_file
+                seller.save()
+                
+                return JsonResponse({
+                    'status': 'success',
+                    'message': 'PAN details updated successfully and submitted for verification.',
+                    'pan_number': seller.pan_number,
+                    'pan_verification_status': seller.pan_verification_status,
+                    'is_verified': seller.is_verified,
+                })
             
             return JsonResponse({'status': 'error', 'message': 'Invalid action'}, status=400)
             

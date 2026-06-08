@@ -111,6 +111,8 @@ class SellerProfileAdmin(admin.ModelAdmin):
         'shop_name',
         'user',
         'phone',
+        'pan_number',
+        'pan_verification_status',
         'is_verified',
         'is_active',
         'product_count',
@@ -119,11 +121,13 @@ class SellerProfileAdmin(admin.ModelAdmin):
     )
 
     list_editable = (
+        'pan_verification_status',
         'is_verified',
         'is_active',
     )
 
     list_filter = (
+        'pan_verification_status',
         'is_verified',
         'is_active',
         'created_at',
@@ -133,6 +137,7 @@ class SellerProfileAdmin(admin.ModelAdmin):
         'shop_name',
         'user__phone',
         'user__full_name',
+        'pan_number',
     )
 
     readonly_fields = (
@@ -155,6 +160,10 @@ class SellerProfileAdmin(admin.ModelAdmin):
         ('Verification', {
             'fields': (
                 'gst_number',
+                'pan_number',
+                'pan_card_file',
+                'pan_verification_status',
+                'pan_rejection_reason',
                 'is_verified',
                 'is_active',
                 'rating',

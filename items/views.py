@@ -1566,9 +1566,10 @@ def verify_seller_action(request, seller_id):
         seller = get_object_or_404(SellerProfile, id=seller_id)
         
         if action == 'verify':
+            seller.pan_verification_status = 'verified'
             seller.is_verified = True
             seller.is_active = True
-            seller.save(update_fields=['is_verified', 'is_active'])
+            seller.save()
             
             # Send welcome email using dynamic template
             try:
@@ -1588,11 +1589,11 @@ def verify_seller_action(request, seller_id):
             })
             
         elif action == 'reject':
+            seller.pan_verification_status = 'rejected'
+            seller.pan_rejection_reason = reason
+            seller.is_verified = False
             seller.is_active = False
-            seller.save(update_fields=['is_active'])
-            
-            # Optional: Send rejection email with reason
-            # send_rejection_email(seller, reason)
+            seller.save()
             
             return JsonResponse({
                 'status': 'success',
@@ -1621,6 +1622,10 @@ def seller_detail_api(request, seller_id):
         'product_count': seller.products.filter(status='published').count(),
         'is_verified': seller.is_verified,
         'is_active': seller.is_active,
+        'pan_number': seller.pan_number,
+        'pan_verification_status': seller.pan_verification_status,
+        'pan_rejection_reason': seller.pan_rejection_reason,
+        'pan_card_file_url': seller.pan_card_file.url if seller.pan_card_file else None,
     }
     return JsonResponse(data)    
 

@@ -68,6 +68,20 @@
                 {% if form.gst_number.errors %}<div class="error-text">{{ form.gst_number.errors.0 }}</div>{% endif %}
                 <small class="form-hint">Optional: Add GST for business verification</small>
             </div>
+
+            <div class="form-group">
+                <label for="{{ form.pan_number.id_for_label }}"><i class="fa fa-id-card"></i> {{ form.pan_number.label }} *</label>
+                {{ form.pan_number }}
+                {% if form.pan_number.errors %}<div class="error-text">{{ form.pan_number.errors.0 }}</div>{% endif %}
+                <small class="form-hint">Required for tax & verification. Format: ABCDE1234F</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="{{ form.pan_card_file.id_for_label }}"><i class="fa fa-upload"></i> {{ form.pan_card_file.label }}</label>
+                {{ form.pan_card_file }}
+                {% if form.pan_card_file.errors %}<div class="error-text">{{ form.pan_card_file.errors.0 }}</div>{% endif %}
+                <small class="form-hint">Optional: Upload copy of PAN card (PDF or Image)</small>
+            </div>
         </div>
         
         <!-- Password Fields -->
@@ -174,7 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Toggle required attribute for seller fields
         const sellerInputs = sellerFields.querySelectorAll('input, textarea');
         sellerInputs.forEach(input => {
-            if (input.name.includes('shop_name')) {
+            if (input.name === 'shop_name' || input.name === 'pan_number') {
                 input.required = isSeller;
             } else {
                 input.required = false;
@@ -224,6 +238,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const shopName = document.querySelector('input[name="shop_name"]')?.value.trim() || '';
         const shopDescription = document.querySelector('textarea[name="shop_description"]')?.value.trim() || '';
         const gstNumber = document.querySelector('input[name="gst_number"]')?.value.trim() || '';
+        const panNumber = document.querySelector('input[name="pan_number"]')?.value.trim().toUpperCase() || '';
+        const panCardFile = document.querySelector('input[name="pan_card_file"]')?.files[0];
         
         // Basic validations
         if (!phone || phone.length !== 10 || isNaN(phone)) {
@@ -246,9 +262,21 @@ document.addEventListener('DOMContentLoaded', () => {
             toast('Passwords do not match.', 'error');
             return;
         }
-        if (userRole === 'seller' && !shopName) {
-            toast('Shop name is required for seller accounts.', 'error');
-            return;
+        if (userRole === 'seller') {
+            if (!shopName) {
+                toast('Shop name is required for seller accounts.', 'error');
+                return;
+            }
+            if (!panNumber) {
+                toast('PAN number is required for seller accounts.', 'error');
+                return;
+            }
+            // PAN number format check (e.g. ABCDE1234F)
+            const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+            if (!panRegex.test(panNumber)) {
+                toast('Invalid PAN number format. Format must be e.g. ABCDE1234F', 'error');
+                return;
+            }
         }
         
         const submitBtn = authForm.querySelector('button[type="submit"]');
@@ -256,26 +284,33 @@ document.addEventListener('DOMContentLoaded', () => {
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Sending verification codes...';
         
+        // Build FormData
+        const formData = new FormData();
+        formData.append('action', 'send_register_otps');
+        formData.append('phone', phone);
+        formData.append('email', email);
+        formData.append('full_name', fullName);
+        formData.append('password1', password1);
+        formData.append('password2', password2);
+        formData.append('user_role', userRole);
+        if (userRole === 'seller') {
+            formData.append('shop_name', shopName);
+            formData.append('shop_description', shopDescription);
+            formData.append('gst_number', gstNumber);
+            formData.append('pan_number', panNumber);
+            if (panCardFile) {
+                formData.append('pan_card_file', panCardFile);
+            }
+        }
+        
         try {
             const res = await fetch("{% url 'accounts:register' %}", {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
                     'X-CSRFToken': '{{ csrf_token }}',
                     'X-Requested-With': 'XMLHttpRequest'
                 },
-                body: JSON.stringify({
-                    action: 'send_register_otps',
-                    phone: phone,
-                    email: email,
-                    full_name: fullName,
-                    password1: password1,
-                    password2: password2,
-                    user_role: userRole,
-                    shop_name: shopName,
-                    shop_description: shopDescription,
-                    gst_number: gstNumber
-                })
+                body: formData
             });
             
             const data = await res.json();
@@ -306,28 +341,34 @@ document.addEventListener('DOMContentLoaded', () => {
                     confirmVerifyRegisterBtn.disabled = true;
                     confirmVerifyRegisterBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Creating Account...';
                     
+                    const regFormData = new FormData();
+                    regFormData.append('action', 'register');
+                    regFormData.append('phone', phone);
+                    regFormData.append('email', email);
+                    regFormData.append('full_name', fullName);
+                    regFormData.append('password1', password1);
+                    regFormData.append('password2', password2);
+                    regFormData.append('user_role', userRole);
+                    if (userRole === 'seller') {
+                        regFormData.append('shop_name', shopName);
+                        regFormData.append('shop_description', shopDescription);
+                        regFormData.append('gst_number', gstNumber);
+                        regFormData.append('pan_number', panNumber);
+                        if (panCardFile) {
+                            regFormData.append('pan_card_file', panCardFile);
+                        }
+                    }
+                    regFormData.append('email_otp', emailOtpVal);
+                    regFormData.append('phone_otp', phoneOtpVal);
+                    
                     try {
                         const regRes = await fetch("{% url 'accounts:register' %}", {
                             method: 'POST',
                             headers: {
-                                'Content-Type': 'application/json',
                                 'X-CSRFToken': '{{ csrf_token }}',
                                 'X-Requested-With': 'XMLHttpRequest'
                             },
-                            body: JSON.stringify({
-                                action: 'register',
-                                phone: phone,
-                                email: email,
-                                full_name: fullName,
-                                password1: password1,
-                                password2: password2,
-                                user_role: userRole,
-                                shop_name: shopName,
-                                shop_description: shopDescription,
-                                gst_number: gstNumber,
-                                email_otp: emailOtpVal,
-                                phone_otp: phoneOtpVal
-                            })
+                            body: regFormData
                         });
                         
                         const regData = await regRes.json();
