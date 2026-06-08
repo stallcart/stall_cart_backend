@@ -214,7 +214,11 @@
                 <a href="{% url 'items:product_list' %}?category={{ cat.slug }}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}" 
                    class="category-quick-card {% if cat.slug in selected_categories %}active{% endif %}" style="display: flex; flex-direction: column; align-items: center; text-decoration: none; min-width: 70px; padding: 4px;">
                     <div class="category-quick-icon" style="width: 50px; height: 50px; border-radius: 50%; overflow: hidden; border: 2px solid {% if cat.slug in selected_categories %}var(--blue-500){% else %}var(--gray-200){% endif %}; margin-bottom: 6px; display: flex; align-items: center; justify-content: center;">
-                        <img src="/static/images/categories/{{ cat.slug }}.png" alt="{{ cat.name }}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        {% if cat.icon %}
+                            <img src="{{ cat.icon.url }}" alt="{{ cat.name }}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        {% else %}
+                            <img src="/static/images/categories/{{ cat.slug }}.png" alt="{{ cat.name }}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        {% endif %}
                         <span style="display: none; font-size: 1.4rem;">🛍️</span>
                     </div>
                     <span class="category-quick-name" style="font-size: 0.75rem; font-weight: 600; color: {% if cat.slug in selected_categories %}var(--blue-600){% else %}var(--gray-700){% endif %};">{{ cat.name }}</span>

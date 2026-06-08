@@ -397,3 +397,24 @@ class ProductAndSellerReviewTests(TestCase):
             'review': 'This is a long enough seller review with at least 20 characters.'
         })
         self.assertTrue(s_form.is_valid())
+
+
+class CategoryIconTests(TestCase):
+    def test_category_icon_field(self):
+        """Test that Category model accepts an icon and slugifies name successfully."""
+        category = Category.objects.create(
+            name="Accessories",
+            commision_percentage=5.0
+        )
+        self.assertEqual(category.slug, "accessories")
+        self.assertFalse(category.icon)
+        
+        # Test updating icon
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        icon_file = SimpleUploadedFile("icon.png", b"file_content", content_type="image/png")
+        category.icon = icon_file
+        category.save()
+        
+        category.refresh_from_db()
+        self.assertTrue(category.icon)
+        self.assertTrue(category.icon.name.startswith("category_icons/icon"))

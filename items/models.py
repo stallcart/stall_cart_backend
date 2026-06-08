@@ -176,6 +176,7 @@ class Category(BaseModel):
     description = models.TextField(blank=True,null=True)
     commision_percentage = models.FloatField(default=0)
     parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL, related_name='children')
+    icon = models.ImageField(upload_to='category_icons/', null=True, blank=True, help_text="Category icon image (displayed on storefront/menus)")
     
     def save(self, *args, **kwargs):
         if not self.slug:

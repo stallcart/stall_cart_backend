@@ -170,6 +170,17 @@ class SellerProfileAdmin(admin.ModelAdmin):
             )
         }),
 
+        ('Bank Details', {
+            'fields': (
+                'bank_name',
+                'account_number',
+                'ifsc_code',
+                'account_holder_name',
+                'razorpay_contact_id',
+                'razorpay_fund_account_id',
+            )
+        }),
+
         ('Contact', {
             'fields': (
                 'phone',
@@ -186,6 +197,21 @@ class SellerProfileAdmin(admin.ModelAdmin):
             )
         }),
     )
+
+    def get_readonly_fields(self, request, obj=None):
+        readonly = list(super().get_readonly_fields(request, obj))
+        
+        # If the user is staff but not admin/superuser, make PAN and bank details read-only
+        if not request.user.is_superuser and getattr(request.user, 'role', None) != 'admin':
+            restricted_fields = [
+                'pan_number', 'pan_card_file', 'pan_verification_status', 'pan_rejection_reason',
+                'bank_name', 'account_number', 'ifsc_code', 'account_holder_name',
+                'razorpay_contact_id', 'razorpay_fund_account_id', 'is_verified', 'is_active'
+            ]
+            for field in restricted_fields:
+                if field not in readonly:
+                    readonly.append(field)
+        return readonly
 
     def product_count(self, obj):
         return obj.products.count()
@@ -216,6 +242,7 @@ class CategoryAdmin(admin.ModelAdmin):
     list_display = (
         'name',
         'slug',
+        'icon_preview',
         'parent',
         'commision_percentage',
         'product_count',
@@ -235,6 +262,17 @@ class CategoryAdmin(admin.ModelAdmin):
     prepopulated_fields = {
         'slug': ('name',)
     }
+
+    readonly_fields = ('icon_preview',)
+
+    def icon_preview(self, obj):
+        if obj.icon:
+            return format_html(
+                '<img src="{}" style="max-height:45px; max-width:45px; object-fit:contain; border-radius:4px; border:1px solid #eee;">',
+                obj.icon.url
+            )
+        return "No Icon"
+    icon_preview.short_description = "Icon"
 
     def product_count(self, obj):
 

@@ -376,7 +376,8 @@
                             <input type="text" id="shop_name" name="shop_name" 
                                    value="{{ seller.shop_name }}" required
                                    placeholder="Enter shop name"
-                                   class="form-input">
+                                   class="form-input"
+                                   {% if not is_admin %}disabled{% endif %}>
                         </div>
                         
                         <!-- GST Number -->
@@ -385,7 +386,8 @@
                             <input type="text" id="gst_number" name="gst_number" 
                                    value="{{ seller.gst_number|default:'' }}"
                                    placeholder="Enter GST number (optional)"
-                                   class="form-input">
+                                   class="form-input"
+                                   {% if not is_admin %}disabled{% endif %}>
                         </div>
                         
                         <!-- Phone (read-only, from user) -->
@@ -407,7 +409,8 @@
                             <label for="shop_description">Shop Description</label>
                             <textarea id="shop_description" name="shop_description" 
                                       placeholder="Describe the shop, products, specialties..."
-                                      class="form-input" style="min-height: 120px;">{{ seller.shop_description }}</textarea>
+                                      class="form-input" style="min-height: 120px;"
+                                      {% if not is_admin %}disabled{% endif %}>{{ seller.shop_description }}</textarea>
                         </div>
                     </div>
                     
@@ -416,11 +419,11 @@
                         <h4><i class="fa fa-toggle-on"></i> Seller Status</h4>
                         <div class="status-options">
                             <label class="status-option {% if seller.is_verified %}checked-verified{% endif %}" id="verifiedLabel">
-                                <input type="checkbox" id="is_verified" name="is_verified" {% if seller.is_verified %}checked{% endif %}>
+                                <input type="checkbox" id="is_verified" name="is_verified" {% if seller.is_verified %}checked{% endif %} {% if not is_admin %}disabled{% endif %}>
                                 <span>Verified (Approved to sell)</span>
                             </label>
                             <label class="status-option {% if seller.is_active %}checked-active{% endif %}" id="activeLabel">
-                                <input type="checkbox" id="is_active" name="is_active" {% if seller.is_active %}checked{% endif %}>
+                                <input type="checkbox" id="is_active" name="is_active" {% if seller.is_active %}checked{% endif %} {% if not is_admin %}disabled{% endif %}>
                                 <span>Active (Account enabled)</span>
                             </label>
                         </div>
@@ -433,16 +436,20 @@
                     <!-- Form Actions -->
                     <div class="form-actions">
                         <a href="{% url 'items:verify_sellers' %}" class="btn-cancel">
-                            <i class="fa fa-times"></i> Cancel
+                            <i class="fa fa-times"></i> Back
                         </a>
-                        {% if not seller.is_verified and seller.is_active %}
-                        <button type="button" class="btn-danger" id="rejectBtn">
-                            <i class="fa fa-times-circle"></i> Reject Seller
-                        </button>
+                        {% if is_admin %}
+                            {% if not seller.is_verified and seller.is_active %}
+                            <button type="button" class="btn-danger" id="rejectBtn">
+                                <i class="fa fa-times-circle"></i> Reject Seller
+                            </button>
+                            {% endif %}
+                            <button type="submit" class="btn-save">
+                                <i class="fa fa-check"></i> Save Changes
+                            </button>
+                        {% else %}
+                            <span style="color:var(--gray-500);font-size:0.9rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;margin-left:12px;"><i class="fa fa-info-circle"></i> Editing is restricted to Admin users.</span>
                         {% endif %}
-                        <button type="submit" class="btn-save">
-                            <i class="fa fa-check"></i> Save Changes
-                        </button>
                     </div>
                 </form>
             </div>
@@ -496,7 +503,7 @@
             <div style="margin-bottom: 35px;">
                 <h4 style="margin-bottom: 16px; font-size: 1.05rem; display: flex; align-items: center; justify-content: space-between; font-family: 'Syne', sans-serif; font-weight: 700; color: var(--gray-800);">
                     <span style="display: flex; align-items: center; gap: 8px;"><i class="fa fa-boxes-packing" style="color: var(--blue-500);"></i> 📦 Unsettled Delivered Items</span>
-                    {% if unsettled_order_items %}
+                    {% if unsettled_order_items and is_admin %}
                     <button type="button" class="btn-save" id="createSettlementBtn" style="padding: 8px 16px; font-size: 0.85rem; width: auto; background: linear-gradient(135deg, var(--blue-500), var(--blue-600)); border: none; box-shadow: var(--sh-sm);">
                         <i class="fa fa-plus-circle"></i> Create Settlement
                     </button>
@@ -574,9 +581,13 @@
                                 <td style="font-family: monospace; font-size: 0.8rem; color: var(--gray-600);">{{ sett.razorpay_payout_id|default:"—" }}</td>
                                 <td style="text-align: center;">
                                     {% if sett.status == 'pending' or sett.status == 'failed' %}
-                                    <button type="button" class="btn-save trigger-payout-btn" data-settlement-id="{{ sett.id }}" style="padding: 8px 14px; font-size: 0.8rem; width: auto; background: linear-gradient(135deg, var(--green), #059669); border: none; box-shadow: 0 4px 10px rgba(16,185,129,0.25);">
-                                        💸 Payout
-                                    </button>
+                                        {% if is_admin %}
+                                        <button type="button" class="btn-save trigger-payout-btn" data-settlement-id="{{ sett.id }}" style="padding: 8px 14px; font-size: 0.8rem; width: auto; background: linear-gradient(135deg, var(--green), #059669); border: none; box-shadow: 0 4px 10px rgba(16,185,129,0.25);">
+                                            💸 Payout
+                                        </button>
+                                        {% else %}
+                                        <span style="color: var(--gray-500); font-size: 0.85rem; font-weight: 600;">Pending Admin</span>
+                                        {% endif %}
                                     {% else %}
                                     <span style="color: var(--green); font-size: 0.85rem; font-weight: 700;"><i class="fa fa-check-circle"></i> Settled</span>
                                     {% endif %}
