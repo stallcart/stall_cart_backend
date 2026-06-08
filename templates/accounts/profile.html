@@ -576,6 +576,8 @@
                                     <i class="fa fa-check-circle"></i>
                                 {% elif seller_profile.pan_verification_status == 'rejected' %}
                                     <i class="fa fa-times-circle"></i>
+                                {% elif not seller_profile.pan_number %}
+                                    <i class="fa fa-exclamation-circle"></i>
                                 {% else %}
                                     <i class="fa fa-hourglass-half"></i>
                                 {% endif %}
@@ -586,6 +588,8 @@
                                         Identity Verified
                                     {% elif seller_profile.pan_verification_status == 'rejected' %}
                                         Verification Rejected
+                                    {% elif not seller_profile.pan_number %}
+                                        PAN Submission Required
                                     {% else %}
                                         Pending Admin Verification
                                     {% endif %}
@@ -595,6 +599,8 @@
                                         Your PAN card has been successfully verified. Selling privileges are active.
                                     {% elif seller_profile.pan_verification_status == 'rejected' %}
                                         Reason: {{ seller_profile.pan_rejection_reason|default:"Incomplete or unreadable documents." }} Please upload valid details.
+                                    {% elif not seller_profile.pan_number %}
+                                        Please provide your PAN card details to request identity verification. Your selling privileges are suspended until approved.
                                     {% else %}
                                         Your PAN card details are currently under review. Selling privileges are suspended until approved.
                                     {% endif %}
