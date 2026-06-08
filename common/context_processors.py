@@ -36,7 +36,7 @@ def cart_count(request):
     cart_count = 0
     
     # Only authenticated customers get a database cart
-    if request.user.is_authenticated and getattr(request.user, 'role', None) == 'customer':
+    if hasattr(request, 'user') and request.user.is_authenticated and getattr(request.user, 'role', None) == 'customer':
         try:
             # Fetch cart with annotated total_items for efficiency
             cart = request.user.cart
@@ -65,7 +65,7 @@ def cart_and_wishlist(request):
     cart_count = 0
     wishlist_count = 0
 
-    if request.user.is_authenticated and hasattr(request.user, 'role'):
+    if hasattr(request, 'user') and request.user.is_authenticated and hasattr(request.user, 'role'):
         if request.user.role == 'customer':
             # Cart count
             cart = getattr(request.user, 'cart', None)
@@ -86,7 +86,7 @@ def cart_and_wishlist(request):
     admin_pending_count = 0
     admin_verified_count = 0
     
-    if request.user.is_authenticated and (request.user.is_superuser or request.user.has_perm('items.verify_seller')):
+    if hasattr(request, 'user') and request.user.is_authenticated and (request.user.is_superuser or request.user.has_perm('items.verify_seller')):
         admin_pending_count = SellerProfile.objects.filter(
             is_verified=False, 
             is_active=True
@@ -100,7 +100,7 @@ def cart_and_wishlist(request):
         'wishlist_count': wishlist_count,
         'admin_pending_sellers': admin_pending_count,
         'admin_verified_sellers': admin_verified_count,
-        'show_admin_verify_link': request.user.is_authenticated and (
+        'show_admin_verify_link': hasattr(request, 'user') and request.user.is_authenticated and (
             request.user.is_superuser or request.user.has_perm('items.verify_seller')
         ),
     }
