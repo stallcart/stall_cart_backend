@@ -194,15 +194,18 @@ class Command(BaseCommand):
         self.stdout.write(f"\n[Part 2] Checking {active_tracked_orders.count()} active tracked order(s) for status updates...")
 
         status_map = {
-            'AWB Assigned': 'confirmed',
-            'Manifested': 'processing',
-            'In Transit': 'shipped',
-            'Shipped': 'shipped',
-            'Out for Delivery': 'out_for_delivery',
-            'Delivered': 'delivered',
-            'RTO': 'returned_to_source',
-            'Returned to Source': 'returned_to_source',
-            'Cancelled': 'cancelled'
+            'awb assigned': 'confirmed',
+            'manifested': 'processing',
+            'pickup': 'shipped',
+            'picked up': 'shipped',
+            'picked-up': 'shipped',
+            'in transit': 'shipped',
+            'shipped': 'shipped',
+            'out for delivery': 'out_for_delivery',
+            'delivered': 'delivered',
+            'rto': 'returned_to_source',
+            'returned to source': 'returned_to_source',
+            'cancelled': 'cancelled'
         }
 
         for order in active_tracked_orders:
@@ -216,7 +219,7 @@ class Command(BaseCommand):
                     continue
 
                 sr_status = sr_status.strip()
-                new_local_status = status_map.get(sr_status)
+                new_local_status = status_map.get(sr_status.lower())
                 self.stdout.write(f"  Shiprocket Status: '{sr_status}' -> Mapped Local Status: '{new_local_status}'")
 
                 if new_local_status and new_local_status != order.status:

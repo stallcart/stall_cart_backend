@@ -115,17 +115,20 @@ def sync_shiprocket_tracking(order):
                 sr_status = shiprocket_tracking['current_status'].strip()
                 # Status mapping to local db status
                 status_map = {
-                    'AWB Assigned': 'confirmed',
-                    'Manifested': 'processing',
-                    'In Transit': 'shipped',
-                    'Shipped': 'shipped',
-                    'Out for Delivery': 'out_for_delivery',
-                    'Delivered': 'delivered',
-                    'RTO': 'returned_to_source',
-                    'Returned to Source': 'returned_to_source',
-                    'Cancelled': 'cancelled'
+                    'awb assigned': 'confirmed',
+                    'manifested': 'processing',
+                    'pickup': 'shipped',
+                    'picked up': 'shipped',
+                    'picked-up': 'shipped',
+                    'in transit': 'shipped',
+                    'shipped': 'shipped',
+                    'out for delivery': 'out_for_delivery',
+                    'delivered': 'delivered',
+                    'rto': 'returned_to_source',
+                    'returned to source': 'returned_to_source',
+                    'cancelled': 'cancelled'
                 }
-                new_local_status = status_map.get(sr_status)
+                new_local_status = status_map.get(sr_status.lower())
                 if new_local_status and new_local_status != order.status:
                     old_status = order.status
                     order.status = new_local_status
@@ -1275,18 +1278,21 @@ def shiprocket_webhook(request):
             
         sr_status = sr_status.strip()
         status_map = {
-            'AWB Assigned': 'confirmed',
-            'Manifested': 'processing',
-            'In Transit': 'shipped',
-            'Shipped': 'shipped',
-            'Out for Delivery': 'out_for_delivery',
-            'Delivered': 'delivered',
-            'RTO': 'returned_to_source',
-            'Returned to Source': 'returned_to_source',
-            'Cancelled': 'cancelled'
+            'awb assigned': 'confirmed',
+            'manifested': 'processing',
+            'pickup': 'shipped',
+            'picked up': 'shipped',
+            'picked-up': 'shipped',
+            'in transit': 'shipped',
+            'shipped': 'shipped',
+            'out for delivery': 'out_for_delivery',
+            'delivered': 'delivered',
+            'rto': 'returned_to_source',
+            'returned to source': 'returned_to_source',
+            'cancelled': 'cancelled'
         }
         
-        new_local_status = status_map.get(sr_status)
+        new_local_status = status_map.get(sr_status.lower())
         
         with transaction.atomic():
             if new_local_status:

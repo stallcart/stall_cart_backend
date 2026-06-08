@@ -1063,6 +1063,32 @@ class BackgroundJobAndEmailSyncTests(TestCase):
         self.site_settings.refresh_from_db()
         self.assertFalse(self.site_settings.enable_background_jobs)
 
+    @mock.patch('delivery.delivery_services.ShiprocketService.get_tracking')
+    def test_sync_picked_up_status(self, mock_get_tracking):
+        """Test that 'Picked Up' status is correctly mapped to local 'shipped' status case-insensitively."""
+        # Create an active tracked order
+        order = Order.objects.create(
+            user=self.customer,
+            total_amount=Decimal("500.00"),
+            payment_method="cod",
+            status="confirmed",
+            tracking_number="123456789"
+        )
+        # Mock tracking response
+        mock_get_tracking.return_value = {
+            "current_status": "Picked Up",
+            "delivered_date": None,
+            "etd": None,
+            "activities": []
+        }
+        
+        # Execute the sync view or helper
+        from orders.views import sync_shiprocket_tracking
+        tracking_data = sync_shiprocket_tracking(order)
+        
+        order.refresh_from_db()
+        self.assertEqual(order.status, "shipped")
+
 
 class ShippingLabelTests(TestCase):
     def setUp(self):
