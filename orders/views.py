@@ -36,6 +36,46 @@ razorpay_client = razorpay.Client(auth=(
     settings.RAZORPAY_KEY_SECRET
 ))
 
+def get_friendly_remark(status, remarks):
+    """
+    Returns a customer-friendly description for the timeline status log.
+    If the remark is a developer/system debug string or empty, we return a professional status description.
+    """
+    remarks_lower = (remarks or "").lower()
+    
+    # Check if the remark is system-generated / debug
+    is_system = (
+        not remarks
+        or "automatically updated" in remarks_lower
+        or "automatic synchronization" in remarks_lower
+        or "automatically synced" in remarks_lower
+        or "overall status updated" in remarks_lower
+        or "automatically pushed" in remarks_lower
+        or "failed to auto-push" in remarks_lower
+        or "sent manual awb" in remarks_lower
+        or "awaiting tracking" in remarks_lower
+    )
+    
+    if is_system:
+        # Return friendly status defaults
+        friendly_defaults = {
+            'pending': 'Your order has been placed successfully.',
+            'confirmed': 'Your order has been confirmed by the seller.',
+            'processing': 'Your order is being packed and prepared for pickup.',
+            'shipped': 'Your package is in transit with our courier partner.',
+            'out_for_delivery': 'Your package is out for delivery and will reach you today.',
+            'delivered': 'Your package has been delivered successfully.',
+            'cancelled': 'Your order has been cancelled.',
+            'returned_to_source': 'Your package is returning to the source (RTO).',
+            'returned': 'The return was completed successfully.',
+            'refund_initiated': 'Refund has been initiated for your order.',
+            'refunded': 'Refund has been successfully credited.',
+        }
+        return friendly_defaults.get(status, '')
+        
+    return remarks
+
+
 def build_cleaned_timeline(order):
     """
     Builds a list of status log entries for public/seller timelines.
@@ -67,7 +107,7 @@ def build_cleaned_timeline(order):
             'label': status_labels.get(log.new_status, log.new_status),
             'get_new_status_display': log.get_new_status_display(),
             'timestamp': log.timestamp,
-            'remarks': remarks,
+            'remarks': get_friendly_remark(log.new_status, remarks),
         })
     return cleaned_timeline
 
