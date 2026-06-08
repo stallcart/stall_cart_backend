@@ -88,6 +88,8 @@ class Order(BaseModel):
     # Delivery Tracking
     tracking_number = models.CharField(max_length=100, blank=True, null=True)  # Shiprocket/Awbl
     courier_name = models.CharField(max_length=100, blank=True, null=True)
+    shiprocket_order_id = models.CharField(max_length=100, blank=True, null=True)
+    shipment_id = models.CharField(max_length=100, blank=True, null=True)
     estimated_delivery = models.DateField(null=True, blank=True)
     delivered_at = models.DateTimeField(null=True, blank=True)
     shipped_at = models.DateTimeField(null=True, blank=True)

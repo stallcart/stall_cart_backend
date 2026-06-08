@@ -488,6 +488,37 @@ class ShiprocketService:
             logger.error(f"Shiprocket label error: {e}")
             return None
 
+    def fetch_shipment_details_by_channel_order_id(self, channel_order_id):
+        """
+        Fetch order details from Shiprocket using channel_order_id (external_order_id)
+        and extract the Shiprocket order ID and shipment ID.
+        """
+        try:
+            res = requests.get(
+                f"{SHIPROCKET_API}/orders",
+                params={"channel_order_id": channel_order_id},
+                headers=self._headers(),
+                timeout=10,
+            )
+            res.raise_for_status()
+            data = res.json()
+            orders = data.get("data", [])
+            if orders:
+                order_data = orders[0]
+                shiprocket_order_id = order_data.get("id")
+                shipments = order_data.get("shipments", [])
+                shipment_id = None
+                if shipments:
+                    shipment_id = shipments[0].get("id")
+                return {
+                    "shiprocket_order_id": shiprocket_order_id,
+                    "shipment_id": shipment_id
+                }
+            return None
+        except Exception as e:
+            logger.error(f"Shiprocket fetch shipment details error for {channel_order_id}: {e}")
+            return None
+
     # ── Check Serviceability ──────────────────────────────────────────────────
 
     def check_serviceability(self, delivery_postcode, pickup_postcode="110001", weight=0.5, cod=True):
@@ -584,13 +615,15 @@ def auto_push_order_to_shiprocket(order):
             if res.get('success') and res.get('awb'):
                 order.tracking_number = res.get('awb')
                 order.courier_name = res.get('courier_name', 'Shiprocket')
+                order.shiprocket_order_id = res.get('shiprocket_order_id')
+                order.shipment_id = res.get('shipment_id')
                 if res.get('estimated_delivery'):
                     from datetime import datetime
                     try:
                         order.estimated_delivery = datetime.strptime(res['estimated_delivery'], "%Y-%m-%d").date()
                     except Exception:
                         pass
-                order.save(update_fields=['tracking_number', 'courier_name', 'estimated_delivery', 'updated_at'])
+                order.save(update_fields=['tracking_number', 'courier_name', 'estimated_delivery', 'shiprocket_order_id', 'shipment_id', 'updated_at'])
                 logger.info(f"Automatically pushed order {order.unique_order_id} to Shiprocket. AWB: {order.tracking_number}")
                 
                 # Create a status log for tracing the Shiprocket push
