@@ -127,7 +127,14 @@
         <p style="margin: 0 0 8px;"><strong>Courier Partner:</strong> {{ order.courier_name|default:"Shiprocket" }}</p>
         <p style="margin: 0 0 8px;"><strong>AWB / Tracking Number:</strong> {{ order.tracking_number }}</p>
         {% if order.estimated_delivery %}
-        <p style="margin: 0;"><strong>Estimated Delivery:</strong> {{ order.estimated_delivery|date:"d M Y" }}</p>
+        <p style="margin: 0 0 8px;"><strong>Estimated Delivery:</strong> {{ order.estimated_delivery|date:"d M Y" }}</p>
+        {% endif %}
+        {% if order.tracking_url %}
+        <div style="margin-top: 12px;">
+            <a href="{{ order.tracking_url }}" target="_blank" class="btn-outline" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; text-decoration: none; font-size: 0.85rem; font-weight: 700; border: 2px solid #2874f0; color: #2874f0; border-radius: 8px; background: white; cursor: pointer;">
+                📍 Track Live
+            </a>
+        </div>
         {% endif %}
     </div>
     {% endif %}
