@@ -559,9 +559,11 @@
                 
                 <!-- Actions -->
                 <div class="seller-actions">
+                    {% if request.user.is_superuser or request.user.role == 'admin' %}
                     <a href="{% url 'items:seller_edit' seller.id %}" class="btn-edit">
-                        <i class="fa fa-pencil"></i> Edit
+                        <i class="fa fa-pencil-alt"></i> Edit
                     </a>
+                    {% endif %}
                     <button class="btn-view-modal" onclick="openSellerModal({{ seller.id }})">
                         <i class="fa fa-eye"></i> View
                     </button>
@@ -641,6 +643,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         openModal(sellerModal);
         
+        const isUserAdmin = {% if request.user.is_superuser or request.user.role == 'admin' %}true{% else %}false{% endif %};
+        
         try {
             const res = await fetch(`/items/admin/api/seller/${sellerId}/`, {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
@@ -663,17 +667,31 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                     <div class="seller-detail-row"><strong>PAN Verification Status</strong><span>${data.pan_verification_status ? data.pan_verification_status.toUpperCase() : 'PENDING'}</span></div>
                     ${data.pan_rejection_reason ? `<div class="seller-detail-row"><strong>Rejection Reason</strong><span style="color:var(--red);">${data.pan_rejection_reason}</span></div>` : ''}
-                    <div class="seller-detail-row"><strong>Products</strong><span>${data.product_count || 0} Published</span></div>
+                    
+                    <!-- Bank details section (visible to admin and staff) -->
+                    <div class="seller-detail-row" style="background:#f8fafc;padding:10px 0;margin-top:14px;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;justify-content:center;font-weight:700;color:var(--gray-700);">🏦 Bank Details</div>
+                    <div class="seller-detail-row"><strong>Bank Name</strong><span>${data.bank_name || 'N/A'}</span></div>
+                    <div class="seller-detail-row"><strong>Account Number</strong><span>${data.account_number || 'N/A'}</span></div>
+                    <div class="seller-detail-row"><strong>IFSC Code</strong><span>${data.ifsc_code || 'N/A'}</span></div>
+                    <div class="seller-detail-row"><strong>Account Holder</strong><span>${data.account_holder_name || 'N/A'}</span></div>
+                    
+                    <div class="seller-detail-row" style="margin-top:10px;"><strong>Products</strong><span>${data.product_count || 0} Published</span></div>
                     <div class="seller-detail-row"><strong>Status</strong><span>${data.is_verified ? '✅ Verified' : (data.is_active ? '⏳ Pending' : '❌ Rejected')}</span></div>
                     <div class="seller-detail-row" style="flex-direction:column;align-items:flex-start;padding-top:14px;">
                         <strong style="margin-bottom:6px;">Description</strong>
                         <span style="color:var(--gray-600);line-height:1.5;font-size:0.9rem;">${data.description || 'No description provided'}</span>
                     </div>
                     
+                    ${isUserAdmin ? `
                     <div class="modal-footer" style="display:flex;gap:12px;margin-top:24px;border-top:1px solid var(--gray-200);padding-top:16px;">
                         <button class="btn-primary" style="background:#2e7d32;flex:1;margin:0;border:none;color:white;cursor:pointer;padding:10px 16px;border-radius:4px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;" onclick="triggerSellerAction(${sellerId}, 'verify')"><i class="fa fa-check"></i> Verify Seller</button>
                         <button class="btn-primary" style="background:#c62828;flex:1;margin:0;border:none;color:white;cursor:pointer;padding:10px 16px;border-radius:4px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;" onclick="triggerSellerAction(${sellerId}, 'reject')"><i class="fa fa-times"></i> Reject Seller</button>
                     </div>
+                    ` : `
+                    <div class="modal-footer" style="display:flex;justify-content:center;margin-top:24px;border-top:1px solid var(--gray-200);padding-top:16px;color:var(--gray-500);font-size:0.9rem;font-weight:600;">
+                        <i class="fa fa-info-circle"></i> Verification actions are restricted to Admin users.
+                    </div>
+                    `}
                 `;
             } else {
                 body.innerHTML = `<p style="color:var(--red);text-align:center;">Failed to load details</p>`;

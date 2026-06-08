@@ -1558,6 +1558,9 @@ def verify_sellers_view(request):
 @admin_only
 def verify_seller_action(request, seller_id):
     """AJAX endpoint to verify/reject a seller"""
+    if not request.user.is_superuser and getattr(request.user, 'role', None) != 'admin':
+        return JsonResponse({'status': 'error', 'message': 'Permission denied. Only Admins can verify/reject sellers.'}, status=403)
+        
     try:
         data = json.loads(request.body)
         action = data.get('action')  # 'verify' or 'reject'
@@ -1626,6 +1629,10 @@ def seller_detail_api(request, seller_id):
         'pan_verification_status': seller.pan_verification_status,
         'pan_rejection_reason': seller.pan_rejection_reason,
         'pan_card_file_url': seller.pan_card_file.url if seller.pan_card_file else None,
+        'bank_name': seller.bank_name,
+        'account_number': seller.account_number,
+        'ifsc_code': seller.ifsc_code,
+        'account_holder_name': seller.account_holder_name,
     }
     return JsonResponse(data)    
 
@@ -1638,7 +1645,13 @@ def seller_edit_view(request, seller_id):
     """
     seller = get_object_or_404(SellerProfile.objects.select_related('user'), id=seller_id)
     
+    is_admin = request.user.is_superuser or getattr(request.user, 'role', None) == 'admin'
+    
     if request.method == 'POST':
+        if not is_admin:
+            messages.error(request, 'Permission denied. Only Admins can edit seller details.')
+            return redirect('items:verify_sellers')
+            
         # Handle form submission
         seller.shop_name = request.POST.get('shop_name', seller.shop_name).strip()
         seller.shop_description = request.POST.get('shop_description', seller.shop_description).strip()
@@ -1695,5 +1708,6 @@ def seller_edit_view(request, seller_id):
         'seller': seller,
         'seller_settlements': seller_settlements,
         'unsettled_order_items': unsettled_order_items,
+        'is_admin': is_admin,
     }
     return render(request, 'items/seller_edit.html', context)
