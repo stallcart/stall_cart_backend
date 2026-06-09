@@ -880,14 +880,18 @@ def seller_update_status(request, order_id):
         # Update items
         for item in items_to_update:
             item.status = new_status
+            item.shiprocket_status = None
             if new_status == 'shipped':
                 item.shipped_at = timezone.now()
             elif new_status == 'delivered':
                 item.delivered_at = timezone.now()
-            item.save(update_fields=['status', 'shipped_at', 'delivered_at', 'updated_at'])
+            item.save(update_fields=['status', 'shipped_at', 'delivered_at', 'shiprocket_status', 'updated_at'])
             
         # Update overall order status
         order.update_overall_status()
+        # Clear overall order shiprocket status since seller overrode items manually
+        order.shiprocket_status = None
+        order.save(update_fields=['shiprocket_status', 'updated_at'])
         
         OrderStatusLog.objects.create(
             order=order, old_status=old_status, new_status=new_status,
@@ -1149,6 +1153,7 @@ def admin_update_status(request, order_id):
     with transaction.atomic():
         old_status = order.status
         order.status = new_status
+        order.shiprocket_status = None
         order.status_updated_at = timezone.now()
         if new_status == 'delivered':
             order.delivered_at = timezone.now()
@@ -1157,11 +1162,12 @@ def admin_update_status(request, order_id):
         # Propagate status to all items
         for item in order.items.all():
             item.status = new_status
+            item.shiprocket_status = None
             if new_status == 'shipped':
                 item.shipped_at = timezone.now()
             elif new_status == 'delivered':
                 item.delivered_at = timezone.now()
-            item.save(update_fields=['status', 'shipped_at', 'delivered_at', 'updated_at'])
+            item.save(update_fields=['status', 'shipped_at', 'delivered_at', 'shiprocket_status', 'updated_at'])
         
         OrderStatusLog.objects.create(
             order=order, old_status=old_status, new_status=new_status,
@@ -1353,9 +1359,13 @@ def shiprocket_webhook(request):
         new_local_status = status_map.get(sr_status.lower())
         
         with transaction.atomic():
+            order.shiprocket_status = sr_status
+            order.save(update_fields=['shiprocket_status', 'updated_at'])
+            
             if new_local_status:
                 if order_item:
                     # Update status of specific order item
+                    order_item.shiprocket_status = sr_status
                     if order_item.status != new_local_status:
                         old_status = order.status
                         order_item.status = new_local_status
@@ -1363,12 +1373,14 @@ def shiprocket_webhook(request):
                             order_item.delivered_at = timezone.now()
                         elif new_local_status == 'shipped' and not order_item.shipped_at:
                             order_item.shipped_at = timezone.now()
-                        order_item.save(update_fields=['status', 'shipped_at', 'delivered_at', 'updated_at'])
+                        order_item.save(update_fields=['status', 'shipped_at', 'delivered_at', 'shiprocket_status', 'updated_at'])
                         
                         # Recalculate overall status
                         order.update_overall_status()
                         
                         logger.info(f"Shiprocket Webhook: Updated order item {order_item.id}. Status: {new_local_status}. Order status recalculated to {order.status}")
+                    else:
+                        order_item.save(update_fields=['shiprocket_status', 'updated_at'])
                 else:
                     # Fallback to updating the overall order status and items
                     tracking_updated = False
@@ -1378,7 +1390,7 @@ def shiprocket_webhook(request):
 
                     if (new_local_status and new_local_status != order.status) or tracking_updated:
                         old_status = order.status
-                        update_fields = ['updated_at']
+                        update_fields = ['updated_at', 'shiprocket_status']
                         
                         if new_local_status and new_local_status != order.status:
                             order.status = new_local_status
@@ -1399,11 +1411,12 @@ def shiprocket_webhook(request):
                         items_to_sync = order.items.filter(tracking_number__isnull=True) | order.items.filter(tracking_number='')
                         for item in items_to_sync:
                             item.status = new_local_status
+                            item.shiprocket_status = sr_status
                             if new_local_status == 'shipped':
                                 item.shipped_at = timezone.now()
                             elif new_local_status == 'delivered':
                                 item.delivered_at = timezone.now()
-                            item.save(update_fields=['status', 'shipped_at', 'delivered_at', 'updated_at'])
+                            item.save(update_fields=['status', 'shipped_at', 'delivered_at', 'shiprocket_status', 'updated_at'])
 
                         # Create status change log
                         OrderStatusLog.objects.create(

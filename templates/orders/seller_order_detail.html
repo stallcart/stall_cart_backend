@@ -81,6 +81,11 @@
                 <h4>{{ item.product.name }}</h4>
                 <p>SKU: {{ item.product.sku|default:'—' }}</p>
                 <p>Qty: {{ item.quantity }} × ₹{{ item.price|floatformat:2 }}</p>
+                {% if item.shiprocket_status %}
+                <p style="font-size: 0.85rem; color: #555; margin-top: 2px;">
+                    Courier Status: <span style="font-weight: 700; color: #1e3a8a;">{{ item.shiprocket_status }}</span>
+                </p>
+                {% endif %}
                 <p style="font-size: 0.85rem; color: #555; margin-top: 4px;">
                     Commission ({{ item.product.category.commision_percentage|default:0 }}%): 
                     <span style="color: #c62828; font-weight: 600;">−₹{{ item.commission_amount|floatformat:2 }}</span>
@@ -126,6 +131,9 @@
         <h3 style="margin-top: 0; margin-bottom: 15px;">📦 Shipment Details</h3>
         <p style="margin: 0 0 8px;"><strong>Courier Partner:</strong> {{ order.courier_name|default:"Shiprocket" }}</p>
         <p style="margin: 0 0 8px;"><strong>AWB / Tracking Number:</strong> {{ order.tracking_number }}</p>
+        {% if order.shiprocket_status %}
+        <p style="margin: 0 0 8px;"><strong>Courier Status:</strong> <span style="font-weight: 700; color: #1e3a8a; background: #e0f2fe; padding: 2px 8px; border-radius: 4px; font-size: 0.85rem; display: inline-block;">{{ order.shiprocket_status }}</span></p>
+        {% endif %}
         {% if order.estimated_delivery %}
         <p style="margin: 0 0 8px;"><strong>Estimated Delivery:</strong> {{ order.estimated_delivery|date:"d M Y" }}</p>
         {% endif %}
