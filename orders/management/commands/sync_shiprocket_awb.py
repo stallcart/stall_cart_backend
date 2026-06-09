@@ -215,7 +215,11 @@ class Command(BaseCommand):
             'delivered': 'delivered',
             'rto': 'returned_to_source',
             'returned to source': 'returned_to_source',
-            'cancelled': 'cancelled'
+            'cancelled': 'cancelled',
+            'pickup failed': 'courier_failed_pickup',
+            'pickup exception': 'courier_failed_pickup',
+            'pickup_failed': 'courier_failed_pickup',
+            'pickup_exception': 'courier_failed_pickup',
         }
 
         for order in active_tracked_orders:
@@ -232,6 +236,16 @@ class Command(BaseCommand):
                 new_local_status = status_map.get(sr_status.lower())
                 self.stdout.write(f"  Shiprocket Status: '{sr_status}' -> Mapped Local Status: '{new_local_status}'")
 
+                # Always update shiprocket_status if it differs
+                if order.shiprocket_status != sr_status:
+                    order.shiprocket_status = sr_status
+                    order.save(update_fields=['shiprocket_status', 'updated_at'])
+                    
+                    # Update all order items too
+                    for item in order.items.filter(tracking_number=order.tracking_number) | order.items.filter(tracking_number__isnull=True) | order.items.filter(tracking_number=''):
+                        item.shiprocket_status = sr_status
+                        item.save(update_fields=['shiprocket_status', 'updated_at'])
+
                 if new_local_status and new_local_status != order.status:
                     old_status = order.status
                     order.status = new_local_status
@@ -245,6 +259,18 @@ class Command(BaseCommand):
                         update_fields.append('shipped_at')
 
                     order.save(update_fields=update_fields)
+
+                    # Update all items statuses too
+                    for item in order.items.filter(tracking_number=order.tracking_number) | order.items.filter(tracking_number__isnull=True) | order.items.filter(tracking_number=''):
+                        item.status = new_local_status
+                        item_fields = ['status', 'updated_at']
+                        if new_local_status == 'delivered':
+                            item.delivered_at = timezone.now()
+                            item_fields.append('delivered_at')
+                        elif new_local_status == 'shipped' and not item.shipped_at:
+                            item.shipped_at = timezone.now()
+                            item_fields.append('shipped_at')
+                        item.save(update_fields=item_fields)
 
                     # Log the automatic status update
                     OrderStatusLog.objects.create(

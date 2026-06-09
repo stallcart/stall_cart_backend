@@ -91,6 +91,7 @@ class Order(BaseModel):
     courier_name = models.CharField(max_length=100, blank=True, null=True)
     shiprocket_order_id = models.CharField(max_length=100, blank=True, null=True)
     shipment_id = models.CharField(max_length=100, blank=True, null=True)
+    shiprocket_status = models.CharField(max_length=100, blank=True, null=True)
     estimated_delivery = models.DateField(null=True, blank=True)
     delivered_at = models.DateTimeField(null=True, blank=True)
     shipped_at = models.DateTimeField(null=True, blank=True)
@@ -398,6 +399,7 @@ class OrderItem(BaseModel):
     status = models.CharField(max_length=30, choices=Order.STATUS_CHOICES, default='pending')
     tracking_number = models.CharField(max_length=100, blank=True, null=True)
     courier_name = models.CharField(max_length=100, blank=True, null=True)
+    shiprocket_status = models.CharField(max_length=100, blank=True, null=True)
     shipped_at = models.DateTimeField(null=True, blank=True)
     delivered_at = models.DateTimeField(null=True, blank=True)
     

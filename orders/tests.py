@@ -1644,6 +1644,144 @@ class CustomAdminCancellationStatusTests(TestCase):
         self.assertEqual(wallet.balance, Decimal("110.00"))
 
 
+class ShiprocketStatusTrackingTests(TestCase):
+    def setUp(self):
+        from accounts.models import User
+        from items.models import SellerProfile, Category, Product
+        
+        self.admin_user = User.objects.create_superuser(
+            phone="9999999999",
+            password="adminpassword",
+            full_name="Admin User"
+        )
+        self.seller_user = User.objects.create_user(
+            phone="8888888888",
+            password="sellerpassword",
+            role="seller",
+            full_name="Seller One"
+        )
+        self.seller_profile = SellerProfile.objects.create(
+            user=self.seller_user,
+            shop_name="Shop One",
+            is_verified=True
+        )
+        self.customer = User.objects.create_user(
+            phone="6666666666",
+            password="customerpassword",
+            role="customer",
+            full_name="Customer User"
+        )
+        
+        self.category = Category.objects.create(name="Clothing", commision_percentage=10.0)
+        self.product = Product.objects.create(
+            seller=self.seller_profile,
+            category=self.category,
+            name="Shirt",
+            price=Decimal("100.00"),
+            stock=10
+        )
+        self.order = Order.objects.create(
+            user=self.customer,
+            shipping_address={"name": "Customer"},
+            total_amount=Decimal("100.00"),
+            payment_method="cod",
+            status="confirmed",
+            tracking_number="SR998877"
+        )
+        self.item = OrderItem.objects.create(
+            order=self.order,
+            product=self.product,
+            seller=self.seller_profile,
+            quantity=1,
+            price=Decimal("100.00"),
+            total=Decimal("100.00")
+        )
+
+    def test_shiprocket_status_updated_via_webhook(self):
+        """Webhook updates shiprocket_status on Order and OrderItem."""
+        url = reverse('orders:shiprocket_webhook')
+        payload = {
+            "awb": "SR998877",
+            "current_status": "Manifested"
+        }
+        response = self.client.post(
+            url,
+            data=json.dumps(payload),
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+        
+        self.order.refresh_from_db()
+        self.item.refresh_from_db()
+        
+        self.assertEqual(self.order.shiprocket_status, "Manifested")
+        self.assertEqual(self.item.shiprocket_status, "Manifested")
+
+    def test_shiprocket_status_updated_via_sync_command(self):
+        """Background AWB sync job updates shiprocket_status on Order and OrderItem."""
+        from unittest import mock
+        
+        with mock.patch('delivery.delivery_services.ShiprocketService._get_token') as mock_token, \
+             mock.patch('delivery.delivery_services.ShiprocketService.get_tracking') as mock_tracking:
+            mock_token.return_value = "dummy_token"
+            mock_tracking.return_value = {
+                "current_status": "In Transit",
+                "activities": []
+            }
+            
+            call_command("sync_shiprocket_awb")
+            
+            self.order.refresh_from_db()
+            self.item.refresh_from_db()
+            
+            self.assertEqual(self.order.shiprocket_status, "In Transit")
+            self.assertEqual(self.item.shiprocket_status, "In Transit")
+
+    def test_shiprocket_status_cleared_on_manual_update(self):
+        """Manual update by admin or seller clears shiprocket_status on Order and OrderItem."""
+        # Set initial status
+        self.order.shiprocket_status = "In Transit"
+        self.order.save()
+        self.item.shiprocket_status = "In Transit"
+        self.item.save()
+        
+        # 1. Test Seller Manual Update clears it
+        self.client.login(phone="8888888888", password="sellerpassword")
+        url = reverse('orders:seller_update_status', args=[self.order.unique_order_id])
+        response = self.client.post(
+            url,
+            data=json.dumps({"status": "delivered"}),
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+        
+        self.order.refresh_from_db()
+        self.item.refresh_from_db()
+        self.assertIsNone(self.order.shiprocket_status)
+        self.assertIsNone(self.item.shiprocket_status)
+        
+        # 2. Test Admin Manual Update clears it
+        self.order.shiprocket_status = "In Transit"
+        self.order.save()
+        self.item.shiprocket_status = "In Transit"
+        self.item.save()
+        
+        self.client.login(phone="9999999999", password="adminpassword")
+        url = reverse('orders:admin_update_status', args=[self.order.unique_order_id])
+        response = self.client.post(
+            url,
+            data=json.dumps({"status": "processing"}),
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+        
+        self.order.refresh_from_db()
+        self.item.refresh_from_db()
+        self.assertIsNone(self.order.shiprocket_status)
+        self.assertIsNone(self.item.shiprocket_status)
+
+
+
 
 
 
