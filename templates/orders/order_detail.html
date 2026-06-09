@@ -40,6 +40,8 @@
 .st-cancelled    { background: #ffebee; color: #c62828; }
 .st-returned     { background: #f3e5f5; color: #6a1b9a; }
 .st-refund_initiated { background: #e0f2f1; color: #00695c; }
+.st-courier_failed_pickup { background: #ffebee; color: #c62828; }
+.st-seller_unresponsive { background: #ffebee; color: #c62828; }
 
 /* ── Tracking Timeline ───────────────────────────────────── */
 .od-card {
@@ -281,7 +283,7 @@
                         {% if step.timestamp %}
                         <span class="od-tl-time">{{ step.timestamp|date:"d M Y, h:i A" }}</span>
                         {% endif %}
-                        {% if step.remarks and step.status in 'cancelled,returned,returned_to_source,refund_initiated,refunded' %}
+                        {% if step.remarks and step.status in 'cancelled,returned,returned_to_source,refund_initiated,refunded,courier_failed_pickup,seller_unresponsive' %}
                         <div class="od-tl-remark">{{ step.remarks }}</div>
                         {% endif %}
                     </div>

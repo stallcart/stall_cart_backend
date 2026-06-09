@@ -22,7 +22,8 @@ class Order(BaseModel):
         ('returned_to_source', '🔄 Returned to Source (RTO)'),
         ('refund_initiated', '💰 Refund Initiated'),
         ('refunded', '✅ Refunded'),
-
+        ('courier_failed_pickup', '🔴 Pickup Failed (Courier)'),
+        ('seller_unresponsive', '🔴 Seller Unresponsive / Cancelled'),
     ]
     
     # Payment Status
@@ -218,8 +219,9 @@ class Order(BaseModel):
                     logging.getLogger(__name__).error(f"Failed to send refund emails on save for order {self.unique_order_id}: {e}")
         
         if status_changed:
-            # Handle restocking and refunding automatically if status transitions to cancelled/returned/RTO
-            if self.status in ('cancelled', 'returned', 'returned_to_source') and old_status not in ('cancelled', 'returned', 'returned_to_source'):
+            # Handle restocking and refunding automatically if status transitions to cancelled/returned/RTO/failed_pickup/unresponsive
+            cancelled_states = ('cancelled', 'returned', 'returned_to_source', 'courier_failed_pickup', 'seller_unresponsive')
+            if self.status in cancelled_states and old_status not in cancelled_states:
                 self.restock_items()
                 
                 # Auto-refund if paid and eligible (Razorpay)
@@ -326,7 +328,7 @@ class Order(BaseModel):
         if not items.exists():
             return
             
-        active_items = items.exclude(status__in=['cancelled', 'returned', 'returned_to_source', 'refund_initiated', 'refunded'])
+        active_items = items.exclude(status__in=['cancelled', 'returned', 'returned_to_source', 'refund_initiated', 'refunded', 'courier_failed_pickup', 'seller_unresponsive'])
         
         status_ranks = {
             'pending': 1,
@@ -350,6 +352,10 @@ class Order(BaseModel):
                 new_overall_status = 'returned_to_source'
             elif 'returned' in all_statuses:
                 new_overall_status = 'returned'
+            elif 'courier_failed_pickup' in all_statuses:
+                new_overall_status = 'courier_failed_pickup'
+            elif 'seller_unresponsive' in all_statuses:
+                new_overall_status = 'seller_unresponsive'
             else:
                 new_overall_status = 'cancelled'
                 
@@ -439,7 +445,7 @@ class OrderItem(BaseModel):
         If item is cancelled or returned/refunded, earnings are 0.
         Otherwise, it is total - commission.
         """
-        if self.status in ('cancelled', 'returned', 'returned_to_source', 'refund_initiated', 'refunded') or self.is_returned:
+        if self.status in ('cancelled', 'returned', 'returned_to_source', 'refund_initiated', 'refunded', 'courier_failed_pickup', 'seller_unresponsive') or self.is_returned:
             return Decimal('0.00')
         
         active_qty = self.remaining_quantity

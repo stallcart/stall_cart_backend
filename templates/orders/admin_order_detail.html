@@ -230,6 +230,8 @@
                     <option value="returned_to_source" {% if order.status == 'returned_to_source' %}selected{% endif %}>🔄 Returned to Source (RTO)</option>
                     <option value="refund_initiated" {% if order.status == 'refund_initiated' %}selected{% endif %}>💰 Refund Initiated</option>
                     <option value="refunded" {% if order.status == 'refunded' %}selected{% endif %}>✅ Refunded</option>
+                    <option value="courier_failed_pickup" {% if order.status == 'courier_failed_pickup' %}selected{% endif %}>🔴 Pickup Failed (Courier)</option>
+                    <option value="seller_unresponsive" {% if order.status == 'seller_unresponsive' %}selected{% endif %}>🔴 Seller Unresponsive / Cancelled</option>
                 </select>
             </div>
             <button type="submit" class="btn-primary" style="width: 100%; padding: 12px; font-weight: 700; border-radius: var(--r-md); border: none; cursor: pointer;">Confirm Update</button>
