@@ -113,7 +113,7 @@
                     📜 Status Audit Logs
                 </h3>
                 <div style="display: flex; flex-direction: column; gap: 0; padding-left: 10px; border-left: 2px solid var(--gray-200); margin-left: 10px;">
-                    {% for log in order.status_logs.all %}
+                    {% for log in order.cleaned_status_logs reversed %}
                     <div style="position: relative; padding-left: 20px; padding-bottom: 20px;">
                         <div style="position: absolute; left: -17px; top: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--blue-500); border: 2px solid white;"></div>
                         <strong style="display: block; font-size: 0.875rem; color: var(--gray-800);">

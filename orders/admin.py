@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from decimal import Decimal
-from .models import Order, OrderItem, ReturnRequest, OrderReturnImage, SellerSettlement
+from .models import Order, OrderItem, ReturnRequest, OrderReturnImage, SellerSettlement, SystemActivityLog
 from common.admin import BaseModelAdmin
 
 class OrderItemInline(admin.TabularInline):
@@ -187,3 +187,20 @@ class SellerSettlementAdmin(BaseModelAdmin):
                 # If adding a new settlement, restrict choices to order items belonging to sellers
                 pass
         return super().formfield_for_manytomany(db_field, request, **kwargs)
+
+
+@admin.register(SystemActivityLog)
+class SystemActivityLogAdmin(admin.ModelAdmin):
+    list_display = ('id', 'event_type', 'status', 'description', 'order', 'settlement', 'user', 'created_at')
+    list_filter = ('event_type', 'status', 'created_at')
+    search_fields = ('description', 'order__unique_order_id', 'settlement__settlement_id', 'user__phone', 'user__full_name')
+    readonly_fields = ('event_type', 'order', 'settlement', 'user', 'status', 'description', 'metadata', 'created_at', 'updated_at')
+
+    def has_add_permission(self, request):
+        return False  # Log entries are read-only and created programmatically
+
+    def has_change_permission(self, request, obj=None):
+        return False  # Log entries cannot be edited
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser  # Only superusers can delete logs

@@ -1898,9 +1898,168 @@ class ShiprocketStatusTrackingTests(TestCase):
             mock_cancel.assert_called_once_with(["SR_ORDER_123"])
 
 
+class SystemActivityLogTests(TestCase):
+    def setUp(self):
+        from accounts.models import User
+        from items.models import SellerProfile, Category, Product
+        
+        self.seller_user = User.objects.create_user(
+            phone="8888888889",
+            password="sellerpassword",
+            role="seller",
+            full_name="Seller One",
+            email="seller@stallcart.in"
+        )
+        self.seller_profile = SellerProfile.objects.create(
+            user=self.seller_user,
+            shop_name="Shop One System Log Test",
+            is_verified=False
+        )
+        self.customer = User.objects.create_user(
+            phone="6666666669",
+            password="customerpassword",
+            role="customer",
+            full_name="Customer User",
+            email="customer@stallcart.in"
+        )
+        
+        self.category = Category.objects.create(name="Clothing System Log Test", commision_percentage=10.0)
+        self.product = Product.objects.create(
+            seller=self.seller_profile,
+            category=self.category,
+            name="Shirt",
+            price=Decimal("100.00"),
+            stock=10
+        )
+        self.order = Order.objects.create(
+            user=self.customer,
+            shipping_address={"name": "Customer"},
+            total_amount=Decimal("100.00"),
+            payment_method="cod",
+            status="confirmed"
+        )
+
+    def test_log_order_creation_and_status_change(self):
+        """Test Order creation and status change automatically log to SystemActivityLog."""
+        from orders.models import SystemActivityLog
+        
+        # Test creation log
+        logs = SystemActivityLog.objects.filter(event_type='order_status', order=self.order)
+        self.assertTrue(logs.exists())
+        self.assertIn("created with initial status", logs.first().description)
+        
+        # Test status change log
+        self.order.status = "processing"
+        self.order.save()
+        
+        status_logs = SystemActivityLog.objects.filter(event_type='order_status', order=self.order).order_by('-created_at')
+        self.assertEqual(status_logs.count(), 2)
+        self.assertIn("Order status updated from 'confirmed' to 'processing'", status_logs.first().description)
+
+    def test_log_payment_status_change(self):
+        """Test payment status change automatically logs to SystemActivityLog."""
+        from orders.models import SystemActivityLog
+        
+        self.order.payment_status = "paid"
+        self.order.save()
+        
+        pay_logs = SystemActivityLog.objects.filter(event_type='payment_status', order=self.order)
+        self.assertTrue(pay_logs.exists())
+        self.assertIn("Payment status updated from 'pending' to 'paid'", pay_logs.first().description)
+
+    def test_log_seller_verification_pan_updates(self):
+        """Test PAN update and verification status changes log to SystemActivityLog."""
+        from orders.models import SystemActivityLog
+        
+        # Initial PAN submit/update
+        self.seller_profile.pan_number = "ABCDE1234F"
+        self.seller_profile.save()
+        
+        pan_logs = SystemActivityLog.objects.filter(event_type='seller_verification').order_by('-created_at')
+        self.assertTrue(pan_logs.exists())
+        self.assertIn("submitted/updated PAN: ABCDE1234F", pan_logs.first().description)
+
+        # PAN Verification by admin
+        self.seller_profile.pan_verification_status = "verified"
+        self.seller_profile.save()
+        
+        verif_logs = SystemActivityLog.objects.filter(event_type='seller_verification').order_by('-created_at')
+        self.assertTrue(verif_logs.exists())
+        self.assertIn("PAN verification status changed to 'verified'", verif_logs.first().description)
 
 
+class OrderStatusDeduplicationTests(TestCase):
+    def setUp(self):
+        self.customer = User.objects.create_user(
+            phone="6666666670",
+            password="customerpassword",
+            role="customer",
+            full_name="Customer User"
+        )
+        self.seller_user = User.objects.create_user(
+            phone="8888888890",
+            password="sellerpassword",
+            role="seller",
+            full_name="Seller One"
+        )
+        self.seller_profile = SellerProfile.objects.create(
+            user=self.seller_user,
+            shop_name="Shop One",
+            is_verified=True
+        )
+        self.order = Order.objects.create(
+            user=self.customer,
+            shipping_address={"name": "Customer"},
+            total_amount=Decimal("100.00"),
+            payment_method="cod",
+            status="confirmed",
+            tracking_number="SR1234567"
+        )
 
+    def test_cleaned_status_logs_deduplication(self):
+        """Verify cleaned_status_logs filters duplicate status logs and keeps earliest transition."""
+        # Create duplicate status log transitions manually
+        OrderStatusLog.objects.create(
+            order=self.order,
+            old_status="confirmed",
+            new_status="cancelled",
+            remarks="First cancellation"
+        )
+        OrderStatusLog.objects.create(
+            order=self.order,
+            old_status="refund_initiated",
+            new_status="cancelled",
+            remarks="Duplicate cancellation 1"
+        )
+        OrderStatusLog.objects.create(
+            order=self.order,
+            old_status="refund_initiated",
+            new_status="cancelled",
+            remarks="Duplicate cancellation 2"
+        )
 
+        cleaned_logs = self.order.cleaned_status_logs
+        # Should only keep the first transition to 'cancelled'
+        cancelled_logs = [log for log in cleaned_logs if log.new_status == "cancelled"]
+        self.assertEqual(len(cancelled_logs), 1)
+        self.assertEqual(cancelled_logs[0].remarks, "First cancellation")
 
-
+    @mock.patch('delivery.delivery_services.ShiprocketService.get_tracking')
+    def test_sync_shiprocket_tracking_ignores_terminal_statuses(self, mock_get_tracking):
+        """Verify sync_shiprocket_tracking does not fetch tracking details for orders in terminal statuses."""
+        from orders.views import sync_shiprocket_tracking
+        
+        # Test each terminal status
+        terminal_statuses = [
+            'delivered', 'cancelled', 'returned', 'returned_to_source', 
+            'refund_initiated', 'refunded', 'courier_failed_pickup', 'seller_unresponsive'
+        ]
+        
+        for status in terminal_statuses:
+            self.order.status = status
+            self.order.save()
+            mock_get_tracking.reset_mock()
+            
+            result = sync_shiprocket_tracking(self.order)
+            self.assertIsNone(result)
+            mock_get_tracking.assert_not_called()

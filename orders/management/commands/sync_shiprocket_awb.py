@@ -5,7 +5,7 @@ from django.utils import timezone
 import requests
 import logging
 
-from orders.models import Order, OrderStatusLog
+from orders.models import Order, OrderStatusLog, SystemActivityLog
 from accounts.models import User
 from delivery.delivery_services import ShiprocketService
 from common.email_service import send_dynamic_email
@@ -27,6 +27,13 @@ class Command(BaseCommand):
         self.stdout.write("Starting StallCart Background Jobs & Sync...")
         self.stdout.write("=" * 60)
 
+        # Log background job start
+        SystemActivityLog.log(
+            event_type='system_job',
+            description="Background System Job 'sync_shiprocket_awb' started.",
+            status='success'
+        )
+
         # Initialize Shiprocket service and authenticate
         srv = ShiprocketService()
         try:
@@ -35,6 +42,11 @@ class Command(BaseCommand):
             self.run_shiprocket_sync(srv, token)
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"Shiprocket sync skipped/failed: {e}"))
+            SystemActivityLog.log(
+                event_type='system_job',
+                description=f"Shiprocket sync sub-task failed: {e}",
+                status='failed'
+            )
 
         self.run_email_retry()
 
@@ -51,6 +63,13 @@ class Command(BaseCommand):
             call_command('auto_settle_sellers')
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"Automatic seller settlements command execution failed: {e}"))
+
+        # Log background job completion
+        SystemActivityLog.log(
+            event_type='system_job',
+            description="Background System Job 'sync_shiprocket_awb' completed successfully.",
+            status='success'
+        )
 
     def run_shiprocket_sync(self, srv, token):
 
@@ -136,6 +155,13 @@ class Command(BaseCommand):
                         old_status=old_status,
                         new_status=order.status,
                         remarks=f"🔄 Automatically synced tracking details from Shiprocket (AWB: {awb_code}, Courier: {courier_name})"
+                    )
+
+                    SystemActivityLog.log(
+                        event_type='delivery_status',
+                        description=f"Synced AWB '{awb_code}' ({courier_name}) from Shiprocket for Order {order.unique_order_id}.",
+                        order=order,
+                        metadata={'awb': awb_code, 'courier': courier_name, 'shiprocket_order_id': sr_order.get("order_id") if sr_order else None}
                     )
 
                     # Send AWB Assignment notification email
@@ -286,6 +312,13 @@ class Command(BaseCommand):
                         old_status=old_status,
                         new_status=new_local_status,
                         remarks=f"🔄 Automatically updated status via Shiprocket Sync (Status: {sr_status})"
+                    )
+
+                    SystemActivityLog.log(
+                        event_type='delivery_status',
+                        description=f"Status updated via Shiprocket Sync for Order {order.unique_order_id}: '{sr_status}' mapped to local '{new_local_status}'.",
+                        order=order,
+                        metadata={'shiprocket_status': sr_status, 'mapped_status': new_local_status}
                     )
 
                     self.stdout.write(self.style.SUCCESS(f"  Successfully updated status from '{old_status}' to '{new_local_status}'!"))

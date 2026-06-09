@@ -70,7 +70,9 @@ class SellerProfile(BaseModel):
                     if old_status != self.pan_verification_status:
                         status_changed = True
                     
-                    if old_pan_number != self.pan_number or old_pan_card_file != self.pan_card_file:
+                    old_pan_card_name = old_pan_card_file if old_pan_card_file else ''
+                    new_pan_card_name = self.pan_card_file.name if self.pan_card_file else ''
+                    if old_pan_number != self.pan_number or old_pan_card_name != new_pan_card_name:
                         pan_updated = True
             except Exception:
                 pass
@@ -113,6 +115,17 @@ class SellerProfile(BaseModel):
         if pan_updated or (is_new and self.pan_number):
             # Send notification to admins
             try:
+                from orders.models import SystemActivityLog
+                SystemActivityLog.log(
+                    event_type='seller_verification',
+                    description=f"Seller {self.user.phone} ({self.shop_name}) submitted/updated PAN: {self.pan_number}.",
+                    status='success'
+                )
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"Failed to log PAN update to SystemActivityLog: {e}")
+
+            try:
                 from common.email_service import send_dynamic_email
                 from accounts.models import User as AuthUser
                 admins = AuthUser.objects.filter(role__in=['admin', 'staff'], is_active=True)
@@ -129,6 +142,19 @@ class SellerProfile(BaseModel):
                 logging.getLogger(__name__).error(f"Failed to send PAN update email to admins: {e}")
                 
         elif status_changed and not is_new:
+            # Log status change
+            try:
+                from orders.models import SystemActivityLog
+                SystemActivityLog.log(
+                    event_type='seller_verification',
+                    description=f"Seller {self.user.phone} ({self.shop_name}) PAN verification status changed to '{self.pan_verification_status}'.",
+                    status='success',
+                    metadata={'rejection_reason': self.pan_rejection_reason} if self.pan_verification_status == 'rejected' else {}
+                )
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"Failed to log PAN status change to SystemActivityLog: {e}")
+
             # Send notification to seller and admin
             try:
                 from common.email_service import send_dynamic_email

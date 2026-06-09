@@ -195,7 +195,34 @@ class Order(BaseModel):
             if self.can_be_refunded or (self.payment_method == 'wallet' and self.payment_status == 'paid'):
                 self.status = 'refund_initiated'
                 
+        is_new_order = is_new
         super().save(*args, **kwargs)
+        
+        if is_new_order:
+            SystemActivityLog.log(
+                event_type='order_status',
+                description=f"New order '{self.unique_order_id}' created with initial status '{self.status}'.",
+                order=self,
+                status='success'
+            )
+            
+        if status_changed and not is_new_order:
+            SystemActivityLog.log(
+                event_type='order_status',
+                description=f"Order status updated from '{old_status}' to '{self.status}'.",
+                order=self,
+                status='success',
+                metadata={'old_status': old_status, 'new_status': self.status}
+            )
+
+        if payment_status_changed:
+            SystemActivityLog.log(
+                event_type='payment_status',
+                description=f"Payment status updated from '{old_payment_status}' to '{self.payment_status}'.",
+                order=self,
+                status='success',
+                metadata={'old_payment_status': old_payment_status, 'new_payment_status': self.payment_status}
+            )
         
         # Immediate dispatch of payment/refund emails if status has changed
         if payment_status_changed or (is_new and self.payment_status == 'paid'):
@@ -318,9 +345,21 @@ class Order(BaseModel):
 
     @property
     def cleaned_status_logs(self):
-        """Returns only the status logs that represent real status transitions, excluding debug/alert logs."""
+        """
+        Returns only the status logs representing real status transitions,
+        excluding debug/alert logs and deduplicating so that each status
+        only appears once (earliest transition first).
+        """
         logs = self.status_logs.all().order_by('timestamp')
-        return [log for log in logs if log.old_status != log.new_status]
+        seen_statuses = set()
+        cleaned = []
+        for log in logs:
+            if log.old_status != log.new_status:
+                # Deduplicate: only keep the first transition to any given status
+                if log.new_status not in seen_statuses:
+                    seen_statuses.add(log.new_status)
+                    cleaned.append(log)
+        return cleaned
  
     @property
     def can_be_refunded(self):
@@ -720,6 +759,55 @@ class SellerSettlement(BaseModel):
         ordering = ['-created_at']
         verbose_name = 'Seller Settlement'
         verbose_name_plural = 'Seller Settlements'
+
+
+class SystemActivityLog(BaseModel):
+    EVENT_TYPE_CHOICES = [
+        ('order_status', 'Order Status Change'),
+        ('delivery_status', 'Delivery/Shiprocket Update'),
+        ('payment_status', 'Payment Captured/Refunded'),
+        ('email_sent', 'Email Notification Sent'),
+        ('sms_sent', 'SMS Notification Sent'),
+        ('settlement_processed', 'Seller Settlement Payout'),
+        ('system_job', 'Background System Job'),
+    ]
+
+    event_type = models.CharField(max_length=30, choices=EVENT_TYPE_CHOICES, db_index=True)
+    order = models.ForeignKey(Order, on_delete=models.SET_NULL, null=True, blank=True, related_name='activity_logs')
+    settlement = models.ForeignKey(SellerSettlement, on_delete=models.SET_NULL, null=True, blank=True, related_name='activity_logs')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='activity_logs')
+    status = models.CharField(max_length=20, default='success')  # success, failed, pending
+    description = models.TextField()
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'System Activity Log'
+        verbose_name_plural = 'System Activity Logs'
+        indexes = [
+            models.Index(fields=['event_type', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.get_event_type_display()} | {self.status} | {self.created_at.strftime('%Y-%m-%d %H:%M:%S')}"
+
+    @classmethod
+    def log(cls, event_type, description, order=None, settlement=None, user=None, status='success', metadata=None):
+        """Helper to create log safely without crashing the main flow."""
+        try:
+            return cls.objects.create(
+                event_type=event_type,
+                description=description,
+                order=order,
+                settlement=settlement,
+                user=user,
+                status=status,
+                metadata=metadata or {}
+            )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Error creating SystemActivityLog: {e}", exc_info=True)
+            return None
 
 
 from django.db.models.signals import m2m_changed

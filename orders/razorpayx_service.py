@@ -132,13 +132,39 @@ def initiate_payout(settlement):
             
             settlement.payment_reference = payout_id
             settlement.save()
+            
+            from orders.models import SystemActivityLog
+            SystemActivityLog.log(
+                event_type='settlement_processed',
+                description=f"Initiated RazorpayX settlement payout of ₹{settlement.amount} for seller {seller.shop_name} (Settlement ID: {settlement.settlement_id}). Payout ID: {payout_id}.",
+                settlement=settlement,
+                status='success' if settlement.status == 'processed' else 'failed',
+                metadata=data
+            )
+            
             if settlement.status == 'processed':
                 settlement.send_notification_email()
             return True, f"Payout initiated successfully. Payout ID: {payout_id}"
         else:
             error_msg = data.get("error", {}).get("description", response.text)
             logger.error(f"RazorpayX payout request failed: {response.status_code} - {response.text}")
+            
+            from orders.models import SystemActivityLog
+            SystemActivityLog.log(
+                event_type='settlement_processed',
+                description=f"Failed to initiate RazorpayX settlement payout of ₹{settlement.amount} for seller {seller.shop_name} (Settlement ID: {settlement.settlement_id}). Error: {error_msg}.",
+                settlement=settlement,
+                status='failed',
+                metadata=data
+            )
             return False, f"Razorpay API Error: {error_msg}"
     except Exception as e:
         logger.exception("Error initiating RazorpayX payout")
+        from orders.models import SystemActivityLog
+        SystemActivityLog.log(
+            event_type='settlement_processed',
+            description=f"Exception when initiating RazorpayX settlement payout (Settlement ID: {settlement.settlement_id}). Error: {str(e)}.",
+            settlement=settlement,
+            status='failed'
+        )
         return False, f"Exception during payout request: {str(e)}"

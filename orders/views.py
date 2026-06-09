@@ -148,7 +148,11 @@ def sync_shiprocket_tracking(order):
     Returns shiprocket_tracking dict or None.
     """
     shiprocket_tracking = None
-    if order.tracking_number and order.status not in ('delivered', 'cancelled', 'returned'):
+    terminal_statuses = (
+        'delivered', 'cancelled', 'returned', 'returned_to_source',
+        'refund_initiated', 'refunded', 'courier_failed_pickup', 'seller_unresponsive'
+    )
+    if order.tracking_number and order.status not in terminal_statuses:
         from delivery.delivery_services import ShiprocketService
         from orders.models import OrderStatusLog
         from django.utils import timezone
@@ -194,8 +198,8 @@ def sync_shiprocket_tracking(order):
         except Exception as e:
             logger.warning(f"Shiprocket live status synchronization failed for order {order.id}: {e}")
             
-    # If terminal status (or fallback case), but tracking number exists, try to get live cached tracking anyway
-    elif order.tracking_number:
+    # If fallback case, but tracking number exists, try to get live cached tracking anyway
+    elif order.tracking_number and order.status not in terminal_statuses:
         from delivery.delivery_services import ShiprocketService
         try:
             srv = ShiprocketService()

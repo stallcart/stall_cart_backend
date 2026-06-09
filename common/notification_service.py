@@ -444,8 +444,10 @@ def format_shipping_address(order):
 
 def send_order_placed_email_customer(order) -> bool:
     from common.email_service import send_dynamic_email
+    from orders.models import SystemActivityLog
     cust_email = order.user.email if (order.user and order.user.email) else order.guest_email
     if not cust_email:
+        SystemActivityLog.log('email_sent', "Skip sending order placement email to customer: email address not found.", order=order, status='failed')
         return False
         
     cust_items_str = ""
@@ -453,7 +455,7 @@ def send_order_placed_email_customer(order) -> bool:
         variant_info = f" ({item.variant.size_value} / {item.variant.color})" if item.variant else ""
         cust_items_str += f"- {item.product.name}{variant_info} x {item.quantity} (₹{item.price:.2f} each)\n"
         
-    return send_dynamic_email(
+    sent = send_dynamic_email(
         'customer_order_placed',
         [cust_email],
         {
@@ -465,11 +467,17 @@ def send_order_placed_email_customer(order) -> bool:
             'total_amount': str(order.total_amount),
         }
     )
+    if sent:
+        SystemActivityLog.log('email_sent', f"Order placement email successfully sent to customer at {cust_email}.", order=order)
+    else:
+        SystemActivityLog.log('email_sent', f"Failed to send order placement email to customer at {cust_email}.", order=order, status='failed')
+    return sent
 
 
 def send_order_placed_email_sellers(order) -> bool:
     from common.email_service import send_dynamic_email
     from accounts.models import User
+    from orders.models import SystemActivityLog
     
     seller_ids = list(order.items.values_list('seller', flat=True).distinct())
     sellers = list(User.objects.filter(role='seller', seller_profile__id__in=seller_ids))
@@ -494,18 +502,25 @@ def send_order_placed_email_sellers(order) -> bool:
                     'shipping_address': shipping_address_str,
                 }
             )
-            if not sent:
+            if sent:
+                SystemActivityLog.log('email_sent', f"Order placement email successfully sent to seller {seller.seller_profile.shop_name} at {seller.email}.", order=order)
+            else:
                 success = False
+                SystemActivityLog.log('email_sent', f"Failed to send order placement email to seller {seller.seller_profile.shop_name} at {seller.email}.", order=order, status='failed')
+        else:
+            SystemActivityLog.log('email_sent', f"Skip sending order placement email to seller {seller.seller_profile.shop_name}: email address not found.", order=order, status='failed')
     return success
 
 
 def send_payment_email_customer(order) -> bool:
     from common.email_service import send_dynamic_email
+    from orders.models import SystemActivityLog
     cust_email = order.user.email if (order.user and order.user.email) else order.guest_email
     if not cust_email:
+        SystemActivityLog.log('email_sent', "Skip sending payment confirmation email to customer: email address not found.", order=order, status='failed')
         return False
         
-    return send_dynamic_email(
+    sent = send_dynamic_email(
         'customer_payment_success',
         [cust_email],
         {
@@ -516,11 +531,17 @@ def send_payment_email_customer(order) -> bool:
             'payment_id': order.razorpay_payment_id or "",
         }
     )
+    if sent:
+        SystemActivityLog.log('email_sent', f"Payment confirmation email successfully sent to customer at {cust_email}.", order=order)
+    else:
+        SystemActivityLog.log('email_sent', f"Failed to send payment confirmation email to customer at {cust_email}.", order=order, status='failed')
+    return sent
 
 
 def send_payment_email_sellers(order) -> bool:
     from common.email_service import send_dynamic_email
     from accounts.models import User
+    from orders.models import SystemActivityLog
     
     seller_ids = list(order.items.values_list('seller', flat=True).distinct())
     sellers = list(User.objects.filter(role='seller', seller_profile__id__in=seller_ids))
@@ -549,18 +570,25 @@ def send_payment_email_sellers(order) -> bool:
                     'net_earnings': str(total_earnings),
                 }
             )
-            if not sent:
+            if sent:
+                SystemActivityLog.log('email_sent', f"Payment success email successfully sent to seller {seller.seller_profile.shop_name} at {seller.email}.", order=order)
+            else:
                 success = False
+                SystemActivityLog.log('email_sent', f"Failed to send payment success email to seller {seller.seller_profile.shop_name} at {seller.email}.", order=order, status='failed')
+        else:
+            SystemActivityLog.log('email_sent', f"Skip sending payment success email to seller {seller.seller_profile.shop_name}: email address not found.", order=order, status='failed')
     return success
 
 
 def send_refund_email_customer(order) -> bool:
     from common.email_service import send_dynamic_email
+    from orders.models import SystemActivityLog
     cust_email = order.user.email if (order.user and order.user.email) else order.guest_email
     if not cust_email:
+        SystemActivityLog.log('email_sent', "Skip sending refund confirmation email to customer: email address not found.", order=order, status='failed')
         return False
         
-    return send_dynamic_email(
+    sent = send_dynamic_email(
         'customer_payment_refunded',
         [cust_email],
         {
@@ -570,11 +598,17 @@ def send_refund_email_customer(order) -> bool:
             'refund_id': order.razorpay_refund_id or "",
         }
     )
+    if sent:
+        SystemActivityLog.log('email_sent', f"Refund confirmation email successfully sent to customer at {cust_email}.", order=order)
+    else:
+        SystemActivityLog.log('email_sent', f"Failed to send refund confirmation email to customer at {cust_email}.", order=order, status='failed')
+    return sent
 
 
 def send_refund_email_sellers(order) -> bool:
     from common.email_service import send_dynamic_email
     from accounts.models import User
+    from orders.models import SystemActivityLog
     
     seller_ids = list(order.items.values_list('seller', flat=True).distinct())
     sellers = list(User.objects.filter(role='seller', seller_profile__id__in=seller_ids))
@@ -598,19 +632,26 @@ def send_refund_email_sellers(order) -> bool:
                     'refund_amount': str(order.refund_amount or order.total_amount),
                 }
             )
-            if not sent:
+            if sent:
+                SystemActivityLog.log('email_sent', f"Refund email successfully sent to seller {seller.seller_profile.shop_name} at {seller.email}.", order=order)
+            else:
                 success = False
+                SystemActivityLog.log('email_sent', f"Failed to send refund email to seller {seller.seller_profile.shop_name} at {seller.email}.", order=order, status='failed')
+        else:
+            SystemActivityLog.log('email_sent', f"Skip sending refund email to seller {seller.seller_profile.shop_name}: email address not found.", order=order, status='failed')
     return success
 
 
 def send_status_email_customer(log_entry) -> bool:
     from common.email_service import send_dynamic_email
+    from orders.models import SystemActivityLog
     order = log_entry.order
     cust_email = order.user.email if (order.user and order.user.email) else order.guest_email
     if not cust_email:
+        SystemActivityLog.log('email_sent', f"Skip sending status update ({log_entry.new_status}) email to customer: email address not found.", order=order, status='failed')
         return False
         
-    return send_dynamic_email(
+    sent = send_dynamic_email(
         'order_status_update',
         [cust_email],
         {
@@ -621,11 +662,17 @@ def send_status_email_customer(log_entry) -> bool:
             'tracking_number': order.tracking_number or "",
         }
     )
+    if sent:
+        SystemActivityLog.log('email_sent', f"Status update ({log_entry.new_status}) email successfully sent to customer at {cust_email}.", order=order)
+    else:
+        SystemActivityLog.log('email_sent', f"Failed to send status update ({log_entry.new_status}) email to customer at {cust_email}.", order=order, status='failed')
+    return sent
 
 
 def send_status_email_sellers(log_entry) -> bool:
     from common.email_service import send_dynamic_email
     from accounts.models import User
+    from orders.models import SystemActivityLog
     order = log_entry.order
     
     seller_ids = list(order.items.values_list('seller', flat=True).distinct())
@@ -645,6 +692,11 @@ def send_status_email_sellers(log_entry) -> bool:
                     'tracking_number': order.tracking_number or "",
                 }
             )
-            if not sent:
+            if sent:
+                SystemActivityLog.log('email_sent', f"Status update ({log_entry.new_status}) email successfully sent to seller {seller.seller_profile.shop_name} at {seller.email}.", order=order)
+            else:
                 success = False
+                SystemActivityLog.log('email_sent', f"Failed to send status update ({log_entry.new_status}) email to seller {seller.seller_profile.shop_name} at {seller.email}.", order=order, status='failed')
+        else:
+            SystemActivityLog.log('email_sent', f"Skip sending status update ({log_entry.new_status}) email to seller {seller.seller_profile.shop_name}: email address not found.", order=order, status='failed')
     return success
