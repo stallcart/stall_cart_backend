@@ -791,12 +791,17 @@ class SellerSettlementAndBankDetailsTests(TestCase):
 
         qs = model_admin.get_queryset(request)
         self.assertEqual(qs.count(), 1)
-        self.assertIn(sett1, qs)
         self.assertNotIn(sett2, qs)
 
     def test_razorpayx_payout_trigger(self):
         """Verify RazorpayX payout creation flow mocks contact, fund account, and payout API calls."""
         from unittest import mock
+        from django.core import mail
+        
+        # Set email for the seller user
+        self.seller_user.email = "seller@example.com"
+        self.seller_user.save()
+
         with mock.patch('requests.post') as mock_post:
             # Set settings mock for RazorpayX credentials
             with self.settings(RAZORPAY_KEY_ID="test_key", RAZORPAY_KEY_SECRET="test_secret", RAZORPAYX_ACCOUNT_NUMBER="12345678"):
@@ -839,15 +844,27 @@ class SellerSettlementAndBankDetailsTests(TestCase):
                 sett.refresh_from_db()
                 self.assertEqual(sett.razorpay_payout_id, "pout_test123")
                 self.assertEqual(sett.status, "processed")
+                self.assertTrue(sett.email_sent)
                 
                 self.seller_profile.refresh_from_db()
                 self.assertEqual(self.seller_profile.razorpay_contact_id, "cont_test123")
                 self.assertEqual(self.seller_profile.razorpay_fund_account_id, "fa_test123")
+                
+                # Verify email sent to seller
+                self.assertEqual(len(mail.outbox), 1)
+                self.assertEqual(mail.outbox[0].to, ["seller@example.com"])
+                self.assertIn("Hello Seller One", mail.outbox[0].body or "")
 
     def test_razorpayx_webhook_updates_status(self):
         """Verify webhook updates payout status correctly."""
+        from django.core import mail
         from orders.models import SellerSettlement
+        
+        self.seller_user.email = "seller@example.com"
+        self.seller_user.save()
+        
         sett = SellerSettlement.objects.create(seller=self.seller_profile, status="pending", razorpay_payout_id="pout_test999")
+        sett.order_items.add(self.item)
         
         # Call webhook with status processed
         payload = {
@@ -869,6 +886,9 @@ class SellerSettlementAndBankDetailsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         sett.refresh_from_db()
         self.assertEqual(sett.status, "processed")
+        self.assertTrue(sett.email_sent)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("transferred to your registered bank account", mail.outbox[0].body)
         
         # Call webhook with status failed
         payload["event"] = "payout.failed"

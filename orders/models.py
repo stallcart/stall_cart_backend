@@ -637,6 +637,53 @@ class SellerSettlement(BaseModel):
     settled_at = models.DateTimeField(blank=True, null=True)
     order_items = models.ManyToManyField(OrderItem, related_name='settlements', blank=True)
     razorpay_payout_id = models.CharField(max_length=100, blank=True, null=True, unique=True, help_text="RazorpayX Payout ID")
+    email_sent = models.BooleanField(default=False, help_text="True if settlement notification email has been sent to the seller")
+
+    def send_notification_email(self):
+        """Send settlement processed notification to seller with detailed order items breakdown."""
+        if self.status != 'processed' or self.email_sent:
+            return False
+        
+        try:
+            from common.email_service import send_dynamic_email
+            
+            # Prepare breakdown details for order items
+            items_details = []
+            for item in self.order_items.all():
+                items_details.append({
+                    'product_name': item.product.name,
+                    'order_id': item.order.unique_order_id,
+                    'total_amount': str(item.total),
+                    'commission_rate': str(int(item.commission_rate * 100)),
+                    'commission_amount': str(item.commission_amount),
+                    'seller_earnings': str(item.seller_earnings),
+                })
+            
+            context = {
+                'seller_name': self.seller.account_holder_name or self.seller.shop_name,
+                'settlement_id': self.settlement_id,
+                'settlement_amount': str(self.amount),
+                'total_commission': str(self.commission_deduded if hasattr(self, 'commission_deduded') else self.commission_deducted),
+                'payment_reference': self.payment_reference or self.razorpay_payout_id or 'N/A',
+                'items_details': items_details,
+            }
+            
+            recipient = self.seller.user.email
+            if recipient:
+                success = send_dynamic_email(
+                    template_name='seller_settlement_processed',
+                    recipient_list=[recipient],
+                    context_data=context
+                )
+                if success:
+                    # Update email_sent flag directly in database to avoid recursion
+                    type(self).objects.filter(pk=self.pk).update(email_sent=True)
+                    self.email_sent = True
+                    return True
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Failed to send settlement email for {self.settlement_id}: {e}", exc_info=True)
+        return False
 
     def save(self, *args, **kwargs):
         if not self.settlement_id:
@@ -654,13 +701,17 @@ class SellerSettlement(BaseModel):
             else:
                 new_num = 1
             self.settlement_id = f'SET-{date_str}-{new_num:04d}'
-        
+         
         if self.status == 'processed' and not self.settled_at:
             self.settled_at = timezone.now()
         elif self.status != 'processed':
             self.settled_at = None
 
         super().save(*args, **kwargs)
+
+        if self.status == 'processed' and not self.email_sent:
+            from django.db import transaction
+            transaction.on_commit(self.send_notification_email)
 
     def __str__(self):
         return f"{self.settlement_id} | {self.seller.shop_name} | {self.get_status_display()}"

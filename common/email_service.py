@@ -102,6 +102,11 @@ DEFAULT_TEMPLATES = {
         'subject': "StallCart - PAN Verification Rejected",
         'body': "Hello {{ seller_name }},\n\nYour PAN Card verification request for your shop '{{ shop_name }}' has been rejected by our admin team.\n\nReason: {{ rejection_reason }}\n\nPlease update your PAN details and upload a valid document in your profile page: {{ profile_url }}.\n\nBest Regards,\nStallCart Team",
         'description': "Email notification sent to the seller when their PAN card is rejected"
+    },
+    'seller_settlement_processed': {
+        'subject': "StallCart Seller - Settlement {{ settlement_id }} Processed Successfully",
+        'body': "Hello {{ seller_name }},\n\nWe are pleased to inform you that your settlement #{{ settlement_id }} has been processed successfully.\n\nYour net earnings of ₹{{ settlement_amount }} have been transferred to your registered bank account.\n\n--- Settlement Details ---\n{% for item in items_details %}\n- Product: {{ item.product_name }}\n  Order ID: {{ item.order_id }}\n  Item Total: ₹{{ item.total_amount }}\n  Platform Commission ({{ item.commission_rate }}%): -₹{{ item.commission_amount }}\n  Your Profit / Net Earnings: ₹{{ item.seller_earnings }}\n{% endfor %}\n\nTotal Transferred Amount: ₹{{ settlement_amount }}\nCommission Deducted (Admin Account): ₹{{ total_commission }}\n\nReference / Payout ID: {{ payment_reference }}\n\nBest Regards,\nStallCart Team",
+        'description': "Email notification sent to seller when a settlement and payout are successfully processed"
     }
 }
 

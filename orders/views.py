@@ -1938,6 +1938,7 @@ def razorpayx_webhook(request):
                     settlement.status = 'processed'
                     settlement.payment_reference = payout_id
                     settlement.save(update_fields=['status', 'payment_reference', 'updated_at'])
+                    settlement.send_notification_email()
                     logger.info(f"Payout {payout_id} processed for settlement {settlement.settlement_id}")
                 elif event_type in ('payout.failed', 'payout.reversed'):
                     settlement.status = 'failed'

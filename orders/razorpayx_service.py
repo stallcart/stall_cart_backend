@@ -132,6 +132,8 @@ def initiate_payout(settlement):
             
             settlement.payment_reference = payout_id
             settlement.save()
+            if settlement.status == 'processed':
+                settlement.send_notification_email()
             return True, f"Payout initiated successfully. Payout ID: {payout_id}"
         else:
             error_msg = data.get("error", {}).get("description", response.text)
