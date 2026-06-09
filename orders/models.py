@@ -225,6 +225,12 @@ class Order(BaseModel):
             if self.status in cancelled_states and old_status not in cancelled_states:
                 self.restock_items()
                 
+                # Auto-cancel Shiprocket order if applicable
+                if self.status in ('cancelled', 'seller_unresponsive') and old_status not in ('cancelled', 'seller_unresponsive'):
+                    from django.db import transaction
+                    from delivery.delivery_services import auto_cancel_shiprocket_order
+                    transaction.on_commit(lambda: auto_cancel_shiprocket_order(self))
+                
                 # If paid and eligible (Razorpay or Wallet), transition to 'refund_initiated' and let background job process it
                 if self.can_be_refunded or (self.payment_method == 'wallet' and self.payment_status == 'paid'):
                     type(self).objects.filter(pk=self.pk).update(status='refund_initiated')

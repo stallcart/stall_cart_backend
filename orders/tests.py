@@ -1780,6 +1780,57 @@ class ShiprocketStatusTrackingTests(TestCase):
         self.assertIsNone(self.order.shiprocket_status)
         self.assertIsNone(self.item.shiprocket_status)
 
+    def test_shiprocket_canceled_spelling_transition(self):
+        """Test that Shiprocket 'Canceled' (single l) maps to local 'cancelled' status."""
+        # Test Webhook
+        url = reverse('orders:shiprocket_webhook')
+        payload = {
+            "awb": "SR998877",
+            "current_status": "Canceled"
+        }
+        response = self.client.post(
+            url,
+            data=json.dumps(payload),
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, "cancelled")
+        self.assertEqual(self.order.shiprocket_status, "Canceled")
+
+        # Test Sync command
+        self.order.status = "confirmed"
+        self.order.save()
+        
+        from unittest import mock
+        with mock.patch('delivery.delivery_services.ShiprocketService._get_token') as mock_token, \
+             mock.patch('delivery.delivery_services.ShiprocketService.get_tracking') as mock_tracking:
+            mock_token.return_value = "dummy_token"
+            mock_tracking.return_value = {
+                "current_status": "Canceled",
+                "activities": []
+            }
+            call_command("sync_shiprocket_awb")
+            self.order.refresh_from_db()
+            self.assertEqual(self.order.status, "cancelled")
+
+    def test_auto_cancel_shiprocket_shipment_on_cancellation(self):
+        """Test that transitioning to cancelled or seller_unresponsive calls cancel_shipment on ShiprocketService."""
+        self.order.shiprocket_order_id = "SR_ORDER_123"
+        self.order.save()
+
+        from unittest import mock
+        with mock.patch('django.db.transaction.on_commit', lambda f: f()), \
+             mock.patch('delivery.delivery_services.ShiprocketService.cancel_shipment') as mock_cancel:
+            mock_cancel.return_value = {"success": True}
+            
+            # Transition status to cancelled
+            self.order.status = "cancelled"
+            self.order.save()
+
+            # Verify cancel_shipment was called with the order ID list
+            mock_cancel.assert_called_once_with(["SR_ORDER_123"])
+
 
 
 

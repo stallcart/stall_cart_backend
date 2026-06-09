@@ -680,3 +680,34 @@ def auto_push_order_to_shiprocket(order):
                 )
         except Exception as e:
             logger.error(f"Error during auto-pushing order to Shiprocket: {e}", exc_info=True)
+
+
+def auto_cancel_shiprocket_order(order):
+    """
+    Cancels the order on Shiprocket if shiprocket_order_id is set.
+    """
+    if order.shiprocket_order_id:
+        try:
+            srv = ShiprocketService()
+            res = srv.cancel_shipment([order.shiprocket_order_id])
+            if res.get('success'):
+                logger.info(f"Successfully cancelled Shiprocket order {order.shiprocket_order_id} for order {order.unique_order_id}")
+                from orders.models import OrderStatusLog
+                OrderStatusLog.objects.create(
+                    order=order,
+                    old_status=order.status,
+                    new_status=order.status,
+                    remarks=f"Cancelled Shiprocket order {order.shiprocket_order_id} successfully."
+                )
+            else:
+                err_msg = res.get('error', 'Unknown error')
+                logger.error(f"Failed to cancel Shiprocket order {order.shiprocket_order_id} for order {order.unique_order_id}: {err_msg}")
+                from orders.models import OrderStatusLog
+                OrderStatusLog.objects.create(
+                    order=order,
+                    old_status=order.status,
+                    new_status=order.status,
+                    remarks=f"⚠️ Failed to cancel Shiprocket order {order.shiprocket_order_id}: {err_msg}"
+                )
+        except Exception as e:
+            logger.error(f"Error during auto-cancelling order on Shiprocket: {e}", exc_info=True)
