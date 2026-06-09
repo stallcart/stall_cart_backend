@@ -1343,7 +1343,11 @@ def shiprocket_webhook(request):
             'delivered': 'delivered',
             'rto': 'returned_to_source',
             'returned to source': 'returned_to_source',
-            'cancelled': 'cancelled'
+            'cancelled': 'cancelled',
+            'pickup failed': 'courier_failed_pickup',
+            'pickup exception': 'courier_failed_pickup',
+            'pickup_failed': 'courier_failed_pickup',
+            'pickup_exception': 'courier_failed_pickup',
         }
         
         new_local_status = status_map.get(sr_status.lower())
