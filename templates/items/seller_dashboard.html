@@ -11,6 +11,21 @@
         </a>
     </div>
 
+    {% if not has_bank_details %}
+    <div style="background: #fffbeb; border: 1.5px solid #fcd34d; border-radius: 12px; padding: 20px; margin-bottom: 24px; display: flex; align-items: flex-start; gap: 16px; box-shadow: 0 4px 12px rgba(217, 119, 6, 0.05);">
+        <span style="font-size: 1.8rem; line-height: 1; color: #d97706;">⚠️</span>
+        <div style="flex: 1;">
+            <h4 style="margin: 0 0 6px; color: #92400e; font-weight: 700; font-size: 1.05rem; font-family: 'Syne', sans-serif;">Payout Bank Details Required</h4>
+            <p style="margin: 0 0 14px; color: #78350f; font-size: 0.9rem; line-height: 1.6;">
+                You haven't completed your bank details yet. To list or add products to StallCart, please complete your bank details first in your profile dashboard.
+            </p>
+            <a href="{% url 'accounts:profile' %}#bank-details" class="btn-primary" style="background: #d97706; border: none; font-size: 0.85rem; padding: 10px 18px; border-radius: 8px; text-decoration: none; color: white; display: inline-flex; align-items: center; gap: 6px; font-weight: 700; cursor: pointer; transition: background 0.15s;">
+                <i class="fa fa-university"></i> Complete Bank Details
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Header -->
     <div class="panel-header">
         <div>
@@ -198,6 +213,11 @@ const form = document.getElementById('productForm');
 
 // Open Modal
 document.getElementById('openAddModal').onclick = () => {
+    {% if not has_bank_details %}
+    alert('⚠️ Bank details required: Please complete your bank details in your profile first before listing products.');
+    window.location.href = "{% url 'accounts:profile' %}#bank-details";
+    return;
+    {% endif %}
     document.getElementById('modalTitle').textContent = 'Add New Product';
     form.reset(); document.getElementById('prodId').value = '';
     modal.classList.add('show');

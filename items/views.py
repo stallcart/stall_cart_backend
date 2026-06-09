@@ -108,6 +108,11 @@ def admin_dashboard(request):
 
     sellers = SellerProfile.objects.all() if request.user.is_admin else None
 
+    has_bank_details = True
+    if not request.user.is_admin and hasattr(request.user, 'seller_profile'):
+        sel = request.user.seller_profile
+        has_bank_details = bool(sel.bank_name and sel.account_number and sel.ifsc_code and sel.account_holder_name)
+
     context = {
         'products':     products.order_by('-created_at'),
         'stats':        stats,
@@ -115,6 +120,7 @@ def admin_dashboard(request):
         'sellers':      sellers,
         'is_superuser': request.user.is_admin,
         'page_title':   title,
+        'has_bank_details': has_bank_details,
         'filters': {
             'search':   search,
             'status':   status,
@@ -159,12 +165,15 @@ def seller_dashboard(request):
     except Exception:
         recent_orders = []
 
+    has_bank_details = bool(seller.bank_name and seller.account_number and seller.ifsc_code and seller.account_holder_name)
+
     context = {
         'seller':        seller,
         'products':      products,
         'stats':         stats,
         'recent_orders': recent_orders,
         'categories':    Category.objects.filter(is_active=True),
+        'has_bank_details': has_bank_details,
     }
     return render(request, 'items/seller_dashboard.html', context)
 
@@ -174,6 +183,14 @@ def seller_dashboard(request):
 @user_passes_test(is_seller_or_superuser, login_url='shop:home')
 def save_product(request):
     """AJAX endpoint to create or update a product for a seller."""
+    if not request.user.is_admin:
+        sel = request.user.seller_profile
+        if not (sel.bank_name and sel.account_number and sel.ifsc_code and sel.account_holder_name):
+            return JsonResponse({
+                'status': 'error', 
+                'message': 'You must complete your bank details in your profile before you can add or list products.'
+            }, status=400)
+            
     product_id = request.POST.get('product_id')
     if product_id:
         product = get_object_or_404(Product, id=product_id)
@@ -466,6 +483,12 @@ def save_product(request):
 
 @seller_or_admin_only
 def product_create(request):
+    if not request.user.is_admin:
+        sel = request.user.seller_profile
+        if not (sel.bank_name and sel.account_number and sel.ifsc_code and sel.account_holder_name):
+            messages.warning(request, "⚠️ You must complete your bank details in your profile before you can add products.")
+            return redirect('accounts:profile')
+            
     if request.method == 'POST':
         form = ProductForm(
             request.POST,
