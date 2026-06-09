@@ -38,6 +38,13 @@ class Command(BaseCommand):
 
         self.run_email_retry()
 
+        # Run automatic refund processing job
+        try:
+            from django.core.management import call_command
+            call_command('process_refunds')
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f"Refund processing command execution failed: {e}"))
+
     def run_shiprocket_sync(self, srv, token):
 
         # ── PART 1: Sync Missing AWBs ──────────────────────────────────────────

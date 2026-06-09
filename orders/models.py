@@ -224,51 +224,42 @@ class Order(BaseModel):
             if self.status in cancelled_states and old_status not in cancelled_states:
                 self.restock_items()
                 
-                # Auto-refund if paid and eligible (Razorpay)
-                if self.can_be_refunded:
+                # If paid and eligible (Razorpay or Wallet), transition to 'refund_initiated' and let background job process it
+                if self.can_be_refunded or (self.payment_method == 'wallet' and self.payment_status == 'paid'):
+                    type(self).objects.filter(pk=self.pk).update(status='refund_initiated')
+                    
+                    # Create log entry for transition to refund_initiated
+                    OrderStatusLog.objects.create(
+                        order=self,
+                        old_status=old_status,
+                        new_status='refund_initiated',
+                        remarks=f"💰 Refund initiated automatically on transition to {self.get_status_display()}."
+                    )
+                    
+                    # Also notify customer about transition to refund_initiated
                     try:
-                        # Lazy import to avoid circular dependencies
-                        from orders.views import get_razorpay_client
-                        client = get_razorpay_client()
-                        if client:
-                            razorpay_refund = client.refund.create({
-                                'payment_id': self.razorpay_payment_id,
-                                'amount': int(self.total_amount * 100),
-                                'notes': {'order_id': self.unique_order_id, 'reason': 'Auto-refund on cancellation/return'}
-                            })
-                            self.payment_status = 'refunded'
-                            self.refund_amount = self.total_amount
-                            self.refund_at = timezone.now()
-                            type(self).objects.filter(pk=self.pk).update(
-                                payment_status='refunded',
-                                refund_amount=self.total_amount,
-                                refund_at=self.refund_at,
-                                razorpay_refund_id=razorpay_refund.get('id')
-                            )
-                        else:
-                            self.payment_status = 'failed'
-                            type(self).objects.filter(pk=self.pk).update(payment_status='failed')
+                        from common.notification_service import notify_order_status_change
+                        self.status = 'refund_initiated'
+                        notify_order_status_change(self, old_status, 'refund_initiated')
                     except Exception as e:
                         import logging
-                        logger = logging.getLogger(__name__)
-                        logger.error(f"Auto-refund failed for cancelled/returned order {self.unique_order_id}: {e}")
-                        self.payment_status = 'failed'
-                        type(self).objects.filter(pk=self.pk).update(payment_status='failed')
-                elif self.payment_method == 'wallet' and self.payment_status == 'paid':
-                    self.payment_status = 'refunded'
-                    self.refund_amount = self.total_amount
-                    type(self).objects.filter(pk=self.pk).update(
-                        payment_status='refunded',
-                        refund_amount=self.total_amount
-                    )
-
-            try:
-                from common.notification_service import notify_order_status_change
-                notify_order_status_change(self, old_status, self.status)
-            except Exception as e:
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.error(f"Failed to trigger status change notification for order {self.unique_order_id}: {e}")
+                        logging.getLogger(__name__).error(f"Failed to trigger status change notification for order {self.unique_order_id}: {e}")
+                else:
+                    # If not paid/not eligible for refund, just notify of original status change
+                    try:
+                        from common.notification_service import notify_order_status_change
+                        notify_order_status_change(self, old_status, self.status)
+                    except Exception as e:
+                        import logging
+                        logging.getLogger(__name__).error(f"Failed to trigger status change notification for order {self.unique_order_id}: {e}")
+            else:
+                # Normal non-cancelled status transition
+                try:
+                    from common.notification_service import notify_order_status_change
+                    notify_order_status_change(self, old_status, self.status)
+                except Exception as e:
+                    import logging
+                    logging.getLogger(__name__).error(f"Failed to trigger status change notification for order {self.unique_order_id}: {e}")
     
     def __str__(self):
         return f"{self.unique_order_id} | {self.user.phone if self.user else self.guest_email} | {self.get_status_display()}"
