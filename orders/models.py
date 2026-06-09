@@ -185,6 +185,15 @@ class Order(BaseModel):
                         payment_status_changed = True
             except Exception:
                 pass
+
+        # === ATOMIC TRANSITION TO REFUND INITIATED PRE-SAVE ===
+        # If status transitions from non-cancelled to a cancelled state, and is eligible, rewrite status to refund_initiated.
+        target_cancelled_status = None
+        cancelled_states = ('cancelled', 'returned', 'returned_to_source', 'courier_failed_pickup', 'seller_unresponsive')
+        if status_changed and self.status in cancelled_states and old_status not in cancelled_states:
+            target_cancelled_status = self.status
+            if self.can_be_refunded or (self.payment_method == 'wallet' and self.payment_status == 'paid'):
+                self.status = 'refund_initiated'
                 
         super().save(*args, **kwargs)
         
@@ -220,33 +229,30 @@ class Order(BaseModel):
                     logging.getLogger(__name__).error(f"Failed to send refund emails on save for order {self.unique_order_id}: {e}")
         
         if status_changed:
-            # Handle restocking and refunding automatically if status transitions to cancelled/returned/RTO/failed_pickup/unresponsive
-            cancelled_states = ('cancelled', 'returned', 'returned_to_source', 'courier_failed_pickup', 'seller_unresponsive')
-            if self.status in cancelled_states and old_status not in cancelled_states:
+            was_cancelled_transition = (target_cancelled_status is not None) or (self.status in cancelled_states)
+            
+            if was_cancelled_transition and old_status not in cancelled_states and old_status != 'refund_initiated':
                 self.restock_items()
                 
                 # Auto-cancel Shiprocket order if applicable
-                if self.status in ('cancelled', 'seller_unresponsive') and old_status not in ('cancelled', 'seller_unresponsive'):
+                check_status = target_cancelled_status or self.status
+                if check_status in ('cancelled', 'seller_unresponsive'):
                     from django.db import transaction
                     from delivery.delivery_services import auto_cancel_shiprocket_order
                     transaction.on_commit(lambda: auto_cancel_shiprocket_order(self))
                 
-                # If paid and eligible (Razorpay or Wallet), transition to 'refund_initiated' and let background job process it
-                if self.can_be_refunded or (self.payment_method == 'wallet' and self.payment_status == 'paid'):
-                    type(self).objects.filter(pk=self.pk).update(status='refund_initiated')
-                    
+                if self.status == 'refund_initiated':
                     # Create log entry for transition to refund_initiated
                     OrderStatusLog.objects.create(
                         order=self,
                         old_status=old_status,
                         new_status='refund_initiated',
-                        remarks=f"💰 Refund initiated automatically on transition to {self.get_status_display()}."
+                        remarks=f"💰 Refund initiated automatically on transition to {target_cancelled_status or 'cancelled'}."
                     )
                     
                     # Also notify customer about transition to refund_initiated
                     try:
                         from common.notification_service import notify_order_status_change
-                        self.status = 'refund_initiated'
                         notify_order_status_change(self, old_status, 'refund_initiated')
                     except Exception as e:
                         import logging
@@ -261,6 +267,12 @@ class Order(BaseModel):
                         logging.getLogger(__name__).error(f"Failed to trigger status change notification for order {self.unique_order_id}: {e}")
             else:
                 # Normal non-cancelled status transition
+                if self.status == 'refunded':
+                    # Propagate refunded status to all items
+                    for item in self.items.all():
+                        item.status = 'refunded'
+                        item.save(update_fields=['status', 'updated_at'])
+                
                 try:
                     from common.notification_service import notify_order_status_change
                     notify_order_status_change(self, old_status, self.status)

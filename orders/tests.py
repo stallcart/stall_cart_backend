@@ -900,6 +900,52 @@ class SellerSettlementAndBankDetailsTests(TestCase):
         # Only 1 settlement is created in this test method since tests are run in isolation.
         self.assertEqual(SellerSettlement.objects.filter(seller=self.seller_profile).count(), 1)
 
+    def test_auto_settle_sellers_command(self):
+        """Verify auto_settle_sellers command processes eligible items and initiates payouts."""
+        from django.core.management import call_command
+        from orders.models import SellerSettlement
+        from unittest import mock
+        from datetime import timedelta
+        from django.utils import timezone
+
+        # Create a second item delivered only 2 days ago (should NOT be settled)
+        recent_order = Order.objects.create(
+            user=self.customer_user,
+            shipping_address={"name": "Customer 2"},
+            total_amount=Decimal("200.00"),
+            payment_method="cod",
+            status="delivered",
+            delivered_at=timezone.now() - timedelta(days=2)
+        )
+        recent_item = OrderItem.objects.create(
+            order=recent_order,
+            product=self.product,
+            seller=self.seller_profile,
+            quantity=2,
+            price=Decimal("100.00"),
+            total=Decimal("200.00")
+        )
+
+        with mock.patch('orders.management.commands.auto_settle_sellers.initiate_payout') as mock_payout:
+            mock_payout.return_value = (True, "Payout initiated")
+            
+            # Run command
+            call_command("auto_settle_sellers")
+            
+            # Check that payout was called for the old item
+            mock_payout.assert_called_once()
+            
+            # Check that a settlement was created
+            settlements = SellerSettlement.objects.filter(seller=self.seller_profile)
+            self.assertEqual(settlements.count(), 1)
+            
+            settlement = settlements.first()
+            # The settlement should contain the 15-day-old item, but NOT the 2-day-old item
+            self.assertIn(self.item, settlement.order_items.all())
+            self.assertNotIn(recent_item, settlement.order_items.all())
+
+
+
 
 class BackgroundJobAndEmailSyncTests(TestCase):
     def setUp(self):

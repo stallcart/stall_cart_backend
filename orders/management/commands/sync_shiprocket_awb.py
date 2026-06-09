@@ -45,6 +45,13 @@ class Command(BaseCommand):
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"Refund processing command execution failed: {e}"))
 
+        # Run automatic seller settlements job
+        try:
+            from django.core.management import call_command
+            call_command('auto_settle_sellers')
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f"Automatic seller settlements command execution failed: {e}"))
+
     def run_shiprocket_sync(self, srv, token):
 
         # ── PART 1: Sync Missing AWBs ──────────────────────────────────────────
