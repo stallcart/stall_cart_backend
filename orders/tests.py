@@ -1567,6 +1567,83 @@ class CustomAdminCancellationStatusTests(TestCase):
         # Earnings cancelled:
         self.assertEqual(self.item.seller_earnings, Decimal("0.00"))
 
+    @mock.patch('orders.views.get_razorpay_client')
+    def test_razorpay_refund_initiated_processed_by_job(self, mock_get_client):
+        """A paid Razorpay order transitions to refund_initiated and is completed by background job."""
+        self.order.payment_method = 'razorpay'
+        self.order.payment_status = 'paid'
+        self.order.razorpay_payment_id = 'pay_test_123'
+        self.order.save()
+        
+        self.client.login(phone="9999999999", password="adminpassword")
+        
+        # Admin marks status as courier_failed_pickup
+        url = reverse('orders:admin_update_status', args=[self.order.unique_order_id])
+        response = self.client.post(
+            url,
+            data=json.dumps({"status": "courier_failed_pickup"}),
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+        
+        self.order.refresh_from_db()
+        # Should be 'refund_initiated' because it was paid via Razorpay
+        self.assertEqual(self.order.status, "refund_initiated")
+        self.assertEqual(self.order.payment_status, "paid")
+        
+        # Mock Razorpay client refund call
+        mock_client = mock.Mock()
+        mock_refund_api = mock.Mock()
+        mock_refund_api.create.return_value = {"id": "rfnd_test_123"}
+        mock_client.refund = mock_refund_api
+        mock_get_client.return_value = mock_client
+        
+        # Run background refund job command
+        call_command("process_refunds")
+        
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, "refunded")
+        self.assertEqual(self.order.payment_status, "refunded")
+        self.assertEqual(self.order.refund_amount, Decimal("100.00"))
+        self.assertEqual(self.order.razorpay_refund_id, "rfnd_test_123")
+        self.assertIsNotNone(self.order.refund_at)
+
+    def test_wallet_refund_initiated_processed_by_job(self):
+        """A paid Wallet order transitions to refund_initiated and is completed by background job."""
+        self.order.payment_method = 'wallet'
+        self.order.payment_status = 'paid'
+        self.order.save()
+        
+        # Create wallet for user
+        from accounts.models import Wallet
+        wallet = Wallet.objects.create(user=self.customer, balance=Decimal("10.00"))
+        
+        self.client.login(phone="9999999999", password="adminpassword")
+        
+        # Admin marks status as courier_failed_pickup
+        url = reverse('orders:admin_update_status', args=[self.order.unique_order_id])
+        response = self.client.post(
+            url,
+            data=json.dumps({"status": "courier_failed_pickup"}),
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+        
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, "refund_initiated")
+        
+        # Run background refund job command
+        call_command("process_refunds")
+        
+        self.order.refresh_from_db()
+        wallet.refresh_from_db()
+        
+        self.assertEqual(self.order.status, "refunded")
+        self.assertEqual(self.order.payment_status, "refunded")
+        # Wallet refunded: 10 + 100 = 110
+        self.assertEqual(wallet.balance, Decimal("110.00"))
+
+
 
 
 
