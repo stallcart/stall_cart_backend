@@ -1532,6 +1532,42 @@ class CustomAdminCancellationStatusTests(TestCase):
         # Earnings cancelled:
         self.assertEqual(self.item.seller_earnings, Decimal("0.00"))
 
+    def test_shiprocket_webhook_can_mark_courier_failed_pickup(self):
+        """Verify Shiprocket webhook automatically maps 'pickup failed' to courier_failed_pickup status."""
+        self.order.tracking_number = "AWB-PICKUP-FAIL-123"
+        self.order.save()
+        
+        self.item.tracking_number = "AWB-PICKUP-FAIL-123"
+        self.item.save()
+        
+        # Initially stock is 10
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock, 10)
+        
+        url = reverse('orders:shiprocket_webhook')
+        payload = {
+            "awb": "AWB-PICKUP-FAIL-123",
+            "current_status": "Pickup Failed"
+        }
+        response = self.client.post(
+            url,
+            data=json.dumps(payload),
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+        
+        self.order.refresh_from_db()
+        self.item.refresh_from_db()
+        self.product.refresh_from_db()
+        
+        self.assertEqual(self.order.status, "courier_failed_pickup")
+        self.assertEqual(self.item.status, "courier_failed_pickup")
+        # Restocking: 10 + 2 = 12
+        self.assertEqual(self.product.stock, 12)
+        # Earnings cancelled:
+        self.assertEqual(self.item.seller_earnings, Decimal("0.00"))
+
+
 
 
 
