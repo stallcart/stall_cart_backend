@@ -56,13 +56,25 @@ class Command(BaseCommand):
             self.stdout.write(f"Creating settlement for seller: {seller.shop_name} ({len(items)} items)...")
             try:
                 with transaction.atomic():
+                    # Acquire select_for_update lock on items to prevent race conditions with admin actions
+                    item_ids = [item.id for item in items]
+                    locked_items = list(OrderItem.objects.select_for_update().filter(
+                        id__in=item_ids
+                    ).exclude(
+                        settlements__isnull=False
+                    ))
+                    
+                    if not locked_items:
+                        self.stdout.write(self.style.WARNING(f"  Skipping {seller.shop_name}: items already settled in another transaction."))
+                        continue
+                    
                     # Create the settlement record
                     settlement = SellerSettlement.objects.create(
                         seller=seller,
                         status='pending'
                     )
                     # Add items to the settlement
-                    settlement.order_items.add(*items)
+                    settlement.order_items.add(*locked_items)
 
                 # Now trigger the payout
                 success, msg = initiate_payout(settlement)

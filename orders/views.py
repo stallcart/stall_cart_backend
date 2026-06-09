@@ -1852,9 +1852,18 @@ def confirm_rto_refund(request, order_id):
 @require_POST
 def admin_trigger_payout_ajax(request, settlement_id):
     """Trigger RazorpayX payout for a settlement."""
-    settlement = get_object_or_404(SellerSettlement, id=settlement_id)
-    from .razorpayx_service import initiate_payout
-    success, msg = initiate_payout(settlement)
+    from django.db import transaction
+    with transaction.atomic():
+        settlement = SellerSettlement.objects.select_for_update().filter(id=settlement_id).first()
+        if not settlement:
+            return JsonResponse({'status': 'error', 'message': 'Settlement not found'}, status=404)
+        
+        if settlement.razorpay_payout_id:
+            return JsonResponse({'status': 'error', 'message': 'Payout has already been initiated for this settlement.'}, status=400)
+            
+        from .razorpayx_service import initiate_payout
+        success, msg = initiate_payout(settlement)
+        
     if success:
         return JsonResponse({'status': 'success', 'message': msg})
     return JsonResponse({'status': 'error', 'message': msg}, status=400)
@@ -1883,22 +1892,22 @@ def admin_create_settlement_ajax(request, seller_id):
     
     safety_date = timezone.now() - timedelta(days=10)
     
-    items = OrderItem.objects.filter(
-        id__in=order_item_ids,
-        seller=seller,
-        order__status='delivered',
-        order__delivered_at__lte=safety_date,
-        is_returned=False
-    ).exclude(
-        settlements__isnull=False
-    ).exclude(
-        return_requests__status__in=['requested', 'approved', 'completed']
-    )
-    
-    if not items.exists():
-        return JsonResponse({'status': 'error', 'message': 'None of the selected order items are eligible for settlement.'}, status=400)
-        
     with transaction.atomic():
+        items = OrderItem.objects.select_for_update().filter(
+            id__in=order_item_ids,
+            seller=seller,
+            order__status='delivered',
+            order__delivered_at__lte=safety_date,
+            is_returned=False
+        ).exclude(
+            settlements__isnull=False
+        ).exclude(
+            return_requests__status__in=['requested', 'approved', 'completed']
+        )
+        
+        if not items.exists():
+            return JsonResponse({'status': 'error', 'message': 'None of the selected order items are eligible for settlement.'}, status=400)
+            
         settlement = SellerSettlement.objects.create(
             seller=seller,
             status='pending'
