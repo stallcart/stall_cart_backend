@@ -418,3 +418,79 @@ class CategoryIconTests(TestCase):
         category.refresh_from_db()
         self.assertTrue(category.icon)
         self.assertTrue(category.icon.name.startswith("category_icons/icon"))
+
+
+class SellerBankDetailsRestrictionTests(TestCase):
+    def setUp(self):
+        self.seller_user = User.objects.create_user(
+            phone="9000000000",
+            password="sellerpassword",
+            role="seller",
+            full_name="Dashboard Seller"
+        )
+        self.seller_profile = SellerProfile.objects.create(
+            user=self.seller_user,
+            shop_name="Seller Shop Ltd",
+            pan_verification_status="verified"
+        )
+        self.category = Category.objects.create(
+            name="Toys",
+            commision_percentage=10.0
+        )
+
+    def test_seller_without_bank_details_is_restricted(self):
+        """Test that a seller without bank details is blocked from product creation views/endpoints."""
+        self.client.login(phone="9000000000", password="sellerpassword")
+        
+        # 1. Accessing product_create view should redirect to profile
+        response = self.client.get('/items/product/add/')
+        self.assertRedirects(response, '/accounts/profile/')
+        
+        # 2. AJAX endpoint save_product should return 400 Bad Request
+        save_response = self.client.post('/items/seller/dashboard/save/', {
+            'name': 'Toy Car',
+            'category': self.category.id,
+            'price': '99.99',
+            'stock': '10',
+            'status': 'draft',
+            'description': 'This is a description of the toy car.',
+            'discount_percent': '0',
+            'low_stock_threshold': '5'
+        })
+        self.assertEqual(save_response.status_code, 400)
+        self.assertEqual(save_response.json()['status'], 'error')
+        self.assertIn('bank details', save_response.json()['message'].lower())
+
+    def test_seller_with_bank_details_can_create_product(self):
+        """Test that a seller who completed bank details can create/save products."""
+        self.seller_profile.refresh_from_db()
+        
+        # Add bank details
+        self.seller_profile.bank_name = "State Bank of India"
+        self.seller_profile.account_number = "12345678901"
+        self.seller_profile.ifsc_code = "SBIN0001234"
+        self.seller_profile.account_holder_name = "Dashboard Seller"
+        self.seller_profile.save()
+        
+        self.seller_profile.refresh_from_db()
+
+        self.client.login(phone="9000000000", password="sellerpassword")
+
+        # 1. Accessing product_create view should return 200 OK
+        response = self.client.get('/items/product/add/')
+        self.assertEqual(response.status_code, 200)
+
+        # 2. AJAX endpoint save_product should return 200 OK / success
+        save_response = self.client.post('/items/seller/dashboard/save/', {
+            'name': 'Toy Plane',
+            'category': self.category.id,
+            'price': '199.99',
+            'stock': '5',
+            'status': 'draft',
+            'description': 'This is a description of the toy plane.',
+            'discount_percent': '0',
+            'low_stock_threshold': '5'
+        })
+        self.assertEqual(save_response.status_code, 200)
+        self.assertEqual(save_response.json()['status'], 'success')
+
