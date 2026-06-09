@@ -173,7 +173,8 @@ def sync_shiprocket_tracking(order):
                     'delivered': 'delivered',
                     'rto': 'returned_to_source',
                     'returned to source': 'returned_to_source',
-                    'cancelled': 'cancelled'
+                    'cancelled': 'cancelled',
+                    'canceled': 'cancelled'
                 }
                 new_local_status = status_map.get(sr_status.lower())
                 if new_local_status and new_local_status != order.status:
@@ -1350,6 +1351,7 @@ def shiprocket_webhook(request):
             'rto': 'returned_to_source',
             'returned to source': 'returned_to_source',
             'cancelled': 'cancelled',
+            'canceled': 'cancelled',
             'pickup failed': 'courier_failed_pickup',
             'pickup exception': 'courier_failed_pickup',
             'pickup_failed': 'courier_failed_pickup',

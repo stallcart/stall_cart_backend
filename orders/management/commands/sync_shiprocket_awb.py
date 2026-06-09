@@ -216,6 +216,7 @@ class Command(BaseCommand):
             'rto': 'returned_to_source',
             'returned to source': 'returned_to_source',
             'cancelled': 'cancelled',
+            'canceled': 'cancelled',
             'pickup failed': 'courier_failed_pickup',
             'pickup exception': 'courier_failed_pickup',
             'pickup_failed': 'courier_failed_pickup',
