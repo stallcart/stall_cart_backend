@@ -59,7 +59,7 @@
             <div class="step-content">
                 <strong>{{ step.label }}</strong>
                 <small>{{ step.timestamp|date:"d M, h:i A" }}</small>
-                {% if step.remarks and step.status in 'cancelled,returned,returned_to_source,refund_initiated,refunded' %}
+                {% if step.remarks and step.status in 'cancelled,returned,returned_to_source,refund_initiated,refunded,courier_failed_pickup,seller_unresponsive' %}
                 <p class="remarks">{{ step.remarks }}</p>
                 {% endif %}
             </div>
@@ -280,6 +280,8 @@
 .status-shipped, .status-out_for_delivery { background: #e8f5e9; color: #2e7d32; }
 .status-delivered { background: #c8e6c9; color: #1b5e20; }
 .status-cancelled { background: #ffebee; color: #c62828; }
+.status-courier_failed_pickup { background: #ffebee; color: #c62828; }
+.status-seller_unresponsive { background: #ffebee; color: #c62828; }
 .tracking-timeline { background: white; padding: 25px; border-radius: 12px; margin-bottom: 20px; }
 .timeline-step { display: flex; gap: 15px; padding: 15px 0; border-left: 3px solid #eee; padding-left: 25px; position: relative; }
 .timeline-step::before { content: ''; position: absolute; left: -4px; top: 20px; width: 8px; height: 8px; border-radius: 50%; background: #ccc; }

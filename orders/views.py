@@ -70,6 +70,8 @@ def get_friendly_remark(status, remarks):
             'returned': 'The return was completed successfully.',
             'refund_initiated': 'Refund has been initiated for your order.',
             'refunded': 'Refund has been successfully credited.',
+            'courier_failed_pickup': 'Courier partner failed to pick up your package. Refund has been initiated to your source account (should reflect within 3-5 business days).',
+            'seller_unresponsive': 'Seller did not proceed with fulfilling your order. Refund has been initiated to your source account (should reflect within 3-5 business days).',
         }
         return friendly_defaults.get(status, '')
         
@@ -93,6 +95,8 @@ def build_cleaned_timeline(order):
         'returned_to_source': 'Returned to Source (RTO)',
         'returned': 'Returned & Refunded',
         'cancelled': 'Cancelled',
+        'courier_failed_pickup': 'Pickup Failed (Courier)',
+        'seller_unresponsive': 'Seller Unresponsive',
     }
     
     cleaned_timeline = []

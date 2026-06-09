@@ -1424,5 +1424,115 @@ class MultiSellerOrderTests(TestCase):
         self.assertEqual(self.order.refund_amount, Decimal('100.00'))
 
 
+class CustomAdminCancellationStatusTests(TestCase):
+    def setUp(self):
+        self.admin_user = User.objects.create_superuser(
+            phone="9999999999",
+            password="adminpassword",
+            full_name="Admin User"
+        )
+        self.seller_user = User.objects.create_user(
+            phone="8888888888",
+            password="sellerpassword",
+            role="seller",
+            full_name="Seller One"
+        )
+        self.seller_profile = SellerProfile.objects.create(
+            user=self.seller_user,
+            shop_name="Shop One",
+            is_verified=True
+        )
+        self.customer = User.objects.create_user(
+            phone="6666666666",
+            password="customerpassword",
+            role="customer",
+            full_name="Customer User"
+        )
+        self.category = Category.objects.create(name="Clothing", commision_percentage=10.0)
+        self.product = Product.objects.create(
+            seller=self.seller_profile,
+            category=self.category,
+            name="Shirt",
+            price=Decimal("100.00"),
+            stock=10
+        )
+        self.address = {
+            "name": "Customer User", "phone": "6666666666", "address_line1": "123 Street",
+            "city": "Mumbai", "state": "Maharashtra", "postal_code": "400001"
+        }
+        self.order = Order.objects.create(
+            user=self.customer,
+            shipping_address=self.address,
+            total_amount=Decimal("100.00"),
+            payment_method="cod",
+            payment_status="pending",
+            status="confirmed"
+        )
+        self.item = OrderItem.objects.create(
+            order=self.order,
+            product=self.product,
+            seller=self.seller_profile,
+            quantity=2,
+            price=Decimal("50.00"),
+            total=Decimal("100.00"),
+            status="confirmed"
+        )
+
+    def test_admin_can_mark_courier_failed_pickup(self):
+        """Admin updating status to courier_failed_pickup triggers restocking and cancels earnings."""
+        self.client.login(phone="9999999999", password="adminpassword")
+        
+        # Initially stock is 10
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock, 10)
+        
+        url = reverse('orders:admin_update_status', args=[self.order.unique_order_id])
+        response = self.client.post(
+            url,
+            data=json.dumps({"status": "courier_failed_pickup"}),
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+        
+        self.order.refresh_from_db()
+        self.item.refresh_from_db()
+        self.product.refresh_from_db()
+        
+        self.assertEqual(self.order.status, "courier_failed_pickup")
+        self.assertEqual(self.item.status, "courier_failed_pickup")
+        # Restocking: 10 + 2 = 12
+        self.assertEqual(self.product.stock, 12)
+        # Earnings cancelled:
+        self.assertEqual(self.item.seller_earnings, Decimal("0.00"))
+
+    def test_admin_can_mark_seller_unresponsive(self):
+        """Admin updating status to seller_unresponsive triggers restocking and cancels earnings."""
+        self.client.login(phone="9999999999", password="adminpassword")
+        
+        # Initially stock is 10
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock, 10)
+        
+        url = reverse('orders:admin_update_status', args=[self.order.unique_order_id])
+        response = self.client.post(
+            url,
+            data=json.dumps({"status": "seller_unresponsive"}),
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+        
+        self.order.refresh_from_db()
+        self.item.refresh_from_db()
+        self.product.refresh_from_db()
+        
+        self.assertEqual(self.order.status, "seller_unresponsive")
+        self.assertEqual(self.item.status, "seller_unresponsive")
+        # Restocking: 10 + 2 = 12
+        self.assertEqual(self.product.stock, 12)
+        # Earnings cancelled:
+        self.assertEqual(self.item.seller_earnings, Decimal("0.00"))
+
+
+
 
 
