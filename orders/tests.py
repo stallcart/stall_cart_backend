@@ -1760,7 +1760,8 @@ class ShiprocketStatusTrackingTests(TestCase):
             seller=self.seller_profile,
             quantity=1,
             price=Decimal("100.00"),
-            total=Decimal("100.00")
+            total=Decimal("100.00"),
+            tracking_number="SR998877"
         )
 
     def test_shiprocket_status_updated_via_webhook(self):

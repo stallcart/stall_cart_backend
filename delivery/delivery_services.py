@@ -153,7 +153,7 @@ class ShiprocketService:
 
     # ── Create Order + Shipment ────────────────────────────────────────────────
 
-    def create_shipment(self, order):
+    def create_shipment(self, order, seller=None, items=None):
         """
         Create a Shiprocket order and request AWB + courier assignment.
         Returns dict with shiprocket_order_id, shipment_id, awb, courier_name.
@@ -165,7 +165,12 @@ class ShiprocketService:
             order.shipping_address = addr
             order.save(update_fields=["shipping_address"])
 
-        items = order.items.select_related("product")
+        if items is None:
+            items = order.items.select_related("product")
+            if seller is not None:
+                items = items.filter(product__seller=seller)
+
+        items_list = list(items)
  
         full_name = addr.get("name", "").strip()
         name_parts = full_name.split(None, 1)
@@ -185,20 +190,22 @@ class ShiprocketService:
         # Try to resolve seller pickup location dynamically from SellerShopAddress
         pickup_loc_name = getattr(settings, "SHIPROCKET_PICKUP_LOCATION", "Primary")
         try:
-            first_item = items.first()
-            if first_item and first_item.product.seller:
-                seller = first_item.product.seller
-                if hasattr(seller, 'shop_address') and seller.shop_address:
-                    shop_addr = seller.shop_address
+            first_item = items_list[0] if items_list else None
+            current_seller = seller or (first_item.product.seller if first_item else None)
+            if current_seller:
+                if hasattr(current_seller, 'shop_address') and current_seller.shop_address:
+                    shop_addr = current_seller.shop_address
                     if shop_addr.address_line1 and shop_addr.city and shop_addr.state and shop_addr.postal_code:
-                        pickup_loc_name = f"Seller_{seller.id}"
+                        pickup_loc_name = f"Seller_{current_seller.id}"
                         # Ensure this pickup location exists in Shiprocket
-                        self._ensure_pickup_location_registered(pickup_loc_name, seller, shop_addr)
+                        self._ensure_pickup_location_registered(pickup_loc_name, current_seller, shop_addr)
         except Exception as e:
             logger.warning(f"Failed to resolve seller pickup address dynamically: {e}")
 
+        payload_order_id = f"{order.unique_order_id}-S{seller.id}" if seller else order.unique_order_id
+
         order_payload = {
-            "order_id": order.unique_order_id,
+            "order_id": payload_order_id,
             "order_date": order.created_at.strftime("%Y-%m-%d %H:%M"),
             "channel_id": getattr(settings, "SHIPROCKET_CHANNEL_ID", ""),
             "pickup_location": pickup_loc_name,
@@ -233,10 +240,10 @@ class ShiprocketService:
                     "units": item.quantity,
                     "selling_price": float(item.price),
                 }
-                for item in items
+                for item in items_list
             ],
             "payment_method": "Prepaid" if order.payment_method == "razorpay" else "COD",
-            "sub_total": float(order.total_amount - order.delivery_charge),
+            "sub_total": float(sum(item.total for item in items_list)),
             "length": 10,   # cm
             "breadth": 10,
             "height": 10,
@@ -608,76 +615,101 @@ def auto_push_order_to_shiprocket(order):
         logger.warning("Shiprocket credentials not configured. Skipping auto-push.")
         return
         
-    if order.status in ['confirmed', 'processing'] and not order.tracking_number:
+    if order.status in ['confirmed', 'processing']:
         try:
-            srv = ShiprocketService()
-            res = srv.create_shipment(order)
-            if res.get('success') and res.get('awb'):
-                order.tracking_number = res.get('awb')
-                order.courier_name = res.get('courier_name', 'Shiprocket')
-                order.shiprocket_order_id = res.get('shiprocket_order_id')
-                order.shipment_id = res.get('shipment_id')
-                if res.get('estimated_delivery'):
-                    from datetime import datetime
-                    try:
-                        order.estimated_delivery = datetime.strptime(res['estimated_delivery'], "%Y-%m-%d").date()
-                    except Exception:
-                        pass
-                order.save(update_fields=['tracking_number', 'courier_name', 'estimated_delivery', 'shiprocket_order_id', 'shipment_id', 'updated_at'])
-                logger.info(f"Automatically pushed order {order.unique_order_id} to Shiprocket. AWB: {order.tracking_number}")
-                
-                # Create a status log for tracing the Shiprocket push
-                from orders.models import OrderStatusLog
-                OrderStatusLog.objects.create(
-                    order=order,
-                    old_status=order.status,
-                    new_status=order.status,
-                    remarks=f"Automatically pushed to Shiprocket (AWB: {order.tracking_number}, Courier: {order.courier_name})"
-                )
-            else:
-                err_msg = res.get('error', 'Unknown error')
-                payload = res.get('payload')
-                logger.error(f"Failed to auto-push order {order.unique_order_id} to Shiprocket: {err_msg}")
-                
-                # Create a status log for tracing the Shiprocket push failure with addresses and pickup location info
-                from orders.models import OrderStatusLog
-                import json
-                
-                # Safe fetching of debug info
-                addr = order.shipping_address or {}
-                pickup_loc = "Unknown (Failed before building payload)"
-                
-                # Reconstruct the pickup location details
-                try:
-                    first_item = order.items.select_related("product__seller__shop_address").first()
-                    if first_item and first_item.product.seller:
-                        seller = first_item.product.seller
-                        if hasattr(seller, 'shop_address') and seller.shop_address:
-                            sa = seller.shop_address
-                            pickup_loc = f"Seller_{seller.id} ({sa.shop_name} - {sa.city}, {sa.state} {sa.postal_code})"
-                        else:
-                            pickup_loc = "Primary (No seller shop address created in DB)"
-                except Exception:
-                    pass
+            seller_ids = list(order.items.values_list('seller_id', flat=True).distinct())
+            if not seller_ids:
+                logger.warning(f"Order {order.unique_order_id} has no items. Skipping.")
+                return
 
-                remarks = (
-                    f"❌ Failed to auto-push to Shiprocket: {err_msg}\n\n"
-                    f"🔍 Debug Info:\n"
-                    f"- Resolved Pickup Location: {pickup_loc}\n"
-                    f"- Customer Delivery Name: {addr.get('name', 'N/A')}\n"
-                    f"- Customer Delivery Phone: {addr.get('phone', 'N/A')}\n"
-                    f"- Customer Delivery Pincode: {addr.get('postal_code', 'N/A')}\n"
-                    f"- Customer Delivery City: {addr.get('city', 'N/A')}\n"
-                    f"- Customer Delivery State: {addr.get('state', 'N/A')}\n"
-                    f"- Customer Delivery Address: {addr.get('address_line1', 'N/A')}\n\n"
-                    f"📦 API Request Payload:\n{json.dumps(payload, indent=2) if payload else 'None'}"
-                )
-                OrderStatusLog.objects.create(
-                    order=order,
-                    old_status=order.status,
-                    new_status=order.status,
-                    remarks=remarks
-                )
+            srv = ShiprocketService()
+            from items.models import SellerProfile
+            from orders.models import OrderStatusLog
+            import json
+
+            pushed_any = False
+            errors = []
+            
+            for seller_id in seller_ids:
+                seller = SellerProfile.objects.filter(pk=seller_id).first()
+                if not seller:
+                    continue
+                
+                # Check if this seller's items already have tracking numbers
+                seller_items = order.items.filter(seller=seller)
+                if seller_items.filter(tracking_number__isnull=False).exclude(tracking_number='').exists():
+                    logger.info(f"Seller {seller_id} items already pushed for order {order.unique_order_id}. Skipping.")
+                    continue
+                
+                # Push shipment for this seller
+                res = srv.create_shipment(order, seller=seller, items=seller_items)
+                
+                if res.get('success') and res.get('awb'):
+                    awb = res.get('awb')
+                    courier = res.get('courier_name', 'Shiprocket')
+                    sr_order_id = res.get('shiprocket_order_id')
+                    shipment_id = res.get('shipment_id')
+                    
+                    # Update all items of this seller
+                    seller_items.update(
+                        tracking_number=awb,
+                        courier_name=courier,
+                        shiprocket_order_id=sr_order_id,
+                        shipment_id=shipment_id,
+                        updated_at=timezone.now()
+                    )
+                    
+                    # If the main order doesn't have tracking number set yet, set it as fallback
+                    if not order.tracking_number:
+                        order.tracking_number = awb
+                        order.courier_name = courier
+                        order.shiprocket_order_id = sr_order_id
+                        order.shipment_id = shipment_id
+                        if res.get('estimated_delivery'):
+                            from datetime import datetime
+                            try:
+                                order.estimated_delivery = datetime.strptime(res['estimated_delivery'], "%Y-%m-%d").date()
+                            except Exception:
+                                pass
+                        order.save(update_fields=['tracking_number', 'courier_name', 'estimated_delivery', 'shiprocket_order_id', 'shipment_id', 'updated_at'])
+                    
+                    pushed_any = True
+                    
+                    # Log for this seller
+                    OrderStatusLog.objects.create(
+                        order=order,
+                        old_status=order.status,
+                        new_status=order.status,
+                        remarks=f"Automatically pushed {seller.shop_name} items to Shiprocket (AWB: {awb}, Courier: {courier})"
+                    )
+                else:
+                    err_msg = res.get('error', 'Unknown error')
+                    errors.append(f"Seller {seller.shop_name}: {err_msg}")
+                    payload = res.get('payload')
+                    logger.error(f"Failed to auto-push seller {seller_id} items of order {order.unique_order_id} to Shiprocket: {err_msg}")
+                    
+                    # Log the failure
+                    addr = order.shipping_address or {}
+                    sa = getattr(seller, 'shop_address', None)
+                    pickup_loc = f"Seller_{seller.id} ({sa.shop_name} - {sa.city}, {sa.state} {sa.postal_code})" if sa else "Unknown"
+                    remarks = (
+                        f"❌ Failed to auto-push {seller.shop_name} items to Shiprocket: {err_msg}\n\n"
+                        f"🔍 Debug Info:\n"
+                        f"- Resolved Pickup Location: {pickup_loc}\n"
+                        f"- Customer Delivery Name: {addr.get('name', 'N/A')}\n"
+                        f"- Customer Delivery Phone: {addr.get('phone', 'N/A')}\n"
+                        f"- Customer Delivery Pincode: {addr.get('postal_code', 'N/A')}\n"
+                        f"- Customer Delivery City: {addr.get('city', 'N/A')}\n"
+                        f"- Customer Delivery State: {addr.get('state', 'N/A')}\n"
+                        f"- Customer Delivery Address: {addr.get('address_line1', 'N/A')}\n\n"
+                        f"📦 API Request Payload:\n{json.dumps(payload, indent=2) if payload else 'None'}"
+                    )
+                    OrderStatusLog.objects.create(
+                        order=order,
+                        old_status=order.status,
+                        new_status=order.status,
+                        remarks=remarks
+                    )
         except Exception as e:
             logger.error(f"Error during auto-pushing order to Shiprocket: {e}", exc_info=True)
 
@@ -685,29 +717,37 @@ def auto_push_order_to_shiprocket(order):
 def auto_cancel_shiprocket_order(order):
     """
     Cancels the order on Shiprocket if shiprocket_order_id is set.
+    For multi-seller orders, cancels all shipments associated with the order items.
     """
-    if order.shiprocket_order_id:
-        try:
-            srv = ShiprocketService()
-            res = srv.cancel_shipment([order.shiprocket_order_id])
-            if res.get('success'):
-                logger.info(f"Successfully cancelled Shiprocket order {order.shiprocket_order_id} for order {order.unique_order_id}")
-                from orders.models import OrderStatusLog
-                OrderStatusLog.objects.create(
-                    order=order,
-                    old_status=order.status,
-                    new_status=order.status,
-                    remarks=f"Cancelled Shiprocket order {order.shiprocket_order_id} successfully."
-                )
-            else:
-                err_msg = res.get('error', 'Unknown error')
-                logger.error(f"Failed to cancel Shiprocket order {order.shiprocket_order_id} for order {order.unique_order_id}: {err_msg}")
-                from orders.models import OrderStatusLog
-                OrderStatusLog.objects.create(
-                    order=order,
-                    old_status=order.status,
-                    new_status=order.status,
-                    remarks=f"⚠️ Failed to cancel Shiprocket order {order.shiprocket_order_id}: {err_msg}"
-                )
-        except Exception as e:
-            logger.error(f"Error during auto-cancelling order on Shiprocket: {e}", exc_info=True)
+    order_ids = list(order.items.exclude(shiprocket_order_id__isnull=True).exclude(shiprocket_order_id='').values_list('shiprocket_order_id', flat=True).distinct())
+    if order.shiprocket_order_id and order.shiprocket_order_id not in order_ids:
+        order_ids.append(order.shiprocket_order_id)
+        
+    if not order_ids:
+        logger.warning(f"No Shiprocket order IDs found to cancel for order {order.unique_order_id}")
+        return
+
+    try:
+        srv = ShiprocketService()
+        res = srv.cancel_shipment(order_ids)
+        if res.get('success'):
+            logger.info(f"Successfully cancelled Shiprocket orders {order_ids} for order {order.unique_order_id}")
+            from orders.models import OrderStatusLog
+            OrderStatusLog.objects.create(
+                order=order,
+                old_status=order.status,
+                new_status=order.status,
+                remarks=f"Cancelled Shiprocket orders {', '.join(order_ids)} successfully."
+            )
+        else:
+            err_msg = res.get('error', 'Unknown error')
+            logger.error(f"Failed to cancel Shiprocket orders {order_ids} for order {order.unique_order_id}: {err_msg}")
+            from orders.models import OrderStatusLog
+            OrderStatusLog.objects.create(
+                order=order,
+                old_status=order.status,
+                new_status=order.status,
+                remarks=f"⚠️ Failed to cancel Shiprocket orders {', '.join(order_ids)}: {err_msg}"
+            )
+    except Exception as e:
+        logger.error(f"Error during auto-cancelling order on Shiprocket: {e}", exc_info=True)

@@ -74,43 +74,68 @@ class Command(BaseCommand):
     def run_shiprocket_sync(self, srv, token):
 
         # ── PART 1: Sync Missing AWBs ──────────────────────────────────────────
-        orders_missing_awb = Order.objects.filter(
-            status__in=['confirmed', 'processing'],
+        from orders.models import OrderItem
+        items_missing_awb = OrderItem.objects.filter(
+            order__status__in=['confirmed', 'processing'],
             tracking_number__isnull=True
-        ) | Order.objects.filter(
-            status__in=['confirmed', 'processing'],
+        ) | OrderItem.objects.filter(
+            order__status__in=['confirmed', 'processing'],
             tracking_number=''
         )
-        orders_missing_awb = orders_missing_awb.distinct()
+        
+        # Get distinct (order_id, seller_id) pairs
+        distinct_pairs = list(items_missing_awb.values_list('order_id', 'seller_id').distinct())
 
-        self.stdout.write(f"\n[Part 1] Checking {orders_missing_awb.count()} order(s) missing AWB tracking numbers...")
+        self.stdout.write(f"\n[Part 1] Checking {len(distinct_pairs)} seller shipment(s) missing AWB tracking numbers...")
 
-        for order in orders_missing_awb:
-            self.stdout.write(f"Checking Order {order.unique_order_id} for AWB...")
+        for order_id, seller_id in distinct_pairs:
             try:
+                order = Order.objects.get(pk=order_id)
+                from items.models import SellerProfile
+                seller = SellerProfile.objects.get(pk=seller_id)
+            except Exception:
+                continue
+
+            self.stdout.write(f"Checking Order {order.unique_order_id} - Seller {seller.shop_name} for AWB...")
+            try:
+                # Try query with seller suffix first
+                sr_order_id_to_query = f"{order.unique_order_id}-S{seller.id}"
                 res = requests.get(
                     "https://apiv2.shiprocket.in/v1/external/orders",
                     params={
                         "filter_by": "channel_order_id",
-                        "filter": order.unique_order_id
+                        "filter": sr_order_id_to_query
                     },
                     headers=srv._headers(),
                     timeout=15
                 )
 
-                if res.status_code != 200:
-                    self.stdout.write(self.style.WARNING(f"Shiprocket API returned status {res.status_code} for order {order.unique_order_id}"))
-                    continue
+                orders_list = []
+                if res.status_code == 200:
+                    orders_list = res.json().get("data", [])
+                
+                # If not found, fallback to order.unique_order_id
+                if not orders_list:
+                    res_fallback = requests.get(
+                        "https://apiv2.shiprocket.in/v1/external/orders",
+                        params={
+                            "filter_by": "channel_order_id",
+                            "filter": order.unique_order_id
+                        },
+                        headers=srv._headers(),
+                        timeout=15
+                    )
+                    if res_fallback.status_code == 200:
+                        orders_list = res_fallback.json().get("data", [])
 
-                orders_list = res.json().get("data", [])
                 sr_order = None
                 for o in orders_list:
-                    if o.get("channel_order_id") == order.unique_order_id:
+                    if o.get("channel_order_id") in [sr_order_id_to_query, order.unique_order_id]:
                         sr_order = o
                         break
 
                 if not sr_order:
-                    self.stdout.write(f"  Order {order.unique_order_id} not found on Shiprocket system yet.")
+                    self.stdout.write(f"  Shipment not found on Shiprocket system yet.")
                     continue
 
                 awb_code = sr_order.get("awb_code") or sr_order.get("awb")
@@ -125,16 +150,15 @@ class Command(BaseCommand):
                         courier_name = first_shipment.get("courier_name") or first_shipment.get("courier_company_name")
 
                 # Setup recipient list (Sellers & Admin)
-                seller_emails = set()
-                for item in order.items.all():
-                    if item.product.seller and item.product.seller.user.email:
-                        seller_emails.add(item.product.seller.user.email.strip())
+                recipient_list = []
+                if seller.user.email:
+                    recipient_list.append(seller.user.email.strip())
 
                 admin_emails = list(User.objects.filter(is_superuser=True).exclude(email='').values_list('email', flat=True))
                 if not admin_emails:
                     admin_emails = [getattr(settings, 'DEFAULT_FROM_EMAIL', 'admin@stallcart.in')]
                 
-                recipient_list = list(seller_emails) + admin_emails
+                recipient_list = list(set(recipient_list + admin_emails))
                 recipient_list = [email for email in recipient_list if email]
 
                 if awb_code and str(awb_code).strip():
@@ -142,31 +166,56 @@ class Command(BaseCommand):
                     courier_name = str(courier_name or "Shiprocket").strip()
                     self.stdout.write(self.style.SUCCESS(f"  AWB detected: {awb_code} ({courier_name}). Updating database..."))
 
-                    # Update order AWB
+                    # Update order items of this seller
+                    items_to_update = order.items.filter(seller=seller, tracking_number__isnull=True) | order.items.filter(seller=seller, tracking_number='')
+                    
+                    first_item = items_to_update.first()
+                    old_item_status = first_item.status if first_item else 'confirmed'
+                    
+                    sr_shipment_id = None
+                    shipments = sr_order.get("shipments", [])
+                    if shipments:
+                        sr_shipment_id = shipments[0].get("id") or shipments[0].get("shipment_id")
+
+                    items_to_update.update(
+                        tracking_number=awb_code,
+                        courier_name=courier_name,
+                        shiprocket_order_id=sr_order.get("order_id"),
+                        shipment_id=sr_shipment_id,
+                        status='processing',
+                        updated_at=timezone.now()
+                    )
+
+                    # Update overall status
                     old_status = order.status
-                    order.tracking_number = awb_code
-                    order.courier_name = courier_name
-                    order.status = 'processing'
-                    order.save(update_fields=['tracking_number', 'courier_name', 'status', 'updated_at'])
+                    order.update_overall_status()
+
+                    # Fallback update on parent Order if not set
+                    if not order.tracking_number:
+                        order.tracking_number = awb_code
+                        order.courier_name = courier_name
+                        order.shiprocket_order_id = sr_order.get("order_id")
+                        order.shipment_id = sr_shipment_id
+                        order.save(update_fields=['tracking_number', 'courier_name', 'shiprocket_order_id', 'shipment_id', 'updated_at'])
 
                     # Log the status change
                     OrderStatusLog.objects.create(
                         order=order,
-                        old_status=old_status,
+                        old_status=old_item_status,
                         new_status=order.status,
-                        remarks=f"🔄 Automatically synced tracking details from Shiprocket (AWB: {awb_code}, Courier: {courier_name})"
+                        remarks=f"🔄 Synced tracking for {seller.shop_name} items from Shiprocket (AWB: {awb_code}, Courier: {courier_name})"
                     )
 
                     SystemActivityLog.log(
                         event_type='delivery_status',
-                        description=f"Synced AWB '{awb_code}' ({courier_name}) from Shiprocket for Order {order.unique_order_id}.",
+                        description=f"Synced AWB '{awb_code}' ({courier_name}) from Shiprocket for Order {order.unique_order_id} (Seller: {seller.shop_name}).",
                         order=order,
                         metadata={'awb': awb_code, 'courier': courier_name, 'shiprocket_order_id': sr_order.get("order_id") if sr_order else None}
                     )
 
                     # Send AWB Assignment notification email
                     context = {
-                        "order_id": order.unique_order_id,
+                        "order_id": f"{order.unique_order_id} (Seller: {seller.shop_name})",
                         "tracking_number": awb_code,
                         "courier_name": courier_name,
                         "admin_order_url": f"https://stallcart.in/orders/admin/order/{order.unique_order_id}/"
@@ -180,29 +229,23 @@ class Command(BaseCommand):
                         logger.error(f"Failed to send customer status change notification: {ex}")
 
                 else:
-                    self.stdout.write(f"  Order exists in Shiprocket but has no tracking AWB assigned yet.")
+                    self.stdout.write(f"  Shipment exists in Shiprocket but has no tracking AWB assigned yet.")
 
                     # Check if alert email has already been sent
                     alert_exists = OrderStatusLog.objects.filter(
                         order=order,
-                        remarks__contains="Sent manual AWB update alert email"
+                        remarks__contains=f"Sent manual AWB update alert email for {seller.shop_name}"
                     ).exists()
 
                     if not alert_exists:
-                        self.stdout.write("  Dispatching manual AWB update notification to seller/admin...")
+                        self.stdout.write(f"  Dispatching manual AWB update notification for {seller.shop_name}...")
                         pickup_loc = "Primary"
-                        try:
-                            first_item = order.items.first()
-                            if first_item and first_item.product.seller:
-                                seller = first_item.product.seller
-                                if hasattr(seller, 'shop_address') and seller.shop_address:
-                                    sa = seller.shop_address
-                                    pickup_loc = f"Seller_{seller.id} ({sa.shop_name} - {sa.city}, {sa.state})"
-                        except Exception:
-                            pass
+                        if hasattr(seller, 'shop_address') and seller.shop_address:
+                            sa = seller.shop_address
+                            pickup_loc = f"Seller_{seller.id} ({sa.shop_name} - {sa.city}, {sa.state})"
 
                         context = {
-                            "order_id": order.unique_order_id,
+                            "order_id": f"{order.unique_order_id} (Seller: {seller.shop_name})",
                             "status": order.get_status_display(),
                             "pickup_location": pickup_loc,
                             "customer_name": order.shipping_address.get('name', 'Customer'),
@@ -215,23 +258,31 @@ class Command(BaseCommand):
                                 order=order,
                                 old_status=order.status,
                                 new_status=order.status,
-                                remarks="⚠️ Sent manual AWB update alert email to seller/admin. Awaiting tracking details."
+                                remarks=f"⚠️ Sent manual AWB update alert email for {seller.shop_name}. Awaiting tracking details."
                             )
                             self.stdout.write("  Alert email dispatched and logged.")
                     else:
-                        self.stdout.write("  Manual AWB update alert email already sent. Skipping.")
+                        self.stdout.write(f"  Manual AWB update alert email already sent for {seller.shop_name}. Skipping.")
 
             except Exception as e:
                 self.stdout.write(self.style.ERROR(f"Error checking AWB for order {order.unique_order_id}: {e}"))
                 logger.error(f"AWB Sync error for order {order.unique_order_id}: {e}", exc_info=True)
 
         # ── PART 2: Sync Delivery Statuses ─────────────────────────────────────
-        active_tracked_orders = Order.objects.filter(
-            status__in=['confirmed', 'processing', 'shipped', 'out_for_delivery'],
+        terminal_statuses = [
+            'delivered', 'cancelled', 'returned', 'returned_to_source', 
+            'courier_failed_pickup', 'seller_unresponsive', 'refund_initiated', 'refunded'
+        ]
+        
+        active_tracked_items = OrderItem.objects.exclude(
+            status__in=terminal_statuses
+        ).filter(
             tracking_number__isnull=False
-        ).exclude(tracking_number='').distinct()
+        ).exclude(tracking_number='')
 
-        self.stdout.write(f"\n[Part 2] Checking {active_tracked_orders.count()} active tracked order(s) for status updates...")
+        distinct_tracking_numbers = list(active_tracked_items.values_list('tracking_number', flat=True).distinct())
+
+        self.stdout.write(f"\n[Part 2] Checking {len(distinct_tracking_numbers)} active tracking number(s) for status updates...")
 
         status_map = {
             'awb assigned': 'confirmed',
@@ -256,84 +307,80 @@ class Command(BaseCommand):
             'pickup_exception': 'courier_failed_pickup',
         }
 
-        for order in active_tracked_orders:
-            self.stdout.write(f"Querying status for Order {order.unique_order_id} (AWB: {order.tracking_number})...")
+        affected_orders = {}
+
+        for tracking_number in distinct_tracking_numbers:
+            self.stdout.write(f"Querying status for AWB {tracking_number}...")
             try:
-                tracking_data = srv.get_tracking(order.tracking_number)
+                tracking_data = srv.get_tracking(tracking_number)
                 sr_status = tracking_data.get("current_status")
 
                 if not sr_status:
-                    self.stdout.write(f"  No tracking status returned from Shiprocket for AWB {order.tracking_number}.")
+                    self.stdout.write(f"  No tracking status returned from Shiprocket for AWB {tracking_number}.")
                     continue
 
                 sr_status = sr_status.strip()
                 new_local_status = status_map.get(sr_status.lower())
                 self.stdout.write(f"  Shiprocket Status: '{sr_status}' -> Mapped Local Status: '{new_local_status}'")
 
-                # Always update shiprocket_status if it differs
-                if order.shiprocket_status != sr_status:
-                    order.shiprocket_status = sr_status
-                    order.save(update_fields=['shiprocket_status', 'updated_at'])
-                    
-                    # Update all order items too
-                    for item in order.items.filter(tracking_number=order.tracking_number) | order.items.filter(tracking_number__isnull=True) | order.items.filter(tracking_number=''):
+                items_to_update = OrderItem.objects.filter(tracking_number=tracking_number)
+                for item in items_to_update:
+                    item_updated = False
+
+                    if item.shiprocket_status != sr_status:
                         item.shiprocket_status = sr_status
-                        item.save(update_fields=['shiprocket_status', 'updated_at'])
+                        item_updated = True
 
-                if new_local_status and new_local_status != order.status:
-                    old_status = order.status
-                    order.status = new_local_status
-                    update_fields = ['status', 'updated_at']
-
-                    if new_local_status == 'delivered':
-                        order.delivered_at = timezone.now()
-                        update_fields.append('delivered_at')
-                    elif new_local_status == 'shipped' and not order.shipped_at:
-                        order.shipped_at = timezone.now()
-                        update_fields.append('shipped_at')
-
-                    order.save(update_fields=update_fields)
-
-                    # Update all items statuses too
-                    for item in order.items.filter(tracking_number=order.tracking_number) | order.items.filter(tracking_number__isnull=True) | order.items.filter(tracking_number=''):
+                    if new_local_status and item.status != new_local_status:
+                        old_item_status = item.status
                         item.status = new_local_status
-                        item_fields = ['status', 'updated_at']
                         if new_local_status == 'delivered':
                             item.delivered_at = timezone.now()
-                            item_fields.append('delivered_at')
                         elif new_local_status == 'shipped' and not item.shipped_at:
                             item.shipped_at = timezone.now()
-                            item_fields.append('shipped_at')
-                        item.save(update_fields=item_fields)
+                        item_updated = True
 
-                    # Log the automatic status update
+                        if item.order_id not in affected_orders:
+                            affected_orders[item.order_id] = (item.order, item.order.status)
+
+                    if item_updated:
+                        item.save()
+                        self.stdout.write(self.style.SUCCESS(f"  Updated item {item.id} ({item.product.name}) status to {item.status}"))
+
+            except Exception as e:
+                self.stdout.write(self.style.ERROR(f"Error querying tracking status for AWB {tracking_number}: {e}"))
+                logger.error(f"Status sync error for AWB {tracking_number}: {e}", exc_info=True)
+
+        # Update overall status and log/notify for all affected orders
+        for order_id, (order, old_order_status) in affected_orders.items():
+            try:
+                order.update_overall_status()
+                # Reload status
+                order.refresh_from_db()
+
+                if order.status != old_order_status:
                     OrderStatusLog.objects.create(
                         order=order,
-                        old_status=old_status,
-                        new_status=new_local_status,
-                        remarks=f"🔄 Automatically updated status via Shiprocket Sync (Status: {sr_status})"
+                        old_status=old_order_status,
+                        new_status=order.status,
+                        remarks=f"🔄 Automatically updated status via Shiprocket Sync of item shipments."
                     )
 
                     SystemActivityLog.log(
                         event_type='delivery_status',
-                        description=f"Status updated via Shiprocket Sync for Order {order.unique_order_id}: '{sr_status}' mapped to local '{new_local_status}'.",
+                        description=f"Order status updated via Shiprocket Sync for Order {order.unique_order_id}: mapped to local '{order.status}'.",
                         order=order,
-                        metadata={'shiprocket_status': sr_status, 'mapped_status': new_local_status}
+                        metadata={'mapped_status': order.status}
                     )
 
-                    self.stdout.write(self.style.SUCCESS(f"  Successfully updated status from '{old_status}' to '{new_local_status}'!"))
+                    self.stdout.write(self.style.SUCCESS(f"  Successfully updated order status from '{old_order_status}' to '{order.status}'!"))
 
-                    # Trigger push notifications & emails
                     try:
-                        notify_order_status_change(order, old_status, order.status)
+                        notify_order_status_change(order, old_order_status, order.status)
                     except Exception as ex:
-                        logger.error(f"Failed to trigger status change notification: {ex}")
-                else:
-                    self.stdout.write("  Status is already up-to-date. No changes made.")
-
+                        logger.error(f"Failed to trigger status change notification for order {order.unique_order_id}: {ex}")
             except Exception as e:
-                self.stdout.write(self.style.ERROR(f"Error querying tracking status for order {order.unique_order_id}: {e}"))
-                logger.error(f"Status sync error for order {order.unique_order_id}: {e}", exc_info=True)
+                self.stdout.write(self.style.ERROR(f"Error updating overall status for order {order.unique_order_id}: {e}"))
 
     def run_email_retry(self):
         # ── PART 3: Email Sync & Retry ──────────────────────────────────────────
