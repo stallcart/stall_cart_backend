@@ -22,6 +22,11 @@
                     Update Status
                 </button>
                 {% endif %}
+                {% if seller_items.0.status in 'pending,confirmed,processing' %}
+                <button class="btn-outline" onclick="openCancelModal()" style="font-size: 0.85rem; padding: 8px 16px; height: 36px; border-radius: 8px; font-weight: 700; border: 2px solid #ef4444; cursor: pointer; background: #fef2f2; color: #ef4444; display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
+                    ❌ Cancel Items
+                </button>
+                {% endif %}
                 {% if seller_items.0.status in 'confirmed,processing,shipped,delivered' %}
                     {% if not seller_items.0.tracking_number %}
                     <button class="btn-outline" onclick="openTrackingModal('', '')" style="font-size: 0.85rem; padding: 8px 16px; height: 36px; border-radius: 8px; font-weight: 700; border: 2px solid #2874f0; cursor: pointer; background: white; color: #2874f0;">
@@ -230,6 +235,52 @@
     </div>
 </div>
 
+<!-- ✅ Seller Cancel Items Modal -->
+<div id="cancelModal" class="modal">
+    <div class="modal-content" style="max-width: 500px;">
+        <span class="modal-close" onclick="closeModal('cancelModal')">&times;</span>
+        <h3 style="color: #ef4444; margin-top: 0; font-family: 'Syne', sans-serif;">❌ Cancel Items</h3>
+        <form id="cancelForm">
+            {% csrf_token %}
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label style="font-weight: 700; display: block; margin-bottom: 10px;">Select items to cancel:</label>
+                <div style="display: flex; flex-direction: column; gap: 12px; max-height: 200px; overflow-y: auto; padding: 10px; border: 1.5px solid var(--gray-200); border-radius: 8px; background: #f9fafb;">
+                    {% for item in seller_items %}
+                        {% if item.status in 'pending,confirmed,processing' %}
+                        <label style="display: flex; align-items: flex-start; gap: 10px; font-size: 0.9rem; cursor: pointer; text-align: left;">
+                            <input type="checkbox" name="item_ids" value="{{ item.id }}" checked style="margin-top: 3px; cursor: pointer;">
+                            <div style="flex: 1;">
+                                <strong style="color: #333;">{{ item.product.name }}</strong>
+                                <span style="display: block; font-size: 0.8rem; color: #666;">
+                                    Qty: {{ item.quantity }} • Price: ₹{{ item.price|floatformat:2 }} • Status: {{ item.get_status_display }}
+                                </span>
+                            </div>
+                        </label>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 15px;">
+                <label>Cancellation Reason</label>
+                <select name="reason" class="form-input" required style="width: 100%;">
+                    <option value="out_of_stock">Out of stock / Unable to process</option>
+                    <option value="changed_mind">Customer requested cancellation</option>
+                    <option value="wrong_address">Incorrect address details</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label>Remarks / Explanatory Note</label>
+                <textarea name="remarks" rows="3" placeholder="Provide extra context for cancellation..." required style="width: 100%; font-family: inherit; padding: 10px; border: 1.5px solid var(--gray-200); border-radius: 8px; box-sizing: border-box; resize: vertical;"></textarea>
+            </div>
+            
+            <button type="submit" class="btn-primary" style="background: #ef4444; border: none; width: 100%; font-weight: 700; cursor: pointer;">Confirm Cancellation & Process Refund</button>
+        </form>
+    </div>
+</div>
+
 <!-- ✅ Status Update Modal -->
 <div id="statusModal" class="modal">
     <div class="modal-content" style="max-width: 440px;">
@@ -323,6 +374,9 @@ const csrfToken = '{{ csrf_token }}';
 
 window.openStatusModal = () => {
     document.getElementById('statusModal').classList.add('show');
+};
+window.openCancelModal = () => {
+    document.getElementById('cancelModal').classList.add('show');
 };
 window.openTrackingModal = (courierName = '', trackingNumber = '') => {
     const numInput = document.getElementById('trackingNumberInput');
@@ -428,5 +482,51 @@ function confirmRtoReceipt(orderId) {
         }
     });
 }
+
+// Cancel Items AJAX
+document.getElementById('cancelForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const checkboxes = e.target.querySelectorAll('input[name="item_ids"]:checked');
+    const item_ids = Array.from(checkboxes).map(cb => parseInt(cb.value));
+    const reason = e.target.reason.value;
+    const remarks = e.target.remarks.value;
+    
+    if (item_ids.length === 0) {
+        alert("Please select at least one item to cancel.");
+        return;
+    }
+    
+    if (!confirm("Are you sure you want to cancel the selected items and initiate a refund?")) {
+        return;
+    }
+    
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerText = "Processing Cancellation & Refund...";
+    }
+    
+    try {
+        const res = await fetch(`/orders/order/{{ order.unique_order_id }}/authorized-cancel/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify({ item_ids, reason, remarks })
+        });
+        
+        const data = await res.json();
+        if (!res.ok) {
+            throw new Error(data.message || 'Failed to cancel items.');
+        }
+        
+        alert(data.message);
+        location.reload();
+    } catch (err) {
+        alert(err.message);
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerText = "Confirm Cancellation & Process Refund";
+        }
+    }
+});
 </script>
 {% endblock %}

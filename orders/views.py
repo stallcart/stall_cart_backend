@@ -1987,3 +1987,220 @@ def admin_toggle_jobs_ajax(request):
         'status': 'success',
         'enable_background_jobs': settings.enable_background_jobs
     })
+
+
+@require_POST
+@login_required
+def authorized_cancel_order(request, order_id):
+    """
+    Unified cancellation endpoint for Admin, Staff, and Sellers.
+    - Admin/Staff: Can cancel any active items/orders at any status.
+    - Sellers: Can cancel only their own items, only when status is pending, confirmed, or processing.
+    - Triggers restocking, live refund (Razorpay/Wallet), and Shiprocket shipment cancellation.
+    """
+    from accounts.models import Wallet
+    from delivery.delivery_services import ShiprocketService
+    from orders.models import SystemActivityLog
+    
+    order = get_object_or_404(Order, unique_order_id=order_id)
+    
+    # 1. Permission check: must be admin/staff or seller
+    user = request.user
+    is_admin_or_staff = user.is_superuser or user.is_staff or (hasattr(user, 'role') and user.role == 'admin')
+    is_seller = hasattr(user, 'role') and user.role == 'seller' and hasattr(user, 'seller_profile')
+    
+    if not (is_admin_or_staff or is_seller):
+        return JsonResponse({'status': 'error', 'message': 'Permission denied. Only admins, staff, or sellers can perform this action.'}, status=403)
+        
+    try:
+        data = json.loads(request.body)
+    except Exception:
+        data = {}
+        
+    item_ids = data.get('item_ids', [])
+    reason = data.get('reason', 'other')
+    remarks = data.get('remarks', '')
+    
+    active_states = ['pending', 'confirmed', 'processing', 'shipped', 'out_for_delivery']
+    
+    with transaction.atomic():
+        # lock the order for update
+        order = Order.objects.select_for_update().get(pk=order.pk)
+        
+        # 2. Identify and validate items to cancel
+        if not item_ids:
+            if is_admin_or_staff:
+                items_to_cancel = order.items.filter(status__in=active_states)
+            else:
+                seller = user.seller_profile
+                items_to_cancel = order.items.filter(seller=seller, status__in=['pending', 'confirmed', 'processing'])
+        else:
+            items_to_cancel = order.items.filter(id__in=item_ids)
+            if items_to_cancel.count() != len(item_ids):
+                return JsonResponse({'status': 'error', 'message': 'Some requested items do not belong to this order.'}, status=400)
+                
+        if not items_to_cancel.exists():
+            return JsonResponse({'status': 'error', 'message': 'No active/cancellable items found to cancel.'}, status=400)
+            
+        # 3. Role-based constraints validation
+        for item in items_to_cancel:
+            if is_seller:
+                if item.seller != user.seller_profile:
+                    return JsonResponse({'status': 'error', 'message': f"You are not authorized to cancel item '{item.product.name}'."}, status=403)
+                if item.status not in ['pending', 'confirmed', 'processing']:
+                    return JsonResponse({'status': 'error', 'message': f"Cannot cancel item '{item.product.name}' as it is already '{item.get_status_display()}'."}, status=400)
+            else:
+                if item.status not in active_states:
+                    return JsonResponse({'status': 'error', 'message': f"Item '{item.product.name}' is already '{item.get_status_display()}' and cannot be cancelled."}, status=400)
+                    
+        # 4. Restock, update item status, and calculate refund amount
+        refund_amount = Decimal('0.00')
+        shiprocket_order_ids = []
+        
+        for item in items_to_cancel:
+            # Restock if not already returned/restocked
+            if not item.is_returned:
+                qty = item.quantity
+                product = item.product
+                variant = item.variant
+                if variant:
+                    variant.stock = (variant.stock or 0) + qty
+                    variant.save(update_fields=['stock', 'updated_at'])
+                    product.stock = product.variants.filter(is_active=True).aggregate(
+                        total=models.Sum('stock')
+                    )['total'] or 0
+                    product.save(update_fields=['stock', 'updated_at'])
+                else:
+                    product.stock = (product.stock or 0) + qty
+                    product.save(update_fields=['stock', 'updated_at'])
+                
+                item.is_returned = True
+                item.returned_quantity = qty
+                
+            item.status = 'cancelled'
+            item.save(update_fields=['status', 'is_returned', 'returned_quantity', 'updated_at'])
+            
+            refund_amount += item.total
+            
+            if item.shiprocket_order_id:
+                shiprocket_order_ids.append(item.shiprocket_order_id)
+                
+        # 5. Process refund to source for prepaid orders
+        refund_note = "No refund required (COD/unpaid)."
+        payment_method = order.payment_method.lower()
+        
+        if order.payment_status == 'paid' and refund_amount > 0:
+            if payment_method == 'razorpay' and order.razorpay_payment_id:
+                client = get_razorpay_client()
+                if client:
+                    try:
+                        razorpay_refund = client.refund.create({
+                            'payment_id': order.razorpay_payment_id,
+                            'amount': int(refund_amount * 100),
+                            'notes': {
+                                'order_id': order.unique_order_id,
+                                'reason': f'Cancelled by {"Admin" if is_admin_or_staff else "Seller"}: {reason}',
+                                'initiated_by': user.phone or user.email or 'system'
+                            }
+                        })
+                        order.razorpay_refund_id = razorpay_refund.get('id')
+                        order.refund_amount = (order.refund_amount or Decimal('0.00')) + refund_amount
+                        order.refund_at = timezone.now()
+                        refund_note = f"Refunded Rs. {refund_amount} to original source (Razorpay ID: {razorpay_refund.get('id')})"
+                    except Exception as e:
+                        logger.error(f"Razorpay refund failed during cancellation for order {order.unique_order_id}: {e}", exc_info=True)
+                        order.payment_status = 'failed'
+                        refund_note = f"Razorpay refund of Rs. {refund_amount} failed; manual refund required"
+                else:
+                    logger.error(f"Razorpay client not configured during cancellation for order {order.unique_order_id}")
+                    order.payment_status = 'failed'
+                    refund_note = f"Razorpay client not configured; manual refund of Rs. {refund_amount} required"
+            elif payment_method == 'wallet':
+                try:
+                    wallet, created = Wallet.objects.get_or_create(user=order.user)
+                    wallet.balance += refund_amount
+                    wallet.save()
+                    order.refund_amount = (order.refund_amount or Decimal('0.00')) + refund_amount
+                    order.refund_at = timezone.now()
+                    refund_note = f"Refunded Rs. {refund_amount} to StallCart Wallet."
+                except Exception as e:
+                    logger.error(f"Wallet refund failed during cancellation for order {order.unique_order_id}: {e}", exc_info=True)
+                    refund_note = f"Wallet refund of Rs. {refund_amount} failed; manual refund required"
+            elif payment_method == 'cod':
+                refund_note = f"COD refund: pending manual refund of Rs. {refund_amount}"
+            else:
+                refund_note = f"Unsupported payment method; manual refund of Rs. {refund_amount} required"
+                
+        # Check if all items in the order are now cancelled / returned / refunded
+        total_items = order.items.count()
+        cancelled_or_refunded_items = order.items.filter(
+            status__in=['cancelled', 'returned', 'returned_to_source', 'refund_initiated', 'refunded', 'courier_failed_pickup', 'seller_unresponsive']
+        ).count()
+        
+        if total_items > 0 and total_items == cancelled_or_refunded_items:
+            if order.payment_status == 'paid' and refund_amount > 0 and 'failed' not in refund_note:
+                order.payment_status = 'refunded'
+                
+        order.save(update_fields=['payment_status', 'refund_amount', 'refund_at', 'razorpay_refund_id', 'updated_at'])
+        
+        # 6. Update overall order status
+        old_status = order.status
+        order.update_overall_status()
+        
+        if order.status == 'cancelled':
+            order.cancelled_at = timezone.now()
+            order.cancellation_reason = reason
+            order.cancellation_remarks = remarks
+            order.save(update_fields=['cancelled_at', 'cancellation_reason', 'cancellation_remarks', 'updated_at'])
+            
+        # 7. Cancel Shiprocket orders
+        shiprocket_note = "No Shiprocket shipments required to cancel."
+        if shiprocket_order_ids:
+            try:
+                srv = ShiprocketService()
+                res = srv.cancel_shipment(shiprocket_order_ids)
+                if res.get('success'):
+                    shiprocket_note = f"Cancelled Shiprocket orders {', '.join(shiprocket_order_ids)} successfully."
+                else:
+                    err_msg = res.get('error', 'Unknown error')
+                    shiprocket_note = f"⚠️ Failed to cancel Shiprocket orders {', '.join(shiprocket_order_ids)}: {err_msg}"
+            except Exception as e:
+                logger.error(f"Error calling Shiprocket cancel_shipment: {e}", exc_info=True)
+                shiprocket_note = f"Error during auto-cancelling Shiprocket orders: {e}"
+                
+        # 8. Log the status change
+        cancelled_item_names = [f"{item.product.name} (x{item.quantity})" for item in items_to_cancel]
+        log_remarks = f"Cancelled item(s): {', '.join(cancelled_item_names)}. Reason: {reason}. Remarks: {remarks}."
+        if refund_amount > 0:
+            log_remarks += f" Refund: {refund_note}."
+        log_remarks += f" Shiprocket: {shiprocket_note}."
+        
+        OrderStatusLog.objects.create(
+            order=order,
+            old_status=old_status,
+            new_status=order.status,
+            changed_by=user,
+            remarks=log_remarks
+        )
+        
+        SystemActivityLog.log(
+            event_type='order_status',
+            description=f"Items cancelled for order {order.unique_order_id} by {request.user.role if hasattr(request.user, 'role') else 'admin'}.",
+            order=order,
+            user=user,
+            status='success',
+            metadata={
+                'cancelled_items': [item.id for item in items_to_cancel],
+                'refund_amount': float(refund_amount),
+                'shiprocket_order_ids': shiprocket_order_ids,
+                'refund_note': refund_note,
+                'shiprocket_note': shiprocket_note
+            }
+        )
+        
+    return JsonResponse({
+        'status': 'success',
+        'message': f"Successfully cancelled {items_to_cancel.count()} item(s).",
+        'refund_note': refund_note,
+        'shiprocket_note': shiprocket_note
+    })

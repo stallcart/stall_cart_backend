@@ -34,6 +34,11 @@
                 <button class="btn-primary" onclick="openStatusModal()" style="font-size: 0.85rem; padding: 8px 16px; border-radius: var(--r-md); border: none; cursor: pointer; font-weight: 700; height: 36px; display: inline-flex; align-items: center; justify-content: center;">
                     Update Status
                 </button>
+                {% if order.status in 'pending,confirmed,processing,shipped,out_for_delivery' %}
+                <button class="btn-outline" onclick="openCancelModal()" style="font-size: 0.85rem; padding: 8px 16px; border-radius: var(--r-md); border: 1.5px solid var(--red-200); color: #dc2626; cursor: pointer; font-weight: 700; height: 36px; display: inline-flex; align-items: center; justify-content: center; background: #fef2f2;">
+                    ❌ Cancel Items
+                </button>
+                {% endif %}
                 {% if not order.tracking_number %}
                 <button class="btn-outline" onclick="openTrackingModal('', '')" style="font-size: 0.85rem; padding: 8px 16px; border-radius: var(--r-md); border: 1.5px solid var(--gray-200); cursor: pointer; font-weight: 700; height: 36px; display: inline-flex; align-items: center; justify-content: center; background: white; color: var(--gray-700);">
                     📦 Add Tracking
@@ -214,6 +219,57 @@
 
 </div>
 
+<!-- ✅ Admin Cancel Order / Items Modal -->
+<div id="cancelModal" class="modal">
+    <div class="modal-content" style="max-width: 500px;">
+        <div style="padding: 20px 24px; border-bottom: 1px solid var(--gray-100); display: flex; align-items: center; justify-content: space-between;">
+            <h3 style="margin: 0; font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 800; color: #dc2626;">❌ Cancel Order Items</h3>
+            <span class="modal-close" onclick="closeCancelModal()" style="font-size: 1.5rem; color: var(--gray-400); cursor: pointer; line-height: 1;">&times;</span>
+        </div>
+        <form id="cancelForm" style="padding: 24px; margin: 0;">
+            {% csrf_token %}
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; font-weight: 700; color: var(--gray-700); margin-bottom: 10px; font-size: 0.9rem;">Select items to cancel:</label>
+                <div style="display: flex; flex-direction: column; gap: 12px; max-height: 200px; overflow-y: auto; padding: 10px; border: 1.5px solid var(--gray-200); border-radius: var(--r-md); background: var(--gray-50);">
+                    {% for item in order.items.all %}
+                        {% if item.status in 'pending,confirmed,processing,shipped,out_for_delivery' %}
+                        <label style="display: flex; align-items: flex-start; gap: 10px; font-size: 0.85rem; color: var(--gray-700); cursor: pointer; padding: 6px; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+                            <input type="checkbox" name="item_ids" value="{{ item.id }}" checked style="margin-top: 3px; cursor: pointer;">
+                            <div style="flex: 1;">
+                                <strong style="color: var(--gray-900);">{{ item.product.name }}</strong>
+                                <span style="display: block; font-size: 0.75rem; color: var(--gray-500);">
+                                    Qty: {{ item.quantity }} • Price: ₹{{ item.price|floatformat:2 }} • Status: {{ item.get_status_display }}
+                                </span>
+                            </div>
+                        </label>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 16px;">
+                <label style="display: block; font-weight: 700; color: var(--gray-700); margin-bottom: 8px; font-size: 0.9rem;">Cancellation Reason</label>
+                <select name="reason" class="form-input" required style="width: 100%; padding: 10px 12px; border: 1.5px solid var(--gray-200); border-radius: var(--r-md); font-size: 0.9rem; outline: none; background: white;">
+                    <option value="changed_mind">Changed mind</option>
+                    <option value="delivery_delay">Delivery delay</option>
+                    <option value="wrong_address">Wrong address</option>
+                    <option value="out_of_stock">Out of stock / Seller unable to process</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 24px;">
+                <label style="display: block; font-weight: 700; color: var(--gray-700); margin-bottom: 8px; font-size: 0.9rem;">Remarks / Explanatory Note</label>
+                <textarea name="remarks" rows="3" placeholder="Explain reason for cancellation..." required style="width: 100%; padding: 10px 12px; border: 1.5px solid var(--gray-200); border-radius: var(--r-md); font-size: 0.9rem; outline: none; resize: vertical; font-family: inherit; box-sizing: border-box;"></textarea>
+            </div>
+            
+            <button type="submit" class="btn-primary" style="width: 100%; padding: 12px; font-weight: 700; border-radius: var(--r-md); border: none; cursor: pointer; background: #dc2626; color: white;">
+                Confirm Cancellation & Process Refund
+            </button>
+        </form>
+    </div>
+</div>
+
 <!-- ✅ Admin Update Status Modal -->
 <div id="statusModal" class="modal">
     <div class="modal-content" style="max-width: 440px;">
@@ -282,6 +338,9 @@ const csrfToken = '{{ csrf_token }}';
 window.openStatusModal = () => {
     document.getElementById('statusModal').classList.add('show');
 };
+window.openCancelModal = () => {
+    document.getElementById('cancelModal').classList.add('show');
+};
 window.openTrackingModal = (courierName = '', trackingNumber = '') => {
     const numInput = document.getElementById('trackingNumberInput');
     if (numInput) numInput.value = trackingNumber;
@@ -292,14 +351,19 @@ window.openTrackingModal = (courierName = '', trackingNumber = '') => {
 window.closeModal = () => {
     document.getElementById('statusModal').classList.remove('show');
 };
+window.closeCancelModal = () => {
+    document.getElementById('cancelModal').classList.remove('show');
+};
 window.closeTrackingModal = () => {
     document.getElementById('trackingModal').classList.remove('show');
 };
 window.onclick = (e) => {
     const modal = document.getElementById('statusModal');
     const tModal = document.getElementById('trackingModal');
+    const cModal = document.getElementById('cancelModal');
     if (e.target === modal) closeModal();
     if (e.target === tModal) closeTrackingModal();
+    if (e.target === cModal) closeCancelModal();
 };
 
 // Status Update AJAX
@@ -352,6 +416,55 @@ document.getElementById('trackingForm')?.addEventListener('submit', async (e) =>
         setTimeout(() => window.location.reload(), 1000);
     } catch (err) {
         alert(err.message);
+    }
+});
+
+// Cancel Items AJAX
+document.getElementById('cancelForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const checkboxes = e.target.querySelectorAll('input[name="item_ids"]:checked');
+    const item_ids = Array.from(checkboxes).map(cb => parseInt(cb.value));
+    const reason = e.target.reason.value;
+    const remarks = e.target.remarks.value;
+    
+    if (item_ids.length === 0) {
+        alert("Please select at least one item to cancel.");
+        return;
+    }
+    
+    if (!confirm("Are you sure you want to cancel the selected items and initiate a refund?")) {
+        return;
+    }
+    
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerText = "Processing Cancellation & Refund...";
+    }
+    
+    try {
+        const res = await fetch(`/orders/order/{{ order.unique_order_id }}/authorized-cancel/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ item_ids, reason, remarks })
+        });
+        
+        const data = await res.json();
+        if (!res.ok) {
+            throw new Error(data.message || 'Failed to cancel order items.');
+        }
+        
+        showToast(data.message, 'success');
+        setTimeout(() => window.location.reload(), 1500);
+    } catch (err) {
+        alert(err.message);
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerText = "Confirm Cancellation & Process Refund";
+        }
     }
 });
 </script>

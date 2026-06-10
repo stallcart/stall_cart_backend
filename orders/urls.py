@@ -135,6 +135,7 @@ urlpatterns = [
      # Return management
      path('return/<int:return_id>/approve/', views.approve_return, name='approve_return'),
      path('order/<str:order_id>/confirm-rto/', views.confirm_rto_refund, name='confirm_rto_refund'),
+     path('order/<str:order_id>/authorized-cancel/', seller_or_admin_only(views.authorized_cancel_order), name='authorized_cancel_order'),
 
      # Settlement & Payout management
      path('admin/settlement/<int:settlement_id>/payout/', views.admin_trigger_payout_ajax, name='admin_trigger_payout_ajax'),
