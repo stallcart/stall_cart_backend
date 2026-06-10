@@ -167,21 +167,9 @@
                     {% endif %}
                 </div>
                 <div style="display: flex; gap: 10px;">
-                    <a href="{% url 'orders:admin_order_detail' order.unique_order_id %}" class="btn-outline" style="padding: 8px 16px; border-radius: var(--r-md); font-size: 0.85rem; text-decoration: none; border: 1.5px solid var(--gray-200); font-weight: 600; display: inline-flex; align-items: center; justify-content: center; height: 36px;">
+                    <a href="{% url 'orders:admin_order_detail' order.unique_order_id %}" class="btn-primary" style="padding: 8px 20px; border-radius: var(--r-md); font-size: 0.85rem; text-decoration: none; border: none; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; height: 36px;">
                         View Details →
                     </a>
-                    <button class="btn-primary" onclick="openStatusModal('{{ order.unique_order_id }}', '{{ order.status }}')" style="padding: 8px 16px; border-radius: var(--r-md); font-size: 0.85rem; font-weight: 700; border: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; height: 36px;">
-                        Update Status
-                    </button>
-                    {% if not order.tracking_number %}
-                    <button class="btn-outline" onclick="openTrackingModal('{{ order.unique_order_id }}', '', '')" style="padding: 8px 16px; border-radius: var(--r-md); font-size: 0.85rem; border: 1.5px solid var(--gray-200); font-weight: 600; display: inline-flex; align-items: center; justify-content: center; height: 36px; background: white; cursor: pointer;">
-                        📦 Add Tracking
-                    </button>
-                    {% else %}
-                    <button class="btn-outline" onclick="openTrackingModal('{{ order.unique_order_id }}', '{{ order.courier_name|escapejs }}', '{{ order.tracking_number|escapejs }}')" style="padding: 8px 16px; border-radius: var(--r-md); font-size: 0.85rem; border: 1.5px solid var(--gray-200); font-weight: 600; display: inline-flex; align-items: center; justify-content: center; height: 36px; background: white; cursor: pointer;">
-                        📝 Edit Tracking
-                    </button>
-                    {% endif %}
                 </div>
             </div>
             
@@ -197,154 +185,11 @@
 
 </div>
 
-<!-- ✅ Admin Update Status Modal -->
-<div id="statusModal" class="modal">
-    <div class="modal-content" style="max-width: 440px;">
-        <div style="padding: 20px 24px; border-bottom: 1px solid var(--gray-100); display: flex; align-items: center; justify-content: space-between;">
-            <h3 style="margin: 0; font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 800;">👑 Update Order Status (Admin)</h3>
-            <span class="modal-close" onclick="closeModal()" style="font-size: 1.5rem; color: var(--gray-400); cursor: pointer; line-height: 1;">&times;</span>
-        </div>
-        <form id="statusForm" style="padding: 24px; margin: 0;">
-            {% csrf_token %}
-            <input type="hidden" id="statusOrderId">
-            <div class="form-group" style="margin-bottom: 20px;">
-                <label style="display: block; font-weight: 600; color: var(--gray-700); margin-bottom: 8px; font-size: 0.9rem;">Select New Order Status</label>
-                <select name="status" id="statusSelect" class="form-input" required style="width: 100%; padding: 10px 12px; border: 1.5px solid var(--gray-200); border-radius: var(--r-md); font-size: 0.9rem; outline: none; background: white;">
-                    <option value="pending">🟡 Order Placed</option>
-                    <option value="confirmed">🔵 Order Confirmed</option>
-                    <option value="processing">🟠 Processing</option>
-                    <option value="shipped">🟣 Shipped</option>
-                    <option value="out_for_delivery">🔵 Out for Delivery</option>
-                    <option value="delivered">🟢 Delivered</option>
-                    <option value="returned">🔄 Returned</option>
-                    <option value="returned_to_source">🔄 Returned to Source (RTO)</option>
-                    <option value="refund_initiated">💰 Refund Initiated</option>
-                    <option value="refunded">✅ Refunded</option>
-                </select>
-            </div>
-            <button type="submit" class="btn-primary" style="width: 100%; padding: 12px; font-weight: 700; border-radius: var(--r-md); border: none; cursor: pointer;">Confirm Update</button>
-        </form>
-    </div>
-</div>
-
-<!-- ✅ Admin Add/Edit Tracking Modal -->
-<div id="trackingModal" class="modal">
-    <div class="modal-content" style="max-width: 440px;">
-        <div style="padding: 20px 24px; border-bottom: 1px solid var(--gray-100); display: flex; align-items: center; justify-content: space-between;">
-            <h3 style="margin: 0; font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 800;">📦 Add/Edit Tracking Details</h3>
-            <span class="modal-close" onclick="closeTrackingModal()" style="font-size: 1.5rem; color: var(--gray-400); cursor: pointer; line-height: 1;">&times;</span>
-        </div>
-        <form id="trackingForm" style="padding: 24px; margin: 0;">
-            {% csrf_token %}
-            <input type="hidden" id="trackingOrderId">
-            <div class="form-group" style="margin-bottom: 15px;">
-                <label style="display: block; font-weight: 600; color: var(--gray-700); margin-bottom: 8px; font-size: 0.9rem;">Courier Name</label>
-                <select name="courier_name" id="courierNameSelect" class="form-input" style="width: 100%; padding: 10px 12px; border: 1.5px solid var(--gray-200); border-radius: var(--r-md); font-size: 0.9rem; outline: none; background: white;">
-                    <option value="Shiprocket">🚀 Shiprocket</option>
-                    <option value="Delhivery">📦 Delhivery</option>
-                    <option value="BlueDart">🔵 BlueDart</option>
-                    <option value="Other">📋 Other</option>
-                </select>
-            </div>
-            <div class="form-group" style="margin-bottom: 20px;">
-                <label style="display: block; font-weight: 600; color: var(--gray-700); margin-bottom: 8px; font-size: 0.9rem;">Tracking Number (AWB)</label>
-                <input type="text" name="tracking_number" id="trackingNumberInput" class="form-input" required placeholder="e.g., AWB123456789" style="width: 100%; padding: 10px 12px; border: 1.5px solid var(--gray-200); border-radius: var(--r-md); font-size: 0.9rem; outline: none; background: white;">
-            </div>
-            <button type="submit" class="btn-primary" style="width: 100%; padding: 12px; font-weight: 700; border-radius: var(--r-md); border: none; cursor: pointer;">Save Tracking</button>
-        </form>
-    </div>
-</div>
-
 {% endblock %}
 
 {% block scripts %}
 <script>
 const csrfToken = '{{ csrf_token }}';
-
-// Modal helpers
-window.openStatusModal = (orderId, currentStatus = '') => {
-    document.getElementById('statusOrderId').value = orderId;
-    const select = document.getElementById('statusSelect');
-    if (select && currentStatus) {
-        select.value = currentStatus;
-    }
-    document.getElementById('statusModal').classList.add('show');
-};
-window.openTrackingModal = (orderId, courierName = '', trackingNumber = '') => {
-    document.getElementById('trackingOrderId').value = orderId;
-    const numInput = document.getElementById('trackingNumberInput');
-    if (numInput) numInput.value = trackingNumber;
-    const select = document.getElementById('courierNameSelect');
-    if (select) select.value = courierName || 'Shiprocket';
-    document.getElementById('trackingModal').classList.add('show');
-};
-window.closeModal = () => {
-    document.getElementById('statusModal').classList.remove('show');
-};
-window.closeTrackingModal = () => {
-    document.getElementById('trackingModal').classList.remove('show');
-};
-window.onclick = (e) => {
-    const modal = document.getElementById('statusModal');
-    const tModal = document.getElementById('trackingModal');
-    if (e.target === modal) closeModal();
-    if (e.target === tModal) closeTrackingModal();
-};
-
-// Status Update AJAX
-document.getElementById('statusForm')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const orderId = document.getElementById('statusOrderId').value;
-    const status = e.target.status.value;
-    
-    try {
-        const res = await fetch(`/orders/admin/order/${orderId}/update-status/`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
-            },
-            body: JSON.stringify({ status })
-        });
-        if (!res.ok) {
-            const err = await res.json();
-            throw new Error(err.error || 'Failed to update order status.');
-        }
-        
-        showToast('Order status updated successfully', 'success');
-        setTimeout(() => window.location.reload(), 1000);
-    } catch (err) {
-        alert(err.message);
-    }
-});
-
-// Tracking Add/Edit AJAX
-document.getElementById('trackingForm')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const orderId = document.getElementById('trackingOrderId').value;
-    const tracking_number = document.getElementById('trackingNumberInput').value;
-    const courier_name = document.getElementById('courierNameSelect').value;
-    
-    try {
-        const res = await fetch(`/orders/seller/order/${orderId}/add-tracking/`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
-            },
-            body: JSON.stringify({ tracking_number, courier_name })
-        });
-        if (!res.ok) {
-            const err = await res.json();
-            throw new Error(err.error || 'Failed to update tracking info.');
-        }
-        
-        showToast('Tracking info updated successfully', 'success');
-        setTimeout(() => window.location.reload(), 1000);
-    } catch (err) {
-        alert(err.message);
-    }
-});
 
 window.toggleBackgroundJobs = async () => {
     const btn = document.getElementById('toggle-jobs-btn');
