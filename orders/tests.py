@@ -1868,6 +1868,8 @@ class ShiprocketStatusTrackingTests(TestCase):
         # Test Sync command
         self.order.status = "confirmed"
         self.order.save()
+        self.item.status = "confirmed"
+        self.item.save()
         
         from unittest import mock
         with mock.patch('delivery.delivery_services.ShiprocketService._get_token') as mock_token, \

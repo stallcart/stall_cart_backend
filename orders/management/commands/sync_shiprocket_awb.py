@@ -330,6 +330,11 @@ class Command(BaseCommand):
                     if item.shiprocket_status != sr_status:
                         item.shiprocket_status = sr_status
                         item_updated = True
+                        
+                        # Also sync parent order's shiprocket_status
+                        if item.order.shiprocket_status != sr_status:
+                            item.order.shiprocket_status = sr_status
+                            item.order.save(update_fields=['shiprocket_status', 'updated_at'])
 
                     if new_local_status and item.status != new_local_status:
                         old_item_status = item.status

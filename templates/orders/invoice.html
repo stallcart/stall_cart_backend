@@ -369,7 +369,7 @@
                 <!-- Left: From (Seller Info) -->
                 <td style="width: 50%; vertical-align: top; padding-right: 15pt;">
                     <div class="address-label">From</div>
-                    {% with seller=order.items.first.seller %}
+                    {% with seller=invoice_seller %}
                     {% if seller %}
                         <div class="address-name">
                             {% if seller.shop_address %}
