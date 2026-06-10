@@ -603,6 +603,141 @@ class ShiprocketService:
             }
 
 
+def push_seller_items_to_shiprocket(order, seller):
+    """
+    Pushes order items belonging to a specific seller to Shiprocket.
+    Uses database row locks (select_for_update) and a transient 'PENDING_PUSH'
+    state with a 5-minute timeout to guarantee atomic, duplicate-free execution.
+    Returns (success_boolean, error_message_or_none).
+    """
+    from django.db import transaction
+    from django.utils import timezone
+    from datetime import timedelta
+    from orders.models import OrderStatusLog
+    import json
+
+    # 1. Start a short transaction to check and set the transient lock
+    try:
+        with transaction.atomic():
+            # Lock the items for this seller
+            items = order.items.select_for_update().filter(seller=seller)
+            if not items.exists():
+                return False, "No items found for this seller."
+
+            # Check if already pushed or currently being pushed
+            has_real_tracking = items.filter(tracking_number__isnull=False).exclude(tracking_number='').exists()
+            has_real_sr_id = items.filter(shiprocket_order_id__isnull=False).exclude(shiprocket_order_id='').exclude(shiprocket_order_id='PENDING_PUSH').exists()
+            
+            # Check if there is an active push in progress
+            is_pending = items.filter(shiprocket_order_id='PENDING_PUSH').exists()
+            if is_pending:
+                five_minutes_ago = timezone.now() - timedelta(minutes=5)
+                # Check if the lock has expired
+                expired_pending = items.filter(shiprocket_order_id='PENDING_PUSH', updated_at__lt=five_minutes_ago)
+                if expired_pending.exists():
+                    logger.warning(f"Push lock for seller {seller.id} on order {order.unique_order_id} expired. Re-attempting push.")
+                    items.filter(shiprocket_order_id='PENDING_PUSH').update(shiprocket_order_id=None, updated_at=timezone.now())
+                else:
+                    logger.info(f"Seller {seller.id} items of order {order.unique_order_id} are currently being pushed. Skipping.")
+                    return False, "Push in progress"
+
+            if has_real_tracking or has_real_sr_id:
+                logger.info(f"Seller {seller.id} items of order {order.unique_order_id} are already pushed. Skipping.")
+                return True, None
+
+            # Mark all items as PENDING_PUSH to lock other threads
+            items.update(shiprocket_order_id='PENDING_PUSH', updated_at=timezone.now())
+    except Exception as e:
+        logger.error(f"Failed to acquire Shiprocket push lock: {e}")
+        return False, f"Lock acquisition error: {e}"
+
+    # 2. Call Shiprocket API outside the transaction
+    try:
+        srv = ShiprocketService()
+        res = srv.create_shipment(order, seller=seller, items=items)
+        
+        success = res.get('success') and res.get('awb')
+        if success:
+            awb = res.get('awb')
+            courier = res.get('courier_name', 'Shiprocket')
+            sr_order_id = res.get('shiprocket_order_id')
+            shipment_id = res.get('shipment_id')
+
+            with transaction.atomic():
+                locked_items = order.items.select_for_update().filter(seller=seller)
+                locked_items.update(
+                    tracking_number=awb,
+                    courier_name=courier,
+                    shiprocket_order_id=sr_order_id,
+                    shipment_id=shipment_id,
+                    updated_at=timezone.now()
+                )
+
+                # Re-fetch order in-transaction to avoid stale save
+                order.refresh_from_db()
+                if not order.tracking_number:
+                    order.tracking_number = awb
+                    order.courier_name = courier
+                    order.shiprocket_order_id = sr_order_id
+                    order.shipment_id = shipment_id
+                    if res.get('estimated_delivery'):
+                        from datetime import datetime
+                        try:
+                            order.estimated_delivery = datetime.strptime(res['estimated_delivery'], "%Y-%m-%d").date()
+                        except Exception:
+                            pass
+                    order.save(update_fields=['tracking_number', 'courier_name', 'estimated_delivery', 'shiprocket_order_id', 'shipment_id', 'updated_at'])
+
+            # Log success
+            OrderStatusLog.objects.create(
+                order=order,
+                old_status=order.status,
+                new_status=order.status,
+                remarks=f"Automatically pushed {seller.shop_name} items to Shiprocket (AWB: {awb}, Courier: {courier})"
+            )
+            return True, None
+        else:
+            err_msg = res.get('error', 'Unknown error')
+            # Revert transient status so it can be retried
+            with transaction.atomic():
+                locked_items = order.items.select_for_update().filter(seller=seller)
+                locked_items.filter(shiprocket_order_id='PENDING_PUSH').update(shiprocket_order_id=None, updated_at=timezone.now())
+
+            payload = res.get('payload')
+            addr = order.shipping_address or {}
+            sa = getattr(seller, 'shop_address', None)
+            pickup_loc = f"Seller_{seller.id} ({sa.shop_name} - {sa.city}, {sa.state} {sa.postal_code})" if sa else "Unknown"
+            remarks = (
+                f"❌ Failed to auto-push {seller.shop_name} items to Shiprocket: {err_msg}\n\n"
+                f"🔍 Debug Info:\n"
+                f"- Resolved Pickup Location: {pickup_loc}\n"
+                f"- Customer Delivery Name: {addr.get('name', 'N/A')}\n"
+                f"- Customer Delivery Phone: {addr.get('phone', 'N/A')}\n"
+                f"- Customer Delivery Pincode: {addr.get('postal_code', 'N/A')}\n"
+                f"- Customer Delivery City: {addr.get('city', 'N/A')}\n"
+                f"- Customer Delivery State: {addr.get('state', 'N/A')}\n"
+                f"- Customer Delivery Address: {addr.get('address_line1', 'N/A')}\n\n"
+                f"📦 API Request Payload:\n{json.dumps(payload, indent=2) if payload else 'None'}"
+            )
+            OrderStatusLog.objects.create(
+                order=order,
+                old_status=order.status,
+                new_status=order.status,
+                remarks=remarks
+            )
+            return False, err_msg
+    except Exception as e:
+        logger.error(f"Error executing Shiprocket push: {e}", exc_info=True)
+        # Revert transient status so it can be retried
+        try:
+            with transaction.atomic():
+                locked_items = order.items.select_for_update().filter(seller=seller)
+                locked_items.filter(shiprocket_order_id='PENDING_PUSH').update(shiprocket_order_id=None, updated_at=timezone.now())
+        except Exception:
+            pass
+        return False, str(e)
+
+
 def auto_push_order_to_shiprocket(order):
     """
     Checks if Shiprocket credentials are set, and pushes the order if confirmed.
@@ -622,94 +757,13 @@ def auto_push_order_to_shiprocket(order):
                 logger.warning(f"Order {order.unique_order_id} has no items. Skipping.")
                 return
 
-            srv = ShiprocketService()
             from items.models import SellerProfile
-            from orders.models import OrderStatusLog
-            import json
-
-            pushed_any = False
-            errors = []
-            
             for seller_id in seller_ids:
                 seller = SellerProfile.objects.filter(pk=seller_id).first()
                 if not seller:
                     continue
-                
-                # Check if this seller's items already have tracking numbers
-                seller_items = order.items.filter(seller=seller)
-                if seller_items.filter(tracking_number__isnull=False).exclude(tracking_number='').exists():
-                    logger.info(f"Seller {seller_id} items already pushed for order {order.unique_order_id}. Skipping.")
-                    continue
-                
-                # Push shipment for this seller
-                res = srv.create_shipment(order, seller=seller, items=seller_items)
-                
-                if res.get('success') and res.get('awb'):
-                    awb = res.get('awb')
-                    courier = res.get('courier_name', 'Shiprocket')
-                    sr_order_id = res.get('shiprocket_order_id')
-                    shipment_id = res.get('shipment_id')
-                    
-                    # Update all items of this seller
-                    seller_items.update(
-                        tracking_number=awb,
-                        courier_name=courier,
-                        shiprocket_order_id=sr_order_id,
-                        shipment_id=shipment_id,
-                        updated_at=timezone.now()
-                    )
-                    
-                    # If the main order doesn't have tracking number set yet, set it as fallback
-                    if not order.tracking_number:
-                        order.tracking_number = awb
-                        order.courier_name = courier
-                        order.shiprocket_order_id = sr_order_id
-                        order.shipment_id = shipment_id
-                        if res.get('estimated_delivery'):
-                            from datetime import datetime
-                            try:
-                                order.estimated_delivery = datetime.strptime(res['estimated_delivery'], "%Y-%m-%d").date()
-                            except Exception:
-                                pass
-                        order.save(update_fields=['tracking_number', 'courier_name', 'estimated_delivery', 'shiprocket_order_id', 'shipment_id', 'updated_at'])
-                    
-                    pushed_any = True
-                    
-                    # Log for this seller
-                    OrderStatusLog.objects.create(
-                        order=order,
-                        old_status=order.status,
-                        new_status=order.status,
-                        remarks=f"Automatically pushed {seller.shop_name} items to Shiprocket (AWB: {awb}, Courier: {courier})"
-                    )
-                else:
-                    err_msg = res.get('error', 'Unknown error')
-                    errors.append(f"Seller {seller.shop_name}: {err_msg}")
-                    payload = res.get('payload')
-                    logger.error(f"Failed to auto-push seller {seller_id} items of order {order.unique_order_id} to Shiprocket: {err_msg}")
-                    
-                    # Log the failure
-                    addr = order.shipping_address or {}
-                    sa = getattr(seller, 'shop_address', None)
-                    pickup_loc = f"Seller_{seller.id} ({sa.shop_name} - {sa.city}, {sa.state} {sa.postal_code})" if sa else "Unknown"
-                    remarks = (
-                        f"❌ Failed to auto-push {seller.shop_name} items to Shiprocket: {err_msg}\n\n"
-                        f"🔍 Debug Info:\n"
-                        f"- Resolved Pickup Location: {pickup_loc}\n"
-                        f"- Customer Delivery Name: {addr.get('name', 'N/A')}\n"
-                        f"- Customer Delivery Phone: {addr.get('phone', 'N/A')}\n"
-                        f"- Customer Delivery Pincode: {addr.get('postal_code', 'N/A')}\n"
-                        f"- Customer Delivery City: {addr.get('city', 'N/A')}\n"
-                        f"- Customer Delivery State: {addr.get('state', 'N/A')}\n"
-                        f"- Customer Delivery Address: {addr.get('address_line1', 'N/A')}\n\n"
-                        f"📦 API Request Payload:\n{json.dumps(payload, indent=2) if payload else 'None'}"
-                    )
-                    OrderStatusLog.objects.create(
-                        order=order,
-                        old_status=order.status,
-                        new_status=order.status,
-                        remarks=remarks
-                    )
+                # Push atomically
+                push_seller_items_to_shiprocket(order, seller)
         except Exception as e:
             logger.error(f"Error during auto-pushing order to Shiprocket: {e}", exc_info=True)
 

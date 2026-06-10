@@ -133,9 +133,14 @@ class Command(BaseCommand):
                     if o.get("channel_order_id") in [sr_order_id_to_query, order.unique_order_id]:
                         sr_order = o
                         break
-
                 if not sr_order:
-                    self.stdout.write(f"  Shipment not found on Shiprocket system yet.")
+                    self.stdout.write(f"  Shipment not found on Shiprocket system yet. Attempting to push to Shiprocket...")
+                    from delivery.delivery_services import push_seller_items_to_shiprocket
+                    success, err = push_seller_items_to_shiprocket(order, seller)
+                    if success:
+                        self.stdout.write(self.style.SUCCESS(f"  Successfully pushed seller {seller.shop_name} items to Shiprocket."))
+                    else:
+                        self.stdout.write(self.style.ERROR(f"  Failed to push seller {seller.shop_name} items: {err}"))
                     continue
 
                 awb_code = sr_order.get("awb_code") or sr_order.get("awb")
