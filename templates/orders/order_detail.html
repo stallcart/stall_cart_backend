@@ -597,9 +597,9 @@
                 <!-- Rating -->
                 <div class="form-group" style="margin-bottom: 16px;">
                     <label class="form-label" style="display:block; font-size:.82rem; font-weight:600; color:#444; margin-bottom:6px;">Your Rating *</label>
-                    <div id="sellerStarRating" class="star-rating">
+                    <div id="sellerStarRating" class="star-rating" style="display: flex; gap: 8px; font-size: 1.5rem; color: #fbbf24;">
                         {% for i in "12345" %}
-                        <span data-value="{{ i }}">☆</span>
+                        <span data-value="{{ i }}" style="cursor: pointer;"><i class="fa-regular fa-star"></i></span>
                         {% endfor %}
                     </div>
                     <input type="hidden" id="sellerRatingInput" name="rating" required>
@@ -706,13 +706,27 @@ if (sellerStarRating && sellerRatingInput) {
     
     function updateSellerStars(value) {
         stars.forEach((star, index) => {
-            star.textContent = index < value ? '★' : '☆';
+            const icon = star.querySelector('i');
+            if (icon) {
+                if (index < value) {
+                    icon.className = 'fa-solid fa-star';
+                } else {
+                    icon.className = 'fa-regular fa-star';
+                }
+            }
             star.classList.toggle('active', index < value);
         });
     }
     function highlightSellerStars(value) {
         stars.forEach((star, index) => {
-            star.textContent = index < value ? '★' : '☆';
+            const icon = star.querySelector('i');
+            if (icon) {
+                if (index < value) {
+                    icon.className = 'fa-solid fa-star';
+                } else {
+                    icon.className = 'fa-regular fa-star';
+                }
+            }
         });
     }
 }

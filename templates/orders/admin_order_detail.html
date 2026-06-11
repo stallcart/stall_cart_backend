@@ -35,17 +35,17 @@
                     Update Status
                 </button>
                 {% if order.status in 'pending,confirmed,processing,shipped,out_for_delivery' %}
-                <button class="btn-outline" onclick="openCancelModal()" style="font-size: 0.85rem; padding: 8px 16px; border-radius: var(--r-md); border: 1.5px solid var(--red-200); color: #dc2626; cursor: pointer; font-weight: 700; height: 36px; display: inline-flex; align-items: center; justify-content: center; background: #fef2f2;">
-                    ❌ Cancel Items
+                <button class="btn-outline" onclick="openCancelModal()" style="font-size: 0.85rem; padding: 8px 16px; border-radius: var(--r-md); border: 1.5px solid var(--red-200); color: #dc2626; cursor: pointer; font-weight: 700; height: 36px; display: inline-flex; align-items: center; justify-content: center; background: #fef2f2; gap: 4px;">
+                    <i class="fa fa-times-circle"></i> Cancel Items
                 </button>
                 {% endif %}
                 {% if not order.tracking_number %}
-                <button class="btn-outline" onclick="openTrackingModal('', '')" style="font-size: 0.85rem; padding: 8px 16px; border-radius: var(--r-md); border: 1.5px solid var(--gray-200); cursor: pointer; font-weight: 700; height: 36px; display: inline-flex; align-items: center; justify-content: center; background: white; color: var(--gray-700);">
-                    📦 Add Tracking
+                <button class="btn-outline" onclick="openTrackingModal('', '')" style="font-size: 0.85rem; padding: 8px 16px; border-radius: var(--r-md); border: 1.5px solid var(--gray-200); cursor: pointer; font-weight: 700; height: 36px; display: inline-flex; align-items: center; justify-content: center; background: white; color: var(--gray-700); gap: 4px;">
+                    <i class="fa fa-truck"></i> Add Tracking
                 </button>
                 {% else %}
-                <button class="btn-outline" onclick="openTrackingModal('{{ order.courier_name|escapejs }}', '{{ order.tracking_number|escapejs }}')" style="font-size: 0.85rem; padding: 8px 16px; border-radius: var(--r-md); border: 1.5px solid var(--gray-200); cursor: pointer; font-weight: 700; height: 36px; display: inline-flex; align-items: center; justify-content: center; background: white; color: var(--gray-700);">
-                    📝 Edit Tracking
+                <button class="btn-outline" onclick="openTrackingModal('{{ order.courier_name|escapejs }}', '{{ order.tracking_number|escapejs }}')" style="font-size: 0.85rem; padding: 8px 16px; border-radius: var(--r-md); border: 1.5px solid var(--gray-200); cursor: pointer; font-weight: 700; height: 36px; display: inline-flex; align-items: center; justify-content: center; background: white; color: var(--gray-700); gap: 4px;">
+                    <i class="fa fa-pencil-alt"></i> Edit Tracking
                 </button>
                 {% endif %}
             </div>
@@ -70,7 +70,7 @@
     {% endfor %}
 
     <!-- 2-Column Details Grid -->
-    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;">
+    <div class="admin-order-details-grid">
         
         <!-- Left Column: Items & Timeline -->
         <div style="display: flex; flex-direction: column; gap: 24px;">
@@ -78,7 +78,7 @@
             <!-- Items Detail -->
             <div style="background: white; border-radius: var(--r-2xl); border: 1.5px solid var(--gray-100); box-shadow: var(--sh-md); padding: 24px;">
                 <h3 style="margin: 0 0 16px; font-family: 'Syne', sans-serif; font-size: 1.05rem; font-weight: 800; color: var(--gray-900); border-bottom: 1.5px solid var(--gray-100); padding-bottom: 10px;">
-                    🛍️ Order Items
+                    <i class="fa fa-shopping-bag" style="margin-right: 6px;"></i>Order Items
                 </h3>
                 <div style="display: flex; flex-direction: column; gap: 16px;">
                     {% for item in order.items.all %}
@@ -115,7 +115,7 @@
             <!-- Status Timeline -->
             <div style="background: white; border-radius: var(--r-2xl); border: 1.5px solid var(--gray-100); box-shadow: var(--sh-md); padding: 24px;">
                 <h3 style="margin: 0 0 16px; font-family: 'Syne', sans-serif; font-size: 1.05rem; font-weight: 800; color: var(--gray-900); border-bottom: 1.5px solid var(--gray-100); padding-bottom: 10px;">
-                    📜 Status Audit Logs
+                    <i class="fa fa-history" style="margin-right: 6px;"></i>Status Audit Logs
                 </h3>
                 <div style="display: flex; flex-direction: column; gap: 0; padding-left: 10px; border-left: 2px solid var(--gray-200); margin-left: 10px;">
                     {% for log in order.cleaned_status_logs reversed %}
@@ -147,19 +147,19 @@
             
             <!-- Customer Shipping Info -->
             <div style="background: white; border-radius: var(--r-2xl); border: 1.5px solid var(--gray-100); box-shadow: var(--sh-md); padding: 20px;">
-                <h3 style="margin: 0 0 12px; font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 800; color: var(--gray-900);">🚚 Shipping Address</h3>
+                <h3 style="margin: 0 0 12px; font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 800; color: var(--gray-900);"><i class="fa fa-map-marker-alt" style="margin-right: 6px;"></i>Shipping Address</h3>
                 <div style="font-size: 0.85rem; color: var(--gray-700); line-height: 1.5;">
                     <strong style="font-size: 0.95rem; color: var(--gray-900); display: block; margin-bottom: 6px;">{{ order.shipping_address.name }}</strong>
                     {{ order.shipping_address.address_line1 }}<br>
                     {% if order.shipping_address.address_line2 %}{{ order.shipping_address.address_line2 }}<br>{% endif %}
                     {{ order.shipping_address.city }}, {{ order.shipping_address.state }} - <strong>{{ order.shipping_address.postal_code }}</strong><br>
-                    📞 Phone: {{ order.shipping_address.phone }}
+                    <i class="fa fa-phone" style="margin-right: 4px;"></i> Phone: {{ order.shipping_address.phone }}
                 </div>
             </div>
 
             <!-- Delivery Partner & Tracking -->
             <div style="background: white; border-radius: var(--r-2xl); border: 1.5px solid var(--gray-100); box-shadow: var(--sh-md); padding: 20px;">
-                <h3 style="margin: 0 0 12px; font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 800; color: var(--gray-900);">📦 Shipping Courier</h3>
+                <h3 style="margin: 0 0 12px; font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 800; color: var(--gray-900);"><i class="fa fa-truck" style="margin-right: 6px;"></i>Shipping Courier</h3>
                 <div style="font-size: 0.85rem; color: var(--gray-700); line-height: 1.5;">
                     {% if order.tracking_number %}
                         <p style="margin: 0 0 8px;">Courier Company: <strong>{{ order.courier_name|default:"Shiprocket" }}</strong></p>
@@ -180,7 +180,7 @@
 
             <!-- Financial Summary -->
             <div style="background: white; border-radius: var(--r-2xl); border: 1.5px solid var(--gray-100); box-shadow: var(--sh-md); padding: 20px;">
-                <h3 style="margin: 0 0 12px; font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 800; color: var(--gray-900);">💵 Order Pricing</h3>
+                <h3 style="margin: 0 0 12px; font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 800; color: var(--gray-900);"><i class="fa fa-indian-rupee-sign" style="margin-right: 6px;"></i>Order Pricing</h3>
                 <div style="display: flex; flex-direction: column; gap: 10px; font-size: 0.85rem; color: var(--gray-600);">
                     <div style="display: flex; justify-content: space-between;">
                         <span>Subtotal</span>
@@ -223,7 +223,7 @@
 <div id="cancelModal" class="modal">
     <div class="modal-content" style="max-width: 500px;">
         <div style="padding: 20px 24px; border-bottom: 1px solid var(--gray-100); display: flex; align-items: center; justify-content: space-between;">
-            <h3 style="margin: 0; font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 800; color: #dc2626;">❌ Cancel Order Items</h3>
+            <h3 style="margin: 0; font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 800; color: #dc2626;"><i class="fa fa-times-circle" style="margin-right: 6px;"></i>Cancel Order Items</h3>
             <span class="modal-close" onclick="closeCancelModal()" style="font-size: 1.5rem; color: var(--gray-400); cursor: pointer; line-height: 1;">&times;</span>
         </div>
         <form id="cancelForm" style="padding: 24px; margin: 0;">
@@ -274,7 +274,7 @@
 <div id="statusModal" class="modal">
     <div class="modal-content" style="max-width: 440px;">
         <div style="padding: 20px 24px; border-bottom: 1px solid var(--gray-100); display: flex; align-items: center; justify-content: space-between;">
-            <h3 style="margin: 0; font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 800;">👑 Update Order Status (Admin)</h3>
+            <h3 style="margin: 0; font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 800;"><i class="fa fa-crown text-warning" style="margin-right: 6px;"></i>Update Order Status (Admin)</h3>
             <span class="modal-close" onclick="closeModal()" style="font-size: 1.5rem; color: var(--gray-400); cursor: pointer; line-height: 1;">&times;</span>
         </div>
         <form id="statusForm" style="padding: 24px; margin: 0;">
@@ -282,18 +282,18 @@
             <div class="form-group" style="margin-bottom: 20px;">
                 <label style="display: block; font-weight: 600; color: var(--gray-700); margin-bottom: 8px; font-size: 0.9rem;">Select New Order Status</label>
                 <select name="status" class="form-input" required style="width: 100%; padding: 10px 12px; border: 1.5px solid var(--gray-200); border-radius: var(--r-md); font-size: 0.9rem; outline: none; background: white;">
-                    <option value="pending" {% if order.status == 'pending' %}selected{% endif %}>🟡 Order Placed</option>
-                    <option value="confirmed" {% if order.status == 'confirmed' %}selected{% endif %}>🔵 Order Confirmed</option>
-                    <option value="processing" {% if order.status == 'processing' %}selected{% endif %}>🟠 Processing</option>
-                    <option value="shipped" {% if order.status == 'shipped' %}selected{% endif %}>🟣 Shipped</option>
-                    <option value="out_for_delivery" {% if order.status == 'out_for_delivery' %}selected{% endif %}>🔵 Out for Delivery</option>
-                    <option value="delivered" {% if order.status == 'delivered' %}selected{% endif %}>🟢 Delivered</option>
-                    <option value="returned" {% if order.status == 'returned' %}selected{% endif %}>🔄 Returned</option>
-                    <option value="returned_to_source" {% if order.status == 'returned_to_source' %}selected{% endif %}>🔄 Returned to Source (RTO)</option>
-                    <option value="refund_initiated" {% if order.status == 'refund_initiated' %}selected{% endif %}>💰 Refund Initiated</option>
-                    <option value="refunded" {% if order.status == 'refunded' %}selected{% endif %}>✅ Refunded</option>
-                    <option value="courier_failed_pickup" {% if order.status == 'courier_failed_pickup' %}selected{% endif %}>🔴 Pickup Failed (Courier)</option>
-                    <option value="seller_unresponsive" {% if order.status == 'seller_unresponsive' %}selected{% endif %}>🔴 Seller Unresponsive / Cancelled</option>
+                    <option value="pending" {% if order.status == 'pending' %}selected{% endif %}>Order Placed</option>
+                    <option value="confirmed" {% if order.status == 'confirmed' %}selected{% endif %}>Order Confirmed</option>
+                    <option value="processing" {% if order.status == 'processing' %}selected{% endif %}>Processing</option>
+                    <option value="shipped" {% if order.status == 'shipped' %}selected{% endif %}>Shipped</option>
+                    <option value="out_for_delivery" {% if order.status == 'out_for_delivery' %}selected{% endif %}>Out for Delivery</option>
+                    <option value="delivered" {% if order.status == 'delivered' %}selected{% endif %}>Delivered</option>
+                    <option value="returned" {% if order.status == 'returned' %}selected{% endif %}>Returned</option>
+                    <option value="returned_to_source" {% if order.status == 'returned_to_source' %}selected{% endif %}>Returned to Source (RTO)</option>
+                    <option value="refund_initiated" {% if order.status == 'refund_initiated' %}selected{% endif %}>Refund Initiated</option>
+                    <option value="refunded" {% if order.status == 'refunded' %}selected{% endif %}>Refunded</option>
+                    <option value="courier_failed_pickup" {% if order.status == 'courier_failed_pickup' %}selected{% endif %}>Pickup Failed (Courier)</option>
+                    <option value="seller_unresponsive" {% if order.status == 'seller_unresponsive' %}selected{% endif %}>Seller Unresponsive / Cancelled</option>
                 </select>
             </div>
             <button type="submit" class="btn-primary" style="width: 100%; padding: 12px; font-weight: 700; border-radius: var(--r-md); border: none; cursor: pointer;">Confirm Update</button>
@@ -305,7 +305,7 @@
 <div id="trackingModal" class="modal">
     <div class="modal-content" style="max-width: 440px;">
         <div style="padding: 20px 24px; border-bottom: 1px solid var(--gray-100); display: flex; align-items: center; justify-content: space-between;">
-            <h3 style="margin: 0; font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 800;">📦 Add/Edit Tracking Details</h3>
+            <h3 style="margin: 0; font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 800;"><i class="fa fa-truck" style="margin-right: 6px;"></i>Add/Edit Tracking Details</h3>
             <span class="modal-close" onclick="closeTrackingModal()" style="font-size: 1.5rem; color: var(--gray-400); cursor: pointer; line-height: 1;">&times;</span>
         </div>
         <form id="trackingForm" style="padding: 24px; margin: 0;">
@@ -313,10 +313,10 @@
             <div class="form-group" style="margin-bottom: 15px;">
                 <label style="display: block; font-weight: 600; color: var(--gray-700); margin-bottom: 8px; font-size: 0.9rem;">Courier Name</label>
                 <select name="courier_name" id="courierNameSelect" class="form-input" style="width: 100%; padding: 10px 12px; border: 1.5px solid var(--gray-200); border-radius: var(--r-md); font-size: 0.9rem; outline: none; background: white;">
-                    <option value="Shiprocket">🚀 Shiprocket</option>
-                    <option value="Delhivery">📦 Delhivery</option>
-                    <option value="BlueDart">🔵 BlueDart</option>
-                    <option value="Other">📋 Other</option>
+                    <option value="Shiprocket">Shiprocket</option>
+                    <option value="Delhivery">Delhivery</option>
+                    <option value="BlueDart">BlueDart</option>
+                    <option value="Other">Other</option>
                 </select>
             </div>
             <div class="form-group" style="margin-bottom: 20px;">

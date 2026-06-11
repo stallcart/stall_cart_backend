@@ -13,7 +13,7 @@
 
     {% if not has_bank_details %}
     <div style="background: #fffbeb; border: 1.5px solid #fcd34d; border-radius: 12px; padding: 20px; margin-bottom: 24px; display: flex; align-items: flex-start; gap: 16px; box-shadow: 0 4px 12px rgba(217, 119, 6, 0.05);">
-        <span style="font-size: 1.8rem; line-height: 1; color: #d97706;">⚠️</span>
+        <span style="font-size: 1.5rem; line-height: 1; color: #d97706; display: flex; align-items: center; height: 1.8rem;"><i class="fa fa-exclamation-triangle"></i></span>
         <div style="flex: 1;">
             <h4 style="margin: 0 0 6px; color: #92400e; font-weight: 700; font-size: 1.05rem; font-family: 'Syne', sans-serif;">Payout Bank Details Required</h4>
             <p style="margin: 0 0 14px; color: #78350f; font-size: 0.9rem; line-height: 1.6;">
@@ -29,7 +29,7 @@
     <!-- Header -->
     <div class="panel-header">
         <div>
-            <h2>📦 Product Dashboard</h2>
+            <h2><i class="fa fa-boxes" style="margin-right: 8px;"></i>Product Dashboard</h2>
             <p class="page-subtitle">{% if is_superuser %}Manage all store items{% else %}Manage your shop inventory{% endif %}</p>
         </div>
         <button class="btn-primary" id="openAddModal">+ Add New Product</button>
@@ -99,7 +99,7 @@
                     <td>₹{{ p.price|floatformat:2 }}</td>
                     <td>
                         {% if p.stock == 0 %}<span class="status-pill status-oos">0 — Out</span>
-                        {% elif p.stock <= 5 %}<span class="status-pill status-draft">⚠ {{ p.stock }}</span>
+                        {% elif p.stock <= 5 %}<span class="status-pill status-draft"><i class="fa fa-exclamation-triangle" style="margin-right: 4px;"></i>{{ p.stock }}</span>
                         {% else %}<span class="status-pill status-published">{{ p.stock }}</span>{% endif %}
                     </td>
                     <td>
@@ -113,8 +113,8 @@
                     </td>
                     <td>
                         <div class="action-group">
-                            <button class="act-btn act-edit" onclick="openEditModal({{ p.id }})">✏️ Edit</button>
-                            <button class="act-btn act-archive" onclick="archiveProduct({{ p.id }})">🗑️ Archive</button>
+                            <button class="act-btn act-edit" onclick="openEditModal({{ p.id }})"><i class="fa fa-pencil-alt"></i> Edit</button>
+                            <button class="act-btn act-archive" onclick="archiveProduct({{ p.id }})"><i class="fa fa-trash-alt"></i> Archive</button>
                         </div>
                     </td>
                 </tr>
@@ -180,10 +180,10 @@
                     </div>
                 </div>
                 
-                <div class="form-group" style="margin-bottom: 15px;">
-                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 600;">
-                        <input type="checkbox" name="is_returnable" id="prodReturnable" checked style="width: 16px; height: 16px;">
-                        <span>🔄 Eligible for Return/Refund</span>
+                <div class="form-group checkbox-group" style="margin-bottom: 15px;">
+                    <label class="check-label">
+                        <input type="checkbox" name="is_returnable" id="prodReturnable" checked>
+                        <span><i class="fa fa-sync-alt" style="margin-right: 6px;"></i>Eligible for Return/Refund</span>
                     </label>
                 </div>
                 
@@ -221,7 +221,7 @@ const form = document.getElementById('productForm');
 // Open Modal
 document.getElementById('openAddModal').onclick = () => {
     {% if not has_bank_details %}
-    alert('⚠️ Bank details required: Please complete your bank details in your profile first before listing products.');
+    alert('Bank details required: Please complete your bank details in your profile first before listing products.');
     window.location.href = "{% url 'accounts:profile' %}#bank-details";
     return;
     {% endif %}

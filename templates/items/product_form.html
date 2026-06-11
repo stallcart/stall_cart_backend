@@ -8,7 +8,7 @@
     <!-- Page Header -->
     <div class="panel-header">
         <div>
-            <h2>📦 {{ title|default:"Add New Product" }}</h2>
+            <h2><i class="fa fa-box-open" style="margin-right: 6px;"></i>{{ title|default:"Add New Product" }}</h2>
             <p class="page-subtitle">
                 {% if action == 'Create' %}Add a new product to your catalog{% endif %}
                 {% if action == 'Update' %}Edit product details and inventory{% endif %}
@@ -32,7 +32,7 @@
         <!-- ✅ Section: Basic Information -->
         <div class="form-section">
             <div class="section-header">
-                <h3>📝 Basic Information</h3>
+                <h3><i class="fa fa-file-text" style="margin-right: 6px;"></i>Basic Information</h3>
                 <span class="section-badge">Required</span>
             </div>
             
@@ -61,7 +61,7 @@
         <!-- ✅ Section: Pricing & Discount -->
         <div class="form-section">
             <div class="section-header">
-                <h3>💰 Pricing & Discount</h3>
+                <h3><i class="fa fa-indian-rupee-sign" style="margin-right: 6px;"></i>Pricing & Discount</h3>
                 <span class="section-badge">Required</span>
             </div>
             
@@ -109,7 +109,7 @@
         <!-- ✅ Section: Inventory & Status -->
         <div class="form-section">
             <div class="section-header">
-                <h3>📦 Inventory & Status</h3>
+                <h3><i class="fa fa-boxes-packing" style="margin-right: 6px;"></i>Inventory & Status</h3>
                 <span class="section-badge">Required</span>
             </div>
             
@@ -154,7 +154,7 @@
                 <div class="form-group checkbox-group">
                     <label class="check-label">
                         {{ form.is_returnable }}
-                        <span>🔄 Eligible for Return/Refund</span>
+                        <span><i class="fa fa-rotate-left" style="margin-right: 6px;"></i>Eligible for Return/Refund</span>
                     </label>
                     <small class="form-help">Toggle off to mark this product as Non-Returnable</small>
                 </div>
@@ -164,7 +164,7 @@
         <!-- ✅ Section: Product Details -->
         <div class="form-section">
             <div class="section-header">
-                <h3>🏷️ Product Details</h3>
+                <h3><i class="fa fa-tags" style="margin-right: 6px;"></i>Product Details</h3>
                 <span class="section-badge">Optional</span>
             </div>
             
@@ -219,7 +219,7 @@
         <!-- ✅ Section: Images -->
         <div class="form-section">
             <div class="section-header">
-                <h3>🖼️ Product Images</h3>
+                <h3><i class="fa fa-images" style="margin-right: 6px;"></i>Product Images</h3>
                 <span class="section-badge">Required</span>
             </div>
             
@@ -270,7 +270,7 @@
         <!-- ✅ Section: Variants / Sizes (FIXED) -->
         <div class="form-section" id="variantsSection">
             <div class="section-header">
-                <h3>📐 Variants / Sizes</h3>
+                <h3><i class="fa fa-ruler-combined" style="margin-right: 6px;"></i>Variants / Sizes</h3>
                 <span class="section-badge">Optional</span>
                 <button type="button" class="btn-sm btn-outline" id="addVariantBtn" style="margin-left:auto;">
                     <i class="fa fa-plus"></i> Add Variant
@@ -446,7 +446,7 @@
             <!-- Variant Helper Tips -->
             <div class="variant-tips" style="background:#f8f9ff;padding:12px;border-radius:8px;margin-top:15px;border-left:3px solid #2874f0;">
                 <small style="color:#666;">
-                    <strong>💡 Usage Tips:</strong><br>
+                    <strong><i class="fa fa-lightbulb text-warning" style="margin-right: 4px;"></i>Usage Tips:</strong><br>
                     • <strong>Clothing:</strong> Size: S/M/L/XL, Type: clothing, Color: Navy/White/Black<br>
                     • <strong>Jewelry:</strong> Size: 6/7/8/9, Type: jewelry, Attributes: {"metal": "18K Gold", "stone": "Diamond"}<br>
                     • <strong>Furniture:</strong> Size: 24x36/King/Queen, Type: furniture, Attributes: {"assembly": "Required", "weight_lbs": 45}<br>
@@ -460,7 +460,7 @@
         <!-- ✅ Section: SEO & Marketing -->
         <div class="form-section">
             <div class="section-header">
-                <h3>🔍 SEO & Marketing</h3>
+                <h3><i class="fa fa-search-plus" style="margin-right: 6px;"></i>SEO & Marketing</h3>
                 <span class="section-badge">Optional</span>
             </div>
             
@@ -482,7 +482,7 @@
                 <div class="form-group checkbox-group">
                     <label class="check-label">
                         {{ form.is_featured }}
-                        <span>⭐ Mark as Featured Product</span>
+                        <span><i class="fa fa-star text-warning" style="margin-right: 4px;"></i>Mark as Featured Product</span>
                     </label>
                     <small class="form-help">Showcase on homepage and category pages</small>
                 </div>
@@ -490,7 +490,7 @@
                 <div class="form-group checkbox-group">
                     <label class="check-label">
                         {{ form.is_hot_deal }}
-                        <span>🔥 Mark as Hot Deal</span>
+                        <span><i class="fa fa-fire text-danger" style="margin-right: 4px;"></i>Mark as Hot Deal</span>
                     </label>
                     <small class="form-help">Add "Hot Deal" badge to attract buyers</small>
                 </div>
@@ -501,7 +501,7 @@
         {% if is_superuser %}
         <div class="form-section admin-only">
             <div class="section-header">
-                <h3>👑 Admin Control</h3>
+                <h3><i class="fa fa-user-shield" style="margin-right: 6px;"></i>Admin Control</h3>
                 <span class="section-badge admin-badge">Superuser Only</span>
             </div>
             
@@ -540,7 +540,7 @@
 <!-- Delete Confirmation Modal -->
 <div id="deleteModal" class="modal" style="display:none;">
     <div class="modal-content">
-        <h3>⚠️ Archive Product</h3>
+        <h3><i class="fa fa-exclamation-triangle text-warning" style="margin-right: 6px;"></i>Archive Product</h3>
         <p>Are you sure you want to archive "<strong id="deleteProductName"></strong>"?</p>
         <p class="text-muted">This will hide the product from customers but keep it in your dashboard.</p>
         <div class="modal-actions">

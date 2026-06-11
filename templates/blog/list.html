@@ -30,7 +30,7 @@
 {% if hot_products %}
 <section class="hot-deals-banner">
     <div class="banner-header">
-        <span class="fire-icon">🔥</span>
+        <span class="fire-icon"><i class="fa fa-fire text-danger"></i></span>
         <h3>Hot Deals of the Day</h3>
         <a href="{% url 'items:product_list' %}?sort=-views_count" class="view-all">View All →</a>
     </div>
@@ -90,7 +90,7 @@
 {% if trending_products %}
 <section class="trending-section">
     <div class="section-header">
-        <h3>📈 Trending Now</h3>
+        <h3><i class="fa fa-chart-line text-primary" style="margin-right: 6px;"></i>Trending Now</h3>
         <span class="subtitle">Most viewed this week</span>
     </div>
     <div class="products-grid-interactive">
@@ -111,7 +111,7 @@
                         </span>
                     {% endif %}
                     {% if product.is_featured %}
-                        <span class="featured-badge">★ Featured</span>
+                        <span class="featured-badge"><i class="fa fa-star" style="margin-right: 4px;"></i>Featured</span>
                     {% endif %}
                 </div>
             </a>

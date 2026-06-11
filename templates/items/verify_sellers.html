@@ -669,14 +669,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     ${data.pan_rejection_reason ? `<div class="seller-detail-row"><strong>Rejection Reason</strong><span style="color:var(--red);">${data.pan_rejection_reason}</span></div>` : ''}
                     
                     <!-- Bank details section (visible to admin and staff) -->
-                    <div class="seller-detail-row" style="background:#f8fafc;padding:10px 0;margin-top:14px;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;justify-content:center;font-weight:700;color:var(--gray-700);">🏦 Bank Details</div>
+                    <div class="seller-detail-row" style="background:#f8fafc;padding:10px 0;margin-top:14px;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;justify-content:center;font-weight:700;color:var(--gray-700);"><i class="fa fa-university" style="margin-right: 6px;"></i>Bank Details</div>
                     <div class="seller-detail-row"><strong>Bank Name</strong><span>${data.bank_name || 'N/A'}</span></div>
                     <div class="seller-detail-row"><strong>Account Number</strong><span>${data.account_number || 'N/A'}</span></div>
                     <div class="seller-detail-row"><strong>IFSC Code</strong><span>${data.ifsc_code || 'N/A'}</span></div>
                     <div class="seller-detail-row"><strong>Account Holder</strong><span>${data.account_holder_name || 'N/A'}</span></div>
                     
                     <div class="seller-detail-row" style="margin-top:10px;"><strong>Products</strong><span>${data.product_count || 0} Published</span></div>
-                    <div class="seller-detail-row"><strong>Status</strong><span>${data.is_verified ? '✅ Verified' : (data.is_active ? '⏳ Pending' : '❌ Rejected')}</span></div>
+                    <div class="seller-detail-row"><strong>Status</strong><span>${data.is_verified ? 'Verified' : (data.is_active ? 'Pending' : 'Rejected')}</span></div>
                     <div class="seller-detail-row" style="flex-direction:column;align-items:flex-start;padding-top:14px;">
                         <strong style="margin-bottom:6px;">Description</strong>
                         <span style="color:var(--gray-600);line-height:1.5;font-size:0.9rem;">${data.description || 'No description provided'}</span>

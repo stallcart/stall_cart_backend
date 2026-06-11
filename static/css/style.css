@@ -5444,3 +5444,102 @@ input[id$="-DELETE"] {
         justify-content: center;
     }
 }
+
+/* ==================== 💎 PREMIUM CUSTOM CHECKBOX CARDS ==================== */
+
+/* Checkbox group container */
+.checkbox-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+/* Styled label container acting as a modern selectable card */
+.checkbox-group .check-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    user-select: none;
+    font-weight: 600;
+    color: var(--gray-800);
+    font-size: 0.95rem;
+    position: relative;
+    padding: 12px 16px;
+    background: #f8fafc;
+    border: 1.5px solid #e2e8f0;
+    border-radius: var(--r-xl);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: var(--sh-xs);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.checkbox-group .check-label:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    transform: translateY(-1px);
+    box-shadow: var(--sh-sm);
+}
+
+/* Hide default checkbox appearance and style a custom square */
+.checkbox-group .check-label input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 22px;
+    height: 22px;
+    border: 2px solid #cbd5e1;
+    border-radius: 6px;
+    background: white;
+    outline: none;
+    transition: all 0.25s ease;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    flex-shrink: 0;
+    margin: 0;
+}
+
+/* Focus state */
+.checkbox-group .check-label input[type="checkbox"]:focus {
+    box-shadow: 0 0 0 3px rgba(40, 116, 240, 0.15);
+}
+
+/* Checked state */
+.checkbox-group .check-label input[type="checkbox"]:checked {
+    background: var(--blue-500);
+    border-color: var(--blue-500);
+}
+
+/* Custom checkmark check icon */
+.checkbox-group .check-label input[type="checkbox"]:checked::after {
+    content: '\f00c';
+    font-family: 'Font Awesome 6 Free', 'Font Awesome 5 Free', sans-serif;
+    font-weight: 900;
+    color: white;
+    font-size: 11px;
+    position: absolute;
+}
+
+/* Checked state wrapper card styling */
+.checkbox-group .check-label:has(input[type="checkbox"]:checked) {
+    background: rgba(40, 116, 240, 0.04);
+    border-color: var(--blue-400);
+    box-shadow: 0 4px 12px rgba(40, 116, 240, 0.06);
+}
+
+/* ==================== 📱 RESPONSIVE ORDER DETAILS GRID FOR ADMIN ==================== */
+.admin-order-details-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 24px;
+}
+
+@media (max-width: 992px) {
+    .admin-order-details-grid {
+        grid-template-columns: 1fr !important;
+    }
+}

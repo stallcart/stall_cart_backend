@@ -14,7 +14,7 @@
 
     {% if not has_bank_details %}
     <div style="background: #fffbeb; border: 1.5px solid #fcd34d; border-radius: 12px; padding: 20px; margin-bottom: 24px; display: flex; align-items: flex-start; gap: 16px; box-shadow: 0 4px 12px rgba(217, 119, 6, 0.05);">
-        <span style="font-size: 1.8rem; line-height: 1; color: #d97706;">⚠️</span>
+        <span style="font-size: 1.8rem; line-height: 1; color: #d97706;"><i class="fa fa-exclamation-triangle"></i></span>
         <div style="flex: 1;">
             <h4 style="margin: 0 0 6px; color: #92400e; font-weight: 700; font-size: 1.05rem; font-family: 'Syne', sans-serif;">Payout Bank Details Required</h4>
             <p style="margin: 0 0 14px; color: #78350f; font-size: 0.9rem; line-height: 1.6;">
@@ -110,7 +110,7 @@
     <!-- ══ Filters Bar ═══════════════════════════════════════════════════════ -->
     <form method="get" class="filters-bar">
         <input type="text" name="search" value="{{ filters.search }}"
-               placeholder="🔍 Search name, SKU, brand…" 
+               placeholder="Search name, SKU, brand…" 
                class="form-input" style="flex: 1; min-width: 180px; max-width: 360px;">
         <select name="status" class="form-select" style="min-width: 140px;" onchange="this.form.submit()">
             <option value="">All Status</option>
@@ -184,8 +184,8 @@
                                 <strong style="font-size: 0.9rem; line-height: 1.35; color: var(--gray-800); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ product.name|truncatechars:35 }}</strong>
                                 <small class="text-muted" style="font-size: 0.75rem; color: var(--gray-400);">SKU: {{ product.sku|default:"—" }}</small>
                                 <div class="badge-row" style="display: flex; gap: 5px; flex-wrap: wrap; margin-top: 2px;">
-                                    {% if product.is_featured %}<span class="mini-badge featured">★ Featured</span>{% endif %}
-                                    {% if product.is_hot_deal %}<span class="mini-badge hot">🔥 Hot</span>{% endif %}
+                                    {% if product.is_featured %}<span class="mini-badge featured"><i class="fa fa-star text-warning" style="margin-right: 4px;"></i>Featured</span>{% endif %}
+                                    {% if product.is_hot_deal %}<span class="mini-badge hot"><i class="fa fa-fire text-danger" style="margin-right: 4px;"></i>Hot</span>{% endif %}
                                     {% if product.gender %}<span class="mini-badge gender">{{ product.get_gender_display }}</span>{% endif %}
                                 </div>
                             </div>
@@ -230,7 +230,7 @@
                         {% if product.stock == 0 %}
                             <span class="status-pill status-oos">0 — Out</span>
                         {% elif product.stock <= product.low_stock_threshold %}
-                            <span class="status-pill status-draft">⚠ {{ product.stock }}</span>
+                            <span class="status-pill status-draft"><i class="fa fa-exclamation-triangle text-warning" style="margin-right: 4px;"></i>{{ product.stock }}</span>
                         {% else %}
                             <span class="status-pill status-published">{{ product.stock }}</span>
                         {% endif %}
@@ -244,10 +244,10 @@
                             {% elif product.status == 'discontinued' %}status-discontinued
                             {% else %}status-oos{% endif %}"
                             id="status-pill-{{ product.id }}">
-                            {% if product.status == 'published'     %}✅ Published
-                            {% elif product.status == 'draft'        %}📝 Draft
-                            {% elif product.status == 'out_of_stock' %}📦 Out of Stock
-                            {% elif product.status == 'discontinued' %}🚫 Archived
+                            {% if product.status == 'published'     %}<i class="fa fa-check-circle text-success" style="margin-right: 4px;"></i>Published
+                            {% elif product.status == 'draft'        %}<i class="fa fa-pen-to-square text-amber" style="margin-right: 4px;"></i>Draft
+                            {% elif product.status == 'out_of_stock' %}<i class="fa fa-ban text-danger" style="margin-right: 4px;"></i>Out of Stock
+                            {% elif product.status == 'discontinued' %}<i class="fa fa-archive text-muted" style="margin-right: 4px;"></i>Archived
                             {% else %}{{ product.get_status_display }}{% endif %}
                         </span>
                     </td>
@@ -373,7 +373,7 @@ if (addItemBtn) {
     addItemBtn.onclick = (e) => {
         {% if not has_bank_details %}
         e.preventDefault();
-        alert('⚠️ Bank details required: Please complete your bank details in your profile first before listing products.');
+        alert('Bank details required: Please complete your bank details in your profile first before listing products.');
         window.location.href = "{% url 'accounts:profile' %}#bank-details";
         {% endif %}
     };
@@ -411,7 +411,7 @@ document.addEventListener('click', async function (e) {
                     background: ${ns === 'published' ? 'var(--green-light)' : 'var(--amber-light)'};
                     color: ${ns === 'published' ? 'var(--green)' : 'var(--amber)'};
                 `;
-                pill.textContent = ns === 'published' ? '✅ Published' : '📝 Draft';
+                pill.innerHTML = ns === 'published' ? '<i class="fa fa-check-circle text-success" style="margin-right: 4px;"></i>Published' : '<i class="fa fa-pen-to-square text-amber" style="margin-right: 4px;"></i>Draft';
             }
 
             // 2. Swap toggle button label + icon
@@ -512,7 +512,7 @@ document.addEventListener('click', async function (e) {
                     font-weight: 700; white-space: nowrap;
                     background: var(--gray-100); color: var(--gray-500);
                 `;
-                pill.textContent = '🚫 Archived';
+                pill.innerHTML = '<i class="fa fa-archive text-muted" style="margin-right: 4px;"></i>Archived';
             }
 
             // Remove toggle + archive buttons; keep view (muted) + edit

@@ -157,11 +157,11 @@
                             <strong>Seller Stats</strong>
                         </div>
                         <div style="padding:8px 12px;border-top:1px solid var(--gray-100);display:flex;justify-content:space-between;font-size:0.85rem;">
-                            <span>⏳ Pending</span>
+                            <span><i class="fa fa-clock text-warning" style="margin-right: 6px;"></i>Pending</span>
                             <strong style="color:var(--amber);">{{ admin_pending_sellers }}</strong>
                         </div>
                         <div style="padding:8px 12px;border-top:1px solid var(--gray-100);display:flex;justify-content:space-between;font-size:0.85rem;">
-                            <span>✅ Verified</span>
+                            <span><i class="fa fa-check-circle text-success" style="margin-right: 6px;"></i>Verified</span>
                             <strong style="color:var(--green);">{{ admin_verified_sellers }}</strong>
                         </div>
                         <div style="padding:8px 12px;border-top:1px solid var(--gray-100);">
@@ -764,7 +764,7 @@ document.addEventListener('click', async (e) => {
             btn.style.color = '#ef4444';
             if (icon) icon.className = 'fa fa-heart';
             if (window.updateWishlistCount) window.updateWishlistCount(+1);
-            if (window.showToast) showToast('Added to wishlist ❤️', 'success');
+            if (window.showToast) showToast('Added to wishlist', 'success');
         } else if (data.status === 'removed') {
             btn.classList.remove('active');
             btn.style.color = '#94a3b8';
@@ -926,7 +926,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('notif-help-toggle')?.addEventListener('click', (e) => {
             e.preventDefault();
             if (window.showToast) {
-                showToast('🔧 Chrome: 🔒 → Site settings → Notifications → Allow', 'info');
+                showToast('Chrome: Site settings → Notifications → Allow', 'info');
             }
         });
         document.getElementById('notif-hint-close')?.addEventListener('click', () => {

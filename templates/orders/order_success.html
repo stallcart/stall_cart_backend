@@ -420,7 +420,7 @@
                     <p><strong>{{ addr.name }}</strong></p>
                     <p>{{ addr.address_line1 }}{% if addr.address_line2 %}, {{ addr.address_line2 }}{% endif %}</p>
                     <p>{{ addr.city }}, {{ addr.state }} - {{ addr.postal_code }}</p>
-                    <p style="margin-top: 10px; color: var(--text-muted);">📞 {{ addr.phone }}</p>
+                    <p style="margin-top: 10px; color: var(--text-muted);"><i class="fa fa-phone" style="margin-right: 4px;"></i>{{ addr.phone }}</p>
                 {% else %}
                     <p style="color: var(--text-muted);">No shipping address recorded.</p>
                 {% endif %}

@@ -758,7 +758,7 @@
                 <span class="hero-stat-label">Free Delivery</span>
             </div>
             <div class="hero-stat">
-                <span class="hero-stat-num">4.8 ★</span>
+                <span class="hero-stat-num" style="display: inline-flex; align-items: center; gap: 4px;">4.8<i class="fa fa-star text-warning" style="font-size: 1.1rem;"></i></span>
                 <span class="hero-stat-label">Avg Rating</span>
             </div>
         </div>
@@ -810,30 +810,42 @@
                     {% else %}
                         <img src="/static/images/categories/{{ cat.slug }}.png" alt="{{ cat.name }}" class="collection-img" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
                     {% endif %}
-                    <span class="collection-emoji" style="display: none; font-size: 1.6rem; line-height: 1;">
-                        {% if "women" in cat.name|lower %}👗
-                        {% elif "men" in cat.name|lower %}👔
-                        {% elif "footwear" in cat.name|lower or "shoe" in cat.name|lower %}👟
-                        {% elif "jewel" in cat.name|lower %}💍
-                        {% elif "beauty" in cat.name|lower %}💄
-                        {% elif "sport" in cat.name|lower %}⚽
-                        {% elif "book" in cat.name|lower %}📚
-                        {% elif "kid" in cat.name|lower or "toy" in cat.name|lower %}🧸
-                        {% elif "furniture" in cat.name|lower %}🛋️
-                        {% elif "cloth" in cat.name|lower %}👕
-                        {% else %}🛍️{% endif %}
+                    <span class="collection-emoji" style="display: none; font-size: 1.6rem; line-height: 1; align-items: center; justify-content: center; color: var(--gray-500);">
+                        {% if "women" in cat.name|lower %}<i class="fa fa-person-dress"></i>
+                        {% elif "men" in cat.name|lower %}<i class="fa fa-shirt"></i>
+                        {% elif "footwear" in cat.name|lower or "shoe" in cat.name|lower %}<i class="fa fa-shoe-prints"></i>
+                        {% elif "jewel" in cat.name|lower %}<i class="fa fa-gem"></i>
+                        {% elif "beauty" in cat.name|lower %}<i class="fa fa-wand-magic-sparkles"></i>
+                        {% elif "sport" in cat.name|lower %}<i class="fa fa-futbol"></i>
+                        {% elif "book" in cat.name|lower %}<i class="fa fa-book"></i>
+                        {% elif "kid" in cat.name|lower or "toy" in cat.name|lower %}<i class="fa fa-child"></i>
+                        {% elif "furniture" in cat.name|lower %}<i class="fa fa-couch"></i>
+                        {% elif "cloth" in cat.name|lower %}<i class="fa fa-shirt"></i>
+                        {% else %}<i class="fa fa-shopping-bag"></i>{% endif %}
                     </span>
                 </div>
                 <span class="collection-name">{{ cat.name }}</span>
             </a>
             {% empty %}
-            {% for pair in "👗 Women,👔 Men,👟 Footwear,💍 Jewellery,🛋️ Furniture,👕 Clothes,💄 Beauty,⚽ Sports"|split:"," %}
+            {% for cat_name in "Women,Men,Footwear,Jewellery,Furniture,Clothes,Beauty,Sports"|split:"," %}
             <a href="{% url 'items:product_list' %}" class="collection-card">
-                <div class="collection-circle cat-{{ pair|slice:"3:"|lower|slugify }}" style="padding: 0; overflow: hidden; border: 2px solid var(--gray-100);">
-                    <img src="/static/images/categories/{{ pair|slice:"3:"|lower|slugify }}.png" alt="{{ pair|slice:"3:" }}" class="collection-img" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                    <span class="collection-emoji" style="display: none; font-size: 1.6rem; line-height: 1;">{{ pair|slice:":2" }}</span>
+                <div class="collection-circle cat-{{ cat_name|lower|slugify }}" style="padding: 0; overflow: hidden; border: 2px solid var(--gray-100); display: flex; align-items: center; justify-content: center;">
+                    <img src="/static/images/categories/{{ cat_name|lower|slugify }}.png" alt="{{ cat_name }}" class="collection-img" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <span class="collection-emoji" style="display: none; font-size: 1.6rem; line-height: 1; align-items: center; justify-content: center; color: var(--gray-500);">
+                        {% if "women" in cat_name|lower %}<i class="fa fa-person-dress"></i>
+                        {% elif "men" in cat_name|lower %}<i class="fa fa-shirt"></i>
+                        {% elif "footwear" in cat_name|lower or "shoe" in cat_name|lower %}<i class="fa fa-shoe-prints"></i>
+                        {% elif "jewel" in cat_name|lower %}<i class="fa fa-gem"></i>
+                        {% elif "beauty" in cat_name|lower %}<i class="fa fa-wand-magic-sparkles"></i>
+                        {% elif "sport" in cat_name|lower %}<i class="fa fa-futbol"></i>
+                        {% elif "book" in cat_name|lower %}<i class="fa fa-book"></i>
+                        {% elif "kid" in cat_name|lower or "toy" in cat_name|lower %}<i class="fa fa-child"></i>
+                        {% elif "furniture" in cat_name|lower %}<i class="fa fa-couch"></i>
+                        {% elif "cloth" in cat_name|lower %}<i class="fa fa-shirt"></i>
+                        {% else %}<i class="fa fa-shopping-bag"></i>{% endif %}
+                    </span>
                 </div>
-                <span class="collection-name">{{ pair|slice:"3:" }}</span>
+                <span class="collection-name">{{ cat_name }}</span>
             </a>
             {% endfor %}
             {% endfor %}
@@ -941,7 +953,7 @@
                         <span class="badge-discount">-{{ product.discount_percent }}%</span>
                     {% endif %}
                     {% if product.is_hot_deal %}
-                        <span class="badge-hot">🔥 Hot</span>
+                        <span class="badge-hot"><i class="fa fa-fire" style="margin-right: 4px;"></i>Hot</span>
                     {% endif %}
                     {% if product.stock == 0 %}
                         <div class="out-of-stock-overlay">
@@ -1171,22 +1183,22 @@
 
         <div class="trust-grid">
             <div class="trust-card">
-                <span class="trust-emoji">🚚</span>
+                <span class="trust-emoji" style="color: var(--blue-600);"><i class="fa fa-truck"></i></span>
                 <h4>Free Delivery</h4>
                 <p>On all orders above ₹499 — delivered to your doorstep</p>
             </div>
             <div class="trust-card" onclick="openPolicyModal('return'); return false;" style="cursor: pointer;">
-                <span class="trust-emoji">↩️</span>
+                <span class="trust-emoji" style="color: var(--blue-600);"><i class="fa fa-undo"></i></span>
                 <h4>Easy Returns</h4>
                 <p>7-day hassle-free return policy on all products</p>
             </div>
             <div class="trust-card" onclick="openPolicyModal('terms'); return false;" style="cursor: pointer;">
-                <span class="trust-emoji">✅</span>
+                <span class="trust-emoji" style="color: var(--blue-600);"><i class="fa fa-check-circle"></i></span>
                 <h4>100% Genuine</h4>
                 <p>Every product is verified authentic before listing</p>
             </div>
             <div class="trust-card" onclick="openPolicyModal('terms'); return false;" style="cursor: pointer;">
-                <span class="trust-emoji">🔒</span>
+                <span class="trust-emoji" style="color: var(--blue-600);"><i class="fa fa-lock"></i></span>
                 <h4>Secure Payments</h4>
                 <p>Encrypted checkout with Razorpay & UPI support</p>
             </div>
@@ -1205,7 +1217,7 @@
             text-align:center;
             padding: clamp(16px, 4vw, 32px) 0;
         ">
-            <div style="font-size:2.5rem;margin-bottom:12px;">🎉</div>
+            <div style="font-size:2.5rem;margin-bottom:12px;color:var(--blue-500);"><i class="fa fa-gift"></i></div>
             <h2 style="color:var(--white);margin-bottom:10px;">
                 Don't miss the best deals
             </h2>
@@ -1265,7 +1277,7 @@ document.querySelectorAll('.btn-quick-add').forEach(btn => {
 
             if (data.status === 'success') {
                 window.updateCartCount?.(data.cart_count);
-                showToast('Added to cart! 🛍️', 'success');
+                showToast('Added to cart!', 'success');
                 btn.innerHTML = '<i class="fa fa-check"></i> Added';
                 btn.style.background = 'var(--green)';
                 btn.style.borderColor = 'var(--green)';
@@ -1315,7 +1327,7 @@ document.querySelectorAll('.btn-share').forEach(btn => {
         if (navigator.share) {
             try {
                 await navigator.share({ title: name, text: `Check out: ${name}`, url });
-                showToast('Shared! 🎉', 'success');
+                showToast('Shared successfully!', 'success');
             } catch {}
         } else {
             try {

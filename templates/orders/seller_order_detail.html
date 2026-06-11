@@ -24,28 +24,28 @@
                 {% endif %}
                 {% if seller_items.0.status in 'pending,confirmed,processing' %}
                 <button class="btn-outline" onclick="openCancelModal()" style="font-size: 0.85rem; padding: 8px 16px; height: 36px; border-radius: 8px; font-weight: 700; border: 2px solid #ef4444; cursor: pointer; background: #fef2f2; color: #ef4444; display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
-                    ❌ Cancel Items
+                    <i class="fa fa-times-circle"></i> Cancel Items
                 </button>
                 {% endif %}
                 {% if seller_items.0.status in 'confirmed,processing,shipped,delivered' %}
                     {% if not seller_items.0.tracking_number %}
-                    <button class="btn-outline" onclick="openTrackingModal('', '')" style="font-size: 0.85rem; padding: 8px 16px; height: 36px; border-radius: 8px; font-weight: 700; border: 2px solid #2874f0; cursor: pointer; background: white; color: #2874f0;">
-                        📦 Add Tracking
+                    <button class="btn-outline" onclick="openTrackingModal('', '')" style="font-size: 0.85rem; padding: 8px 16px; height: 36px; border-radius: 8px; font-weight: 700; border: 2px solid #2874f0; cursor: pointer; background: white; color: #2874f0; display: inline-flex; align-items: center; gap: 4px;">
+                        <i class="fa fa-truck"></i> Add Tracking
                     </button>
                     {% else %}
-                    <button class="btn-outline" onclick="openTrackingModal('{{ seller_items.0.courier_name|escapejs }}', '{{ seller_items.0.tracking_number|escapejs }}')" style="font-size: 0.85rem; padding: 8px 16px; height: 36px; border-radius: 8px; font-weight: 700; border: 2px solid #2874f0; cursor: pointer; background: white; color: #2874f0;">
-                        📝 Edit Tracking
+                    <button class="btn-outline" onclick="openTrackingModal('{{ seller_items.0.courier_name|escapejs }}', '{{ seller_items.0.tracking_number|escapejs }}')" style="font-size: 0.85rem; padding: 8px 16px; height: 36px; border-radius: 8px; font-weight: 700; border: 2px solid #2874f0; cursor: pointer; background: white; color: #2874f0; display: inline-flex; align-items: center; gap: 4px;">
+                        <i class="fa fa-pencil-alt"></i> Edit Tracking
                     </button>
                     {% endif %}
                 {% endif %}
                 <a href="{% url 'orders:invoice_download' order.unique_order_id %}" class="btn-outline" style="font-size: 0.85rem; padding: 8px 16px; height: 36px; border-radius: 8px; font-weight: 700; border: 2px solid #2874f0; cursor: pointer; background: white; color: #2874f0; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
-                    📄 PDF Bill
+                    <i class="fa fa-file-pdf"></i> PDF Bill
                 </a>
                 <a href="{% url 'orders:invoice_download_csv' order.unique_order_id %}" class="btn-outline" style="font-size: 0.85rem; padding: 8px 16px; height: 36px; border-radius: 8px; font-weight: 700; border: 2px solid #10b981; cursor: pointer; background: white; color: #10b981; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
-                    📊 CSV Bill
+                    <i class="fa fa-file-csv"></i> CSV Bill
                 </a>
                 <a href="{% url 'orders:print_shipping_label' order.unique_order_id %}" target="_blank" class="btn-outline" style="font-size: 0.85rem; padding: 8px 16px; height: 36px; border-radius: 8px; font-weight: 700; border: 2px solid #eab308; cursor: pointer; background: white; color: #eab308; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
-                    🏷️ Print Label
+                    <i class="fa fa-tag"></i> Print Label
                 </a>
             </div>
         </div>
@@ -59,7 +59,7 @@
         {% for step in timeline %}
         <div class="timeline-step {% if forloop.last and order.status != 'delivered' %}active{% elif order.status == step.status %}active completed{% elif forloop.prev and order.status != step.status %}completed{% endif %}">
             <div class="step-icon">
-                {% if step.status == 'pending' %}📦{% elif step.status == 'confirmed' %}✅{% elif step.status == 'processing' %}⚙️{% elif step.status == 'shipped' %}🚚{% elif step.status == 'out_for_delivery' %}🛵{% elif step.status == 'delivered' %}🎉{% endif %}
+                {% if step.status == 'pending' %}<i class="fa fa-box"></i>{% elif step.status == 'confirmed' %}<i class="fa fa-check-circle text-success"></i>{% elif step.status == 'processing' %}<i class="fa fa-cog fa-spin"></i>{% elif step.status == 'shipped' %}<i class="fa fa-truck"></i>{% elif step.status == 'out_for_delivery' %}<i class="fa fa-motorcycle"></i>{% elif step.status == 'delivered' %}<i class="fa fa-gift text-success"></i>{% endif %}
             </div>
             <div class="step-content">
                 <strong>{{ step.label }}</strong>
@@ -74,7 +74,7 @@
 
     <!-- Seller's Items in This Order -->
     <div class="order-items">
-        <h3>📦 Your Items in This Order</h3>
+        <h3><i class="fa fa-box"></i> Your Items in This Order</h3>
         {% for item in seller_items %}
         <div class="order-item">
             {% if item.product.primary_image %}
@@ -119,11 +119,11 @@
 
     {% if delivery and delivery.partner %}
     <div class="delivery-info">
-        <h3>🚚 Delivery Partner</h3>
+        <h3><i class="fa fa-truck"></i> Delivery Partner</h3>
         <p><strong>{{ delivery.partner.full_name }}</strong></p>
-        <p>📞 {{ delivery.partner.phone }}</p>
+        <p><i class="fa fa-phone text-muted" style="margin-right: 4px;"></i> {{ delivery.partner.phone }}</p>
         {% if seller_items.0.tracking_number %}
-            <p>🔢 Tracking: {{ seller_items.0.tracking_number }}</p>
+            <p><i class="fa fa-hashtag text-muted" style="margin-right: 4px;"></i> Tracking: {{ seller_items.0.tracking_number }}</p>
             {% if seller_items.0.tracking_url %}
                 <a href="{{ seller_items.0.tracking_url }}" target="_blank" class="btn-outline">Track Live</a>
             {% endif %}
@@ -133,7 +133,7 @@
 
     {% if order.tracking_number %}
     <div style="background: white; padding: 25px; border-radius: 12px; margin-bottom: 20px; border: 1.5px solid var(--gray-100);">
-        <h3 style="margin-top: 0; margin-bottom: 15px;">📦 Shipment Details</h3>
+        <h3 style="margin-top: 0; margin-bottom: 15px;"><i class="fa fa-box-open"></i> Shipment Details</h3>
         <p style="margin: 0 0 8px;"><strong>Courier Partner:</strong> {{ order.courier_name|default:"Shiprocket" }}</p>
         <p style="margin: 0 0 8px;"><strong>AWB / Tracking Number:</strong> {{ order.tracking_number }}</p>
         {% if order.shiprocket_status %}
@@ -145,7 +145,7 @@
         {% if order.tracking_url %}
         <div style="margin-top: 12px;">
             <a href="{{ order.tracking_url }}" target="_blank" class="btn-outline" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; text-decoration: none; font-size: 0.85rem; font-weight: 700; border: 2px solid #2874f0; color: #2874f0; border-radius: 8px; background: white; cursor: pointer;">
-                📍 Track Live
+                <i class="fa fa-map-marker-alt"></i> Track Live
             </a>
         </div>
         {% endif %}
@@ -221,7 +221,7 @@
                 This shipment could not be delivered to the customer (e.g. wrong address/delivery failure) and has been returned back to you. Please confirm receipt to refund the customer.
             </p>
             <button class="btn-primary" id="confirmRtoBtn" onclick="confirmRtoReceipt('{{ order.unique_order_id }}')" style="background: #d97706; border: none; width: 100%; font-weight: 700; font-size: 0.9rem; padding: 10px; border-radius: var(--r-md); color: white; cursor: pointer;">
-                ✓ Confirm Receipt & Process Refund
+                <i class="fa fa-check"></i> Confirm Receipt & Process Refund
             </button>
         </div>
         {% endif %}
@@ -229,7 +229,7 @@
         <div class="order-actions" style="margin-top: 20px;">
             <a href="{% url 'orders:seller_orders' %}" class="btn-outline">← Back to Orders</a>
             {% if order.status == 'delivered' %}
-            <button class="btn-primary">📝 Rate This Order</button>
+            <button class="btn-primary"><i class="fa fa-star"></i> Rate This Order</button>
             {% endif %}
         </div>
     </div>
@@ -239,7 +239,7 @@
 <div id="cancelModal" class="modal">
     <div class="modal-content" style="max-width: 500px;">
         <span class="modal-close" onclick="closeModal('cancelModal')">&times;</span>
-        <h3 style="color: #ef4444; margin-top: 0; font-family: 'Syne', sans-serif;">❌ Cancel Items</h3>
+        <h3 style="color: #ef4444; margin-top: 0; font-family: 'Syne', sans-serif;"><i class="fa fa-times-circle"></i> Cancel Items</h3>
         <form id="cancelForm">
             {% csrf_token %}
             <div class="form-group" style="margin-bottom: 20px;">
@@ -291,10 +291,10 @@
             <div class="form-group">
                 <label>Select New Status</label>
                 <select name="status" id="statusSelect" class="form-input" required style="width: 100%;">
-                    <option value="processing" {% if order.status == 'processing' %}selected{% endif %}>⚙️ Processing</option>
-                    <option value="shipped" {% if order.status == 'shipped' %}selected{% endif %}>🚚 Shipped</option>
-                    <option value="delivered" {% if order.status == 'delivered' %}selected{% endif %}>🟢 Delivered</option>
-                    <option value="returned" {% if order.status == 'returned' %}selected{% endif %}>🔄 Returned</option>
+                    <option value="processing" {% if order.status == 'processing' %}selected{% endif %}>Processing</option>
+                    <option value="shipped" {% if order.status == 'shipped' %}selected{% endif %}>Shipped</option>
+                    <option value="delivered" {% if order.status == 'delivered' %}selected{% endif %}>Delivered</option>
+                    <option value="returned" {% if order.status == 'returned' %}selected{% endif %}>Returned</option>
                 </select>
             </div>
             <button type="submit" class="btn-primary">Confirm Update</button>
@@ -312,10 +312,10 @@
             <div class="form-group">
                 <label>Courier Name</label>
                 <select name="courier_name" id="courierNameSelect" class="form-input" style="width: 100%;">
-                    <option value="Shiprocket" {% if order.courier_name == 'Shiprocket' %}selected{% endif %}>🚀 Shiprocket</option>
-                    <option value="Delhivery" {% if order.courier_name == 'Delhivery' %}selected{% endif %}>📦 Delhivery</option>
-                    <option value="BlueDart" {% if order.courier_name == 'BlueDart' %}selected{% endif %}>🔵 BlueDart</option>
-                    <option value="Other" {% if order.courier_name == 'Other' %}selected{% endif %}>📋 Other</option>
+                    <option value="Shiprocket" {% if order.courier_name == 'Shiprocket' %}selected{% endif %}>Shiprocket</option>
+                    <option value="Delhivery" {% if order.courier_name == 'Delhivery' %}selected{% endif %}>Delhivery</option>
+                    <option value="BlueDart" {% if order.courier_name == 'BlueDart' %}selected{% endif %}>BlueDart</option>
+                    <option value="Other" {% if order.courier_name == 'Other' %}selected{% endif %}>Other</option>
                 </select>
             </div>
             <div class="form-group">
@@ -469,7 +469,7 @@ function confirmRtoReceipt(orderId) {
             alert("Error: " + data.message);
             if (btn) {
                 btn.disabled = false;
-                btn.innerText = "✓ Confirm Receipt & Process Refund";
+                btn.innerHTML = '<i class="fa fa-check"></i> Confirm Receipt & Process Refund';
             }
         }
     })
@@ -478,7 +478,7 @@ function confirmRtoReceipt(orderId) {
         alert("An error occurred: " + (error.message || "Unknown error"));
         if (btn) {
             btn.disabled = false;
-            btn.innerText = "✓ Confirm Receipt & Process Refund";
+            btn.innerHTML = '<i class="fa fa-check"></i> Confirm Receipt & Process Refund';
         }
     });
 }

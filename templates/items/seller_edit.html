@@ -502,7 +502,7 @@
             <!-- Unsettled Order Items -->
             <div style="margin-bottom: 35px;">
                 <h4 style="margin-bottom: 16px; font-size: 1.05rem; display: flex; align-items: center; justify-content: space-between; font-family: 'Syne', sans-serif; font-weight: 700; color: var(--gray-800);">
-                    <span style="display: flex; align-items: center; gap: 8px;"><i class="fa fa-boxes-packing" style="color: var(--blue-500);"></i> 📦 Unsettled Delivered Items</span>
+                    <span style="display: flex; align-items: center; gap: 8px;"><i class="fa fa-boxes-packing" style="color: var(--blue-500);"></i> Unsettled Delivered Items</span>
                     {% if unsettled_order_items and is_admin %}
                     <button type="button" class="btn-save" id="createSettlementBtn" style="padding: 8px 16px; font-size: 0.85rem; width: auto; background: linear-gradient(135deg, var(--blue-500), var(--blue-600)); border: none; box-shadow: var(--sh-sm);">
                         <i class="fa fa-plus-circle"></i> Create Settlement
@@ -552,7 +552,7 @@
             <!-- Settlement History -->
             <div>
                 <h4 style="margin-bottom: 16px; font-size: 1.05rem; font-family: 'Syne', sans-serif; font-weight: 700; color: var(--gray-800); display: flex; align-items: center; gap: 8px;">
-                    <i class="fa fa-history" style="color: var(--blue-500);"></i> 📜 Settlement History
+                    <i class="fa fa-history" style="color: var(--blue-500);"></i> Settlement History
                 </h4>
                 {% if seller_settlements %}
                 <div class="table-container">
@@ -583,7 +583,7 @@
                                     {% if sett.status == 'pending' or sett.status == 'failed' %}
                                         {% if is_admin %}
                                         <button type="button" class="btn-save trigger-payout-btn" data-settlement-id="{{ sett.id }}" style="padding: 8px 14px; font-size: 0.8rem; width: auto; background: linear-gradient(135deg, var(--green), #059669); border: none; box-shadow: 0 4px 10px rgba(16,185,129,0.25);">
-                                            💸 Payout
+                                            <i class="fa fa-money-bill-wave" style="margin-right: 4px;"></i> Payout
                                         </button>
                                         {% else %}
                                         <span style="color: var(--gray-500); font-size: 0.85rem; font-weight: 600;">Pending Admin</span>

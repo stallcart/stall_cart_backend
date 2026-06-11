@@ -44,7 +44,7 @@
                                 <p style="margin:0 0 8px;font-size:0.95rem;color:var(--gray-800);">
                                     <strong id="addrName">{{ selected_address.name }}</strong>
                                     <span class="address-tag" id="addrType">{{ selected_address.get_address_type_display|slice:":8" }}</span>
-                                    {% if selected_address.is_default %}<span class="badge-success">✓ Default</span>{% endif %}
+                                    {% if selected_address.is_default %}<span class="badge-success"><i class="fa fa-check-circle" style="margin-right: 4px;"></i>Default</span>{% endif %}
                                 </p>
                                 <p style="margin:4px 0;font-size:0.9rem;color:var(--gray-700);line-height:1.5;" id="addrLine1">
                                     {{ selected_address.address_line1 }}{% if selected_address.address_line2 %}, {{ selected_address.address_line2 }} {% endif %}
@@ -72,7 +72,7 @@
 
                 <!-- 2. Order Items -->
                 <div class="checkout-card">
-                    <h3>📦 Order Items ({{ cart_items|length }})</h3>
+                    <h3><i class="fa fa-shopping-bag"></i> Order Items ({{ cart_items|length }})</h3>
                     <div class="order-items-list">
                         {% for item in cart_items %}
                         <div class="order-item-row">
@@ -101,7 +101,7 @@
                 
                 <!-- 3. Price Details -->
                 <div class="checkout-card sticky-card">
-                    <h3>💰 Price Details</h3>
+                    <h3><i class="fa fa-indian-rupee-sign"></i> Price Details</h3>
                     <div class="price-row">
                         <span>Price ({{ cart_items|length }} items)</span>
                         <span>₹{{ mrp_subtotal|floatformat:2 }}</span>
@@ -442,7 +442,7 @@ function showCustomAlert(title, message, type = 'error') {
                             if (!defaultBadge) { 
                                 const badge = document.createElement('span'); 
                                 badge.className = 'badge-success'; 
-                                badge.textContent = '✓ Default'; 
+                                badge.innerHTML = '<i class="fa fa-check-circle" style="margin-right: 4px;"></i>Default'; 
                                 badge.style.marginLeft = '8px'; 
                                 addrName?.parentNode?.appendChild(badge); 
                             } 

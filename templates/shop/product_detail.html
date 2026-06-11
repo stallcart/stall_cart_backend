@@ -33,7 +33,7 @@
                 <!-- Badges -->
                 <div class="image-badges">
                     {% if product.is_hot_deal %}
-                        <span class="badge badge-hot">🔥 Hot Deal</span>
+                        <span class="badge badge-hot"><i class="fa fa-fire" style="margin-right: 4px;"></i>Hot Deal</span>
                     {% endif %}
                     {% if product.discount_percent > 0 %}
                         <span class="badge badge-discount">-{{ product.discount_percent }}%</span>
@@ -89,7 +89,7 @@
                         <a href="{% url 'items:product_list' %}?seller={{ product.seller.id }}">{{ product.seller.shop_name }}</a>
                     </span>
                     {% if product.is_featured %}
-                        <span class="badge badge-featured">★ Featured</span>
+                        <span class="badge badge-featured"><i class="fa fa-star" style="margin-right: 4px;"></i>Featured</span>
                     {% endif %}
                     {% if not product.is_returnable %}
                         <span class="badge badge-non-returnable" style="background-color: #fef2f2; color: #dc2626; border: 1px solid #fecaca; font-weight: 700; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; display: inline-flex; align-items: center; gap: 4px;">
@@ -135,7 +135,7 @@
                         </p>
                         {% if has_variants %}
                         <small style="color:var(--gray-500);display:block;margin-top:6px;">
-                            💡 Select your preferred variant above to continue.
+                            <i class="fa fa-info-circle text-info" style="margin-right: 4px;"></i>Select your preferred variant above to continue.
                         </small>
                         {% endif %}
                     </div>
@@ -321,7 +321,7 @@
             <!-- Profit Info (Seller / Admin only) -->
             {% if can_manage and product.cost_price %}
             <div class="profit-info">
-                <small>💰 Profit Breakdown (per unit)</small>
+                <small><i class="fa fa-indian-rupee-sign text-success" style="margin-right: 4px;"></i>Profit Breakdown (per unit)</small>
                 <div class="profit-row"><span>Selling Price:</span><strong>₹{{ product.final_price|floatformat:2 }}</strong></div>
                 <div class="profit-row muted"><span>− Commission ({{ product.category.commision_percentage|default:0 }}%):</span><span>₹{{ product.admin_commission|floatformat:2 }}</span></div>
                 <div class="profit-row muted"><span>− Cost Price:</span><span>₹{{ product.cost_price|floatformat:2 }}</span></div>
@@ -412,7 +412,7 @@
                     <div class="rating-distribution" style="margin-top:16px;">
                         {% for star in "54321" %}
                         <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-                            <span style="width:30px;font-size:0.85rem;color:var(--gray-600);">{{ star }}★</span>
+                            <span style="width:30px;font-size:0.85rem;color:var(--gray-600);display:flex;align-items:center;gap:2px;">{{ star }}<i class="fa-solid fa-star text-warning" style="font-size: 0.75rem;"></i></span>
                             <div style="flex:1;height:6px;background:var(--gray-200);border-radius:3px;overflow:hidden;">
                                 {% with count_key=star|add:"_star" %}
                                 {% with count=rating_stats|default:0|add:count_key %}
@@ -447,7 +447,11 @@
                             <strong style="color:var(--blue-800);">Your Review</strong>
                             <span style="margin-left:8px;color:var(--amber);">
                                 {% for i in "12345"|make_list %}
-                                    {% if forloop.counter <= user_review.rating %}★{% else %}☆{% endif %}
+                                    {% if forloop.counter <= user_review.rating %}
+                                        <i class="fa-solid fa-star" style="color: #f59e0b; font-size: 0.85rem;"></i>
+                                    {% else %}
+                                        <i class="fa-regular fa-star" style="color: #d1d5db; font-size: 0.85rem;"></i>
+                                    {% endif %}
                                 {% endfor %}
                             </span>
                         </div>
@@ -497,7 +501,11 @@
                                         <div style="text-align:right;">
                                             <div style="color:var(--amber);font-size:1rem;">
                                                 {% for i in "12345"|make_list %}
-                                                    {% if forloop.counter <= review.rating %}★{% else %}☆{% endif %}
+                                                    {% if forloop.counter <= review.rating %}
+                                                        <i class="fa-solid fa-star" style="color: #f59e0b; font-size: 0.85rem;"></i>
+                                                    {% else %}
+                                                        <i class="fa-regular fa-star" style="color: #d1d5db; font-size: 0.85rem;"></i>
+                                                    {% endif %}
                                                 {% endfor %}
                                             </div>
                                             <time style="display:block;font-size:0.7rem;color:var(--gray-400);margin-top:2px;">
@@ -585,7 +593,7 @@
 {% if related_products %}
 <section class="related-section container">
     <div class="section-header">
-        <h3>✨ Customers Also Viewed</h3>
+        <h3>Customers Also Viewed</h3>
         <a href="{% url 'items:product_list' %}?category={{ product.category.slug }}" class="view-all-link">
             View More <i class="fa fa-arrow-right"></i>
         </a>
@@ -701,7 +709,7 @@
                     <label class="form-label">Your Rating *</label>
                     <div id="starRating" class="star-rating">
                         {% for i in "12345" %}
-                        <span data-value="{{ i }}">☆</span>
+                        <span data-value="{{ i }}"><i class="fa-regular fa-star"></i></span>
                         {% endfor %}
                     </div>
                     <input type="hidden" id="ratingInput" name="rating" required>
@@ -1017,7 +1025,7 @@ function setupVariantSelection() {
             document.getElementById('selectedSize').textContent  = size + (color ? ' • ' + color : '');
             document.getElementById('variantPrice').textContent  = '₹' + price.toFixed(2);
             document.getElementById('variantStock').textContent  =
-                stock > 10 ? '✓ ' + stock + ' in stock' : '⚠ Only ' + stock + ' left';
+                stock > 10 ? stock + ' in stock' : 'Only ' + stock + ' left';
             if (variantInfo) variantInfo.style.display = 'flex';
             if (variantError) variantError.style.display = 'none';
 
@@ -1158,7 +1166,7 @@ function setupAddToCart() {
                     setTimeout(() => cartCount.style.transform = '', 200);
                 }
 
-                showToast(data.message || '✓ Added to cart!', 'success');
+                showToast(data.message || 'Added to cart!', 'success');
                 btn.innerHTML = '<i class="fa fa-check"></i> Added!';
                 btn.style.background = '#2e7d32';
 
@@ -1325,7 +1333,7 @@ function setupWishlist() {
 
             if (data.status === 'added') {
                 if (window.updateWishlistCount) window.updateWishlistCount(+1);
-                showToast('Added to wishlist ❤️', 'success');
+                showToast('Added to wishlist', 'success');
             } else if (data.status === 'removed') {
                 if (window.updateWishlistCount) window.updateWishlistCount(-1);
                 showToast('Removed from wishlist', 'info');
@@ -1369,13 +1377,27 @@ if (starRating && ratingInput) {
     
     function updateStars(value) {
         stars.forEach((star, index) => {
-            star.textContent = index < value ? '★' : '☆';
+            const icon = star.querySelector('i');
+            if (icon) {
+                if (index < value) {
+                    icon.className = 'fa-solid fa-star';
+                } else {
+                    icon.className = 'fa-regular fa-star';
+                }
+            }
             star.classList.toggle('active', index < value);
         });
     }
     function highlightStars(value) {
         stars.forEach((star, index) => {
-            star.textContent = index < value ? '★' : '☆';
+            const icon = star.querySelector('i');
+            if (icon) {
+                if (index < value) {
+                    icon.className = 'fa-solid fa-star';
+                } else {
+                    icon.className = 'fa-regular fa-star';
+                }
+            }
         });
     }
 }

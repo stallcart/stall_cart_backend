@@ -289,8 +289,8 @@ async function reorderOrder(orderId, btn) {
         
         if (data.status === 'success') {
             const msg = data.total_items > 1 
-                ? `🛒 ${data.message} + ${data.total_items - 1} more item(s) in this order`
-                : `🛒 ${data.message}`;
+                ? `${data.message} + ${data.total_items - 1} more item(s) in this order`
+                : `${data.message}`;
             
             ocToast(msg, 'success');
             setTimeout(() => {

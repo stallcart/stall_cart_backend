@@ -48,7 +48,7 @@
         <!-- Seller Fields (conditionally shown) -->
         <div id="sellerFields" class="seller-fields" style="display:none;">
             <hr class="my-4">
-            <h4 class="mb-3">🏪 Shop Details <small class="text-muted">(Required for sellers)</small></h4>
+            <h4 class="mb-3"><i class="fa fa-store" style="margin-right: 6px;"></i>Shop Details <small class="text-muted">(Required for sellers)</small></h4>
             
             <div class="form-group">
                 <label for="{{ form.shop_name.id_for_label }}"><i class="fa fa-store"></i> {{ form.shop_name.label }}</label>
@@ -86,7 +86,7 @@
         
         <!-- Password Fields -->
         <hr class="my-4">
-        <h4 class="mb-3">🔐 Set Password</h4>
+        <h4 class="mb-3"><i class="fa fa-lock" style="margin-right: 6px;"></i>Set Password</h4>
         
         <div class="form-group">
             <label for="{{ form.password1.id_for_label }}">
@@ -142,7 +142,7 @@
 <!-- Verification Modal for Registration -->
 <div id="verifyRegisterModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
     <div style="background:#fff; padding:30px; border-radius:12px; width:90%; max-width:400px; box-shadow:0 4px 20px rgba(0,0,0,0.2); box-sizing: border-box;">
-        <h3 style="margin-top:0; margin-bottom:15px; text-align:center;">🔒 Verify Registration OTP</h3>
+        <h3 style="margin-top:0; margin-bottom:15px; text-align:center;"><i class="fa fa-shield-halved" style="margin-right: 8px; color: var(--primary-color, #2874f0);"></i>Verify Registration OTP</h3>
         <p id="verifyModalSubtitle" style="font-size:0.9rem; color:#666; margin-bottom:20px; text-align:center; line-height:1.4;"></p>
         
         <!-- Email OTP Input -->

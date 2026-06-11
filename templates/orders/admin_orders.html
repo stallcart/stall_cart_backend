@@ -9,7 +9,7 @@
     <!-- Page Header & Stats -->
     <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; flex-wrap: wrap; gap: 20px;">
         <div>
-            <h2 style="margin: 0 0 6px; font-family: 'Syne', sans-serif; font-size: 1.35rem; font-weight: 800; color: var(--gray-900);">👑 System-Wide Order Management</h2>
+            <h2 style="margin: 0 0 6px; font-family: 'Syne', sans-serif; font-size: 1.35rem; font-weight: 800; color: var(--gray-900);"><i class="fa fa-crown text-warning" style="margin-right: 8px;"></i>System-Wide Order Management</h2>
             <p class="text-muted" style="margin: 0; font-size: 0.9rem; color: var(--gray-500);">Review customer orders, update statuses, and approve return/refund requests.</p>
         </div>
         <div class="stats-row" style="display: flex; gap: 14px; flex-wrap: wrap;">
@@ -45,7 +45,7 @@
                 Status: 
                 <span id="job-status-label" style="padding: 6px 12px; border-radius: var(--r-xl); font-weight: 800; font-size: 0.8rem; transition: all 0.3s ease;
                     {% if site_settings.enable_background_jobs %}background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0;{% else %}background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5;{% endif %}">
-                    {% if site_settings.enable_background_jobs %}🟢 RUNNING (Enabled){% else %}🔴 STOPPED (Disabled){% endif %}
+                    {% if site_settings.enable_background_jobs %}RUNNING (Enabled){% else %}STOPPED (Disabled){% endif %}
                 </span>
             </div>
             <button id="toggle-jobs-btn" onclick="toggleBackgroundJobs()" class="btn-primary" style="padding: 10px 20px; border-radius: var(--r-md); font-size: 0.85rem; font-weight: 700; border: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; height: 38px; transition: all 0.3s ease;
@@ -76,17 +76,17 @@
             <div style="flex: 1; min-width: 150px;">
                 <select name="status" class="form-input" style="width: 100%; padding: 8px 12px; border: 1.5px solid var(--gray-200); border-radius: var(--r-md); font-size: 0.9rem;">
                     <option value="">All Statuses</option>
-                    <option value="pending" {% if filters.status == 'pending' %}selected{% endif %}>🟡 Order Placed</option>
-                    <option value="confirmed" {% if filters.status == 'confirmed' %}selected{% endif %}>🔵 Order Confirmed</option>
-                    <option value="processing" {% if filters.status == 'processing' %}selected{% endif %}>🟠 Processing</option>
-                    <option value="shipped" {% if filters.status == 'shipped' %}selected{% endif %}>🟣 Shipped</option>
-                    <option value="out_for_delivery" {% if filters.status == 'out_for_delivery' %}selected{% endif %}>🔵 Out for Delivery</option>
-                    <option value="delivered" {% if filters.status == 'delivered' %}selected{% endif %}>🟢 Delivered</option>
-                    <option value="cancelled" {% if filters.status == 'cancelled' %}selected{% endif %}>🔴 Cancelled</option>
-                    <option value="returned" {% if filters.status == 'returned' %}selected{% endif %}>🔄 Returned</option>
-                    <option value="returned_to_source" {% if filters.status == 'returned_to_source' %}selected{% endif %}>🔄 Returned to Source (RTO)</option>
-                    <option value="refund_initiated" {% if filters.status == 'refund_initiated' %}selected{% endif %}>💰 Refund Initiated</option>
-                    <option value="refunded" {% if filters.status == 'refunded' %}selected{% endif %}>✅ Refunded</option>
+                    <option value="pending" {% if filters.status == 'pending' %}selected{% endif %}>Order Placed</option>
+                    <option value="confirmed" {% if filters.status == 'confirmed' %}selected{% endif %}>Order Confirmed</option>
+                    <option value="processing" {% if filters.status == 'processing' %}selected{% endif %}>Processing</option>
+                    <option value="shipped" {% if filters.status == 'shipped' %}selected{% endif %}>Shipped</option>
+                    <option value="out_for_delivery" {% if filters.status == 'out_for_delivery' %}selected{% endif %}>Out for Delivery</option>
+                    <option value="delivered" {% if filters.status == 'delivered' %}selected{% endif %}>Delivered</option>
+                    <option value="cancelled" {% if filters.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                    <option value="returned" {% if filters.status == 'returned' %}selected{% endif %}>Returned</option>
+                    <option value="returned_to_source" {% if filters.status == 'returned_to_source' %}selected{% endif %}>Returned to Source (RTO)</option>
+                    <option value="refund_initiated" {% if filters.status == 'refund_initiated' %}selected{% endif %}>Refund Initiated</option>
+                    <option value="refunded" {% if filters.status == 'refunded' %}selected{% endif %}>Refunded</option>
                 </select>
             </div>
             
@@ -217,7 +217,7 @@ window.toggleBackgroundJobs = async () => {
         
         // Update label
         if (enabled) {
-            label.innerText = '🟢 RUNNING (Enabled)';
+            label.innerText = 'RUNNING (Enabled)';
             label.style.background = '#dcfce7';
             label.style.color = '#15803d';
             label.style.border = '1px solid #bbf7d0';
@@ -225,7 +225,7 @@ window.toggleBackgroundJobs = async () => {
             btn.innerText = 'Stop Jobs';
             btn.style.background = '#dc2626';
         } else {
-            label.innerText = '🔴 STOPPED (Disabled)';
+            label.innerText = 'STOPPED (Disabled)';
             label.style.background = '#fee2e2';
             label.style.color = '#b91c1c';
             label.style.border = '1px solid #fca5a5';

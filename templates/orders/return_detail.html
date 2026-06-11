@@ -111,7 +111,7 @@
         {% if return_request.return_images.exists %}
         <div style="background: white; border-radius: var(--r-2xl); border: 1.5px solid var(--gray-100); box-shadow: var(--sh-md); padding: 24px;">
             <h3 style="font-family: 'Syne', sans-serif; font-size: 1.05rem; font-weight: 800; color: var(--gray-900); margin: 0 0 16px;">
-                📸 Evidence Uploaded
+                <i class="fa fa-camera" style="margin-right: 6px;"></i>Evidence Uploaded
             </h3>
             <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 14px;">
                 {% for img in return_request.return_images.all %}
@@ -126,7 +126,7 @@
         <!-- Return Reason details -->
         <div style="background: white; border-radius: var(--r-2xl); border: 1.5px solid var(--gray-100); box-shadow: var(--sh-md); padding: 24px;">
             <h3 style="font-family: 'Syne', sans-serif; font-size: 1.05rem; font-weight: 800; color: var(--gray-900); margin: 0 0 16px;">
-                📋 Return Request Details
+                <i class="fa fa-file-text" style="margin-right: 6px;"></i>Return Request Details
             </h3>
             <div style="display: flex; flex-direction: column; gap: 14px;">
                 <div>

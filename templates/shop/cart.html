@@ -220,7 +220,7 @@
 .no-address { display: flex; align-items: center; gap: 10px; color: var(--gray-500); font-size: 0.95rem; }
 .no-address i { font-size: 1.4rem; color: var(--gray-300); }
 
-/* ✨ PAYMENT OPTIONS — Online Only, Attractive Design ✨ */
+/* PAYMENT OPTIONS — Online Only, Attractive Design */
 .payment-preview {
     margin-top: 32px; background: var(--white); padding: 24px;
     border-radius: var(--r-xl); border: 1px solid var(--gray-200);
@@ -492,7 +492,7 @@
                 <div class="price-row total-row"><strong>Total Amount</strong><strong id="grandTotal">₹{{ grand_total|floatformat:2 }}</strong></div>
                 
                 {% if total_savings > 0 %}
-                <div class="savings-msg success"><i class="fa fa-tag"></i> You saved <strong>₹{{ total_savings|floatformat:2 }}</strong>! 🎉</div>
+                <div class="savings-msg success"><i class="fa fa-tag"></i> You saved <strong>₹{{ total_savings|floatformat:2 }}</strong>!</div>
                 {% else %}
                 <div class="savings-msg info"><i class="fa fa-info-circle"></i> No discounts applied</div>
                 {% endif %}
@@ -555,7 +555,7 @@
                         <p style="margin:0 0 8px;font-size:0.95rem;color:var(--gray-800);">
                             <strong id="addrName">{{ default_address.name }}</strong>
                             <span class="address-tag" id="addrType">{{ default_address.get_address_type_display|slice:":8" }}</span>
-                            {% if default_address.is_default %}<span class="badge-success">✓ Default</span>{% endif %}
+                            {% if default_address.is_default %}<span class="badge-success"><i class="fa fa-check-circle" style="margin-right: 4px;"></i>Default</span>{% endif %}
                         </p>
                         <p style="margin:4px 0;font-size:0.9rem;color:var(--gray-700);line-height:1.5;" id="addrLine1">
                             {{ default_address.address_line1 }}{% if default_address.address_line2 %}, {{ default_address.address_line2 }}{% endif %}
@@ -582,7 +582,7 @@
         </div>
         {% endif %}
 
-        <!-- ✨ PAYMENT METHOD — Online Only, Attractive ✨ -->
+        <!-- PAYMENT METHOD — Online Only, Attractive -->
         <div class="payment-preview">
             <h3><i class="fa fa-credit-card"></i> Secure Payment</h3>
             <div class="payment-options">
@@ -937,7 +937,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         addrInfo.setAttribute('data-country', addr.country || 'India');
 
                         const defaultBadge = addrInfo.querySelector('.badge-success');
-                        if (addr.is_default) { if (!defaultBadge) { const badge = document.createElement('span'); badge.className = 'badge-success'; badge.textContent = '✓ Default'; badge.style.marginLeft = '8px'; addrName?.parentNode?.appendChild(badge); } }
+                        if (addr.is_default) { if (!defaultBadge) { const badge = document.createElement('span'); badge.className = 'badge-success'; badge.innerHTML = '<i class="fa fa-check-circle" style="margin-right: 4px;"></i>Default'; badge.style.marginLeft = '8px'; addrName?.parentNode?.appendChild(badge); } }
                         else if (defaultBadge) defaultBadge.remove();
                     }
                     toast('Address updated', 'success');
@@ -1033,7 +1033,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // ✨ VERIFY PAYMENT — Server-side signature check + cart clearing ✨
+    // VERIFY PAYMENT — Server-side signature check + cart clearing
     async function verifyPayment(orderId, razorpayOrderId, paymentId, signature, cartPayload) {
         try {
             const res = await fetch(VERIFY_PAYMENT_URL, {
@@ -1064,7 +1064,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     
-    // ✨ PLACE ORDER — Razorpay Flow with Proper Error Handling ✨
+    // PLACE ORDER — Razorpay Flow with Proper Error Handling
     const placeOrderBtn = document.getElementById('placeOrderBtn');
     if (placeOrderBtn) {
         placeOrderBtn.addEventListener('click', async () => {
@@ -1178,7 +1178,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 result._cart_payload  // Cart data from create_order response
                             ).then(verification => {
                                 if (verification.success) {
-                                    toast('Payment successful! 🎉', 'success');
+                                    toast('Payment successful!', 'success');
                                     const successUrl = `{% url 'orders:order_success' order_id='PLACEHOLDER' %}`.replace('PLACEHOLDER', verification.order_id);
                                     window.location.href = `${successUrl}?payment_id=${response.razorpay_payment_id}`;
                                 } else {
