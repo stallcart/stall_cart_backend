@@ -433,6 +433,10 @@
 
                     {% if item.is_returned %}
                     <span class="badge-returned-item">Returned ({{ item.returned_quantity }})</span>
+                    {% elif not item.product.is_returnable %}
+                    <span class="badge-non-returnable" style="background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; font-size: 0.75rem; font-weight: 700; padding: 4px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; width: fit-content;">
+                        <i class="fa fa-ban"></i> Non-Returnable
+                    </span>
                     {% elif order.is_returnable %}
                     <button class="od-btn od-btn-return" style="margin-top:8px;padding:7px 14px;font-size:.8rem;"
                             onclick="window.location.href='{% url 'orders:request_return' item.id %}'">

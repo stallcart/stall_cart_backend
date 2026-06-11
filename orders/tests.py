@@ -2066,3 +2066,98 @@ class OrderStatusDeduplicationTests(TestCase):
             result = sync_shiprocket_tracking(self.order)
             self.assertIsNone(result)
             mock_get_tracking.assert_not_called()
+
+
+class ReturnRequestNonReturnableTests(TestCase):
+    def setUp(self):
+        # Create user
+        self.customer = User.objects.create_user(
+            phone="6666666666",
+            password="customerpassword",
+            role="customer",
+            full_name="Customer User"
+        )
+        self.seller_user = User.objects.create_user(
+            phone="8888888888",
+            password="sellerpassword",
+            role="seller",
+            full_name="Seller One"
+        )
+        self.seller_profile = SellerProfile.objects.create(
+            user=self.seller_user,
+            shop_name="Shop One",
+            is_verified=True
+        )
+        self.category = Category.objects.create(name="Clothing", commision_percentage=10.0)
+        
+        # Create returnable and non-returnable products
+        self.returnable_product = Product.objects.create(
+            seller=self.seller_profile,
+            category=self.category,
+            name="Returnable Shirt",
+            price=Decimal("100.00"),
+            stock=10,
+            is_returnable=True
+        )
+        self.non_returnable_product = Product.objects.create(
+            seller=self.seller_profile,
+            category=self.category,
+            name="Non-Returnable Shirt",
+            price=Decimal("100.00"),
+            stock=10,
+            is_returnable=False
+        )
+        
+        self.address = {
+            "name": "Customer User",
+            "phone": "6666666666",
+            "address_line1": "123 Street",
+            "city": "Mumbai",
+            "state": "Maharashtra",
+            "postal_code": "400001"
+        }
+        
+        # Create a delivered order
+        self.order = Order.objects.create(
+            user=self.customer,
+            shipping_address=self.address,
+            total_amount=Decimal("200.00"),
+            payment_method="cod",
+            payment_status="paid",
+            status="delivered",
+            delivered_at=timezone.now()
+        )
+        
+        self.returnable_item = OrderItem.objects.create(
+            order=self.order,
+            product=self.returnable_product,
+            seller=self.seller_profile,
+            quantity=1,
+            price=Decimal("100.00"),
+            total=Decimal("100.00"),
+            status="delivered"
+        )
+        self.non_returnable_item = OrderItem.objects.create(
+            order=self.order,
+            product=self.non_returnable_product,
+            seller=self.seller_profile,
+            quantity=1,
+            price=Decimal("100.00"),
+            total=Decimal("100.00"),
+            status="delivered"
+        )
+
+    def test_request_return_backend_validation(self):
+        """Verify request_return view rejects return requests for non-returnable products."""
+        self.client.login(phone="6666666666", password="customerpassword")
+        
+        # Attempting to return the non-returnable item should redirect and fail
+        response = self.client.get(reverse('orders:request_return', args=[self.non_returnable_item.id]))
+        self.assertRedirects(response, reverse('orders:order_detail', args=[self.order.unique_order_id]))
+        
+        # Verify no ReturnRequest was created for it
+        self.assertFalse(ReturnRequest.objects.filter(order_item=self.non_returnable_item).exists())
+        
+        # Attempting to return the returnable item should succeed (render form or redirect)
+        response = self.client.get(reverse('orders:request_return', args=[self.returnable_item.id]))
+        self.assertEqual(response.status_code, 200)

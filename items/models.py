@@ -296,6 +296,7 @@ class Product(BaseModel):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
     is_featured = models.BooleanField(default=False)
     is_hot_deal = models.BooleanField(default=False)
+    is_returnable = models.BooleanField(default=True, help_text="Designates whether the product is eligible for return/refund")
     discount_percent = models.PositiveIntegerField(default=0, help_text="0-100")
     
     # Stats (auto-calculated)

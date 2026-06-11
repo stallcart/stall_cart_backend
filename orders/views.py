@@ -263,6 +263,10 @@ def request_return(request, order_item_id):
     """Customer: Request return for an item"""
     order_item = get_object_or_404(OrderItem, id=order_item_id, order__user=request.user)
     
+    if not order_item.product.is_returnable:
+        messages.error(request, "This item is non-returnable")
+        return redirect('orders:order_detail', order_id=order_item.order.unique_order_id)
+        
     if not order_item.order.is_returnable:
         messages.error(request, "Return window has closed for this order")
         return redirect('orders:order_detail', order_id=order_item.order.unique_order_id)

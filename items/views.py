@@ -770,6 +770,7 @@ def product_api_detail(request, product_id):
         'meta_description':  product.meta_description,
         'is_featured':       product.is_featured,
         'is_hot_deal':       product.is_hot_deal,
+        'is_returnable':     product.is_returnable,
         'primary_image_url': product.primary_image.url if product.primary_image else '',
     })
 

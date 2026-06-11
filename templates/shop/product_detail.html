@@ -91,6 +91,11 @@
                     {% if product.is_featured %}
                         <span class="badge badge-featured">★ Featured</span>
                     {% endif %}
+                    {% if not product.is_returnable %}
+                        <span class="badge badge-non-returnable" style="background-color: #fef2f2; color: #dc2626; border: 1px solid #fecaca; font-weight: 700; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; display: inline-flex; align-items: center; gap: 4px;">
+                            <i class="fa fa-ban"></i> Non-Returnable
+                        </span>
+                    {% endif %}
                 </div>
             </div>
 
@@ -304,7 +309,11 @@
             {% if not can_manage %}
             <div class="trust-badges">
                 <span><i class="fa fa-shield-alt"></i> Secure Payment</span>
-                <span><i class="fa fa-undo"></i> 7 Days Return</span>
+                {% if product.is_returnable %}
+                    <span><i class="fa fa-undo"></i> 7 Days Return</span>
+                {% else %}
+                    <span style="color: #dc2626; font-weight: 700;"><i class="fa fa-ban"></i> Non-Returnable</span>
+                {% endif %}
                 <span><i class="fa fa-medal"></i> 100% Original</span>
             </div>
             {% endif %}

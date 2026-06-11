@@ -427,6 +427,11 @@
                         <p class="item-variant"><i class="fa fa-tag"></i> {{ item.variant_display }}</p>
                         {% endif %}
                         <p class="item-seller"><i class="fa fa-store"></i> Sold by: {{ item.product.seller.shop_name|truncatechars:25 }}</p>
+                        {% if not item.product.is_returnable %}
+                            <p class="non-returnable-alert" style="color: #dc2626; font-size: 0.8rem; font-weight: 700; margin: 4px 0 0; display: inline-flex; align-items: center; gap: 4px; background: #fef2f2; border: 1px solid #fecaca; padding: 2px 8px; border-radius: 4px; width: fit-content;">
+                                <i class="fa fa-ban"></i> Non-Returnable
+                            </p>
+                        {% endif %}
                         
                         <!-- Price Row -->
                         <div class="item-price-row">

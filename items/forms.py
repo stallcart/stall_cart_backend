@@ -177,7 +177,7 @@ class ProductForm(forms.ModelForm):
             'stock', 'low_stock_threshold', 'status',
             'gender', 'primary_image', 'brand', 
             'weight', 'dimensions', 'material', 'warranty', 'country_of_origin',
-            'meta_title', 'meta_description', 'is_featured', 'is_hot_deal',
+            'meta_title', 'meta_description', 'is_featured', 'is_hot_deal', 'is_returnable',
             'category',
             # ❌ Do NOT include 'seller' here – added conditionally below
         ]
