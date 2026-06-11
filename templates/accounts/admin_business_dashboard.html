@@ -501,6 +501,10 @@
                 <i class="fa fa-envelope-open-text"></i>
                 <span>Mail Templates</span>
             </a>
+            <button id="reconcile-shiprocket-btn" class="quick-action-btn" style="cursor: pointer; background: var(--gray-50); border: 1.5px solid var(--gray-200); width: 100%; box-sizing: border-box; text-align: center; border-radius: var(--r-lg);">
+                <i class="fa fa-sync-alt" id="reconcile-btn-icon"></i>
+                <span>Sync Shiprocket Shipments</span>
+            </button>
             <a href="/admin/" class="quick-action-btn">
                 <i class="fa fa-wrench"></i>
                 <span>Django Admin View</span>
@@ -702,6 +706,59 @@
                 }
             }
         });
+
+        // Reconcile Shiprocket Shipments AJAX
+        const reconcileBtn = document.getElementById('reconcile-shiprocket-btn');
+        if (reconcileBtn) {
+            reconcileBtn.addEventListener('click', function () {
+                const icon = document.getElementById('reconcile-btn-icon');
+                
+                // Show loading state
+                reconcileBtn.disabled = true;
+                reconcileBtn.style.opacity = '0.7';
+                if (icon) icon.classList.add('fa-spin');
+                
+                showToast('Synchronizing Shiprocket shipments...', 'info');
+                
+                // Fetch CSRF token
+                const csrfToken = "{{ csrf_token }}";
+                
+                fetch("{% url 'orders:admin_shiprocket_reconcile' %}", {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(err => { throw err; });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.status === 'success') {
+                        showToast(data.message, 'success');
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 2500);
+                    } else {
+                        showToast(data.error || 'Sync failed.', 'error');
+                    }
+                })
+                .catch(err => {
+                    console.error('Error during Shiprocket sync:', err);
+                    showToast(err.error || 'Failed to sync shipments. Please try again.', 'error');
+                })
+                .finally(() => {
+                    // Reset loading state
+                    reconcileBtn.disabled = false;
+                    reconcileBtn.style.opacity = '1';
+                    if (icon) icon.classList.remove('fa-spin');
+                });
+            });
+        }
     });
 </script>
 {% endblock %}

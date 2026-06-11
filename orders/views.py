@@ -2208,3 +2208,46 @@ def authorized_cancel_order(request, order_id):
         'refund_note': refund_note,
         'shiprocket_note': shiprocket_note
     })
+
+
+@admin_only
+def admin_shiprocket_reconcile(request):
+    """
+    Admin: Manual trigger to reconcile all confirmed/processing orders
+    whose items are missing tracking numbers or shiprocket order IDs.
+    """
+    if not request.user.is_superuser and request.user.role != 'admin':
+        return JsonResponse({'error': '🔐 Permission denied. Only superadmins can run reconciliation.'}, status=403)
+        
+    from django.db.models import Q
+    from delivery.delivery_services import auto_push_order_to_shiprocket
+    
+    # Fetch orders in confirmed/processing state that have any item missing tracking or shiprocket order ID
+    orders_to_reconcile = Order.objects.filter(
+        status__in=['confirmed', 'processing']
+    ).filter(
+        Q(items__shiprocket_order_id__isnull=True) | Q(items__shiprocket_order_id='') |
+        Q(items__tracking_number__isnull=True) | Q(items__tracking_number='')
+    ).distinct()
+    
+    total_reconciled = 0
+    errors = []
+    
+    for order in orders_to_reconcile:
+        try:
+            # Trigger auto push (which checks/reconciles atomically per seller)
+            auto_push_order_to_shiprocket(order)
+            total_reconciled += 1
+        except Exception as e:
+            errors.append(f"Order {order.unique_order_id}: {str(e)}")
+            
+    message = f"Reconciliation process complete. Successfully processed {total_reconciled} order(s)."
+    if errors:
+        message += f" Had {len(errors)} error(s): {', '.join(errors[:5])}"
+        
+    return JsonResponse({
+        'status': 'success',
+        'message': message,
+        'reconciled_count': total_reconciled,
+        'errors_count': len(errors)
+    })

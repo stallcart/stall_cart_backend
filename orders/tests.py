@@ -2161,3 +2161,177 @@ class ReturnRequestNonReturnableTests(TestCase):
         # Attempting to return the returnable item should succeed (render form or redirect)
         response = self.client.get(reverse('orders:request_return', args=[self.returnable_item.id]))
         self.assertEqual(response.status_code, 200)
+
+
+class ShiprocketReconciliationTests(TestCase):
+    def setUp(self):
+        # Create users
+        self.admin = User.objects.create_superuser(
+            phone="9999999999",
+            password="adminpassword",
+            role="admin",
+            full_name="Admin User"
+        )
+        self.customer = User.objects.create_user(
+            phone="6666666660",
+            password="customerpassword",
+            role="customer",
+            full_name="Customer User"
+        )
+        self.seller_user1 = User.objects.create_user(
+            phone="8888888881",
+            password="sellerpassword",
+            role="seller",
+            full_name="Seller One"
+        )
+        self.seller_user2 = User.objects.create_user(
+            phone="8888888882",
+            password="sellerpassword",
+            role="seller",
+            full_name="Seller Two"
+        )
+        self.seller_profile1 = SellerProfile.objects.create(
+            user=self.seller_user1,
+            shop_name="Shop One",
+            is_verified=True
+        )
+        self.seller_profile2 = SellerProfile.objects.create(
+            user=self.seller_user2,
+            shop_name="Shop Two",
+            is_verified=True
+        )
+        self.category = Category.objects.create(name="Electronics", commision_percentage=10.0)
+        
+        # Create products
+        self.product1 = Product.objects.create(
+            seller=self.seller_profile1,
+            category=self.category,
+            name="Phone",
+            price=Decimal("100.00"),
+            stock=10
+        )
+        self.product2 = Product.objects.create(
+            seller=self.seller_profile2,
+            category=self.category,
+            name="Charger",
+            price=Decimal("50.00"),
+            stock=10
+        )
+        
+        self.address = {
+            "name": "Customer User",
+            "phone": "6666666660",
+            "address_line1": "123 Street",
+            "city": "Mumbai",
+            "state": "Maharashtra",
+            "postal_code": "400001"
+        }
+        
+        self.order = Order.objects.create(
+            user=self.customer,
+            shipping_address=self.address,
+            total_amount=Decimal("150.00"),
+            payment_method="cod",
+            status="confirmed"
+        )
+        
+        self.item1 = OrderItem.objects.create(
+            order=self.order,
+            product=self.product1,
+            seller=self.seller_profile1,
+            quantity=1,
+            price=Decimal("100.00"),
+            total=Decimal("100.00"),
+            status="confirmed"
+        )
+        self.item2 = OrderItem.objects.create(
+            order=self.order,
+            product=self.product2,
+            seller=self.seller_profile2,
+            quantity=1,
+            price=Decimal("50.00"),
+            total=Decimal("50.00"),
+            status="confirmed"
+        )
+
+    @mock.patch('delivery.delivery_services.ShiprocketService._get_token')
+    @mock.patch('delivery.delivery_services.ShiprocketService.fetch_shipment_details_by_channel_order_id')
+    @mock.patch('delivery.delivery_services.ShiprocketService.create_shipment')
+    @mock.patch('delivery.delivery_services.ShiprocketService._assign_awb')
+    def test_multi_seller_push_on_checkout(self, mock_assign_awb, mock_create_shipment, mock_fetch, mock_token):
+        """Verify auto_push_order_to_shiprocket generates separate calls per seller."""
+        mock_token.return_value = "mocktoken"
+        mock_fetch.return_value = None  # Doesn't exist on Shiprocket yet
+        
+        # Mock create_shipment to return success and AWB
+        def side_effect_create_shipment(order, seller=None, items=None):
+            return {
+                "success": True,
+                "shiprocket_order_id": f"SR_ORDER_{seller.id}",
+                "shipment_id": f"SR_SHIP_{seller.id}",
+                "awb": f"AWB_{seller.id}",
+                "courier_name": "Delhivery"
+            }
+        mock_create_shipment.side_effect = side_effect_create_shipment
+        
+        from delivery.delivery_services import auto_push_order_to_shiprocket
+        
+        with self.settings(SHIPROCKET_EMAIL="test@example.com", SHIPROCKET_PASSWORD="password"):
+            auto_push_order_to_shiprocket(self.order)
+            
+        # Refresh and assert
+        self.item1.refresh_from_db()
+        self.item2.refresh_from_db()
+        
+        self.assertEqual(self.item1.tracking_number, f"AWB_{self.seller_profile1.id}")
+        self.assertEqual(self.item2.tracking_number, f"AWB_{self.seller_profile2.id}")
+        self.assertEqual(mock_create_shipment.call_count, 2)
+
+    @mock.patch('delivery.delivery_services.ShiprocketService._get_token')
+    @mock.patch('delivery.delivery_services.ShiprocketService.fetch_shipment_details_by_channel_order_id')
+    @mock.patch('delivery.delivery_services.ShiprocketService._assign_awb')
+    def test_reconciliation_self_healing_existing_shipment(self, mock_assign_awb, mock_fetch, mock_token):
+        """Verify reconciliation heals local DB if shipment already exists on Shiprocket."""
+        mock_token.return_value = "mocktoken"
+        
+        # Mock fetch to return existing shipment info but local has nothing
+        def side_effect_fetch(channel_order_id):
+            if f"-S{self.seller_profile1.id}" in channel_order_id:
+                return {
+                    "shiprocket_order_id": "SR_EXIST_1",
+                    "shipment_id": "SR_SHIP_EXIST_1",
+                    "awb": "AWB_EXIST_1",
+                    "courier_name": "Delhivery"
+                }
+            elif f"-S{self.seller_profile2.id}" in channel_order_id:
+                return {
+                    "shiprocket_order_id": "SR_EXIST_2",
+                    "shipment_id": "SR_SHIP_EXIST_2",
+                    "awb": None,  # Needs AWB assignment
+                    "courier_name": "Shiprocket"
+                }
+            return None
+        mock_fetch.side_effect = side_effect_fetch
+        
+        # Mock AWB assignment for the second seller's shipment
+        mock_assign_awb.return_value = {
+            "awb_code": "AWB_ASSIGNED_2",
+            "courier_name": "BlueDart"
+        }
+        
+        self.client.login(phone="9999999999", password="adminpassword")
+        
+        url = reverse('orders:admin_shiprocket_reconcile')
+        with self.settings(SHIPROCKET_EMAIL="test@example.com", SHIPROCKET_PASSWORD="password"):
+            response = self.client.post(url)
+            
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['status'], 'success')
+        
+        # Refresh database and verify both items got their AWBs without duplicating shipment creation
+        self.item1.refresh_from_db()
+        self.item2.refresh_from_db()
+        
+        self.assertEqual(self.item1.tracking_number, "AWB_EXIST_1")
+        self.assertEqual(self.item2.tracking_number, "AWB_ASSIGNED_2")
+        self.assertEqual(self.item2.courier_name, "BlueDart")

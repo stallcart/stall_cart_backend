@@ -515,11 +515,17 @@ class ShiprocketService:
                 shiprocket_order_id = order_data.get("id")
                 shipments = order_data.get("shipments", [])
                 shipment_id = None
+                awb_code = None
+                courier_name = None
                 if shipments:
                     shipment_id = shipments[0].get("id")
+                    awb_code = shipments[0].get("awb") or shipments[0].get("awb_code")
+                    courier_name = shipments[0].get("courier") or shipments[0].get("courier_name")
                 return {
                     "shiprocket_order_id": shiprocket_order_id,
-                    "shipment_id": shipment_id
+                    "shipment_id": shipment_id,
+                    "awb": awb_code,
+                    "courier_name": courier_name
                 }
             return None
         except Exception as e:
@@ -654,6 +660,58 @@ def push_seller_items_to_shiprocket(order, seller):
     # 2. Call Shiprocket API outside the transaction
     try:
         srv = ShiprocketService()
+        
+        # Check if shipment already exists on Shiprocket (Deduplication / Self-Healing)
+        payload_order_id = f"{order.unique_order_id}-S{seller.id}" if seller else order.unique_order_id
+        existing = srv.fetch_shipment_details_by_channel_order_id(payload_order_id)
+        
+        if existing and existing.get('shiprocket_order_id'):
+            # The shipment exists on Shiprocket! Let's heal it
+            sr_order_id = existing.get('shiprocket_order_id')
+            shipment_id = existing.get('shipment_id')
+            awb = existing.get('awb')
+            courier = existing.get('courier_name') or 'Shiprocket'
+            
+            # If AWB is missing on Shiprocket, try to assign it
+            if not awb and shipment_id:
+                logger.info(f"Existing shipment {shipment_id} on Shiprocket lacks AWB. Attempting to assign AWB.")
+                awb_data = srv._assign_awb(shipment_id)
+                awb = awb_data.get('awb_code')
+                courier = awb_data.get('courier_name') or courier
+                
+            if awb:
+                with transaction.atomic():
+                    locked_items = order.items.select_for_update().filter(seller=seller)
+                    locked_items.update(
+                        tracking_number=awb,
+                        courier_name=courier,
+                        shiprocket_order_id=sr_order_id,
+                        shipment_id=shipment_id,
+                        updated_at=timezone.now()
+                    )
+                    order.refresh_from_db()
+                    if not order.tracking_number:
+                        order.tracking_number = awb
+                        order.courier_name = courier
+                        order.shiprocket_order_id = sr_order_id
+                        order.shipment_id = shipment_id
+                        order.save(update_fields=['tracking_number', 'courier_name', 'shiprocket_order_id', 'shipment_id', 'updated_at'])
+                
+                OrderStatusLog.objects.create(
+                    order=order,
+                    old_status=order.status,
+                    new_status=order.status,
+                    remarks=f"Reconciled/Healed existing Shiprocket shipment for {seller.shop_name} (AWB: {awb}, Courier: {courier})"
+                )
+                return True, None
+            else:
+                # If no AWB could be retrieved or assigned, we revert PENDING_PUSH so it can be retried
+                with transaction.atomic():
+                    locked_items = order.items.select_for_update().filter(seller=seller)
+                    locked_items.filter(shiprocket_order_id='PENDING_PUSH').update(shiprocket_order_id=None, updated_at=timezone.now())
+                return False, f"Shipment {shipment_id} exists on Shiprocket but lacks an AWB."
+
+        # Shipment does not exist yet. Create it.
         res = srv.create_shipment(order, seller=seller, items=items)
         
         success = res.get('success') and res.get('awb')
