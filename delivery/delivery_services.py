@@ -729,8 +729,9 @@ def push_seller_items_to_shiprocket(order, seller):
                     locked_items.filter(shiprocket_order_id='PENDING_PUSH').update(shiprocket_order_id=None, updated_at=timezone.now())
                 return False, f"Shipment {shipment_id} exists on Shiprocket but lacks an AWB."
 
-        # Shipment does not exist yet. Create it.
-        res = srv.create_shipment(order, seller=seller, items=items)
+        # Shipment does not exist yet. Create it (use queryset without select_for_update).
+        api_items = order.items.filter(seller=seller)
+        res = srv.create_shipment(order, seller=seller, items=api_items)
         
         success = res.get('success') and res.get('awb')
         if success:
