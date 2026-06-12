@@ -557,6 +557,63 @@ class OrderManagementTests(TestCase):
         self.assertEqual(self.order1.tracking_number, "ADMTRACK")
         self.assertEqual(self.order1.courier_name, "Shiprocket")
 
+    def test_admin_targeted_tracking_update(self):
+        """Admin can add/edit tracking details for a specific seller only in a multi-seller order."""
+        self.client.login(phone="9999999999", password="adminpassword")
+        tracking_url = reverse('orders:seller_add_tracking', args=[self.order1.unique_order_id])
+        
+        # Admin updates tracking specifically for seller_profile2
+        response = self.client.post(
+            tracking_url,
+            data=json.dumps({
+                "tracking_number": "SELLER2TRACK", 
+                "courier_name": "Delhivery",
+                "seller_id": self.seller_profile2.id
+            }),
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+        
+        # Refresh and verify item-level AWB numbers
+        self.item1_2.refresh_from_db()
+        self.assertEqual(self.item1_2.tracking_number, "SELLER2TRACK")
+        self.assertEqual(self.item1_2.courier_name, "Delhivery")
+        
+        # Verify that seller1 items are NOT updated
+        for item in self.order1.items.filter(seller=self.seller_profile1):
+            item.refresh_from_db()
+            self.assertNotEqual(item.tracking_number, "SELLER2TRACK")
+
+        # Verify parent tracking was not overwritten
+        self.order1.refresh_from_db()
+        self.assertNotEqual(self.order1.tracking_number, "SELLER2TRACK")
+
+    def test_seller_multi_seller_tracking_update(self):
+        """In a multi-seller order, a seller can update tracking for their items, and it will NOT overwrite parent order tracking."""
+        self.client.login(phone="8888888888", password="sellerpassword")
+        tracking_url = reverse('orders:seller_add_tracking', args=[self.order1.unique_order_id])
+        
+        # Seller 1 updates tracking
+        response = self.client.post(
+            tracking_url,
+            data=json.dumps({"tracking_number": "SELLER1AWB", "courier_name": "BlueDart"}),
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+        
+        # Verify item1_1 tracking is updated
+        self.item1_1.refresh_from_db()
+        self.assertEqual(self.item1_1.tracking_number, "SELLER1AWB")
+        self.assertEqual(self.item1_1.courier_name, "BlueDart")
+        
+        # Verify item1_2 (Seller 2's item) tracking is NOT updated
+        self.item1_2.refresh_from_db()
+        self.assertNotEqual(self.item1_2.tracking_number, "SELLER1AWB")
+        
+        # Verify parent order tracking is NOT updated
+        self.order1.refresh_from_db()
+        self.assertNotEqual(self.order1.tracking_number, "SELLER1AWB")
+
     def test_invoice_views_and_no_rupee_symbol(self):
         """Test download, preview, and debug invoice views. Ensure no box/Rupee character in invoice template context/rendering."""
         self.client.login(phone="6666666666", password="customerpassword")

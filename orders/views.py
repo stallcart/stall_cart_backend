@@ -152,10 +152,14 @@ def sync_shiprocket_tracking(order):
         'delivered', 'cancelled', 'returned', 'returned_to_source',
         'refund_initiated', 'refunded', 'courier_failed_pickup', 'seller_unresponsive'
     )
+    from delivery.delivery_services import ShiprocketService
+    from orders.models import OrderStatusLog, OrderItem
+    from django.utils import timezone
+    import logging
+    logger = logging.getLogger(__name__)
+
+    # 1. Sync parent tracking if present
     if order.tracking_number and order.status not in terminal_statuses:
-        from delivery.delivery_services import ShiprocketService
-        from orders.models import OrderStatusLog
-        from django.utils import timezone
         try:
             srv = ShiprocketService()
             shiprocket_tracking = srv.get_tracking(order.tracking_number)
@@ -181,6 +185,24 @@ def sync_shiprocket_tracking(order):
                     'canceled': 'cancelled'
                 }
                 new_local_status = status_map.get(sr_status.lower())
+                
+                # Update matching items sharing parent tracking number
+                items_to_update = order.items.filter(tracking_number=order.tracking_number)
+                for item in items_to_update:
+                    item_updated = False
+                    if item.shiprocket_status != sr_status:
+                        item.shiprocket_status = sr_status
+                        item_updated = True
+                    if new_local_status and item.status != new_local_status:
+                        item.status = new_local_status
+                        if new_local_status == 'delivered':
+                            item.delivered_at = timezone.now()
+                        elif new_local_status == 'shipped' and not item.shipped_at:
+                            item.shipped_at = timezone.now()
+                        item_updated = True
+                    if item_updated:
+                        item.save()
+
                 if new_local_status and new_local_status != order.status:
                     old_status = order.status
                     order.status = new_local_status
@@ -200,12 +222,76 @@ def sync_shiprocket_tracking(order):
             
     # If fallback case, but tracking number exists, try to get live cached tracking anyway
     elif order.tracking_number and order.status not in terminal_statuses:
-        from delivery.delivery_services import ShiprocketService
         try:
             srv = ShiprocketService()
             shiprocket_tracking = srv.get_tracking(order.tracking_number)
         except Exception:
             pass
+
+    # 2. Sync item-level trackings for each unique active tracking number
+    active_item_trackings = order.items.exclude(
+        status__in=terminal_statuses
+    ).exclude(
+        tracking_number__isnull=True
+    ).exclude(
+        tracking_number=''
+    ).values_list('tracking_number', flat=True).distinct()
+
+    for tracking_number in active_item_trackings:
+        # Don't re-query if it's the same as parent order tracking (already synced above)
+        if tracking_number == order.tracking_number:
+            continue
+        try:
+            srv = ShiprocketService()
+            tracking_data = srv.get_tracking(tracking_number)
+            sr_status = tracking_data.get("current_status")
+            if sr_status:
+                sr_status = sr_status.strip()
+                status_map = {
+                    'awb assigned': 'confirmed',
+                    'pickup generated': 'processing',
+                    'manifested': 'processing',
+                    'out for pickup': 'processing',
+                    'pickup scheduled': 'processing',
+                    'pickup queued': 'processing',
+                    'pickup': 'shipped',
+                    'picked up': 'shipped',
+                    'picked-up': 'shipped',
+                    'in transit': 'shipped',
+                    'shipped': 'shipped',
+                    'out for delivery': 'out_for_delivery',
+                    'delivered': 'delivered',
+                    'rto': 'returned_to_source',
+                    'returned to source': 'returned_to_source',
+                    'cancelled': 'cancelled',
+                    'canceled': 'cancelled',
+                    'pickup failed': 'courier_failed_pickup',
+                    'pickup exception': 'courier_failed_pickup',
+                    'pickup_failed': 'courier_failed_pickup',
+                    'pickup_exception': 'courier_failed_pickup',
+                }
+                new_local_status = status_map.get(sr_status.lower())
+                
+                items_to_update = order.items.filter(tracking_number=tracking_number)
+                for item in items_to_update:
+                    item_updated = False
+                    if item.shiprocket_status != sr_status:
+                        item.shiprocket_status = sr_status
+                        item_updated = True
+                    if new_local_status and item.status != new_local_status:
+                        item.status = new_local_status
+                        if new_local_status == 'delivered':
+                            item.delivered_at = timezone.now()
+                        elif new_local_status == 'shipped' and not item.shipped_at:
+                            item.shipped_at = timezone.now()
+                        item_updated = True
+                    if item_updated:
+                        item.save()
+                        
+                # Keep parent order status computed correctly
+                order.update_overall_status()
+        except Exception as e:
+            logger.warning(f"Shiprocket live status synchronization failed for tracking {tracking_number}: {e}")
             
     return shiprocket_tracking
 
@@ -220,11 +306,42 @@ def order_detail(request, order_id):
     
     timeline = build_cleaned_timeline(order)
     
+    # Compile a list of distinct shipments in the order for display
+    shipments_list = []
+    all_tracking_numbers = list(order.items.exclude(tracking_number__isnull=True).exclude(tracking_number='').values_list('tracking_number', flat=True).distinct())
+    
+    if order.tracking_number and order.tracking_number not in all_tracking_numbers:
+        all_tracking_numbers.append(order.tracking_number)
+        
+    for t_num in all_tracking_numbers:
+        courier_name = "Shiprocket"
+        shiprocket_status = None
+        tracking_url = f"https://shiprocket.co/tracking/{t_num}"
+        
+        if order.tracking_number == t_num:
+            courier_name = order.courier_name or courier_name
+            shiprocket_status = order.shiprocket_status
+            tracking_url = order.tracking_url
+            
+        item_match = order.items.filter(tracking_number=t_num).first()
+        if item_match:
+            courier_name = item_match.courier_name or courier_name
+            shiprocket_status = item_match.shiprocket_status or shiprocket_status
+            tracking_url = item_match.tracking_url or tracking_url
+            
+        shipments_list.append({
+            'tracking_number': t_num,
+            'courier_name': courier_name,
+            'shiprocket_status': shiprocket_status,
+            'tracking_url': tracking_url,
+        })
+        
     context = {
         'order': order,
         'timeline': timeline,
         'delivery': getattr(order, 'delivery_task', None),
         'shiprocket_tracking': shiprocket_tracking,
+        'shipments_list': shipments_list,
     }
     return render(request, 'orders/order_detail.html', context)
 
@@ -938,6 +1055,10 @@ def seller_add_tracking(request, order_id):
         return JsonResponse({'error': 'Unauthorized'}, status=403)
     
     order = get_object_or_404(Order, unique_order_id=order_id)
+    data = json.loads(request.body)
+    tracking_number = data.get('tracking_number')
+    courier_name = data.get('courier_name', 'Shiprocket')
+    target_seller_id = data.get('seller_id')
     
     # If seller, verify they own items in the order
     if not request.user.is_superuser:
@@ -946,22 +1067,23 @@ def seller_add_tracking(request, order_id):
         if not items_to_update.exists():
             return JsonResponse({'error': 'Unauthorized'}, status=403)
     else:
-        items_to_update = order.items.all()
+        if target_seller_id:
+            items_to_update = order.items.filter(seller_id=target_seller_id)
+        else:
+            items_to_update = order.items.all()
             
-    data = json.loads(request.body)
-    tracking_number = data.get('tracking_number')
-    courier_name = data.get('courier_name', 'Shiprocket')
-    
     # Update tracking details at the item level
     for item in items_to_update:
         item.tracking_number = tracking_number
         item.courier_name = courier_name
         item.save(update_fields=['tracking_number', 'courier_name', 'updated_at'])
     
-    # For compatibility/fallback
-    order.tracking_number = tracking_number
-    order.courier_name = courier_name
-    order.save(update_fields=['tracking_number', 'courier_name', 'updated_at'])
+    # For compatibility/fallback: update parent order if there's only 1 seller or if target_seller_id is not specified and user is admin
+    seller_count = order.items.values_list('seller_id', flat=True).distinct().count()
+    if seller_count == 1 or (request.user.is_superuser and not target_seller_id):
+        order.tracking_number = tracking_number
+        order.courier_name = courier_name
+        order.save(update_fields=['tracking_number', 'courier_name', 'updated_at'])
         
     return JsonResponse({'status': 'success', 'message': 'Tracking updated'})
 
@@ -1210,7 +1332,44 @@ def admin_orders(request):
 def admin_order_detail(request, order_id):
     """Admin: Full order detail view"""
     order = get_object_or_404(Order, unique_order_id=order_id)
-    context = {'order': order}
+    
+    # Live Shiprocket sync (syncs item levels too!)
+    sync_shiprocket_tracking(order)
+    
+    # Compile a list of distinct shipments in the order for display
+    shipments_list = []
+    all_tracking_numbers = list(order.items.exclude(tracking_number__isnull=True).exclude(tracking_number='').values_list('tracking_number', flat=True).distinct())
+    
+    if order.tracking_number and order.tracking_number not in all_tracking_numbers:
+        all_tracking_numbers.append(order.tracking_number)
+        
+    for t_num in all_tracking_numbers:
+        courier_name = "Shiprocket"
+        shiprocket_status = None
+        tracking_url = f"https://shiprocket.co/tracking/{t_num}"
+        
+        if order.tracking_number == t_num:
+            courier_name = order.courier_name or courier_name
+            shiprocket_status = order.shiprocket_status
+            tracking_url = order.tracking_url
+            
+        item_match = order.items.filter(tracking_number=t_num).first()
+        if item_match:
+            courier_name = item_match.courier_name or courier_name
+            shiprocket_status = item_match.shiprocket_status or shiprocket_status
+            tracking_url = item_match.tracking_url or tracking_url
+            
+        shipments_list.append({
+            'tracking_number': t_num,
+            'courier_name': courier_name,
+            'shiprocket_status': shiprocket_status,
+            'tracking_url': tracking_url,
+        })
+        
+    context = {
+        'order': order,
+        'shipments_list': shipments_list,
+    }
     return render(request, 'orders/admin_order_detail.html', context)
 
 @require_POST

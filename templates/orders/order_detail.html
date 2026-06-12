@@ -300,7 +300,64 @@
     </div>
 
     <!-- ── Delivery Info ─────────────────────────────────── -->
-    {% if order.tracking_number %}
+    {% if shipments_list %}
+    <div class="od-card">
+        <h2 class="od-card-title">
+            <i class="fa fa-shipping-fast" style="color:#2874f0;"></i> Shipment Details
+        </h2>
+        <div class="od-card-body" style="display: flex; flex-direction: column; gap: 20px;">
+            {% for shipment in shipments_list %}
+            <div class="od-delivery-strip" style="{% if not forloop.first %}border-top: 1px solid #f1f5f9; padding-top: 20px; margin-top: 10px;{% endif %}">
+                <i class="fa fa-truck"></i>
+                <div>
+                    <p><strong>{{ shipment.courier_name|default:"Courier Partner" }}</strong></p>
+                    <p>AWB / Tracking No: <strong>{{ shipment.tracking_number }}</strong></p>
+                    {% if shipment.shiprocket_status %}
+                    <p>Courier Status: <span style="font-weight: 700; color: #1e3a8a; background: #e0f2fe; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; display: inline-block;">{{ shipment.shiprocket_status }}</span></p>
+                    {% endif %}
+                    {% if order.estimated_delivery %}
+                    <p>Estimated Delivery: <strong>{{ order.estimated_delivery|date:"d M Y" }}</strong></p>
+                    {% endif %}
+                    {% if shipment.tracking_url %}
+                    <a href="{{ shipment.tracking_url }}" target="_blank" class="od-btn od-btn-track-live" style="margin-top:8px;display:inline-flex;padding:8px 16px;font-size:.82rem;">
+                        <i class="fa fa-map-marker-alt"></i> Track Live
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% if shiprocket_tracking and shiprocket_tracking.activities %}
+    <div class="od-card" style="margin-top:20px;">
+        <h2 class="od-card-title">
+            <i class="fa fa-route" style="color:#059669;"></i> Live Tracking History (Shiprocket)
+        </h2>
+        <div class="od-card-body" style="padding-top: 10px;">
+            <div class="shiprocket-timeline" style="display: flex; flex-direction: column; gap: 20px; padding-left: 10px; border-left: 2px solid #e2e8f0; margin-left: 10px; position: relative;">
+                {% for act in shiprocket_tracking.activities %}
+                <div class="sr-step" style="position: relative;">
+                    <!-- bullet dot -->
+                    <div style="position: absolute; left: -16px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: {% if forloop.first %}#059669{% else %}#cbd5e1{% endif %}; border: 2px solid white; box-shadow: 0 0 0 2px {% if forloop.first %}rgba(5, 150, 105, 0.2){% else %}transparent{% endif %};"></div>
+                    <div>
+                        <strong style="color: #1e293b; font-size: 0.95rem;">{{ act.activity }}</strong>
+                        {% if act.location %}
+                        <span style="font-size: 0.8rem; background: #f1f5f9; color: #475569; padding: 2px 6px; border-radius: 4px; margin-left: 8px;">{{ act.location }}</span>
+                        {% endif %}
+                        <p style="margin: 4px 0 0; color: #64748b; font-size: 0.82rem;">
+                            <i class="fa fa-calendar-alt"></i> {{ act.date }}
+                            {% if act.status %}
+                            • Status: <span style="font-weight: 600;">{{ act.status }}</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% elif order.tracking_number %}
     <div class="od-card">
         <h2 class="od-card-title">
             <i class="fa fa-shipping-fast" style="color:#2874f0;"></i> Shipment Details
@@ -325,11 +382,9 @@
                     </a>
                     {% endif %}
                 </div>
+            </div>
         </div>
     </div>
-    
-
-    
     {% if shiprocket_tracking and shiprocket_tracking.activities %}
     <div class="od-card" style="margin-top:20px;">
         <h2 class="od-card-title">

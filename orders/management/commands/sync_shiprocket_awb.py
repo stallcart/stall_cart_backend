@@ -239,8 +239,9 @@ class Command(BaseCommand):
                         old_status = order.status
                         order.update_overall_status()
 
-                        # Fallback update on parent Order if not set or mismatched
-                        if order.tracking_number != awb_code:
+                        # Fallback update on parent Order if not set or mismatched (only if single seller)
+                        seller_count = order.items.values_list('seller_id', flat=True).distinct().count()
+                        if seller_count == 1 and order.tracking_number != awb_code:
                             order.tracking_number = awb_code
                             order.courier_name = courier_name
                             order.shiprocket_order_id = sr_order.get("order_id")

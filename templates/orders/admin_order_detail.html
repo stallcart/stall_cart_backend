@@ -80,32 +80,61 @@
                 <h3 style="margin: 0 0 16px; font-family: 'Syne', sans-serif; font-size: 1.05rem; font-weight: 800; color: var(--gray-900); border-bottom: 1.5px solid var(--gray-100); padding-bottom: 10px;">
                     <i class="fa fa-shopping-bag" style="margin-right: 6px;"></i>Order Items
                 </h3>
-                <div style="display: flex; flex-direction: column; gap: 16px;">
-                    {% for item in order.items.all %}
-                    <div style="display: flex; gap: 16px; align-items: center; border-bottom: 1px solid var(--gray-100); padding-bottom: 16px; flex-wrap: wrap;">
-                        <div style="width: 60px; height: 60px; border-radius: var(--r-md); overflow: hidden; border: 1px solid var(--gray-200); background: var(--gray-50); flex-shrink: 0;">
-                            {% if item.product.primary_image %}
-                                <img src="{{ item.product.primary_image.url }}" alt="{{ item.product.name }}" style="width: 100%; height: 100%; object-fit: cover;">
-                            {% else %}
-                                <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: var(--gray-300);"><i class="fa fa-image"></i></div>
-                            {% endif %}
+                <div style="display: flex; flex-direction: column; gap: 24px;">
+                    {% regroup order.items.all by seller as seller_list %}
+                    {% for seller_group in seller_list %}
+                    <div style="border: 1.5px solid var(--gray-100); border-radius: var(--r-xl); padding: 16px; background: var(--gray-50);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--gray-200); padding-bottom: 10px; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+                            <span style="font-size: 0.9rem; font-weight: 800; color: var(--gray-900);">
+                                Seller: <strong style="color: var(--blue-600);">{{ seller_group.grouper.shop_name }}</strong>
+                            </span>
+                            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                {% with first_item=seller_group.list.0 %}
+                                    {% if first_item.tracking_number %}
+                                        <span style="font-size: 0.8rem; background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 4px; font-weight: 600;">
+                                            {{ first_item.courier_name|default:"Courier" }}: <strong>{{ first_item.tracking_number }}</strong>
+                                        </span>
+                                        <button class="btn-outline" onclick="openTrackingModal('{{ first_item.courier_name|escapejs }}', '{{ first_item.tracking_number|escapejs }}', '{{ seller_group.grouper.id }}')" style="font-size: 0.75rem; padding: 4px 8px; height: 26px; border-radius: 6px; border: 1.5px solid var(--gray-200); cursor: pointer; background: white; font-weight: 700; color: var(--gray-700); display: inline-flex; align-items: center; gap: 4px;">
+                                            <i class="fa fa-pencil-alt"></i> Edit AWB
+                                        </button>
+                                    {% else %}
+                                        <span style="font-size: 0.8rem; color: var(--gray-400); font-style: italic;">No AWB assigned</span>
+                                        <button class="btn-outline" onclick="openTrackingModal('', '', '{{ seller_group.grouper.id }}')" style="font-size: 0.75rem; padding: 4px 8px; height: 26px; border-radius: 6px; border: 1.5px solid var(--gray-200); cursor: pointer; background: white; font-weight: 700; color: var(--gray-700); display: inline-flex; align-items: center; gap: 4px;">
+                                            <i class="fa fa-truck"></i> Add AWB
+                                        </button>
+                                    {% endif %}
+                                {% endwith %}
+                            </div>
                         </div>
-                        <div style="flex: 1; min-width: 200px;">
-                            <h4 style="margin: 0 0 4px; font-size: 0.95rem; font-weight: 700; color: var(--gray-900);">{{ item.product.name }}</h4>
-                            <p style="margin: 0; font-size: 0.8rem; color: var(--gray-500);">
-                                SKU: {{ item.product.sku|default:'—' }} 
-                                • Seller: <strong style="color: var(--blue-600);">{{ item.product.seller.shop_name }}</strong>
-                                {% if item.variant %}
-                                    • Variant: <span style="font-weight: 600;">{{ item.variant.size_value }} / {{ item.variant.color }}</span>
-                                {% endif %}
-                                {% if item.shiprocket_status %}
-                                    • Courier Status: <span style="font-weight: 700; color: #1e3a8a;">{{ item.shiprocket_status }}</span>
-                                {% endif %}
-                            </p>
-                        </div>
-                        <div style="text-align: right; min-width: 100px;">
-                            <div style="font-size: 0.85rem; color: var(--gray-500);">{{ item.quantity }} x ₹{{ item.price|floatformat:2 }}</div>
-                            <strong style="font-size: 1rem; color: var(--blue-500); display: block; margin-top: 2px;">₹{{ item.total|floatformat:2 }}</strong>
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            {% for item in seller_group.list %}
+                            <div style="display: flex; gap: 16px; align-items: center; border-bottom: 1px solid var(--gray-100); padding-bottom: 12px; {% if forloop.last %}border-bottom: none; padding-bottom: 0;{% endif %} flex-wrap: wrap;">
+                                <div style="width: 50px; height: 50px; border-radius: var(--r-md); overflow: hidden; border: 1px solid var(--gray-200); background: var(--gray-50); flex-shrink: 0;">
+                                    {% if item.product.primary_image %}
+                                        <img src="{{ item.product.primary_image.url }}" alt="{{ item.product.name }}" style="width: 100%; height: 100%; object-fit: cover;">
+                                    {% else %}
+                                        <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: var(--gray-300);"><i class="fa fa-image"></i></div>
+                                    {% endif %}
+                                </div>
+                                <div style="flex: 1; min-width: 180px;">
+                                    <h4 style="margin: 0 0 4px; font-size: 0.85rem; font-weight: 700; color: var(--gray-900);">{{ item.product.name }}</h4>
+                                    <p style="margin: 0; font-size: 0.75rem; color: var(--gray-500);">
+                                        SKU: {{ item.product.sku|default:'—' }} 
+                                        {% if item.variant %}
+                                            • Variant: <span style="font-weight: 600;">{{ item.variant.size_value }} / {{ item.variant.color }}</span>
+                                        {% endif %}
+                                        • Status: <span class="badge" style="padding: 2px 6px; font-size: 0.7rem; border-radius: 4px;">{{ item.get_status_display }}</span>
+                                        {% if item.shiprocket_status %}
+                                            • Courier Status: <span style="font-weight: 700; color: #1e3a8a;">{{ item.shiprocket_status }}</span>
+                                        {% endif %}
+                                    </p>
+                                </div>
+                                <div style="text-align: right; min-width: 80px;">
+                                    <div style="font-size: 0.75rem; color: var(--gray-500);">{{ item.quantity }} x ₹{{ item.price|floatformat:2 }}</div>
+                                    <strong style="font-size: 0.9rem; color: var(--blue-500); display: block; margin-top: 2px;">₹{{ item.total|floatformat:2 }}</strong>
+                                </div>
+                            </div>
+                            {% endfor %}
                         </div>
                     </div>
                     {% endfor %}
@@ -160,18 +189,22 @@
             <!-- Delivery Partner & Tracking -->
             <div style="background: white; border-radius: var(--r-2xl); border: 1.5px solid var(--gray-100); box-shadow: var(--sh-md); padding: 20px;">
                 <h3 style="margin: 0 0 12px; font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 800; color: var(--gray-900);"><i class="fa fa-truck" style="margin-right: 6px;"></i>Shipping Courier</h3>
-                <div style="font-size: 0.85rem; color: var(--gray-700); line-height: 1.5;">
-                    {% if order.tracking_number %}
-                        <p style="margin: 0 0 8px;">Courier Company: <strong>{{ order.courier_name|default:"Shiprocket" }}</strong></p>
-                        <p style="margin: 0 0 8px;">AWB Tracking: <strong>{{ order.tracking_number }}</strong></p>
-                        {% if order.shiprocket_status %}
-                            <p style="margin: 0 0 10px;">Courier Status: <span style="font-weight: 700; color: #1e3a8a; background: #e0f2fe; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; display: inline-block;">{{ order.shiprocket_status }}</span></p>
-                        {% endif %}
-                        {% if order.tracking_url %}
-                            <a href="{{ order.tracking_url }}" target="_blank" class="btn-outline" style="text-decoration: none; display: inline-flex; align-items: center; justify-content: center; width: 100%; padding: 8px; border-radius: var(--r-md); font-weight: 600; font-size: 0.8rem; border: 1.5px solid var(--gray-200); color: var(--gray-700);">
-                                <i class="fa fa-external-link-alt" style="margin-right: 6px;"></i> Track Delivery Live
-                            </a>
-                        {% endif %}
+                <div style="font-size: 0.85rem; color: var(--gray-700); line-height: 1.5; display: flex; flex-direction: column; gap: 16px;">
+                    {% if shipments_list %}
+                        {% for shipment in shipments_list %}
+                        <div style="{% if not forloop.first %}border-top: 1px solid var(--gray-100); padding-top: 12px;{% endif %}">
+                            <p style="margin: 0 0 6px;">Courier: <strong>{{ shipment.courier_name }}</strong></p>
+                            <p style="margin: 0 0 6px;">AWB Tracking: <strong>{{ shipment.tracking_number }}</strong></p>
+                            {% if shipment.shiprocket_status %}
+                                <p style="margin: 0 0 8px;">Courier Status: <span style="font-weight: 700; color: #1e3a8a; background: #e0f2fe; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; display: inline-block;">{{ shipment.shiprocket_status }}</span></p>
+                            {% endif %}
+                            {% if shipment.tracking_url %}
+                                <a href="{{ shipment.tracking_url }}" target="_blank" class="btn-outline" style="text-decoration: none; display: inline-flex; align-items: center; justify-content: center; width: 100%; padding: 6px; border-radius: var(--r-md); font-weight: 600; font-size: 0.75rem; border: 1.5px solid var(--gray-200); color: var(--gray-700);">
+                                    <i class="fa fa-external-link-alt" style="margin-right: 6px;"></i> Track Live
+                                </a>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
                     {% else %}
                         <p class="text-muted" style="margin: 0; color: var(--gray-400); font-style: italic;">No courier tracking number assigned yet.</p>
                     {% endif %}
@@ -341,11 +374,14 @@ window.openStatusModal = () => {
 window.openCancelModal = () => {
     document.getElementById('cancelModal').classList.add('show');
 };
-window.openTrackingModal = (courierName = '', trackingNumber = '') => {
+let currentTargetSellerId = null;
+
+window.openTrackingModal = (courierName = '', trackingNumber = '', sellerId = '') => {
     const numInput = document.getElementById('trackingNumberInput');
     if (numInput) numInput.value = trackingNumber;
     const select = document.getElementById('courierNameSelect');
     if (select) select.value = courierName || 'Shiprocket';
+    currentTargetSellerId = sellerId || null;
     document.getElementById('trackingModal').classList.add('show');
 };
 window.closeModal = () => {
@@ -405,7 +441,7 @@ document.getElementById('trackingForm')?.addEventListener('submit', async (e) =>
                 'Content-Type': 'application/json',
                 'X-CSRFToken': csrfToken
             },
-            body: JSON.stringify({ tracking_number, courier_name })
+            body: JSON.stringify({ tracking_number, courier_name, seller_id: currentTargetSellerId })
         });
         if (!res.ok) {
             const err = await res.json();

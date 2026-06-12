@@ -314,15 +314,15 @@
             <div class="form-group">
                 <label>Courier Name</label>
                 <select name="courier_name" id="courierNameSelect" class="form-input" style="width: 100%;">
-                    <option value="Shiprocket" {% if order.courier_name == 'Shiprocket' %}selected{% endif %}>Shiprocket</option>
-                    <option value="Delhivery" {% if order.courier_name == 'Delhivery' %}selected{% endif %}>Delhivery</option>
-                    <option value="BlueDart" {% if order.courier_name == 'BlueDart' %}selected{% endif %}>BlueDart</option>
-                    <option value="Other" {% if order.courier_name == 'Other' %}selected{% endif %}>Other</option>
+                    <option value="Shiprocket" {% if seller_items.0.courier_name == 'Shiprocket' %}selected{% endif %}>Shiprocket</option>
+                    <option value="Delhivery" {% if seller_items.0.courier_name == 'Delhivery' %}selected{% endif %}>Delhivery</option>
+                    <option value="BlueDart" {% if seller_items.0.courier_name == 'BlueDart' %}selected{% endif %}>BlueDart</option>
+                    <option value="Other" {% if seller_items.0.courier_name == 'Other' %}selected{% endif %}>Other</option>
                 </select>
             </div>
             <div class="form-group">
                 <label>Tracking Number (AWB)</label>
-                <input type="text" name="tracking_number" id="trackingNumberInput" class="form-input" required placeholder="e.g., AWB123456789" value="{{ order.tracking_number|default:'' }}" style="width: 100%;">
+                <input type="text" name="tracking_number" id="trackingNumberInput" class="form-input" required placeholder="e.g., AWB123456789" value="{{ seller_items.0.tracking_number|default:'' }}" style="width: 100%;">
             </div>
             <button type="submit" class="btn-primary">Save Tracking</button>
         </form>
