@@ -202,8 +202,12 @@ class ShiprocketService:
         except Exception as e:
             logger.warning(f"Failed to resolve seller pickup address dynamically: {e}")
 
-        payload_order_id = f"{order.unique_order_id}-S{seller.id}" if seller else order.unique_order_id
-
+        seller_count = order.items.values_list('seller_id', flat=True).distinct().count()
+        if seller_count > 1 and seller:
+            payload_order_id = f"{order.unique_order_id}-S{seller.id}"
+        else:
+            payload_order_id = order.unique_order_id
+ 
         order_payload = {
             "order_id": payload_order_id,
             "order_date": order.created_at.strftime("%Y-%m-%d %H:%M"),
@@ -680,7 +684,11 @@ def push_seller_items_to_shiprocket(order, seller):
         srv = ShiprocketService()
         
         # Check if shipment already exists on Shiprocket (Deduplication / Self-Healing)
-        payload_order_id = f"{order.unique_order_id}-S{seller.id}" if seller else order.unique_order_id
+        seller_count = order.items.values_list('seller_id', flat=True).distinct().count()
+        if seller_count > 1 and seller:
+            payload_order_id = f"{order.unique_order_id}-S{seller.id}"
+        else:
+            payload_order_id = order.unique_order_id
         existing = srv.fetch_shipment_details_by_channel_order_id(payload_order_id)
         
         if existing and existing.get('shiprocket_order_id'):
