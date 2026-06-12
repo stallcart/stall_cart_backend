@@ -2490,3 +2490,34 @@ def admin_shiprocket_reconcile(request):
         'reconciled_count': total_reconciled,
         'errors_count': len(errors)
     })
+
+
+@require_POST
+@admin_only
+def admin_reconcile_refunds_ajax(request):
+    """Admin: Trigger refund reconciliation and settlement manually via AJAX"""
+    if not request.user.is_superuser and request.user.role != 'admin':
+        return JsonResponse({'error': '🔐 Permission denied. Only superadmins can trigger reconciliation.'}, status=403)
+        
+    from io import StringIO
+    from django.core.management import call_command
+    
+    try:
+        out = StringIO()
+        call_command('reconcile_refunds', stdout=out)
+        result_output = out.getvalue()
+        
+        # Parse output to make a friendly summary
+        lines = result_output.split('\n')
+        summary_lines = [line.strip() for line in lines if line.strip() and not line.startswith('=')]
+        summary = "\n".join(summary_lines)
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Refund reconciliation completed successfully.',
+            'output': result_output,
+            'summary': summary
+        })
+    except Exception as e:
+        logger.error(f"Error running reconcile_refunds command via AJAX: {e}", exc_info=True)
+        return JsonResponse({'error': f"Internal error during reconciliation: {str(e)}"}, status=500)

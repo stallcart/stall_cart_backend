@@ -143,5 +143,5 @@ urlpatterns = [
      path('razorpayx-webhook/', views.razorpayx_webhook, name='razorpayx_webhook'),
      path('admin/toggle-jobs/', admin_only(views.admin_toggle_jobs_ajax), name='admin_toggle_jobs_ajax'),
      path('admin/shiprocket-reconcile/', admin_only(views.admin_shiprocket_reconcile), name='admin_shiprocket_reconcile'),
-         
+     path('admin/reconcile-refunds/', admin_only(views.admin_reconcile_refunds_ajax), name='admin_reconcile_refunds_ajax'),
 ]

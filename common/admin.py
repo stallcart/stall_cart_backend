@@ -123,6 +123,7 @@ class SiteSettingsAdmin(admin.ModelAdmin):
         urls = super().get_urls()
         custom_urls = [
             path('toggle-jobs/', self.admin_site.admin_view(self.toggle_jobs_view), name='common_sitesettings_toggle_jobs'),
+            path('reconcile-refunds/', self.admin_site.admin_view(self.reconcile_refunds_view), name='common_sitesettings_reconcile_refunds'),
         ]
         return custom_urls + urls
 
@@ -137,18 +138,41 @@ class SiteSettingsAdmin(admin.ModelAdmin):
         messages.success(request, f"Background jobs have been successfully {status}!")
         return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('admin:common_sitesettings_changelist')))
 
+    def reconcile_refunds_view(self, request):
+        if not request.user.is_superuser and getattr(request.user, 'role', None) != 'admin':
+            messages.error(request, "🔐 Permission Denied: Staff/regular users cannot run refund reconciliation.")
+            return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('admin:common_sitesettings_changelist')))
+            
+        from django.core.management import call_command
+        from io import StringIO
+        out = StringIO()
+        try:
+            call_command('reconcile_refunds', stdout=out)
+            output = out.getvalue()
+            lines = [line.strip() for line in output.split('\n') if line.strip() and not line.startswith('=')]
+            summary = ", ".join(lines) if lines else "Done."
+            messages.success(request, f"🔄 Refund reconciliation completed successfully! Details: {summary}")
+        except Exception as e:
+            messages.error(request, f"❌ Error running reconciliation: {e}")
+            
+        return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('admin:common_sitesettings_changelist')))
+
     def jobs_status_control(self, obj):
         status_label = "🟢 Running" if obj.enable_background_jobs else "🔴 Stopped"
         btn_text = "Stop Jobs" if obj.enable_background_jobs else "Start Jobs"
         btn_color = "#dc2626" if obj.enable_background_jobs else "#16a34a"
         url = reverse('admin:common_sitesettings_toggle_jobs')
+        reconcile_url = reverse('admin:common_sitesettings_reconcile_refunds')
         
         return format_html(
-            '<div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; max-width: 400px;">'
+            '<div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; max-width: 450px;">'
             '  <div style="font-size: 14px; margin-bottom: 12px; color: #1e293b;">Current Status: <strong style="font-size: 15px;">{}</strong></div>'
-            '  <a href="{}" class="button" style="background: {}; color: white; padding: 8px 16px; border-radius: 4px; text-decoration: none; font-weight: bold; display: inline-block;">{}</a>'
+            '  <div style="display: flex; gap: 10px;">'
+            '    <a href="{}" class="button" style="background: {}; color: white; padding: 8px 16px; border-radius: 4px; text-decoration: none; font-weight: bold; display: inline-block;">{}</a>'
+            '    <a href="{}" class="button" style="background: #2563eb; color: white; padding: 8px 16px; border-radius: 4px; text-decoration: none; font-weight: bold; display: inline-block;">🔄 Reconcile Refunds</a>'
+            '  </div>'
             '</div>',
-            status_label, url, btn_color, btn_text
+            status_label, url, btn_color, btn_text, reconcile_url
         )
     jobs_status_control.short_description = "Background Jobs Control Dashboard"
 

@@ -454,7 +454,7 @@ class CancellationTests(TestCase):
         self.assertEqual(order.payment_status, 'refunded')
         self.assertEqual(order.status, 'cancelled')
 
-    @mock.patch('orders.views.get_razorpay_client')
+    @mock.patch('orders.management.commands.reconcile_refunds.get_razorpay_client')
     def test_reconcile_refunds_command(self, mock_get_client):
         """reconcile_refunds command scans and refunds under-refunded prepaid orders."""
         from django.core.management import call_command
@@ -513,3 +513,159 @@ class CancellationTests(TestCase):
         self.assertEqual(order.payment_status, 'refunded')
         self.assertEqual(order.razorpay_refund_id, 'rfnd_reconciled')
 
+    @mock.patch('orders.management.commands.reconcile_refunds.get_razorpay_client')
+    def test_admin_reconcile_refunds_ajax_view(self, mock_get_client):
+        """Admin AJAX endpoint for reconcile_refunds scans and settles under-refunded orders."""
+        self.client.login(phone="9999999999", password="adminpassword")
+        
+        order = Order.objects.create(
+            user=self.customer,
+            shipping_address=self.address,
+            total_amount=Decimal("46.00"),
+            discount_amount=Decimal("6.00"),
+            delivery_charge=Decimal("40.00"),
+            payment_method='razorpay',
+            payment_status='refunded',
+            refund_amount=Decimal("6.00"),
+            razorpay_payment_id='pay_mock999',
+            status='cancelled'
+        )
+        item1 = OrderItem.objects.create(
+            order=order,
+            product=self.product1,
+            seller=self.seller_profile1,
+            quantity=1,
+            price=Decimal("2.00"),
+            total=Decimal("2.00"),
+            status='cancelled'
+        )
+        
+        # Setup razorpay mock client
+        mock_client = mock.MagicMock()
+        mock_get_client.return_value = mock_client
+        mock_client.refund.create.return_value = {'id': 'rfnd_reconciled_ajax'}
+        
+        url = reverse('orders:admin_reconcile_refunds_ajax')
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, 200)
+        
+        data = response.json()
+        self.assertEqual(data['status'], 'success')
+        self.assertIn("Pending Refund", data['summary'])
+        
+        # Verify Razorpay refund API was called
+        mock_client.refund.create.assert_called_once_with({
+            'payment_id': 'pay_mock999',
+            'amount': 4000,
+            'notes': {
+                'order_id': order.unique_order_id,
+                'reason': 'Refund reconciliation/settlement for remaining grand total'
+            }
+        })
+        
+        order.refresh_from_db()
+        self.assertEqual(order.refund_amount, Decimal("46.00"))
+        self.assertEqual(order.payment_status, 'refunded')
+
+    @mock.patch('orders.management.commands.reconcile_refunds.get_razorpay_client')
+    def test_reconcile_refunds_admin_action(self, mock_get_client):
+        """Django admin action reconcile_refunds_action triggers the reconciliation process."""
+        self.client.login(phone="9999999999", password="adminpassword")
+        
+        order = Order.objects.create(
+            user=self.customer,
+            shipping_address=self.address,
+            total_amount=Decimal("46.00"),
+            discount_amount=Decimal("6.00"),
+            delivery_charge=Decimal("40.00"),
+            payment_method='razorpay',
+            payment_status='refunded',
+            refund_amount=Decimal("6.00"),
+            razorpay_payment_id='pay_mock999',
+            status='cancelled'
+        )
+        item1 = OrderItem.objects.create(
+            order=order,
+            product=self.product1,
+            seller=self.seller_profile1,
+            quantity=1,
+            price=Decimal("2.00"),
+            total=Decimal("2.00"),
+            status='cancelled'
+        )
+        
+        mock_client = mock.MagicMock()
+        mock_get_client.return_value = mock_client
+        mock_client.refund.create.return_value = {'id': 'rfnd_admin_action'}
+        
+        url = reverse('admin:orders_order_changelist')
+        data = {
+            'action': 'reconcile_refunds_action',
+            '_selected_action': [order.id],
+        }
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, 302)
+        
+        mock_client.refund.create.assert_called_once_with({
+            'payment_id': 'pay_mock999',
+            'amount': 4000,
+            'notes': {
+                'order_id': order.unique_order_id,
+                'reason': 'Refund reconciliation/settlement for remaining grand total'
+            }
+        })
+        
+        order.refresh_from_db()
+        self.assertEqual(order.refund_amount, Decimal("46.00"))
+        self.assertEqual(order.payment_status, 'refunded')
+
+    @mock.patch('orders.management.commands.reconcile_refunds.get_razorpay_client')
+    def test_reconcile_refunds_sitesettings_view(self, mock_get_client):
+        """Site Settings admin view triggers the reconciliation process."""
+        self.client.login(phone="9999999999", password="adminpassword")
+        
+        from common.models import SiteSettings
+        SiteSettings.get_singleton()
+        
+        order = Order.objects.create(
+            user=self.customer,
+            shipping_address=self.address,
+            total_amount=Decimal("46.00"),
+            discount_amount=Decimal("6.00"),
+            delivery_charge=Decimal("40.00"),
+            payment_method='razorpay',
+            payment_status='refunded',
+            refund_amount=Decimal("6.00"),
+            razorpay_payment_id='pay_mock999',
+            status='cancelled'
+        )
+        item1 = OrderItem.objects.create(
+            order=order,
+            product=self.product1,
+            seller=self.seller_profile1,
+            quantity=1,
+            price=Decimal("2.00"),
+            total=Decimal("2.00"),
+            status='cancelled'
+        )
+        
+        mock_client = mock.MagicMock()
+        mock_get_client.return_value = mock_client
+        mock_client.refund.create.return_value = {'id': 'rfnd_sitesettings_view'}
+        
+        url = reverse('admin:common_sitesettings_reconcile_refunds')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 302)
+        
+        mock_client.refund.create.assert_called_once_with({
+            'payment_id': 'pay_mock999',
+            'amount': 4000,
+            'notes': {
+                'order_id': order.unique_order_id,
+                'reason': 'Refund reconciliation/settlement for remaining grand total'
+            }
+        })
+        
+        order.refresh_from_db()
+        self.assertEqual(order.refund_amount, Decimal("46.00"))
+        self.assertEqual(order.payment_status, 'refunded')

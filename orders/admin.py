@@ -56,7 +56,27 @@ class OrderAdmin(BaseModelAdmin):
         'address_display', 'razorpay_order_id', 'razorpay_payment_id'
     )
     inlines = [OrderItemInline]
+    actions = ['reconcile_refunds_action']
     
+    def reconcile_refunds_action(self, request, queryset):
+        """Run refund reconciliation for all under-refunded orders (calls management command)"""
+        if not request.user.is_superuser and getattr(request.user, 'role', None) != 'admin':
+            self.message_user(request, "🔐 Permission Denied: Only superadmins/admins can run refund reconciliation.", level='ERROR')
+            return
+            
+        from django.core.management import call_command
+        from io import StringIO
+        out = StringIO()
+        try:
+            call_command('reconcile_refunds', stdout=out)
+            output = out.getvalue()
+            lines = [line.strip() for line in output.split('\n') if line.strip() and not line.startswith('=')]
+            summary = ", ".join(lines) if lines else "Done."
+            self.message_user(request, f"🔄 Refund Reconciliation completed successfully: {summary}", level='SUCCESS')
+        except Exception as e:
+            self.message_user(request, f"❌ Error running reconciliation: {e}", level='ERROR')
+    reconcile_refunds_action.short_description = "🔄 Run refund reconciliation (reconcile_refunds command)"
+
     def user_display(self, obj):
         if obj.user:
             return f"{obj.user.full_name or obj.user.phone} ({obj.user.role})"

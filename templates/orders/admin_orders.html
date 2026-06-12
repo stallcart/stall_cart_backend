@@ -52,6 +52,9 @@
                 {% if site_settings.enable_background_jobs %}background: #dc2626; color: white;{% else %}background: #16a34a; color: white;{% endif %}">
                 {% if site_settings.enable_background_jobs %}Stop Jobs{% else %}Start Jobs{% endif %}
             </button>
+            <button id="reconcile-refunds-btn" onclick="runRefundReconciliation()" class="btn-primary" style="padding: 10px 20px; border-radius: var(--r-md); font-size: 0.85rem; font-weight: 700; border: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; height: 38px; transition: all 0.3s ease; background: #2563eb; color: white;">
+                <i class="fa fa-sync-alt" style="margin-right: 6px;"></i>Reconcile Refunds
+            </button>
         </div>
     </div>
     {% endif %}
@@ -243,6 +246,41 @@ window.toggleBackgroundJobs = async () => {
         alert(err.message);
     } finally {
         btn.disabled = false;
+    }
+};
+
+window.runRefundReconciliation = async () => {
+    const btn = document.getElementById('reconcile-refunds-btn');
+    if (!btn) return;
+    
+    if (!confirm("Are you sure you want to run refund reconciliation? This will scan for under-refunded prepaid orders and process the pending Razorpay/Wallet refunds immediately.")) {
+        return;
+    }
+    
+    try {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin" style="margin-right: 6px;"></i>Reconciling...';
+        
+        const res = await fetch("{% url 'orders:admin_reconcile_refunds_ajax' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
+        });
+        
+        const data = await res.json();
+        if (!res.ok) {
+            throw new Error(data.error || 'Failed to run reconciliation.');
+        }
+        
+        alert("Success:\n" + data.summary);
+        window.location.reload();
+    } catch (err) {
+        alert("Error: " + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa fa-sync-alt" style="margin-right: 6px;"></i>Reconcile Refunds';
     }
 };
 </script>
