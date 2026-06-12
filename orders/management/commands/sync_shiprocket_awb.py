@@ -154,6 +154,9 @@ class Command(BaseCommand):
                             f"{order.unique_order_id} (Seller: {seller.shop_name}), but the order does "
                             f"not exist on Shiprocket. Clearing invalid local tracking and pushing..."
                         ))
+                        # Get tracking numbers of seller items before clearing them
+                        local_tracking_numbers = list(seller_items.exclude(tracking_number__isnull=True).exclude(tracking_number='').values_list('tracking_number', flat=True))
+
                         # Clear invalid tracking fields on items of this seller
                         seller_items.update(
                             tracking_number=None,
@@ -164,7 +167,7 @@ class Command(BaseCommand):
                             updated_at=timezone.now()
                         )
                         # Clear parent order tracking if it matches
-                        if order.tracking_number in [item.tracking_number for item in seller_items if item.tracking_number]:
+                        if order.tracking_number in local_tracking_numbers:
                             order.tracking_number = None
                             order.courier_name = None
                             order.shiprocket_order_id = None
