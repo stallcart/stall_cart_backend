@@ -683,6 +683,29 @@ class OrderManagementTests(TestCase):
         self.assertIn("Seller One Shirt", csv_content)
         self.assertIn("Seller Two Jeans", csv_content)
 
+    def test_invoice_multiple_sellers(self):
+        """Verify that customer consolidated invoice lists details of all distinct sellers involved in the order."""
+        # Setup GST numbers for both sellers
+        self.seller_profile1.gst_number = "11AAAAA1111A1Z1"
+        self.seller_profile1.save()
+        self.seller_profile2.gst_number = "22AAAAA2222A2Z2"
+        self.seller_profile2.save()
+
+        # Login as customer and preview consolidated invoice
+        self.client.login(phone="6666666666", password="customerpassword")
+        url_preview = reverse('orders:invoice_preview', args=[self.order1.unique_order_id])
+        response = self.client.get(url_preview)
+        self.assertEqual(response.status_code, 200)
+        content_decoded = response.content.decode('utf-8')
+
+        # Both sellers' shop names should be visible
+        self.assertIn("Shop One", content_decoded)
+        self.assertIn("Shop Two", content_decoded)
+
+        # Both sellers' GST numbers should be visible
+        self.assertIn("GSTIN: 11AAAAA1111A1Z1", content_decoded)
+        self.assertIn("GSTIN: 22AAAAA2222A2Z2", content_decoded)
+
 
 class SellerSettlementAndBankDetailsTests(TestCase):
     def setUp(self):

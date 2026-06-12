@@ -514,15 +514,21 @@ def get_invoice_context(request, order):
         items_subtotal = sum(item.total for item in order_items)
         items_commission = sum(item.commission_amount for item in order_items)
         items_earnings = sum(item.seller_earnings for item in order_items)
-        invoice_seller = request.user.seller_profile
+        invoice_sellers = [request.user.seller_profile]
     else:
         order_items = order.items.all().select_related('product', 'variant', 'seller')
         items_subtotal = order.mrp_subtotal
         items_commission = Decimal('0.00')
         items_earnings = Decimal('0.00')
         
-        # Determine the invoice seller for customers/admins (default to first item's seller for consolidated/admin views)
-        invoice_seller = order_items[0].seller if order_items.exists() else None
+        # Get all distinct sellers in order_items
+        distinct_sellers = []
+        seen_seller_ids = set()
+        for item in order_items:
+            if item.seller and item.seller.id not in seen_seller_ids:
+                distinct_sellers.append(item.seller)
+                seen_seller_ids.add(item.seller.id)
+        invoice_sellers = distinct_sellers
         
     return {
         'order': order,
@@ -531,7 +537,8 @@ def get_invoice_context(request, order):
         'items_subtotal': items_subtotal,
         'items_commission': items_commission,
         'items_earnings': items_earnings,
-        'invoice_seller': invoice_seller,
+        'invoice_seller': invoice_sellers[0] if invoice_sellers else None,
+        'invoice_sellers': invoice_sellers,
     }
 
 

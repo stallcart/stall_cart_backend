@@ -369,9 +369,8 @@
                 <!-- Left: From (Seller Info) -->
                 <td style="width: 50%; vertical-align: top; padding-right: 15pt;">
                     <div class="address-label">From</div>
-                    {% with seller=invoice_seller %}
-                    {% if seller %}
-                        <div class="address-name">
+                    {% for seller in invoice_sellers %}
+                        <div class="address-name" style="{% if not forloop.first %}margin-top: 10pt; border-top: 1px dashed #e2e8f0; padding-top: 6pt;{% endif %}">
                             {% if seller.shop_address %}
                                 {{ seller.shop_address.shop_name|default:seller.shop_name }}
                             {% else %}
@@ -401,7 +400,7 @@
                         {% elif seller.gst_number %}
                             <div class="address-phone" style="margin-top: 4pt; font-weight: bold; color: #475569;">GSTIN: {{ seller.gst_number }}</div>
                         {% endif %}
-                    {% else %}
+                    {% empty %}
                         <div class="address-name">{{ site_settings.site_name }}</div>
                         <div class="address-line">{{ site_settings.contact_address|default:"123 Commerce Street" }}</div>
                         <div class="address-line">
@@ -409,8 +408,7 @@
                             {{ site_settings.contact_state|default:"MH" }} 
                             {{ site_settings.contact_pin|default:"400001" }}
                         </div>
-                    {% endif %}
-                    {% endwith %}
+                    {% endfor %}
                 </td>
                 
                 <!-- Right: Stacked general order properties -->
