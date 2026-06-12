@@ -2224,6 +2224,7 @@ def authorized_cancel_order(request, order_id):
     - Sellers: Can cancel only their own items, only when status is pending, confirmed, or processing.
     - Triggers restocking, live refund (Razorpay/Wallet), and Shiprocket shipment cancellation.
     """
+    from decimal import Decimal
     from accounts.models import Wallet
     from delivery.delivery_services import ShiprocketService
     from orders.models import SystemActivityLog
@@ -2311,6 +2312,18 @@ def authorized_cancel_order(request, order_id):
             if item.shiprocket_order_id:
                 shiprocket_order_ids.append(item.shiprocket_order_id)
                 
+        # Check if all items in the order are now cancelled / returned / refunded / etc.
+        total_items = order.items.count()
+        cancelled_or_refunded_items = order.items.filter(
+            status__in=['cancelled', 'returned', 'returned_to_source', 'refund_initiated', 'refunded', 'courier_failed_pickup', 'seller_unresponsive']
+        ).count()
+
+        if total_items > 0 and total_items == cancelled_or_refunded_items:
+            # Full order cancellation: refund the remaining grand total (including delivery charge and minus discount)
+            remaining_to_refund = order.total_amount - (order.refund_amount or Decimal('0.00'))
+            if remaining_to_refund > 0:
+                refund_amount = remaining_to_refund
+
         # 5. Process refund to source for prepaid orders
         refund_note = "No refund required (COD/unpaid)."
         payment_method = order.payment_method.lower()
