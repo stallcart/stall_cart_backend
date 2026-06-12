@@ -131,26 +131,28 @@
     </div>
     {% endif %}
 
-    {% if order.tracking_number %}
+    {% with first_item=seller_items.0 %}
+    {% if first_item.tracking_number or order.tracking_number %}
     <div style="background: white; padding: 25px; border-radius: 12px; margin-bottom: 20px; border: 1.5px solid var(--gray-100);">
         <h3 style="margin-top: 0; margin-bottom: 15px;"><i class="fa fa-box-open"></i> Shipment Details</h3>
-        <p style="margin: 0 0 8px;"><strong>Courier Partner:</strong> {{ order.courier_name|default:"Shiprocket" }}</p>
-        <p style="margin: 0 0 8px;"><strong>AWB / Tracking Number:</strong> {{ order.tracking_number }}</p>
-        {% if order.shiprocket_status %}
-        <p style="margin: 0 0 8px;"><strong>Courier Status:</strong> <span style="font-weight: 700; color: #1e3a8a; background: #e0f2fe; padding: 2px 8px; border-radius: 4px; font-size: 0.85rem; display: inline-block;">{{ order.shiprocket_status }}</span></p>
+        <p style="margin: 0 0 8px;"><strong>Courier Partner:</strong> {{ first_item.courier_name|default:order.courier_name|default:"Shiprocket" }}</p>
+        <p style="margin: 0 0 8px;"><strong>AWB / Tracking Number:</strong> {{ first_item.tracking_number|default:order.tracking_number }}</p>
+        {% if first_item.shiprocket_status or order.shiprocket_status %}
+        <p style="margin: 0 0 8px;"><strong>Courier Status:</strong> <span style="font-weight: 700; color: #1e3a8a; background: #e0f2fe; padding: 2px 8px; border-radius: 4px; font-size: 0.85rem; display: inline-block;">{{ first_item.shiprocket_status|default:order.shiprocket_status }}</span></p>
         {% endif %}
         {% if order.estimated_delivery %}
         <p style="margin: 0 0 8px;"><strong>Estimated Delivery:</strong> {{ order.estimated_delivery|date:"d M Y" }}</p>
         {% endif %}
-        {% if order.tracking_url %}
+        {% if first_item.tracking_url or order.tracking_url %}
         <div style="margin-top: 12px;">
-            <a href="{{ order.tracking_url }}" target="_blank" class="btn-outline" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; text-decoration: none; font-size: 0.85rem; font-weight: 700; border: 2px solid #2874f0; color: #2874f0; border-radius: 8px; background: white; cursor: pointer;">
+            <a href="{{ first_item.tracking_url|default:order.tracking_url }}" target="_blank" class="btn-outline" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; text-decoration: none; font-size: 0.85rem; font-weight: 700; border: 2px solid #2874f0; color: #2874f0; border-radius: 8px; background: white; cursor: pointer;">
                 <i class="fa fa-map-marker-alt"></i> Track Live
             </a>
         </div>
         {% endif %}
     </div>
     {% endif %}
+    {% endwith %}
 
     {% if shiprocket_tracking and shiprocket_tracking.activities %}
     <div style="background: white; padding: 25px; border-radius: 12px; margin-bottom: 20px; border: 1.5px solid var(--gray-100);">

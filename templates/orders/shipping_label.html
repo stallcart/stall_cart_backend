@@ -235,7 +235,7 @@
                     {% endif %}
                 {% endfor %}
             </svg>
-            <div class="barcode-text">{% if order.tracking_number %}AWB: {{ order.tracking_number }}{% else %}{{ order.unique_order_id }}{% endif %}</div>
+            <div class="barcode-text">{% if tracking_number %}AWB: {{ tracking_number }}{% else %}{{ order.unique_order_id }}{% endif %}</div>
         </div>
 
         <div class="divider-thin"></div>
@@ -255,14 +255,14 @@
             <div class="footer-item">
                 <span>Order Date: <strong>{{ order.created_at|date:"d M Y" }}</strong></span>
                 <span>Order ID: <strong>{{ order.unique_order_id }}</strong></span>
-                {% if order.shiprocket_order_id %}
-                    <span>SR Order ID: <strong>{{ order.shiprocket_order_id }}</strong></span>
+                {% if shiprocket_order_id %}
+                    <span>SR Order ID: <strong>{{ shiprocket_order_id }}</strong></span>
                 {% endif %}
             </div>
             <div class="footer-item" style="text-align: right;">
-                <span>Carrier: <strong>{{ order.courier_name|default:"Shiprocket" }}</strong></span>
-                {% if order.shipment_id %}
-                    <span>Shipment ID: <strong>{{ order.shipment_id }}</strong></span>
+                <span>Carrier: <strong>{{ courier_name|default:"Shiprocket" }}</strong></span>
+                {% if shipment_id %}
+                    <span>Shipment ID: <strong>{{ shipment_id }}</strong></span>
                 {% endif %}
                 <span>Total Qty: <strong>{{ total_qty }}</strong></span>
             </div>

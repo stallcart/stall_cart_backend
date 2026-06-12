@@ -993,11 +993,46 @@ def print_shipping_label(request, order_id):
             Order.objects.prefetch_related('items__product', 'items__seller'),
             unique_order_id=order_id
         )
-        seller = order.items.first().seller if order.items.exists() else None
-        seller_items = order.items.all()
+        seller_id = request.GET.get('seller_id')
+        from items.models import SellerProfile
+        if seller_id:
+            seller = SellerProfile.objects.filter(pk=seller_id).first()
+            seller_items = order.items.filter(seller=seller)
+        else:
+            seller = order.items.first().seller if order.items.exists() else None
+            seller_items = order.items.all()
     else:
         messages.error(request, "Access denied.")
         return redirect('shop:home')
+
+    # Resolve shipment_id, tracking_number, shiprocket_order_id, and courier_name from seller_items
+    shipment_id = None
+    tracking_number = None
+    shiprocket_order_id = None
+    courier_name = None
+    if seller_items.exists():
+        item_with_shipment = seller_items.exclude(shipment_id__isnull=True).exclude(shipment_id='').first()
+        if item_with_shipment:
+            shipment_id = item_with_shipment.shipment_id
+            tracking_number = item_with_shipment.tracking_number
+            shiprocket_order_id = item_with_shipment.shiprocket_order_id
+            courier_name = item_with_shipment.courier_name
+        else:
+            first_item = seller_items.first()
+            shipment_id = first_item.shipment_id
+            tracking_number = first_item.tracking_number
+            shiprocket_order_id = first_item.shiprocket_order_id
+            courier_name = first_item.courier_name
+
+    # Fallback to parent order if still empty
+    if not shipment_id:
+        shipment_id = order.shipment_id
+    if not tracking_number:
+        tracking_number = order.tracking_number
+    if not shiprocket_order_id:
+        shiprocket_order_id = order.shiprocket_order_id
+    if not courier_name:
+        courier_name = order.courier_name
 
     # Try to fetch official Shiprocket label PDF if Shiprocket is configured
     from django.conf import settings
@@ -1008,17 +1043,34 @@ def print_shipping_label(request, order_id):
 
     if shiprocket_email and shiprocket_password:
         try:
-            shipment_id = order.shipment_id
             srv = ShiprocketService()
 
             # If shipment_id is not stored, try to retrieve it dynamically from Shiprocket
             if not shipment_id:
-                details = srv.fetch_shipment_details_by_channel_order_id(order.unique_order_id)
+                seller_count = order.items.values_list('seller_id', flat=True).distinct().count()
+                payload_order_id = f"{order.unique_order_id}-S{seller.id}" if (seller_count > 1 and seller) else order.unique_order_id
+                
+                details = srv.fetch_shipment_details_by_channel_order_id(payload_order_id)
                 if details:
+                    seller_items.update(
+                        shiprocket_order_id=details.get("shiprocket_order_id"),
+                        shipment_id=details.get("shipment_id"),
+                        tracking_number=details.get("awb"),
+                        courier_name=details.get("courier_name") or 'Shiprocket',
+                        updated_at=timezone.now()
+                    )
+                    # Also update parent order for backwards compatibility/test consistency
                     order.shiprocket_order_id = details.get("shiprocket_order_id")
                     order.shipment_id = details.get("shipment_id")
-                    order.save(update_fields=["shiprocket_order_id", "shipment_id", "updated_at"])
-                    shipment_id = order.shipment_id
+                    if not order.tracking_number:
+                        order.tracking_number = details.get("awb")
+                        order.courier_name = details.get("courier_name") or 'Shiprocket'
+                    order.save(update_fields=["shiprocket_order_id", "shipment_id", "tracking_number", "courier_name", "updated_at"])
+                    
+                    shipment_id = details.get("shipment_id")
+                    tracking_number = details.get("awb")
+                    shiprocket_order_id = details.get("shiprocket_order_id")
+                    courier_name = details.get("courier_name") or 'Shiprocket'
 
             if shipment_id:
                 label_url = srv.get_label_url(shipment_id)
@@ -1071,7 +1123,7 @@ def print_shipping_label(request, order_id):
 
     # Generate vector barcode bars pattern based on AWB/Tracking number or Order ID
     bars = []
-    barcode_val = order.tracking_number or order.unique_order_id
+    barcode_val = tracking_number or order.unique_order_id
     barcode_str = f"*{barcode_val}*"
     for char in barcode_str:
         val = ord(char)
@@ -1087,6 +1139,10 @@ def print_shipping_label(request, order_id):
         'total_qty': total_qty,
         'bars': bars,
         'barcode_val': barcode_val,
+        'tracking_number': tracking_number,
+        'shipment_id': shipment_id,
+        'shiprocket_order_id': shiprocket_order_id,
+        'courier_name': courier_name,
     }
     return render(request, 'orders/shipping_label.html', context)
 
