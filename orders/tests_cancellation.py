@@ -289,3 +289,227 @@ class CancellationTests(TestCase):
         self.assertEqual(self.order2.refund_amount, Decimal("100.00"))
         self.assertEqual(self.order2.payment_status, 'refunded')
         self.assertEqual(self.order2.status, 'cancelled')
+
+    @mock.patch('orders.views.get_razorpay_client')
+    def test_prepaid_razorpay_refund_full_grand_total_two_items(self, mock_get_client):
+        """Prepaid razorpay order with 2 items, discount, and delivery charge.
+        Cancelling both items refunds the full grand total of 46.00 instead of 6.00.
+        """
+        self.client.login(phone="9999999999", password="adminpassword")
+        
+        # Create an order with 2 items
+        order = Order.objects.create(
+            user=self.customer,
+            shipping_address=self.address,
+            total_amount=Decimal("46.00"),
+            discount_amount=Decimal("6.00"),
+            delivery_charge=Decimal("40.00"),
+            payment_method='razorpay',
+            payment_status='paid',
+            razorpay_payment_id='pay_mock999',
+            status='confirmed'
+        )
+        item1 = OrderItem.objects.create(
+            order=order,
+            product=self.product1,
+            seller=self.seller_profile1,
+            quantity=1,
+            price=Decimal("2.00"),
+            total=Decimal("2.00"),
+            status='confirmed'
+        )
+        item2 = OrderItem.objects.create(
+            order=order,
+            product=self.product2,
+            seller=self.seller_profile2,
+            quantity=1,
+            price=Decimal("4.00"),
+            total=Decimal("4.00"),
+            status='confirmed'
+        )
+        
+        # Setup razorpay mock client
+        mock_client = mock.MagicMock()
+        mock_get_client.return_value = mock_client
+        mock_client.refund.create.return_value = {'id': 'rfnd_mock888'}
+        
+        url = reverse('orders:authorized_cancel_order', args=[order.unique_order_id])
+        data = {
+            "item_ids": [item1.id, item2.id],
+            "reason": "changed_mind",
+            "remarks": "Cancel both items"
+        }
+        
+        response = self.client.post(url, data=json.dumps(data), content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+        
+        # Verify Razorpay refund API was called with the correct parameters (46.00 * 100 = 4600)
+        mock_client.refund.create.assert_called_once_with({
+            'payment_id': 'pay_mock999',
+            'amount': 4600,
+            'notes': {
+                'order_id': order.unique_order_id,
+                'reason': 'Cancelled by Admin: changed_mind',
+                'initiated_by': self.admin_user.phone
+            }
+        })
+        
+        # Verify order refund id and amount
+        order.refresh_from_db()
+        self.assertEqual(order.razorpay_refund_id, 'rfnd_mock888')
+        self.assertEqual(order.refund_amount, Decimal("46.00"))
+        self.assertEqual(order.payment_status, 'refunded')
+        self.assertEqual(order.status, 'cancelled')
+
+    @mock.patch('orders.views.get_razorpay_client')
+    def test_prepaid_razorpay_refund_one_by_one_cancellation(self, mock_get_client):
+        """Prepaid razorpay order with 2 items, discount, and delivery charge.
+        Cancelling first item refunds only item total.
+        Cancelling second (last) item refunds the remaining grand total (including delivery charge).
+        """
+        self.client.login(phone="9999999999", password="adminpassword")
+        
+        order = Order.objects.create(
+            user=self.customer,
+            shipping_address=self.address,
+            total_amount=Decimal("46.00"),
+            discount_amount=Decimal("6.00"),
+            delivery_charge=Decimal("40.00"),
+            payment_method='razorpay',
+            payment_status='paid',
+            razorpay_payment_id='pay_mock999',
+            status='confirmed'
+        )
+        item1 = OrderItem.objects.create(
+            order=order,
+            product=self.product1,
+            seller=self.seller_profile1,
+            quantity=1,
+            price=Decimal("2.00"),
+            total=Decimal("2.00"),
+            status='confirmed'
+        )
+        item2 = OrderItem.objects.create(
+            order=order,
+            product=self.product2,
+            seller=self.seller_profile2,
+            quantity=1,
+            price=Decimal("4.00"),
+            total=Decimal("4.00"),
+            status='confirmed'
+        )
+        
+        # Setup razorpay mock client
+        mock_client = mock.MagicMock()
+        mock_get_client.return_value = mock_client
+        mock_client.refund.create.side_effect = [{'id': 'rfnd_1'}, {'id': 'rfnd_2'}]
+        
+        # 1. Cancel Item 1 (T Shirt, Rs 2.00)
+        url = reverse('orders:authorized_cancel_order', args=[order.unique_order_id])
+        data1 = {
+            "item_ids": [item1.id],
+            "reason": "changed_mind",
+            "remarks": "Cancel first item"
+        }
+        response = self.client.post(url, data=json.dumps(data1), content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+        
+        # Verify first refund is for Rs 2.00 (amount = 200)
+        mock_client.refund.create.assert_any_call({
+            'payment_id': 'pay_mock999',
+            'amount': 200,
+            'notes': {
+                'order_id': order.unique_order_id,
+                'reason': 'Cancelled by Admin: changed_mind',
+                'initiated_by': self.admin_user.phone
+            }
+        })
+        
+        order.refresh_from_db()
+        self.assertEqual(order.refund_amount, Decimal("2.00"))
+        self.assertEqual(order.payment_status, 'paid')  # Still paid since item 2 is active
+        
+        # 2. Cancel Item 2 (Short Kurti, Rs 4.00)
+        data2 = {
+            "item_ids": [item2.id],
+            "reason": "changed_mind",
+            "remarks": "Cancel second item"
+        }
+        response = self.client.post(url, data=json.dumps(data2), content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+        
+        # Verify second refund is for remaining grand total (46.00 - 2.00 = 44.00)
+        mock_client.refund.create.assert_any_call({
+            'payment_id': 'pay_mock999',
+            'amount': 4400,
+            'notes': {
+                'order_id': order.unique_order_id,
+                'reason': 'Cancelled by Admin: changed_mind',
+                'initiated_by': self.admin_user.phone
+            }
+        })
+        
+        order.refresh_from_db()
+        self.assertEqual(order.refund_amount, Decimal("46.00"))
+        self.assertEqual(order.payment_status, 'refunded')
+        self.assertEqual(order.status, 'cancelled')
+
+    @mock.patch('orders.views.get_razorpay_client')
+    def test_reconcile_refunds_command(self, mock_get_client):
+        """reconcile_refunds command scans and refunds under-refunded prepaid orders."""
+        from django.core.management import call_command
+        
+        order = Order.objects.create(
+            user=self.customer,
+            shipping_address=self.address,
+            total_amount=Decimal("46.00"),
+            discount_amount=Decimal("6.00"),
+            delivery_charge=Decimal("40.00"),
+            payment_method='razorpay',
+            payment_status='refunded',  # Let's say it was set to refunded but only partially
+            refund_amount=Decimal("6.00"),  # Under-refunded!
+            razorpay_payment_id='pay_mock999',
+            status='cancelled'
+        )
+        item1 = OrderItem.objects.create(
+            order=order,
+            product=self.product1,
+            seller=self.seller_profile1,
+            quantity=1,
+            price=Decimal("2.00"),
+            total=Decimal("2.00"),
+            status='cancelled'
+        )
+        item2 = OrderItem.objects.create(
+            order=order,
+            product=self.product2,
+            seller=self.seller_profile2,
+            quantity=1,
+            price=Decimal("4.00"),
+            total=Decimal("4.00"),
+            status='cancelled'
+        )
+        
+        # Setup razorpay mock client
+        mock_client = mock.MagicMock()
+        mock_get_client.return_value = mock_client
+        mock_client.refund.create.return_value = {'id': 'rfnd_reconciled'}
+        
+        # Call the management command
+        call_command('reconcile_refunds')
+        
+        # Verify Razorpay refund API was called with the remaining 40.00 (amount = 4000)
+        mock_client.refund.create.assert_called_once_with({
+            'payment_id': 'pay_mock999',
+            'amount': 4000,
+            'notes': {
+                'order_id': order.unique_order_id,
+                'reason': 'Refund reconciliation/settlement for remaining grand total'
+            }
+        })
+        
+        order.refresh_from_db()
+        self.assertEqual(order.refund_amount, Decimal("46.00"))
+        self.assertEqual(order.payment_status, 'refunded')
+        self.assertEqual(order.razorpay_refund_id, 'rfnd_reconciled')
+

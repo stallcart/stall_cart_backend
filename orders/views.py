@@ -2313,10 +2313,14 @@ def authorized_cancel_order(request, order_id):
                 shiprocket_order_ids.append(item.shiprocket_order_id)
                 
         # Check if all items in the order are now cancelled / returned / refunded / etc.
-        total_items = order.items.count()
-        cancelled_or_refunded_items = order.items.filter(
-            status__in=['cancelled', 'returned', 'returned_to_source', 'refund_initiated', 'refunded', 'courier_failed_pickup', 'seller_unresponsive']
-        ).count()
+        # Use direct model queries to bypass any ORM caching on the order instance
+        from orders.models import OrderItem
+        all_items = list(OrderItem.objects.filter(order=order))
+        total_items = len(all_items)
+        cancelled_or_refunded_items = sum(
+            1 for item in all_items
+            if item.status in ['cancelled', 'returned', 'returned_to_source', 'refund_initiated', 'refunded', 'courier_failed_pickup', 'seller_unresponsive']
+        )
 
         if total_items > 0 and total_items == cancelled_or_refunded_items:
             # Full order cancellation: refund the remaining grand total (including delivery charge and minus discount)
