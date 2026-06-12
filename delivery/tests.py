@@ -1,7 +1,7 @@
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 from accounts.models import Address
-from delivery.delivery_services import repair_address
+from delivery.delivery_services import repair_address, ShiprocketService
 from unittest.mock import MagicMock
 
 User = get_user_model()
@@ -172,4 +172,75 @@ class OrderPlacedEmailNotificationTests(TestCase):
         self.assertIsNotNone(seller_email)
         self.assertIn("New Order", seller_email.subject)
         self.assertIn("Cool T-Shirt", seller_email.body)
+
+
+from unittest.mock import patch
+
+class ShiprocketServiceTests(TestCase):
+    def setUp(self):
+        from django.utils import timezone
+        from datetime import timedelta
+        self.srv = ShiprocketService()
+        self.srv._token = "dummy-token"
+        self.srv._token_expiry = timezone.now() + timedelta(days=9)
+
+    @patch('requests.get')
+    def test_fetch_shipment_details_exact_match(self, mock_get):
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "data": [
+                {
+                    "channel_order_id": "ORD-555",
+                    "id": 77777,
+                    "shipments": []
+                },
+                {
+                    "channel_order_id": "ORD-123",
+                    "id": 99999,
+                    "shipments": [
+                        {
+                            "id": 88888,
+                            "awb": "AWB-1234",
+                            "courier": "Delhivery"
+                        }
+                    ]
+                }
+            ]
+        }
+        mock_get.return_value = mock_response
+
+        # Correctly matches only ORD-123
+        details = self.srv.fetch_shipment_details_by_channel_order_id("ORD-123")
+        self.assertIsNotNone(details)
+        self.assertEqual(details["shiprocket_order_id"], 99999)
+        self.assertEqual(details["awb"], "AWB-1234")
+        self.assertEqual(details["courier_name"], "Delhivery")
+
+        # Returns None because ORD-999 is not in the data list
+        details_none = self.srv.fetch_shipment_details_by_channel_order_id("ORD-999")
+        self.assertIsNone(details_none)
+
+    @patch('requests.get')
+    def test_get_tracking_safely_handles_nulls(self, mock_get):
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        # Simulated response where tracking_data is null, and shipment_track_activities is null or missing
+        mock_response.json.return_value = {
+            "tracking_data": None
+        }
+        mock_get.return_value = mock_response
+
+        tracking = self.srv.get_tracking("AWB-1234")
+        self.assertEqual(tracking["activities"], [])
+
+        # Test where tracking_data is a dict but activities and shipment_track are null
+        mock_response.json.return_value = {
+            "tracking_data": {
+                "shipment_track": None,
+                "shipment_track_activities": None
+            }
+        }
+        tracking2 = self.srv.get_tracking("AWB-1234")
+        self.assertEqual(tracking2["activities"], [])
 

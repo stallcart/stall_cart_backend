@@ -48,11 +48,15 @@ def custom_500(request):
 
 def redirect_to_safe_location(request):
     """Redirect to referrer or home, avoiding open redirect vulnerabilities"""
+    from django.core.exceptions import DisallowedHost
     referrer = request.META.get('HTTP_REFERER')
     
     # Only redirect to referrer if it's from our domain
-    if referrer and request.get_host() in referrer:
-        return redirect(referrer)
+    try:
+        if referrer and request.get_host() in referrer:
+            return redirect(referrer)
+    except DisallowedHost:
+        pass
     
     # Fallback to home
     return redirect(reverse('shop:home'))

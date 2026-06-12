@@ -73,20 +73,16 @@ class Command(BaseCommand):
 
     def run_shiprocket_sync(self, srv, token):
 
-        # ── PART 1: Sync Missing AWBs ──────────────────────────────────────────
+        # ── PART 1: Sync Missing AWBs & Ensure Consistency ──────────────────────
         from orders.models import OrderItem
-        items_missing_awb = OrderItem.objects.filter(
-            order__status__in=['confirmed', 'processing'],
-            tracking_number__isnull=True
-        ) | OrderItem.objects.filter(
-            order__status__in=['confirmed', 'processing'],
-            tracking_number=''
+        active_items = OrderItem.objects.filter(
+            order__status__in=['confirmed', 'processing']
         )
         
         # Get distinct (order_id, seller_id) pairs
-        distinct_pairs = list(items_missing_awb.values_list('order_id', 'seller_id').distinct())
+        distinct_pairs = list(active_items.values_list('order_id', 'seller_id').distinct())
 
-        self.stdout.write(f"\n[Part 1] Checking {len(distinct_pairs)} seller shipment(s) missing AWB tracking numbers...")
+        self.stdout.write(f"\n[Part 1] Checking {len(distinct_pairs)} active seller shipment(s) for AWBs and consistency...")
 
         for order_id, seller_id in distinct_pairs:
             try:
@@ -96,7 +92,11 @@ class Command(BaseCommand):
             except Exception:
                 continue
 
-            self.stdout.write(f"Checking Order {order.unique_order_id} - Seller {seller.shop_name} for AWB...")
+            # Check if this shipment currently has a tracking number assigned locally
+            seller_items = order.items.filter(seller=seller)
+            has_local_tracking = seller_items.exclude(tracking_number__isnull=True).exclude(tracking_number='').exists()
+
+            self.stdout.write(f"Checking Order {order.unique_order_id} - Seller {seller.shop_name} (has local tracking: {has_local_tracking})...")
             try:
                 # Try query with seller suffix first
                 sr_order_id_to_query = f"{order.unique_order_id}-S{seller.id}"
@@ -111,11 +111,14 @@ class Command(BaseCommand):
                 )
 
                 orders_list = []
+                api_success = False
+
                 if res.status_code == 200:
                     orders_list = res.json().get("data", [])
+                    api_success = True
                 
                 # If not found, fallback to order.unique_order_id
-                if not orders_list:
+                if res.status_code == 200 and not orders_list:
                     res_fallback = requests.get(
                         "https://apiv2.shiprocket.in/v1/external/orders",
                         params={
@@ -127,13 +130,49 @@ class Command(BaseCommand):
                     )
                     if res_fallback.status_code == 200:
                         orders_list = res_fallback.json().get("data", [])
+                        api_success = True
+                    else:
+                        api_success = False
 
                 sr_order = None
                 for o in orders_list:
-                    if o.get("channel_order_id") in [sr_order_id_to_query, order.unique_order_id]:
+                    if str(o.get("channel_order_id")) in [sr_order_id_to_query, order.unique_order_id]:
                         sr_order = o
                         break
+
                 if not sr_order:
+                    if not api_success:
+                        self.stdout.write(self.style.WARNING(
+                            f"  Failed to query Shiprocket API successfully (status: {res.status_code}). "
+                            f"Skipping consistency verification for order {order.unique_order_id}."
+                        ))
+                        continue
+
+                    if has_local_tracking:
+                        self.stdout.write(self.style.WARNING(
+                            f"  [Self-Healing] Mismatch detected: Local database has tracking number for "
+                            f"{order.unique_order_id} (Seller: {seller.shop_name}), but the order does "
+                            f"not exist on Shiprocket. Clearing invalid local tracking and pushing..."
+                        ))
+                        # Clear invalid tracking fields on items of this seller
+                        seller_items.update(
+                            tracking_number=None,
+                            courier_name=None,
+                            shiprocket_order_id=None,
+                            shipment_id=None,
+                            shiprocket_status=None,
+                            updated_at=timezone.now()
+                        )
+                        # Clear parent order tracking if it matches
+                        if order.tracking_number in [item.tracking_number for item in seller_items if item.tracking_number]:
+                            order.tracking_number = None
+                            order.courier_name = None
+                            order.shiprocket_order_id = None
+                            order.shipment_id = None
+                            order.shiprocket_status = None
+                            order.save(update_fields=['tracking_number', 'courier_name', 'shiprocket_order_id', 'shipment_id', 'shiprocket_status', 'updated_at'])
+                            order.refresh_from_db()
+
                     self.stdout.write(f"  Shipment not found on Shiprocket system yet. Attempting to push to Shiprocket...")
                     from delivery.delivery_services import push_seller_items_to_shiprocket
                     success, err = push_seller_items_to_shiprocket(order, seller)
@@ -171,45 +210,47 @@ class Command(BaseCommand):
                     courier_name = str(courier_name or "Shiprocket").strip()
                     self.stdout.write(self.style.SUCCESS(f"  AWB detected: {awb_code} ({courier_name}). Updating database..."))
 
-                    # Update order items of this seller
-                    items_to_update = order.items.filter(seller=seller, tracking_number__isnull=True) | order.items.filter(seller=seller, tracking_number='')
+                    # Update order items of this seller if they don't match the Shiprocket AWB
+                    items_to_update = order.items.filter(seller=seller).exclude(tracking_number=awb_code)
                     
-                    first_item = items_to_update.first()
-                    old_item_status = first_item.status if first_item else 'confirmed'
-                    
-                    sr_shipment_id = None
-                    shipments = sr_order.get("shipments", [])
-                    if shipments:
-                        sr_shipment_id = shipments[0].get("id") or shipments[0].get("shipment_id")
+                    if items_to_update.exists() or order.tracking_number != awb_code:
+                        first_item = items_to_update.first()
+                        old_item_status = first_item.status if first_item else (order.items.filter(seller=seller).first().status if order.items.filter(seller=seller).exists() else 'confirmed')
+                        
+                        sr_shipment_id = None
+                        shipments = sr_order.get("shipments", [])
+                        if shipments:
+                            sr_shipment_id = shipments[0].get("id") or shipments[0].get("shipment_id")
 
-                    items_to_update.update(
-                        tracking_number=awb_code,
-                        courier_name=courier_name,
-                        shiprocket_order_id=sr_order.get("order_id"),
-                        shipment_id=sr_shipment_id,
-                        status='processing',
-                        updated_at=timezone.now()
-                    )
+                        if items_to_update.exists():
+                            items_to_update.update(
+                                tracking_number=awb_code,
+                                courier_name=courier_name,
+                                shiprocket_order_id=sr_order.get("order_id"),
+                                shipment_id=sr_shipment_id,
+                                status='processing',
+                                updated_at=timezone.now()
+                            )
 
-                    # Update overall status
-                    old_status = order.status
-                    order.update_overall_status()
+                        # Update overall status
+                        old_status = order.status
+                        order.update_overall_status()
 
-                    # Fallback update on parent Order if not set
-                    if not order.tracking_number:
-                        order.tracking_number = awb_code
-                        order.courier_name = courier_name
-                        order.shiprocket_order_id = sr_order.get("order_id")
-                        order.shipment_id = sr_shipment_id
-                        order.save(update_fields=['tracking_number', 'courier_name', 'shiprocket_order_id', 'shipment_id', 'updated_at'])
+                        # Fallback update on parent Order if not set or mismatched
+                        if order.tracking_number != awb_code:
+                            order.tracking_number = awb_code
+                            order.courier_name = courier_name
+                            order.shiprocket_order_id = sr_order.get("order_id")
+                            order.shipment_id = sr_shipment_id
+                            order.save(update_fields=['tracking_number', 'courier_name', 'shiprocket_order_id', 'shipment_id', 'updated_at'])
 
-                    # Log the status change
-                    OrderStatusLog.objects.create(
-                        order=order,
-                        old_status=old_item_status,
-                        new_status=order.status,
-                        remarks=f"🔄 Synced tracking for {seller.shop_name} items from Shiprocket (AWB: {awb_code}, Courier: {courier_name})"
-                    )
+                        # Log the status change
+                        OrderStatusLog.objects.create(
+                            order=order,
+                            old_status=old_item_status,
+                            new_status=order.status,
+                            remarks=f"🔄 Synced tracking for {seller.shop_name} items from Shiprocket (AWB: {awb_code}, Courier: {courier_name})"
+                        )
 
                     SystemActivityLog.log(
                         event_type='delivery_status',

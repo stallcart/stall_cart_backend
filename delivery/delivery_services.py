@@ -420,23 +420,32 @@ class ShiprocketService:
             )
             res.raise_for_status()
             data = res.json()
-            tracking_data = data.get("tracking_data", {})
-            shipment_track = tracking_data.get("shipment_track", [{}])
-            activities = tracking_data.get("shipment_track_activities", [])
+            
+            tracking_data = data.get("tracking_data")
+            if not isinstance(tracking_data, dict):
+                tracking_data = {}
+            
+            shipment_track = tracking_data.get("shipment_track")
+            if not isinstance(shipment_track, list):
+                shipment_track = []
+                
+            activities = tracking_data.get("shipment_track_activities")
+            if not isinstance(activities, list):
+                activities = []
  
-            current = shipment_track[0] if shipment_track else {}
+            current = shipment_track[0] if (shipment_track and isinstance(shipment_track[0], dict)) else {}
             return {
                 "current_status": current.get("current_status"),
                 "delivered_date": current.get("delivered_date"),
                 "etd": current.get("etd"),
                 "activities": [
                     {
-                        "date": a.get("date"),
-                        "activity": a.get("activity"),
-                        "location": a.get("location"),
-                        "status": a.get("sr-status-label"),
+                        "date": a.get("date") if isinstance(a, dict) else None,
+                        "activity": a.get("activity") if isinstance(a, dict) else None,
+                        "location": a.get("location") if isinstance(a, dict) else None,
+                        "status": a.get("sr-status-label") if isinstance(a, dict) else None,
                     }
-                    for a in activities
+                    for a in activities if isinstance(a, dict)
                 ],
             }
         except Exception as e:
@@ -503,17 +512,26 @@ class ShiprocketService:
         try:
             res = requests.get(
                 f"{SHIPROCKET_API}/orders",
-                params={"channel_order_id": channel_order_id},
+                params={
+                    "filter_by": "channel_order_id",
+                    "filter": channel_order_id
+                },
                 headers=self._headers(),
                 timeout=10,
             )
             res.raise_for_status()
             data = res.json()
             orders = data.get("data", [])
-            if orders:
-                order_data = orders[0]
-                shiprocket_order_id = order_data.get("id")
-                shipments = order_data.get("shipments", [])
+            
+            matched_order = None
+            for o in orders:
+                if str(o.get("channel_order_id")) == str(channel_order_id):
+                    matched_order = o
+                    break
+
+            if matched_order:
+                shiprocket_order_id = matched_order.get("id")
+                shipments = matched_order.get("shipments", [])
                 shipment_id = None
                 awb_code = None
                 courier_name = None
