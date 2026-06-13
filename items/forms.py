@@ -310,8 +310,7 @@ class ProductVariantForm(forms.ModelForm):
         widgets = {
             'size_value': forms.TextInput(attrs={
                 'class': 'form-input', 
-                'placeholder': 'e.g., M, 6, 24x36',
-                'required': 'required'
+                'placeholder': 'e.g., M, 6, 24x36'
             }),
             'size_type': forms.Select(attrs={'class': 'form-select'}),
             'color': forms.TextInput(attrs={
@@ -326,8 +325,7 @@ class ProductVariantForm(forms.ModelForm):
             'stock': forms.NumberInput(attrs={
                 'class': 'form-input', 
                 'min': '0', 
-                'placeholder': '0',
-                'required': 'required'
+                'placeholder': '0'
             }),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-checkbox'}),
             'attributes': forms.Textarea(attrs={
@@ -372,6 +370,8 @@ class BaseVariantFormSet(BaseInlineFormSet):
         super().clean()
 
         seen = set()
+        active_variants_count = 0
+        total_variant_stock = 0
 
         for form in self.forms:
 
@@ -386,26 +386,42 @@ class BaseVariantFormSet(BaseInlineFormSet):
                 continue
 
             size = (
-                form.cleaned_data.get('size_value', '')
-                .strip()
-                .lower()
-            )
+                form.cleaned_data.get('size_value', '') or ''
+            ).strip().lower()
 
             color = (
-                form.cleaned_data.get('color', '')
-                .strip()
-                .lower()
-            )
+                form.cleaned_data.get('color', '') or ''
+            ).strip().lower()
 
-            key = (size, color)
+            # Only validate filled rows
+            if size or color or form.cleaned_data.get('stock') is not None or form.cleaned_data.get('price_override') is not None:
+                key = (size, color)
 
-            if key in seen:
-                raise forms.ValidationError(
-                    f'Duplicate variant: "{size}"'
-                    f'{f" / {color}" if color else ""} already exists.'
-                )
+                if key in seen:
+                    raise forms.ValidationError(
+                        f'Duplicate variant: "{size}"'
+                        f'{f" / {color}" if color else ""} already exists.'
+                    )
 
-            seen.add(key)
+                seen.add(key)
+                
+                if form.cleaned_data.get('is_active', True):
+                    active_variants_count += 1
+                    total_variant_stock += form.cleaned_data.get('stock') or 0
+
+        # Validate variant stock sum matches base stock
+        if active_variants_count > 0:
+            base_stock_raw = self.data.get('stock')
+            if base_stock_raw is not None:
+                try:
+                    base_stock = int(base_stock_raw)
+                except ValueError:
+                    base_stock = 0
+                
+                if total_variant_stock != base_stock:
+                    raise forms.ValidationError(
+                        f"The sum of active variant stocks ({total_variant_stock}) must match the base product stock ({base_stock})."
+                    )
 
 
 ProductVariantFormSet = inlineformset_factory(

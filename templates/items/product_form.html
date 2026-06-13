@@ -388,7 +388,7 @@
                         <div class="form-group">
                             <label>Size/Value *</label>
                             <input type="text" name="variants-__prefix__-size_value" 
-                                class="form-input" placeholder="e.g., M, 6, 24x36" required>
+                                class="form-input" placeholder="e.g., M, 6, 24x36">
                         </div>
                         <div class="form-group">
                             <label>Variant Type</label>
@@ -417,7 +417,7 @@
                         <div class="form-group">
                             <label>Stock *</label>
                             <input type="number" name="variants-__prefix__-stock" 
-                                class="form-input" min="0" placeholder="0" required>
+                                class="form-input" min="0" placeholder="0">
                         </div>
                         <div class="form-group checkbox-group" style="align-items:center;">
                             <label class="check-label" style="margin:0;">
@@ -772,55 +772,119 @@ document.addEventListener('DOMContentLoaded', function() {
     const saveBtn = document.getElementById('saveBtn');
     
     productForm?.addEventListener('submit', function(e) {
-        const requiredFields = productForm.querySelectorAll('[required]');
-        let hasError = false;
+        const baseStockInput = document.getElementById('{{ form.stock.id_for_label }}');
+        const baseStock = parseInt(baseStockInput?.value) || 0;
         
+        // 1. Remove completely empty new variant rows from DOM
+        const rows = Array.from(document.querySelectorAll('.variant-row'));
+        let hasActiveVariants = false;
+        let variantStockSum = 0;
+        let validationError = false;
+        
+        // Iterate backwards so row removal doesn't shift indexes we are checking
+        for (let i = rows.length - 1; i >= 0; i--) {
+            const row = rows[i];
+            const sizeField = row.querySelector('[name$="-size_value"]');
+            const stockField = row.querySelector('[name$="-stock"]');
+            const colorField = row.querySelector('[name$="-color"]');
+            const priceField = row.querySelector('[name$="-price_override"]');
+            const idField = row.querySelector('[name$="-id"]');
+            const deleteField = row.querySelector('[name$="-DELETE"]');
+            
+            const sizeVal = sizeField?.value?.trim() || '';
+            const stockVal = stockField?.value?.trim() || '';
+            const colorVal = colorField?.value?.trim() || '';
+            const priceVal = priceField?.value?.trim() || '';
+            const isDeleted = deleteField?.value === 'on';
+            
+            // Check if this is a new variant (no ID)
+            const isNew = !idField || !idField.value || idField.value.trim() === '';
+            
+            // Check if the row has any input at all
+            const hasData = sizeVal || stockVal || colorVal || priceVal;
+            
+            if (isNew && !hasData) {
+                // Completely empty new row, remove it!
+                row.remove();
+            } else if (!isDeleted) {
+                // If it is an active variant, check that it has both required fields
+                if (hasData) {
+                    if (!sizeVal || !stockVal) {
+                        sizeField?.classList.toggle('error', !sizeVal);
+                        stockField?.classList.toggle('error', !stockVal);
+                        validationError = "Please fill out both Size/Value and Stock for all variants.";
+                    }
+                    hasActiveVariants = true;
+                    variantStockSum += parseInt(stockVal) || 0;
+                }
+            }
+        }
+        
+        // Re-index remaining forms in DOM after removals
+        if (typeof reindexVariantForms === 'function') {
+            reindexVariantForms();
+        }
+        
+        // 2. Validate standard product required fields (name, price, stock, category, status)
+        const requiredFields = [
+            document.getElementById('{{ form.name.id_for_label }}'),
+            document.getElementById('{{ form.price.id_for_label }}'),
+            baseStockInput,
+            document.getElementById('{{ form.category.id_for_label }}'),
+            document.getElementById('{{ form.status.id_for_label }}')
+        ];
+        
+        let missingField = false;
         requiredFields.forEach(field => {
-            if (!field.value.trim() && field.type !== 'file') {
+            if (field && !field.value.trim()) {
                 field.classList.add('error');
-                hasError = true;
-            } else {
+                missingField = true;
+            } else if (field) {
                 field.classList.remove('error');
             }
         });
         
-        if (hasError) {
+        if (missingField) {
             e.preventDefault();
-            showToast('Please fill all required fields', 'error');
+            window.showToast('Please fill all required product fields.', 'error');
             return false;
+        }
+        
+        if (validationError) {
+            e.preventDefault();
+            window.showToast(validationError, 'error');
+            return false;
+        }
+        
+        // 3. Validate stock sum matching
+        if (hasActiveVariants) {
+            if (variantStockSum !== baseStock) {
+                e.preventDefault();
+                baseStockInput?.classList.add('error');
+                // Highlight variant stock fields
+                document.querySelectorAll('.variant-row [name$="-stock"]').forEach(sf => {
+                    sf.classList.add('error');
+                });
+                window.showToast(`The sum of your variant stocks (${variantStockSum}) must match the base product stock (${baseStock}).`, 'error');
+                return false;
+            } else {
+                baseStockInput?.classList.remove('error');
+                document.querySelectorAll('.variant-row [name$="-stock"]').forEach(sf => {
+                    sf.classList.remove('error');
+                });
+            }
         }
         
         saveBtn.disabled = true;
         saveBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving...';
     });
     
-    // ── 6. Toast Notification Helper ────────────────────────────────
-    window.showToast = function(message, type = 'info') {
-        const toast = document.createElement('div');
-        toast.innerHTML = `<i class="fa ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i> ${message}`;
-        toast.style.cssText = `
-            position: fixed; bottom: 24px; right: 24px; z-index: 9999;
-            padding: 12px 22px; border-radius: 8px; font-weight: 600;
-            background: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : '#2196F3'};
-            color: #fff; box-shadow: 0 4px 14px rgba(0,0,0,.18);
-            display: flex; align-items: center; gap: 8px;
-            animation: slideUp 0.3s ease;
-        `;
-        document.body.appendChild(toast);
-        setTimeout(() => {
-            toast.style.animation = 'slideDown 0.3s ease';
-            setTimeout(() => toast.remove(), 300);
-        }, 2500);
-    };
-    
-    // CSS animations
+    // CSS animations & styles
     if (!document.querySelector('#form-animations')) {
         const style = document.createElement('style');
         style.id = 'form-animations';
         style.textContent = `
-            @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-            @keyframes slideDown { from { transform: translateY(0); opacity: 1; } to { transform: translateY(20px); opacity: 0; } }
-            .form-input.error, .form-select.error { border-color: #c62828 !important; }
+            .form-input.error, .form-select.error { border-color: #c62828 !important; box-shadow: 0 0 0 2px rgba(198, 40, 40, 0.2) !important; }
         `;
         document.head.appendChild(style);
     }
@@ -833,12 +897,12 @@ document.addEventListener('DOMContentLoaded', function() {
         
         for (let file of files) {
             if (file.size > maxSize) {
-                showToast(`Image "${file.name}" is too large (max 5MB)`, 'error');
+                window.showToast(`Image "${file.name}" is too large (max 5MB)`, 'error');
                 this.value = '';
                 return false;
             }
             if (!allowedTypes.includes(file.type)) {
-                showToast(`Image "${file.name}" must be JPG, PNG, or WebP`, 'error');
+                window.showToast(`Image "${file.name}" must be JPG, PNG, or WebP`, 'error');
                 this.value = '';
                 return false;
             }
@@ -846,35 +910,64 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const existingCount = additionalPreview?.querySelectorAll('.preview-thumb.existing').length || 0;
         if (files.length + existingCount > 5) {
-            showToast('Maximum 5 images allowed total', 'error');
+            window.showToast('Maximum 5 images allowed total', 'error');
             this.value = '';
             return false;
         }
     });
     
     // ── 8. Dynamic Variant Management ─────────────────────────────
-    // ── 8. Dynamic Variant Management (FIXED) ─────────────────────────────
+    function reindexVariantForms() {
+        const container = document.getElementById('variantsContainer');
+        const totalForms = document.querySelector('#id_variants-TOTAL_FORMS');
+        if (!container) return;
+        
+        const rows = container.querySelectorAll('.variant-row');
+        rows.forEach((row, index) => {
+            row.dataset.formIndex = index;
+            
+            // Update title if it's a new variant
+            const titleEl = row.querySelector('.variant-title');
+            if (titleEl && row.classList.contains('new-variant')) {
+                const sizeField = row.querySelector('[name$="-size_value"]');
+                const colorField = row.querySelector('[name$="-color"]');
+                const size = sizeField?.value?.trim() || '';
+                const color = colorField?.value?.trim() || '';
+                titleEl.textContent = `Variant ${index + 1}${size ? ': ' + size : ''}${color ? ' / ' + color : ''}`;
+            }
+            
+            // Update names and ids of all input, select, textarea elements
+            row.querySelectorAll('input, select, textarea').forEach(field => {
+                const name = field.name;
+                if (name) {
+                    field.name = name.replace(/variants-\d+-/, `variants-${index}-`);
+                }
+                const id = field.id;
+                if (id) {
+                    field.id = id.replace(/id_variants-\d+-/, `id_variants-${index}-`);
+                }
+            });
+        });
+        
+        if (totalForms) {
+            totalForms.value = rows.length;
+        }
+    }
+    
+    // Expose reindexVariantForms globally within this script context
+    window.reindexVariantForms = reindexVariantForms;
+
     function setupVariantManager() {
         const container = document.getElementById('variantsContainer');
         const addBtn = document.getElementById('addVariantBtn');
         const template = document.getElementById('variantTemplate');
-        
-        // ✅ Get management form fields safely
         const totalForms = document.querySelector('#id_variants-TOTAL_FORMS');
-        const initialForms = document.querySelector('#id_variants-INITIAL_FORMS');
         
         if (!container || !addBtn || !template) return;
         
-        // ✅ Initialize formIndex from existing rows OR management form
-        let formIndex = 0;
-        if (totalForms && totalForms.value) {
-            formIndex = parseInt(totalForms.value);
-        } else {
-            formIndex = container.querySelectorAll('.variant-row').length;
-        }
-        
         // Add new variant row
         addBtn.addEventListener('click', function() {
+            let formIndex = parseInt(totalForms?.value || 0);
             const templateContent = template.innerHTML;
             
             // Create new row with replaced prefix
@@ -882,21 +975,16 @@ document.addEventListener('DOMContentLoaded', function() {
             newRow.className = 'variant-row new-variant';
             newRow.dataset.formIndex = formIndex;
             
-            // Replace __prefix__ with actual index
             newRow.innerHTML = templateContent.replace(/__prefix__/g, formIndex);
-            
             container.appendChild(newRow);
             
-            // ✅ Update management form TOTAL_FORMS
             if (totalForms) {
-                totalForms.value = parseInt(totalForms.value || 0) + 1;
+                totalForms.value = formIndex + 1;
             }
-            formIndex++;
             
-            // Initialize the new row
             initializeVariantRow(newRow);
-            
-            showToast('Variant row added', 'success');
+            reindexVariantForms();
+            window.showToast('Variant row added', 'success');
         });
         
         // Remove variant row (event delegation)
@@ -920,11 +1008,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 removeBtn.innerHTML = '<i class="fa fa-undo"></i> Undelete';
                 removeBtn.classList.remove('btn-danger');
                 removeBtn.classList.add('btn-outline');
-                showToast('Variant marked for deletion (will be removed on save)', 'info');
+                window.showToast('Variant marked for deletion (will be removed on save)', 'info');
                 
                 // Add undelete handler
-                removeBtn.onclick = function(e) {
-                    e.stopPropagation();
+                removeBtn.onclick = function(ev) {
+                    ev.stopPropagation();
                     deleteField.value = '';
                     row.style.opacity = '1';
                     row.style.pointerEvents = 'all';
@@ -933,22 +1021,19 @@ document.addEventListener('DOMContentLoaded', function() {
                     removeBtn.innerHTML = '<i class="fa fa-trash"></i> Remove';
                     removeBtn.classList.add('btn-danger');
                     removeBtn.classList.remove('btn-outline');
-                    showToast('Variant undeleted', 'success');
+                    window.showToast('Variant undeleted', 'success');
                     removeBtn.onclick = null;
                 };
             } else {
-                // New unsaved variant: just remove from DOM and decrement TOTAL_FORMS
+                // New unsaved variant: just remove from DOM and re-index
                 row.remove();
-                if (totalForms) {
-                    totalForms.value = Math.max(0, parseInt(totalForms.value || 0) - 1);
-                }
-                showToast('Variant removed', 'success');
+                reindexVariantForms();
+                window.showToast('Variant removed', 'success');
             }
         });
         
         // Initialize a variant row's widgets and event listeners
         function initializeVariantRow(row) {
-            // Add proper form-group wrappers if missing
             row.querySelectorAll('input:not([type="hidden"]), select, textarea').forEach(field => {
                 if (!field.closest('.form-group')) {
                     const wrapper = document.createElement('div');
@@ -960,16 +1045,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
             
-            // Price override preview
-            const priceField = row.querySelector('[name$="-price_override"]');
-            const basePrice = parseFloat(document.getElementById('{{ form.price.id_for_label }}')?.value) || 0;
-            
-            priceField?.addEventListener('input', function() {
-                const override = parseFloat(this.value) || 0;
-                // Visual feedback could go here
-            });
-            
-            // Auto-update variant title when size/color changes
             const sizeField = row.querySelector('[name$="-size_value"]');
             const colorField = row.querySelector('[name$="-color"]');
             const titleEl = row.querySelector('.variant-title');

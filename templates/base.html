@@ -389,17 +389,6 @@
      MAIN CONTENT
 ══════════════════════════════════════ -->
 <main class="main-content">
-    {% if messages %}
-        <div class="container" style="padding-top:16px;">
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags }}">
-                    {% if message.tags == 'success' %}<i class="fa fa-check-circle"></i>{% endif %}
-                    {% if message.tags == 'error' or message.tags == 'danger' %}<i class="fa fa-exclamation-circle"></i>{% endif %}
-                    {{ message }}
-                </div>
-            {% endfor %}
-        </div>
-    {% endif %}
     {% block content %}{% endblock %}
 </main>
 
@@ -715,6 +704,37 @@ window.showToast = function(message, type = 'info') {
         setTimeout(() => toast.remove(), 300);
     }, 2800);
 };
+
+// Override window.alert to use showToast for premium user experience
+window.alert = function(message) {
+    if (!message) return;
+    if (window.showToast) {
+        const msgStr = String(message);
+        const isError = /error|fail|invalid|required|blocked|warn|denied|cannot|not authorized/i.test(msgStr);
+        const isSuccess = /success|updated|saved|created|delivered/i.test(msgStr);
+        const type = isError ? 'error' : (isSuccess ? 'success' : 'info');
+        window.showToast(msgStr, type);
+    } else {
+        console.log("Alert:", message);
+    }
+};
+
+// Render Django messages as toast notifications on DOM load
+document.addEventListener('DOMContentLoaded', () => {
+    {% if messages %}
+        {% for message in messages %}
+            (function() {
+                let type = 'info';
+                {% if message.tags == 'success' %}type = 'success';{% endif %}
+                {% if message.tags == 'error' or message.tags == 'danger' %}type = 'error';{% endif %}
+                {% if message.tags == 'warning' %}type = 'error';{% endif %}
+                setTimeout(() => {
+                    window.showToast("{{ message|escapejs }}", type);
+                }, 150 * {{ forloop.counter0 }} + 150);
+            })();
+        {% endfor %}
+    {% endif %}
+});
 
 // Global Wishlist Toggle Logic
 document.addEventListener('click', async (e) => {
