@@ -256,27 +256,27 @@ class Command(BaseCommand):
                             remarks=f"🔄 Synced tracking for {seller.shop_name} items from Shiprocket (AWB: {awb_code}, Courier: {courier_name})"
                         )
 
-                    SystemActivityLog.log(
-                        event_type='delivery_status',
-                        description=f"Synced AWB '{awb_code}' ({courier_name}) from Shiprocket for Order {order.unique_order_id} (Seller: {seller.shop_name}).",
-                        order=order,
-                        metadata={'awb': awb_code, 'courier': courier_name, 'shiprocket_order_id': sr_order.get("order_id") if sr_order else None}
-                    )
+                        SystemActivityLog.log(
+                            event_type='delivery_status',
+                            description=f"Synced AWB '{awb_code}' ({courier_name}) from Shiprocket for Order {order.unique_order_id} (Seller: {seller.shop_name}).",
+                            order=order,
+                            metadata={'awb': awb_code, 'courier': courier_name, 'shiprocket_order_id': sr_order.get("order_id") if sr_order else None}
+                        )
 
-                    # Send AWB Assignment notification email
-                    context = {
-                        "order_id": f"{order.unique_order_id} (Seller: {seller.shop_name})",
-                        "tracking_number": awb_code,
-                        "courier_name": courier_name,
-                        "admin_order_url": f"https://stallcart.in/orders/admin/order/{order.unique_order_id}/"
-                    }
-                    send_dynamic_email('awb_assigned_notification', recipient_list, context)
-                    
-                    # Trigger customer app notifications
-                    try:
-                        notify_order_status_change(order, old_status, order.status)
-                    except Exception as ex:
-                        logger.error(f"Failed to send customer status change notification: {ex}")
+                        # Send AWB Assignment notification email
+                        context = {
+                            "order_id": f"{order.unique_order_id} (Seller: {seller.shop_name})",
+                            "tracking_number": awb_code,
+                            "courier_name": courier_name,
+                            "admin_order_url": f"https://stallcart.in/orders/admin/order/{order.unique_order_id}/"
+                        }
+                        send_dynamic_email('awb_assigned_notification', recipient_list, context)
+                        
+                        # Trigger customer app notifications
+                        try:
+                            notify_order_status_change(order, old_status, order.status)
+                        except Exception as ex:
+                            logger.error(f"Failed to send customer status change notification: {ex}")
 
                 else:
                     self.stdout.write(f"  Shipment exists in Shiprocket but has no tracking AWB assigned yet.")
