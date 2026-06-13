@@ -720,9 +720,14 @@ window.alert = function(message) {
 };
 
 // Disable scroll wheel changing values on focused number inputs globally
-document.addEventListener('wheel', function(e) {
-    if (document.activeElement && document.activeElement.type === 'number') {
-        document.activeElement.blur();
+document.addEventListener('focusin', function(e) {
+    if (e.target.tagName === 'INPUT' && e.target.type === 'number') {
+        if (!e.target.dataset.wheelListenerAttached) {
+            e.target.addEventListener('wheel', function(wheelEvent) {
+                wheelEvent.preventDefault();
+            }, { passive: false });
+            e.target.dataset.wheelListenerAttached = 'true';
+        }
     }
 });
 

@@ -1009,7 +1009,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Visual indicators
                 row.classList.add('marked-for-delete');
                 row.style.opacity = '0.5';
-                row.querySelectorAll('input:not([id$="-DELETE"]), select, textarea').forEach(el => {
+                row.querySelectorAll('input:not([type="hidden"]):not([name$="-DELETE"]), select, textarea').forEach(el => {
                     el.disabled = true;
                 });
                 
@@ -1029,7 +1029,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     row.classList.remove('marked-for-delete');
                     row.style.opacity = '1';
-                    row.querySelectorAll('input:not([id$="-DELETE"]), select, textarea').forEach(el => {
+                    row.querySelectorAll('input:not([type="hidden"]):not([name$="-DELETE"]), select, textarea').forEach(el => {
                         el.disabled = false;
                     });
                     

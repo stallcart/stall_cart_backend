@@ -143,6 +143,86 @@ class ProductCalculationAndStockTests(TestCase):
         # Stock should remain 15, not be reset to 0 or manual value
         self.assertEqual(product.stock, 15)
 
+    def test_product_variant_deletion_via_formset(self):
+        """Verify that a variant can be marked for deletion and saved successfully via product edit/formset."""
+        product = Product.objects.create(
+            seller=self.seller_profile,
+            category=self.category,
+            name="Tshirt",
+            price=Decimal("10.00"),
+            stock=10,
+            status="published"
+        )
+        
+        v1 = ProductVariant.objects.create(
+            product=product,
+            size_value="M",
+            stock=4,
+            is_active=True
+        )
+        v2 = ProductVariant.objects.create(
+            product=product,
+            size_value="L",
+            stock=6,
+            is_active=True
+        )
+        product.refresh_from_db()
+        self.assertEqual(product.stock, 10)
+        self.assertEqual(product.variants.count(), 2)
+        
+        # Simulate POST request to edit product with variant deletion
+        # In Django formsets, to delete a form, we set DELETE=on and provide the id
+        post_data = {
+            'name': 'Tshirt',
+            'category': self.category.id,
+            'price': '4.00',
+            'cost_price': '1.00',
+            'discount_percent': '0',
+            'stock': '4',  # Set base stock to 4 (sum of remaining active variants)
+            'low_stock_threshold': '1',
+            'status': 'published',
+            'description': 'Product description long enough...',
+            'variants-TOTAL_FORMS': '2',
+            'variants-INITIAL_FORMS': '2',
+            'variants-MIN_NUM_FORMS': '0',
+            'variants-MAX_NUM_FORMS': '1000',
+            
+            # Form 0: keep active
+            'variants-0-id': str(v1.id),
+            'variants-0-size_value': 'M',
+            'variants-0-size_type': 'clothing',
+            'variants-0-color': '',
+            'variants-0-price_override': '',
+            'variants-0-stock': '4',
+            'variants-0-is_active': 'on',
+            'variants-0-DELETE': '',
+            
+            # Form 1: delete
+            'variants-1-id': str(v2.id),
+            'variants-1-size_value': 'L',
+            'variants-1-size_type': 'clothing',
+            'variants-1-color': '',
+            'variants-1-price_override': '',
+            'variants-1-stock': '6',
+            'variants-1-is_active': 'on',
+            'variants-1-DELETE': 'on',
+        }
+        
+        self.client.login(phone="8888888888", password="sellerpassword")
+        response = self.client.post(f'/items/product/{product.id}/edit/', post_data)
+        
+        # Should redirect on success
+        self.assertEqual(response.status_code, 302)
+        
+        product.refresh_from_db()
+        # v2 should be deleted, so only 1 variant left
+        self.assertEqual(product.variants.count(), 1)
+        self.assertFalse(ProductVariant.objects.filter(id=v2.id).exists())
+        self.assertTrue(ProductVariant.objects.filter(id=v1.id).exists())
+        
+        # Stock should sync to v1's stock, i.e., 4
+        self.assertEqual(product.stock, 4)
+
     def test_cost_price_validation(self):
         """Form must reject negative cost prices."""
         form_data = {
