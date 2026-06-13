@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Handover Manifest - {{ manifest_id }}</title>
+    <style>
+        :root {
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            --border-color: #cbd5e1;
+            --text-color: #1e293b;
+        }
+
+        body {
+            font-family: var(--font-family);
+            margin: 0;
+            padding: 20px;
+            background-color: #f8fafc;
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Float Action Header */
+        .no-print-header {
+            width: 100%;
+            max-width: 900px;
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            background: #fff;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            border: 1px solid #e2e8f0;
+        }
+
+        .btn {
+            font-family: var(--font-family);
+            font-size: 0.9rem;
+            font-weight: 700;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+        .btn-print {
+            background-color: #a855f7;
+            color: #fff;
+        }
+        .btn-print:hover {
+            background-color: #9333ea;
+        }
+        .btn-close {
+            background-color: #e2e8f0;
+            color: #334155;
+        }
+        .btn-close:hover {
+            background-color: #cbd5e1;
+        }
+
+        /* Manifest Container */
+        .manifest-container {
+            width: 100%;
+            max-width: 900px;
+            background: #fff;
+            padding: 40px;
+            box-sizing: border-box;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+        }
+
+        /* Header Info */
+        .manifest-title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 2px solid #2874f0;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        .manifest-title-row h1 {
+            margin: 0;
+            font-size: 1.8rem;
+            color: #2874f0;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+        }
+        .manifest-meta {
+            text-align: right;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        /* Split Section */
+        .manifest-details-grid {
+            display: grid;
+            grid-template-columns: 1.2fr 0.8fr;
+            gap: 20px;
+            margin-bottom: 30px;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+        .info-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: 16px;
+            border-radius: 6px;
+        }
+        .info-card h3 {
+            margin: 0 0 10px 0;
+            font-size: 0.95rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #475569;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 6px;
+        }
+
+        /* Table */
+        .shipments-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.82rem;
+            margin-bottom: 40px;
+        }
+        .shipments-table th {
+            background-color: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            padding: 10px 8px;
+            text-align: left;
+            font-weight: 700;
+            color: #334155;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+        }
+        .shipments-table td {
+            border: 1px solid #cbd5e1;
+            padding: 10px 8px;
+            vertical-align: middle;
+        }
+        .shipments-table tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        /* Barcode cell styling */
+        .awb-cell {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+        .barcode-svg {
+            width: 130px;
+            height: 25px;
+        }
+        .barcode-text {
+            font-size: 0.72rem;
+            font-family: monospace;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        /* Handover Signatures */
+        .signature-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin-top: 30px;
+            font-size: 0.9rem;
+            page-break-inside: avoid;
+        }
+        .signature-box {
+            border: 1.5px dashed #94a3b8;
+            border-radius: 8px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 180px;
+        }
+        .signature-box h3 {
+            margin: 0 0 15px 0;
+            font-size: 0.95rem;
+            color: #334155;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 6px;
+        }
+        .signature-line {
+            border-bottom: 1px dashed #94a3b8;
+            margin-top: 25px;
+            margin-bottom: 6px;
+        }
+        .signature-label {
+            font-size: 0.8rem;
+            color: #64748b;
+            text-align: center;
+        }
+
+        /* Print Media Styles */
+        @media print {
+            body {
+                background: none;
+                padding: 0;
+                margin: 0;
+                color: #000;
+            }
+            .no-print-header {
+                display: none !important;
+            }
+            .manifest-container {
+                box-shadow: none !important;
+                border: none !important;
+                padding: 0 !important;
+                max-width: 100% !important;
+            }
+            .info-card {
+                background: none !important;
+                border: 1px solid #000 !important;
+            }
+            .shipments-table th {
+                background-color: #f1f5f9 !important;
+                border: 1px solid #000 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .shipments-table td {
+                border: 1px solid #000 !important;
+            }
+            .signature-box {
+                border: 1.5px dashed #000 !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header Tools (Hidden in Print) -->
+    <div class="no-print-header">
+        <button class="btn btn-close" onclick="window.close()">Close Window</button>
+        <button class="btn btn-print" onclick="window.print()"><i class="fa fa-print"></i> Print Manifest</button>
+    </div>
+
+    <!-- Manifest Container -->
+    <div class="manifest-container">
+        
+        <!-- Header -->
+        <div class="manifest-title-row">
+            <div>
+                <h1>StallCart</h1>
+                <div style="font-size: 0.9rem; font-weight: 700; color: #475569; margin-top: 4px;">COURIER HANDOVER MANIFEST</div>
+            </div>
+            <div class="manifest-meta">
+                <div>Manifest ID: <strong>{{ manifest_id }}</strong></div>
+                <div>Date: <strong>{{ manifest_date|date:"d M Y, h:i A" }}</strong></div>
+            </div>
+        </div>
+
+        <!-- Details Grid -->
+        <div class="manifest-details-grid">
+            <div class="info-card">
+                <h3>Dispatch From (Seller Address)</h3>
+                <strong>{{ from_details.name }}</strong><br>
+                {{ from_details.address }}<br>
+                {{ from_details.city }}, {{ from_details.state }} - {{ from_details.pincode }}<br>
+                Phone: {{ from_details.phone }}
+            </div>
+            <div class="info-card">
+                <h3>Summary</h3>
+                <table style="width: 100%; font-size: 0.9rem;">
+                    <tr>
+                        <td style="padding: 3px 0;">Total Shipments:</td>
+                        <td style="text-align: right;"><strong>{{ total_shipments }}</strong></td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 3px 0;">Total Items/Quantity:</td>
+                        <td style="text-align: right;"><strong>{{ total_qty }}</strong></td>
+                    </tr>
+                    {% if seller.gst_number %}
+                    <tr>
+                        <td style="padding: 3px 0; border-top: 1px dashed #cbd5e1; margin-top: 4px;">GSTIN:</td>
+                        <td style="text-align: right; border-top: 1px dashed #cbd5e1; margin-top: 4px;">{{ seller.gst_number }}</td>
+                    </tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+
+        <!-- Shipment Listing -->
+        <table class="shipments-table">
+            <thead>
+                <tr>
+                    <th width="5%" style="text-align: center;">S.No.</th>
+                    <th width="15%">Order ID</th>
+                    <th width="30%" style="text-align: center;">Courier &amp; AWB Barcode</th>
+                    <th width="35%">Recipient &amp; Destination</th>
+                    <th width="5%" style="text-align: center;">Qty</th>
+                    <th width="10%">Status/Sign</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in manifest_items %}
+                <tr>
+                    <td style="text-align: center; font-weight: 700;">{{ forloop.counter }}</td>
+                    <td>
+                        <strong>{{ item.order.unique_order_id }}</strong><br>
+                        <span style="font-size: 0.72rem; color: #64748b;">{{ item.order.created_at|date:"d M Y" }}</span>
+                    </td>
+                    <td style="text-align: center;">
+                        <div class="awb-cell">
+                            <span style="font-weight: 700; font-size: 0.78rem; color: #1e3a8a;">{{ item.courier }}</span>
+                            {% if item.bars %}
+                            <svg class="barcode-svg" viewBox="0 0 {{ item.bars|length }} 50" preserveAspectRatio="none">
+                                {% for bar in item.bars %}
+                                    {% if bar == 1 %}
+                                        <rect x="{{ forloop.counter0 }}" y="0" width="1" height="50" fill="black" />
+                                    {% endif %}
+                                {% endfor %}
+                            </svg>
+                            {% endif %}
+                            <span class="barcode-text">AWB: {{ item.awb }}</span>
+                        </div>
+                    </td>
+                    <td>
+                        <strong style="font-size: 0.85rem;">{{ item.customer_name }}</strong><br>
+                        <span style="font-size: 0.72rem; color: #475569;">{{ item.product.name|truncatechars:45 }}</span>
+                        {% if item.variant %}
+                            <span style="font-size: 0.68rem; background-color: #f1f5f9; padding: 1px 3px; border-radius: 2px; color: #475569; font-weight: 600; display: inline-block;">
+                                ({{ item.variant.size_value }})
+                            </span>
+                        {% endif %}<br>
+                        <span style="font-size: 0.72rem; color: #64748b;">{{ item.destination }}</span>
+                    </td>
+                    <td style="text-align: center; font-weight: 700; font-size: 0.9rem;">{{ item.quantity }}</td>
+                    <td style="font-size: 0.72rem; color: #64748b;">
+                        [ ] Picked<br>
+                        [ ] Rejected
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Signatures and Handover Handshake Section -->
+        <div class="signature-grid">
+            <div class="signature-box">
+                <h3>Courier Representative Handshake</h3>
+                <div style="font-size: 0.8rem; line-height: 1.5; color: #475569;">
+                    I hereby acknowledge the receipt of ________ packages in good physical condition.
+                </div>
+                <div>
+                    <div class="signature-line"></div>
+                    <div class="signature-label">Courier Executive Signature &amp; Name</div>
+                    <div style="font-size: 0.75rem; margin-top: 8px; color: #64748b; display: flex; justify-content: space-between;">
+                        <span>Date: ___/___/_____</span>
+                        <span>Time: _____:_____</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="signature-box">
+                <h3>Seller Verification</h3>
+                <div style="font-size: 0.8rem; line-height: 1.5; color: #475569;">
+                    Verified that the above packages have been handed over to the courier partner for shipment.
+                </div>
+                <div>
+                    <div class="signature-line"></div>
+                    <div class="signature-label">Authorized Seller Signature &amp; Stamp</div>
+                    <div style="font-size: 0.75rem; margin-top: 8px; color: #64748b; display: flex; justify-content: space-between;">
+                        <span>Date: ___/___/_____</span>
+                        <span>Time: _____:_____</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footnote -->
+        <div style="border-top: 1px solid var(--border-color); padding-top: 10px; margin-top: 30px; font-size: 0.72rem; text-align: center; color: #64748b; line-height: 1.4;">
+            This manifest sheet must be signed in duplicate. One copy to be retained by the seller as proof of courier pickup, and one copy to be handed over to the courier executive.
+        </div>
+
+    </div>
+
+</body>
+</html>

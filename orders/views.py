@@ -1276,6 +1276,159 @@ def print_shipping_label(request, order_id):
     return render(request, 'orders/shipping_label.html', context)
 
 
+@login_required
+def print_handover_manifest(request):
+    """
+    Seller/Admin: Generate and print a Courier Handover Manifest (Handover Sheet)
+    for selected orders.
+    """
+    role = getattr(request.user, 'role', 'customer')
+    
+    order_ids = request.GET.getlist('selected_orders')
+    if not order_ids and 'selected_orders' in request.GET:
+        val = request.GET.get('selected_orders')
+        if val:
+            order_ids = [x.strip() for x in val.split(',') if x.strip()]
+
+    if not order_ids:
+        messages.error(request, "No orders selected for handover manifest.")
+        if role == 'seller':
+            return redirect('orders:seller_orders')
+        return redirect('orders:admin_orders')
+
+    from items.models import SellerProfile
+    
+    filter_seller = None
+    if role == 'seller':
+        if not hasattr(request.user, 'seller_profile'):
+            messages.error(request, "Only verified sellers can access this page.")
+            return redirect('shop:home')
+        seller = request.user.seller_profile
+        filter_seller = seller
+        orders = Order.objects.filter(
+            unique_order_id__in=order_ids,
+            items__seller=seller
+        ).distinct().prefetch_related('items__product', 'items__seller')
+    elif request.user.is_staff or request.user.is_superuser:
+        seller_id = request.GET.get('seller_id')
+        if seller_id:
+            seller = get_object_or_404(SellerProfile, pk=seller_id)
+            filter_seller = seller
+            orders = Order.objects.filter(
+                unique_order_id__in=order_ids,
+                items__seller=seller
+            ).distinct().prefetch_related('items__product', 'items__seller')
+        else:
+            orders = Order.objects.filter(
+                unique_order_id__in=order_ids
+            ).distinct().prefetch_related('items__product', 'items__seller')
+            seller = orders.first().items.first().seller if orders.exists() and orders.first().items.exists() else None
+            filter_seller = None
+    else:
+        messages.error(request, "Access denied.")
+        return redirect('shop:home')
+
+    if not orders.exists():
+        messages.error(request, "No matching orders found.")
+        if role == 'seller':
+            return redirect('orders:seller_orders')
+        return redirect('orders:admin_orders')
+
+    # Gather seller address info (Ship From details)
+    from_details = {}
+    if seller:
+        shop_addr = getattr(seller, 'shop_address', None)
+        if shop_addr:
+            address_parts = [shop_addr.address_line1]
+            if shop_addr.address_line2:
+                address_parts.append(shop_addr.address_line2)
+            from_details = {
+                'name': shop_addr.shop_name or seller.shop_name,
+                'address': ", ".join(address_parts),
+                'city': shop_addr.city,
+                'state': shop_addr.state,
+                'pincode': shop_addr.postal_code,
+                'phone': seller.phone or request.user.phone,
+            }
+        else:
+            seller_addr = seller.address or {}
+            from_details = {
+                'name': seller.shop_name,
+                'address': seller_addr.get('address', ''),
+                'city': seller_addr.get('city', ''),
+                'state': seller_addr.get('state', ''),
+                'pincode': seller_addr.get('postalCode', '') or seller_addr.get('pincode', ''),
+                'phone': seller.phone or request.user.phone,
+            }
+    else:
+        # Default fallback
+        from django.conf import settings
+        from_details = {
+            'name': 'StallCart Center',
+            'address': 'StallCart main hub office',
+            'city': 'Mumbai',
+            'state': 'Maharashtra',
+            'pincode': '400001',
+            'phone': '—',
+        }
+
+    manifest_items = []
+    total_qty = 0
+    import datetime
+    
+    for order in orders:
+        if filter_seller:
+            items = order.items.filter(seller=filter_seller)
+        else:
+            items = order.items.all()
+            
+        for item in items:
+            tracking_number = item.tracking_number or order.tracking_number
+            courier_name = item.courier_name or order.courier_name or 'Shiprocket'
+            
+            # Generate Code 39-like vector barcode bars
+            barcode_val = tracking_number or order.unique_order_id
+            barcode_str = f"*{barcode_val}*"
+            bars = []
+            for char in barcode_str:
+                val = ord(char)
+                for i in range(9):
+                    bars.append(1 if (val & (1 << (i % 8))) else 0)
+                    bars.append(0)
+            
+            total_qty += item.quantity
+            manifest_items.append({
+                'order': order,
+                'item': item,
+                'product': item.product,
+                'variant': item.variant,
+                'quantity': item.quantity,
+                'awb': tracking_number or '—',
+                'courier': courier_name,
+                'customer_name': order.shipping_address.get('name') if order.shipping_address else (order.billing_address.get('name') if order.billing_address else '—'),
+                'destination': f"{order.shipping_address.get('city')}, {order.shipping_address.get('state')} - {order.shipping_address.get('postal_code')}" if order.shipping_address else '—',
+                'bars': bars,
+                'barcode_val': barcode_val,
+            })
+
+    # Sort items by courier name then order id for clean layout
+    manifest_items.sort(key=lambda x: (x['courier'], x['order'].unique_order_id))
+
+    manifest_date = datetime.datetime.now()
+    manifest_id = f"MNF-{manifest_date.strftime('%Y%m%d%H%M')}-{seller.id if seller else '0'}"
+
+    context = {
+        'seller': seller,
+        'from_details': from_details,
+        'manifest_id': manifest_id,
+        'manifest_date': manifest_date,
+        'manifest_items': manifest_items,
+        'total_shipments': len(manifest_items),
+        'total_qty': total_qty,
+    }
+    return render(request, 'orders/handover_manifest.html', context)
+
+
 # ==================== ADMIN VIEWS ====================
 
 # @login_required

@@ -80,7 +80,14 @@
                         </div>
                     {% endif %}
                     <div>
-                        <h4>{{ item.product.name|truncatechars:28 }}</h4>
+                        <h4>
+                            {{ item.product.name|truncatechars:28 }}
+                            {% if item.variant %}
+                            <span style="font-size: 0.72rem; color: #475569; background: #e0f2fe; padding: 1px 4px; border-radius: 3px; font-weight: 600; display: inline-block; margin-top: 3px;">
+                                {{ item.variant.size_value }}
+                            </span>
+                            {% endif %}
+                        </h4>
                         <p>Qty: {{ item.quantity }} &nbsp;·&nbsp; ₹{{ item.price|floatformat:2 }}</p>
                     </div>
                 </div>

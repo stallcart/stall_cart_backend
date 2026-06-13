@@ -69,20 +69,37 @@
         </form>
     </div>
 
-    <!-- Orders List (Grouped by Order) -->
-    {% regroup order_items by order as order_list %}
-    {% for order_group in order_list %}
-    <div class="order-card">
-        <div class="order-header">
-            <div>
-                <h3>Order #{% if order_group.grouper.unique_order_id %}{{ order_group.grouper.unique_order_id }}{% else %}{{ order_group.grouper.id|slice:":8"|upper }}{% endif %}</h3>
-                <p class="text-muted">Placed on {{ order_group.grouper.created_at|date:"M d, Y, h:i A" }}</p>
-                <p class="text-muted">Customer: {{ order_group.grouper.user.full_name|default:order_group.grouper.guest_email }}</p>
-            </div>
-            <div class="order-status-badge badge-{{ order_group.list.0.status }}">
-                {{ order_group.list.0.get_status_display }}
-            </div>
+    <!-- Bulk Actions Bar -->
+    <div class="bulk-actions-bar" style="background: white; padding: 12px 20px; border-radius: var(--r-xl); border: 1.5px solid var(--gray-100); box-shadow: var(--sh-sm); margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; gap: 15px; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <input type="checkbox" id="selectAllOrders" style="width: 18px; height: 18px; cursor: pointer;">
+            <label for="selectAllOrders" style="font-size: 0.95rem; font-weight: 700; color: #444; cursor: pointer; user-select: none;">Select All Orders on Page</label>
         </div>
+        <div style="display: flex; gap: 10px;">
+            <button type="submit" form="manifestBulkForm" class="btn-outline" style="font-size: 0.85rem; padding: 8px 16px; height: 38px; border-radius: var(--r-md); font-weight: 700; border: 2px solid #a855f7; color: #a855f7; background: white; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                <i class="fa fa-file-invoice"></i> Generate Handover Manifest
+            </button>
+        </div>
+    </div>
+
+    <!-- Orders List (Grouped by Order) -->
+    <form id="manifestBulkForm" method="GET" action="{% url 'orders:print_handover_manifest' %}" target="_blank">
+        {% regroup order_items by order as order_list %}
+        {% for order_group in order_list %}
+        <div class="order-card">
+            <div class="order-header">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <input type="checkbox" name="selected_orders" value="{% if order_group.grouper.unique_order_id %}{{ order_group.grouper.unique_order_id }}{% else %}{{ order_group.grouper.id }}{% endif %}" class="manifest-checkbox" style="width: 18px; height: 18px; cursor: pointer; margin-right: 4px;">
+                    <div>
+                        <h3 style="margin: 0;">Order #{% if order_group.grouper.unique_order_id %}{{ order_group.grouper.unique_order_id }}{% else %}{{ order_group.grouper.id|slice:":8"|upper }}{% endif %}</h3>
+                        <p class="text-muted" style="margin: 4px 0 0;">Placed on {{ order_group.grouper.created_at|date:"M d, Y, h:i A" }}</p>
+                        <p class="text-muted" style="margin: 2px 0 0;">Customer: {{ order_group.grouper.user.full_name|default:order_group.grouper.guest_email }}</p>
+                    </div>
+                </div>
+                <div class="order-status-badge badge-{{ order_group.list.0.status }}">
+                    {{ order_group.list.0.get_status_display }}
+                </div>
+            </div>
 
         <div class="order-items-list">
             {% for item in order_group.list %}
@@ -93,7 +110,14 @@
                     <img src="/static/images/placeholder.png" alt="{{ item.product.name }}" class="item-thumb">
                 {% endif %}
                 <div class="item-details">
-                    <h4>{{ item.product.name }}</h4>
+                    <h4>
+                        {{ item.product.name }}
+                        {% if item.variant %}
+                        <span style="font-size: 0.8rem; color: #475569; background: #e0f2fe; padding: 2px 6px; border-radius: 4px; font-weight: 600; margin-left: 6px; display: inline-block;">
+                            Variant: {{ item.variant.size_value }}{% if item.variant.color %} / {{ item.variant.color }}{% endif %}
+                        </span>
+                        {% endif %}
+                    </h4>
                     <p>SKU: {{ item.product.sku|default:'—' }} • Qty: {{ item.quantity }}</p>
                     <p style="font-size: 0.78rem; color: #666; margin-top: 2px;">
                         Commission ({{ item.product.category.commision_percentage|default:0 }}%): 
@@ -135,14 +159,43 @@
             {% endwith %}
         </div>
     </div>
-    {% empty %}
-    <div class="empty-state">
-        <i class="fa fa-box-open"></i>
-        <h3>No orders yet</h3>
-        <p>Orders containing your products will appear here automatically.</p>
-    </div>
-    {% endfor %}
+        {% empty %}
+        <div class="empty-state">
+            <i class="fa fa-box-open"></i>
+            <h3>No orders yet</h3>
+            <p>Orders containing your products will appear here automatically.</p>
+        </div>
+        {% endfor %}
+    </form>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const selectAllCheckbox = document.getElementById('selectAllOrders');
+    const orderCheckboxes = document.querySelectorAll('.manifest-checkbox');
+    const manifestBulkForm = document.getElementById('manifestBulkForm');
+
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            orderCheckboxes.forEach(cb => {
+                cb.checked = selectAllCheckbox.checked;
+            });
+        });
+    }
+
+    if (manifestBulkForm) {
+        manifestBulkForm.addEventListener('submit', function(e) {
+            const checkedCount = Array.from(orderCheckboxes).filter(cb => cb.checked).length;
+            if (checkedCount === 0) {
+                e.preventDefault();
+                alert('Please select at least one order to generate a handover manifest.');
+            }
+        });
+    }
+});
+</script>
 {% endblock %}
 
 {% block extra_css %}

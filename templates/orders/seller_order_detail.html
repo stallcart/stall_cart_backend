@@ -47,6 +47,9 @@
                 <a href="{% url 'orders:print_shipping_label' order.unique_order_id %}" target="_blank" class="btn-outline" style="font-size: 0.85rem; padding: 8px 16px; height: 36px; border-radius: 8px; font-weight: 700; border: 2px solid #eab308; cursor: pointer; background: white; color: #eab308; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
                     <i class="fa fa-tag"></i> Print Label
                 </a>
+                <a href="{% url 'orders:print_handover_manifest' %}?selected_orders={{ order.unique_order_id }}" target="_blank" class="btn-outline" style="font-size: 0.85rem; padding: 8px 16px; height: 36px; border-radius: 8px; font-weight: 700; border: 2px solid #a855f7; cursor: pointer; background: white; color: #a855f7; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+                    <i class="fa fa-file-invoice"></i> Handover Manifest
+                </a>
             </div>
         </div>
     </div>
@@ -83,7 +86,14 @@
                 <img src="/static/images/placeholder.png" alt="{{ item.product.name }}" width="80">
             {% endif %}
             <div>
-                <h4>{{ item.product.name }}</h4>
+                <h4>
+                    {{ item.product.name }}
+                    {% if item.variant %}
+                    <span style="font-size: 0.8rem; color: #475569; background: #e0f2fe; padding: 2px 6px; border-radius: 4px; font-weight: 600; margin-left: 6px; display: inline-block;">
+                        Variant: {{ item.variant.size_value }}{% if item.variant.color %} / {{ item.variant.color }}{% endif %}
+                    </span>
+                    {% endif %}
+                </h4>
                 <p>SKU: {{ item.product.sku|default:'—' }}</p>
                 <p>Qty: {{ item.quantity }} × ₹{{ item.price|floatformat:2 }}</p>
                 {% if item.shiprocket_status %}
@@ -252,7 +262,14 @@
                         <label style="display: flex; align-items: flex-start; gap: 10px; font-size: 0.9rem; cursor: pointer; text-align: left;">
                             <input type="checkbox" name="item_ids" value="{{ item.id }}" checked style="margin-top: 3px; cursor: pointer;">
                             <div style="flex: 1;">
-                                <strong style="color: #333;">{{ item.product.name }}</strong>
+                                <strong style="color: #333;">
+                                    {{ item.product.name }}
+                                    {% if item.variant %}
+                                    <span style="font-size: 0.75rem; color: #475569; background: #e2e8f0; padding: 2px 4px; border-radius: 3px; font-weight: 600; margin-left: 4px; display: inline-block;">
+                                        ({{ item.variant.size_value }}{% if item.variant.color %}/{{ item.variant.color }}{% endif %})
+                                    </span>
+                                    {% endif %}
+                                </strong>
                                 <span style="display: block; font-size: 0.8rem; color: #666;">
                                     Qty: {{ item.quantity }} • Price: ₹{{ item.price|floatformat:2 }} • Status: {{ item.get_status_display }}
                                 </span>

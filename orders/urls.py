@@ -87,6 +87,11 @@ urlpatterns = [
          views.print_shipping_label,
          name='print_shipping_label'),
     
+    # Seller: Print Handover Manifest
+    path('seller/orders/handover-manifest/',
+         views.print_handover_manifest,
+         name='print_handover_manifest'),
+    
     # ==================== ✅ ADMIN URLS (Restricted to superusers only) ====================
     
     # Admin: All Orders

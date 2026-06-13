@@ -452,7 +452,14 @@
                     <div class="od-item-img-placeholder"><i class="fa fa-image"></i></div>
                 {% endif %}
                 <div style="flex:1;min-width:0;">
-                    <p class="od-item-name">{{ item.product.name }}</p>
+                    <p class="od-item-name">
+                        {{ item.product.name }}
+                        {% if item.variant %}
+                            <span class="od-item-variant" style="font-size: 0.82rem; color: #475569; background: #e0f2fe; padding: 2px 6px; border-radius: 4px; font-weight: 600; margin-left: 6px; display: inline-block;">
+                                Variant: {{ item.variant.size_value }}{% if item.variant.color %} / {{ item.variant.color }}{% endif %}
+                            </span>
+                        {% endif %}
+                    </p>
                     <p class="od-item-seller">
                         <i class="fa fa-store" style="color:#2874f0;font-size:.75rem;margin-right:3px;"></i>
                         {{ item.seller.shop_name }}
