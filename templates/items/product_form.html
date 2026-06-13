@@ -356,12 +356,18 @@
                             </div>
                         </div>
                         
+                        {% if is_superuser %}
                         <div class="form-group">
                             <label>Custom Attributes (JSON)</label>
                             {{ fs.attributes }}
                             {% if fs.attributes.errors %}<div class="field-error">{{ fs.attributes.errors.0 }}</div>{% endif %}
                             <small class="form-help">e.g., {"material": "Cotton", "fit": "Slim"}</small>
                         </div>
+                        {% else %}
+                        <div style="display:none;">
+                            {{ fs.attributes }}
+                        </div>
+                        {% endif %}
                         
                         <!-- Hidden fields for formset -->
                         {% if fs.DELETE %}<div style="display:none;">{{ fs.DELETE }}</div>{% endif %}
@@ -428,11 +434,15 @@
                         </div>
                     </div>
                     
+                    {% if is_superuser %}
                     <div class="form-group">
                         <label>Custom Attributes (JSON)</label>
                         <textarea name="variants-__prefix__-attributes" class="form-input" rows="2" 
                                 placeholder='{"material": "Cotton", "fit": "Slim"}'></textarea>
                     </div>
+                    {% else %}
+                    <input type="hidden" name="variants-__prefix__-attributes" value="">
+                    {% endif %}
                     
                     <!-- Hidden DELETE and ID fields -->
                     <input type="hidden" name="variants-__prefix__-DELETE" value="" id="id_variants-__prefix__-DELETE">
