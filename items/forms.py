@@ -362,6 +362,12 @@ class ProductVariantForm(forms.ModelForm):
             raise forms.ValidationError('Stock cannot be negative.')
         return stock
 
+    def clean_attributes(self):
+        attrs = self.cleaned_data.get('attributes')
+        if attrs is None or attrs == '':
+            return {}
+        return attrs
+
 
 class BaseVariantFormSet(BaseInlineFormSet):
     """Custom formset validation"""

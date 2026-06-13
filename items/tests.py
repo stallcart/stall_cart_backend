@@ -322,6 +322,61 @@ class ProductCalculationAndStockTests(TestCase):
         self.assertTrue(v1.is_active)
         self.assertFalse(v2.is_active)
 
+    def test_variant_empty_attributes_formset_save(self):
+        """Verify that submitting an empty/blank attributes field on a variant does not raise IntegrityError."""
+        product = Product.objects.create(
+            seller=self.seller_profile,
+            category=self.category,
+            name="Boot",
+            price=Decimal("15.00"),
+            stock=4,
+            status="published"
+        )
+        v1 = ProductVariant.objects.create(
+            product=product,
+            size_value="9",
+            stock=4,
+            is_active=True
+        )
+        product.refresh_from_db()
+        self.assertEqual(product.stock, 4)
+
+        # POST data sending empty attributes string (e.g. from seller form hidden input)
+        post_data = {
+            'name': 'Boot',
+            'category': self.category.id,
+            'price': '15.00',
+            'cost_price': '5.00',
+            'discount_percent': '0',
+            'stock': '4',
+            'low_stock_threshold': '1',
+            'status': 'published',
+            'description': 'Description text long enough...',
+            'variants-TOTAL_FORMS': '1',
+            'variants-INITIAL_FORMS': '1',
+            'variants-MIN_NUM_FORMS': '0',
+            'variants-MAX_NUM_FORMS': '1000',
+            
+            'variants-0-id': str(v1.id),
+            'variants-0-size_value': '9',
+            'variants-0-size_type': 'footwear',
+            'variants-0-color': '',
+            'variants-0-price_override': '',
+            'variants-0-stock': '4',
+            'variants-0-is_active': 'on',
+            'variants-0-attributes': '',  # Submitted as empty string
+            'variants-0-DELETE': '',
+        }
+        self.client.login(phone="8888888888", password="sellerpassword")
+        response = self.client.post(f'/items/product/{product.id}/edit/', post_data)
+        
+        # Should succeed and redirect
+        self.assertEqual(response.status_code, 302)
+        
+        v1.refresh_from_db()
+        # attributes should default/fallback to an empty dictionary
+        self.assertEqual(v1.attributes, {})
+
 
 class ProductAndSellerReviewTests(TestCase):
     def setUp(self):
