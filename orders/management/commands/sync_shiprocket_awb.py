@@ -5,7 +5,7 @@ from django.utils import timezone
 import requests
 import logging
 
-from orders.models import Order, OrderStatusLog, SystemActivityLog
+from orders.models import Order, OrderStatusLog, SystemActivityLog, SHIPROCKET_STATUS_MAP
 from accounts.models import User
 from delivery.delivery_services import ShiprocketService
 from common.email_service import send_dynamic_email
@@ -334,29 +334,7 @@ class Command(BaseCommand):
 
         self.stdout.write(f"\n[Part 2] Checking {len(distinct_tracking_numbers)} active tracking number(s) for status updates...")
 
-        status_map = {
-            'awb assigned': 'confirmed',
-            'pickup generated': 'processing',
-            'manifested': 'processing',
-            'out for pickup': 'processing',
-            'pickup scheduled': 'processing',
-            'pickup queued': 'processing',
-            'pickup': 'shipped',
-            'picked up': 'shipped',
-            'picked-up': 'shipped',
-            'in transit': 'shipped',
-            'shipped': 'shipped',
-            'out for delivery': 'out_for_delivery',
-            'delivered': 'delivered',
-            'rto': 'returned_to_source',
-            'returned to source': 'returned_to_source',
-            'cancelled': 'cancelled',
-            'canceled': 'cancelled',
-            'pickup failed': 'courier_failed_pickup',
-            'pickup exception': 'courier_failed_pickup',
-            'pickup_failed': 'courier_failed_pickup',
-            'pickup_exception': 'courier_failed_pickup',
-        }
+        status_map = SHIPROCKET_STATUS_MAP
 
         affected_orders = {}
 

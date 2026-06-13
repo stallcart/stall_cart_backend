@@ -14,7 +14,7 @@ import logging
 from decimal import Decimal
 from io import BytesIO
 from common.decorators import *
-from .models import Order, OrderItem, ReturnRequest, OrderStatusLog, OrderReturnImage, SellerSettlement
+from .models import Order, OrderItem, ReturnRequest, OrderStatusLog, OrderReturnImage, SellerSettlement, SHIPROCKET_STATUS_MAP
 from items.models import Product, SellerProfile
 from delivery.models import DeliveryPartner
 from django.conf import settings
@@ -165,25 +165,7 @@ def sync_shiprocket_tracking(order):
             shiprocket_tracking = srv.get_tracking(order.tracking_number)
             if shiprocket_tracking and shiprocket_tracking.get('current_status'):
                 sr_status = shiprocket_tracking['current_status'].strip()
-                # Status mapping to local db status
-                status_map = {
-                    'awb assigned': 'confirmed',
-                    'manifested': 'processing',
-                    'out for pickup': 'processing',
-                    'pickup scheduled': 'processing',
-                    'pickup queued': 'processing',
-                    'pickup': 'shipped',
-                    'picked up': 'shipped',
-                    'picked-up': 'shipped',
-                    'in transit': 'shipped',
-                    'shipped': 'shipped',
-                    'out for delivery': 'out_for_delivery',
-                    'delivered': 'delivered',
-                    'rto': 'returned_to_source',
-                    'returned to source': 'returned_to_source',
-                    'cancelled': 'cancelled',
-                    'canceled': 'cancelled'
-                }
+                status_map = SHIPROCKET_STATUS_MAP
                 new_local_status = status_map.get(sr_status.lower())
                 
                 # Update matching items sharing parent tracking number
@@ -247,29 +229,7 @@ def sync_shiprocket_tracking(order):
             sr_status = tracking_data.get("current_status")
             if sr_status:
                 sr_status = sr_status.strip()
-                status_map = {
-                    'awb assigned': 'confirmed',
-                    'pickup generated': 'processing',
-                    'manifested': 'processing',
-                    'out for pickup': 'processing',
-                    'pickup scheduled': 'processing',
-                    'pickup queued': 'processing',
-                    'pickup': 'shipped',
-                    'picked up': 'shipped',
-                    'picked-up': 'shipped',
-                    'in transit': 'shipped',
-                    'shipped': 'shipped',
-                    'out for delivery': 'out_for_delivery',
-                    'delivered': 'delivered',
-                    'rto': 'returned_to_source',
-                    'returned to source': 'returned_to_source',
-                    'cancelled': 'cancelled',
-                    'canceled': 'cancelled',
-                    'pickup failed': 'courier_failed_pickup',
-                    'pickup exception': 'courier_failed_pickup',
-                    'pickup_failed': 'courier_failed_pickup',
-                    'pickup_exception': 'courier_failed_pickup',
-                }
+                status_map = SHIPROCKET_STATUS_MAP
                 new_local_status = status_map.get(sr_status.lower())
                 
                 items_to_update = order.items.filter(tracking_number=tracking_number)
@@ -1726,29 +1686,7 @@ def shiprocket_webhook(request):
             logger.warning(f"Shiprocket webhook: Order not found for AWB={awb}, OrderID={order_id}")
             return HttpResponse("Order not found", status=404)
             
-        sr_status = sr_status.strip()
-        status_map = {
-            'awb assigned': 'confirmed',
-            'manifested': 'processing',
-            'out for pickup': 'processing',
-            'pickup scheduled': 'processing',
-            'pickup queued': 'processing',
-            'pickup': 'shipped',
-            'picked up': 'shipped',
-            'picked-up': 'shipped',
-            'in transit': 'shipped',
-            'shipped': 'shipped',
-            'out for delivery': 'out_for_delivery',
-            'delivered': 'delivered',
-            'rto': 'returned_to_source',
-            'returned to source': 'returned_to_source',
-            'cancelled': 'cancelled',
-            'canceled': 'cancelled',
-            'pickup failed': 'courier_failed_pickup',
-            'pickup exception': 'courier_failed_pickup',
-            'pickup_failed': 'courier_failed_pickup',
-            'pickup_exception': 'courier_failed_pickup',
-        }
+        status_map = SHIPROCKET_STATUS_MAP
         
         new_local_status = status_map.get(sr_status.lower())
         
