@@ -795,7 +795,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const stockVal = stockField?.value?.trim() || '';
             const colorVal = colorField?.value?.trim() || '';
             const priceVal = priceField?.value?.trim() || '';
-            const isDeleted = deleteField?.value === 'on';
+            const isDeleted = deleteField ? (deleteField.type === 'checkbox' ? deleteField.checked : deleteField.value === 'on') : false;
             
             // Check if this is a new variant (no ID)
             const isNew = !idField || !idField.value || idField.value.trim() === '';
@@ -1000,11 +1000,20 @@ document.addEventListener('DOMContentLoaded', function() {
             const deleteField = row.querySelector('input[id$="-DELETE"]');
             
             if (idField && idField.value && idField.value.trim() !== '' && deleteField) {
-                // Saved variant: mark for deletion via hidden field
+                // Saved variant: mark for deletion
                 deleteField.value = 'on';
+                if (deleteField.type === 'checkbox') {
+                    deleteField.checked = true;
+                }
+                
+                // Visual indicators
+                row.classList.add('marked-for-delete');
                 row.style.opacity = '0.5';
-                row.style.pointerEvents = 'none';
-                row.querySelector('.variant-title').innerHTML += ' <span style="color:#c62828;font-weight:600;">(Marked for deletion)</span>';
+                row.querySelectorAll('input:not([id$="-DELETE"]), select, textarea').forEach(el => {
+                    el.disabled = true;
+                });
+                
+                row.querySelector('.variant-title').innerHTML += ' <span style="color:#c62828;font-weight:600;" class="delete-marker">(Marked for deletion)</span>';
                 removeBtn.innerHTML = '<i class="fa fa-undo"></i> Undelete';
                 removeBtn.classList.remove('btn-danger');
                 removeBtn.classList.add('btn-outline');
@@ -1014,9 +1023,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 removeBtn.onclick = function(ev) {
                     ev.stopPropagation();
                     deleteField.value = '';
+                    if (deleteField.type === 'checkbox') {
+                        deleteField.checked = false;
+                    }
+                    
+                    row.classList.remove('marked-for-delete');
                     row.style.opacity = '1';
-                    row.style.pointerEvents = 'all';
-                    const marker = row.querySelector('.variant-title span:last-child');
+                    row.querySelectorAll('input:not([id$="-DELETE"]), select, textarea').forEach(el => {
+                        el.disabled = false;
+                    });
+                    
+                    const marker = row.querySelector('.variant-title span.delete-marker');
                     if (marker) marker.remove();
                     removeBtn.innerHTML = '<i class="fa fa-trash"></i> Remove';
                     removeBtn.classList.add('btn-danger');
