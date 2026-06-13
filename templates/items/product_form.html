@@ -812,7 +812,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const stockVal = stockField?.value?.trim() || '';
             const colorVal = colorField?.value?.trim() || '';
             const priceVal = priceField?.value?.trim() || '';
-            const isDeleted = deleteField ? (deleteField.type === 'checkbox' ? deleteField.checked : deleteField.value === 'on') : false;
+            const isDeleted = row.classList.contains('marked-for-delete') || (deleteField ? (deleteField.type === 'checkbox' ? deleteField.checked : deleteField.value === 'on') : false);
             
             // Check if this is a new variant (no ID)
             const isNew = !idField || !idField.value || idField.value.trim() === '';
