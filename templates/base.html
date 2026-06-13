@@ -719,6 +719,13 @@ window.alert = function(message) {
     }
 };
 
+// Disable scroll wheel changing values on focused number inputs globally
+document.addEventListener('wheel', function(e) {
+    if (document.activeElement && document.activeElement.type === 'number') {
+        document.activeElement.blur();
+    }
+});
+
 // Render Django messages as toast notifications on DOM load
 document.addEventListener('DOMContentLoaded', () => {
     {% if messages %}
