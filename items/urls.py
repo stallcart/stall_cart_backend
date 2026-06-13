@@ -33,9 +33,12 @@ urlpatterns = [
          require_POST(seller_or_admin_only(views.product_toggle_status)), 
          name='product_toggle_status'),
          
-    path('product/<int:product_id>/delete/',    
+        path('product/<int:product_id>/delete/',    
          require_POST(seller_or_admin_only(views.product_delete)),        
          name='product_delete'),
+    path('product/<int:product_id>/update-stock/',
+         require_POST(seller_or_admin_only(views.product_update_stock)),
+         name='product_update_stock'),
 
     # ── JSON API (Accessible to Sellers AND Admins) ─────────────────────
     path('api/product/<int:product_id>/',       

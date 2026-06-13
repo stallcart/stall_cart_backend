@@ -1,0 +1,176 @@
+{% load static %}
+<div class="table-wrapper">
+    <table class="data-table" style="min-width: 820px;">
+        <thead>
+            <tr>
+                <th style="width: 320px;">Product</th>
+                <th>Category</th>
+                <th>Price</th>
+                <th>Stock</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="productsTableBody">
+            {% for p in products %}
+            <tr id="row-{{ p.id }}" data-id="{{ p.id }}">
+                <!-- Product detail cell -->
+                <td>
+                    <div class="prod-cell">
+                        {% if p.primary_image %}
+                            <img src="{{ p.primary_image.url }}" alt="{{ p.name }}" class="thumb">
+                        {% else %}
+                            <div class="img-placeholder" style="
+                                width: 52px; height: 52px; border-radius: var(--r-md);
+                                background: var(--gray-100); display: flex;
+                                align-items: center; justify-content: center;
+                                color: var(--gray-400); font-size: 1.2rem;
+                                flex-shrink: 0; border: 1.5px solid var(--gray-200);
+                            "><i class="fa fa-image"></i></div>
+                        {% endif %}
+                        <div class="item-info" style="display: flex; flex-direction: column; gap: 3px; min-width: 0;">
+                            <strong style="font-size: 0.9rem; line-height: 1.35; color: var(--gray-800); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ p.name|truncatechars:35 }}</strong>
+                            <small class="text-muted" style="font-size: 0.75rem; color: var(--gray-400);">SKU: {{ p.sku|default:"—" }}</small>
+                            <div class="badge-row" style="display: flex; gap: 5px; flex-wrap: wrap; margin-top: 2px;">
+                                {% if p.is_featured %}<span class="mini-badge featured"><i class="fa fa-star text-warning" style="margin-right: 4px;"></i>Featured</span>{% endif %}
+                                {% if p.is_hot_deal %}<span class="mini-badge hot"><i class="fa fa-fire text-danger" style="margin-right: 4px;"></i>Hot</span>{% endif %}
+                                {% if p.gender %}<span class="mini-badge gender">{{ p.get_gender_display }}</span>{% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </td>
+                
+                <!-- Category cell -->
+                <td>
+                    <span class="category-tag" style="background: var(--gray-100); color: var(--gray-700); padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: 600;">
+                        {{ p.category.name|default:'-' }}
+                    </span>
+                </td>
+                
+                <!-- Price cell -->
+                <td class="price-cell">
+                    {% if p.discount_percent > 0 %}
+                        <span class="price-original" style="text-decoration: line-through; color: var(--gray-400); font-size: 0.8rem; display: block;">₹{{ p.price|floatformat:2 }}</span>
+                        <strong class="price-final" style="color: var(--gray-900); font-size: 1rem; font-weight: 700;">₹{{ p.discount_price|floatformat:2 }}</strong>
+                        <span class="discount-chip" style="background: var(--red); color: #fff; padding: 2px 6px; border-radius: 6px; font-size: 0.68rem; font-weight: 700; margin-left: 4px;">-{{ p.discount_percent }}%</span>
+                    {% else %}
+                        <strong style="color: var(--gray-900); font-size: 1rem; font-weight: 700;">₹{{ p.price|floatformat:2 }}</strong>
+                    {% endif %}
+                </td>
+                
+                <!-- Stock cell with inline edit support -->
+                <td>
+                    {% if p.variants_count > 0 %}
+                        <div style="display: flex; flex-direction: column; gap: 2px;">
+                            <span class="status-pill {% if p.stock == 0 %}status-oos{% elif p.stock <= 5 %}status-draft{% else %}status-published{% endif %}" style="display: inline-flex; align-items: center; gap: 4px; width: fit-content;">
+                                {% if p.stock <= 5 and p.stock > 0 %}<i class="fa fa-exclamation-triangle text-warning"></i>{% endif %}
+                                {{ p.stock }}
+                            </span>
+                            <small class="text-muted" style="font-size: 0.72rem; font-weight: 600; color: var(--blue-600);"><i class="fa fa-ruler-combined" style="margin-right: 2px;"></i>{{ p.variants_count }} variant{% if p.variants_count > 1 %}s{% endif %}</small>
+                        </div>
+                    {% else %}
+                        <div class="stock-display-container" data-id="{{ p.id }}" style="display: flex; align-items: center; gap: 6px;">
+                            <span class="stock-val-span status-pill {% if p.stock == 0 %}status-oos{% elif p.stock <= 5 %}status-draft{% else %}status-published{% endif %}" style="display: inline-flex; align-items: center; gap: 4px; min-width: 32px; justify-content: center;">
+                                {% if p.stock <= 5 and p.stock > 0 %}<i class="fa fa-exclamation-triangle text-warning"></i>{% endif %}
+                                {{ p.stock }}
+                            </span>
+                            <button type="button" class="quick-stock-edit-btn" title="Quick edit stock" style="background: none; border: none; color: var(--gray-400); cursor: pointer; padding: 2px 4px; border-radius: 4px; transition: all var(--tr);">
+                                <i class="fa fa-pencil-alt" style="font-size: 0.8rem;"></i>
+                            </button>
+                        </div>
+                        <div class="stock-edit-container" data-id="{{ p.id }}" style="display: none; align-items: center; gap: 4px;">
+                            <input type="number" class="form-input quick-stock-input" value="{{ p.stock }}" min="0" style="width: 65px; height: 28px; padding: 2px 6px; font-size: 0.85rem; border-radius: 6px; border: 1.5px solid var(--gray-300);">
+                            <button type="button" class="quick-stock-save-btn" style="background: var(--green); color: white; border: none; width: 26px; height: 26px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center;"><i class="fa fa-check" style="font-size: 0.8rem;"></i></button>
+                            <button type="button" class="quick-stock-cancel-btn" style="background: var(--gray-200); color: var(--gray-700); border: none; width: 26px; height: 26px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center;"><i class="fa fa-times" style="font-size: 0.8rem;"></i></button>
+                        </div>
+                    {% endif %}
+                </td>
+                
+                <!-- Status badge / toggle -->
+                <td>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <label class="toggle">
+                            <input type="checkbox" class="status-toggle" data-id="{{ p.id }}" 
+                                   {% if p.status == 'published' %}checked{% endif %}
+                                   {% if p.status == 'discontinued' %}disabled{% endif %}>
+                            <span class="slider"></span>
+                        </label>
+                        <span class="status-pill status-pill-text {% if p.status == 'published' %}status-published{% elif p.status == 'draft' %}status-draft{% else %}status-discontinued{% endif %}" id="status-pill-{{ p.id }}" style="font-size: 0.72rem; font-weight: 700; padding: 3px 8px;">
+                            {{ p.get_status_display }}
+                        </span>
+                    </div>
+                </td>
+                
+                <!-- Action buttons -->
+                <td>
+                    <div class="action-group">
+                        {# View Live #}
+                        {% if p.status == 'published' %}
+                            <a href="{% url 'items:product_detail' p.slug %}" target="_blank" rel="noopener noreferrer" class="act-btn act-view" title="View live product">
+                                <i class="fa fa-eye"></i><span class="hide-mobile">View</span>
+                            </a>
+                        {% else %}
+                            <span class="act-btn act-view-off" title="Publish to view live">
+                                <i class="fa fa-eye-slash"></i><span class="hide-mobile">View</span>
+                            </span>
+                        {% endif %}
+                        
+                        {# Edit Standalone #}
+                        <a href="{% url 'items:product_edit' p.id %}" class="act-btn act-edit" title="Edit product">
+                            <i class="fa fa-pencil-alt"></i><span class="hide-mobile">Edit</span>
+                        </a>
+                        
+                        {# Archive #}
+                        {% if p.status != 'discontinued' %}
+                            <button type="button" class="act-btn act-archive" data-id="{{ p.id }}" data-name="{{ p.name|escapejs }}" title="Archive product">
+                                <i class="fa fa-trash-alt"></i><span class="hide-mobile">Archive</span>
+                            </button>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" class="empty-state">
+                    <div class="empty-state-icon">
+                        <i class="fa fa-box-open"></i>
+                    </div>
+                    <h3>No products found</h3>
+                    <p>Try refining your search queries or selecting different category and status filters.</p>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Pagination controls -->
+{% if products.has_other_pages %}
+<div class="pagination-admin" style="display: flex; justify-content: center; gap: 8px; margin-top: 24px; flex-wrap: wrap;">
+    {% if products.has_previous %}
+        <button type="button" class="page-link page-btn" data-page="1" title="First Page">
+            <i class="fa fa-angle-double-left"></i>
+        </button>
+        <button type="button" class="page-link page-btn" data-page="{{ products.previous_page_number }}" title="Previous Page">
+            <i class="fa fa-angle-left"></i>
+        </button>
+    {% endif %}
+    
+    {% for num in products.paginator.page_range %}
+        {% if products.number == num %}
+            <span class="page-link active" style="cursor: default;">{{ num }}</span>
+        {% elif num > products.number|add:'-3' and num < products.number|add:'3' %}
+            <button type="button" class="page-link page-btn" data-page="{{ num }}">{{ num }}</button>
+        {% endif %}
+    {% endfor %}
+    
+    {% if products.has_next %}
+        <button type="button" class="page-link page-btn" data-page="{{ products.next_page_number }}" title="Next Page">
+            <i class="fa fa-angle-right"></i>
+        </button>
+        <button type="button" class="page-link page-btn" data-page="{{ products.paginator.num_pages }}" title="Last Page">
+            <i class="fa fa-angle-double-right"></i>
+        </button>
+    {% endif %}
+</div>
+{% endif %}

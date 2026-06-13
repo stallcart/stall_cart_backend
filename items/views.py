@@ -139,17 +139,46 @@ def admin_dashboard(request):
 def seller_dashboard(request):
     """Seller's personal dashboard – orders + product overview."""
     seller   = request.user.seller_profile
-    products = Product.objects.filter(seller=seller).select_related('category')
+    products = Product.objects.filter(seller=seller).select_related('category').annotate(variants_count=Count('variants'))
 
+    # Apply search and filtering
+    search   = request.GET.get('search', '').strip()
+    status   = request.GET.get('status', '').strip()
+    cat_id   = request.GET.get('category', '').strip()
+
+    if search:
+        products = products.filter(
+            Q(name__icontains=search) |
+            Q(sku__icontains=search) |
+            Q(brand__icontains=search)
+        )
+    if status:
+        products = products.filter(status=status)
+    if cat_id:
+        products = products.filter(category_id=cat_id)
+
+    # Base queryset for stats cards (unfiltered to keep stats stable)
+    base_qs = Product.objects.filter(seller=seller)
     stats = {
-        'total_products': products.count(),
-        'published':      products.filter(status='published').count(),
-        'draft':          products.filter(status='draft').count(),
-        'out_of_stock':   products.filter(stock=0).count(),
-        'low_stock':      products.filter(stock__lte=5, stock__gt=0).count(),
-        'total_views':    products.aggregate(total=Sum('views_count'))['total'] or 0,
-        'total_sold':     products.aggregate(total=Sum('sold_count'))['total'] or 0,
+        'total':          base_qs.count(),
+        'published':      base_qs.filter(status='published').count(),
+        'draft':          base_qs.filter(status='draft').count(),
+        'out_of_stock':   base_qs.filter(stock=0).count(),
+        'low_stock':      base_qs.filter(stock__lte=5, stock__gt=0).count(),
+        'total_views':    base_qs.aggregate(total=Sum('views_count'))['total'] or 0,
+        'total_sold':     base_qs.aggregate(total=Sum('sold_count'))['total'] or 0,
     }
+
+    # Pagination
+    from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+    page = request.GET.get('page', 1)
+    paginator = Paginator(products.order_by('-created_at'), 10)
+    try:
+        paginated_products = paginator.page(page)
+    except PageNotAnInteger:
+        paginated_products = paginator.page(1)
+    except EmptyPage:
+        paginated_products = paginator.page(paginator.num_pages)
 
     try:
         from orders.models import OrderItem
@@ -169,12 +198,21 @@ def seller_dashboard(request):
 
     context = {
         'seller':        seller,
-        'products':      products,
+        'products':      paginated_products,
         'stats':         stats,
         'recent_orders': recent_orders,
         'categories':    Category.objects.filter(is_active=True),
         'has_bank_details': has_bank_details,
+        'filters': {
+            'search':   search,
+            'status':   status,
+            'category': cat_id,
+        },
     }
+
+    # AJAX rendering check
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('ajax') == '1':
+        return render(request, 'items/seller_dashboard_table.html', context)
     return render(request, 'items/seller_dashboard.html', context)
 
 
@@ -553,7 +591,10 @@ def product_create(request):
                 obj.delete()
 
             messages.success(request, f'✅ Product "{product.name}" created successfully!')
-            return redirect('items:admin_dashboard')
+            if request.user.is_admin:
+                return redirect('items:admin_dashboard')
+            else:
+                return redirect('items:seller_dashboard')
         else:
             if not form.is_valid():
                 for field, errors in form.errors.items():
@@ -656,7 +697,10 @@ def product_edit(request, product_id):
                 obj.delete()
 
             messages.success(request, f'✅ Product "{updated.name}" updated successfully!')
-            return redirect('items:admin_dashboard')
+            if request.user.is_admin:
+                return redirect('items:admin_dashboard')
+            else:
+                return redirect('items:seller_dashboard')
         else:
             if not form.is_valid():
                 for field, errors in form.errors.items():
@@ -708,10 +752,25 @@ def product_toggle_status(request, product_id):
     product.status = 'published' if product.status == 'draft' else 'draft'
     product.save(update_fields=['status'])
 
+    # Calculate stats for the user's dashboard response
+    if request.user.is_admin:
+        base_qs = Product.objects.all()
+    else:
+        base_qs = Product.objects.filter(seller=request.user.seller_profile)
+        
+    stats = {
+        'total':        base_qs.count(),
+        'published':    base_qs.filter(status='published').count(),
+        'draft':        base_qs.filter(status='draft').count(),
+        'out_of_stock': base_qs.filter(stock=0).count(),
+        'low_stock':    base_qs.filter(stock__lte=5, stock__gt=0).count(),
+    }
+
     return JsonResponse({
         'status':     'success',
         'new_status': product.status,
         'message':    f'Product is now {product.status}.',
+        'stats':      stats
     })
 
 
@@ -731,10 +790,77 @@ def product_delete(request, product_id):
     product.status = 'discontinued'
     product.save(update_fields=['status'])
 
+    # Calculate stats for the user's dashboard response
+    if request.user.is_admin:
+        base_qs = Product.objects.all()
+    else:
+        base_qs = Product.objects.filter(seller=request.user.seller_profile)
+        
+    stats = {
+        'total':        base_qs.count(),
+        'published':    base_qs.filter(status='published').count(),
+        'draft':        base_qs.filter(status='draft').count(),
+        'out_of_stock': base_qs.filter(stock=0).count(),
+        'low_stock':    base_qs.filter(stock__lte=5, stock__gt=0).count(),
+    }
+
     return JsonResponse({
         'status':  'success',
         'message': f'"{product.name}" has been archived.',
+        'stats':   stats
     })
+
+
+@require_POST
+@login_required
+@user_passes_test(is_seller_or_superuser, login_url='shop:home')
+def product_update_stock(request, product_id):
+    """
+    AJAX POST endpoint to quick-update stock of non-variant products.
+    """
+    product = _get_product_for_user(request.user, product_id)
+    
+    if product.variants.exists():
+        return JsonResponse({
+            'status': 'error', 
+            'message': 'Cannot update stock directly: this product has variants. Please update variant stock instead.'
+        }, status=400)
+    
+    try:
+        stock_raw = request.POST.get('stock')
+        if stock_raw is None:
+            return JsonResponse({'status': 'error', 'message': 'Stock value is required'}, status=400)
+        stock = int(stock_raw)
+        if stock < 0:
+            return JsonResponse({'status': 'error', 'message': 'Stock cannot be negative'}, status=400)
+        
+        product.stock = stock
+        product.save(update_fields=['stock', 'updated_at'])
+        
+        # Calculate stats for response
+        if request.user.is_admin:
+            base_qs = Product.objects.all()
+        else:
+            base_qs = Product.objects.filter(seller=request.user.seller_profile)
+            
+        stats = {
+            'total':        base_qs.count(),
+            'published':    base_qs.filter(status='published').count(),
+            'draft':        base_qs.filter(status='draft').count(),
+            'out_of_stock': base_qs.filter(stock=0).count(),
+            'low_stock':    base_qs.filter(stock__lte=5, stock__gt=0).count(),
+        }
+        
+        return JsonResponse({
+            'status': 'success', 
+            'message': 'Stock updated successfully',
+            'new_stock': product.stock,
+            'stats': stats
+        })
+    except ValueError:
+        return JsonResponse({'status': 'error', 'message': 'Invalid stock value'}, status=400)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 
 # ---------------------------------------------------------------------------

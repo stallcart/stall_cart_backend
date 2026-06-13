@@ -438,7 +438,7 @@ ProductVariantFormSet = inlineformset_factory(
         'is_active',
         'attributes'
     ],
-    extra=1,
+    extra=0,
     can_delete=True,
 )
 

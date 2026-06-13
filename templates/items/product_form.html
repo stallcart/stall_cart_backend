@@ -15,7 +15,7 @@
             </p>
         </div>
 
-        <a href="{% url 'items:admin_dashboard' %}" class="back-link">
+        <a href="{% if is_superuser %}{% url 'items:admin_dashboard' %}{% else %}{% url 'items:seller_dashboard' %}{% endif %}" class="back-link">
             <i class="fa fa-arrow-left"></i> Back to Dashboard
         </a>
     </div>
@@ -525,7 +525,7 @@
             <button type="submit" class="btn-primary btn-lg" id="saveBtn">
                 <i class="fa fa-save"></i> {{ action|default:"Save" }} Product
             </button>
-            <a href="{% url 'items:admin_dashboard' %}" class="btn-outline btn-lg">
+            <a href="{% if is_superuser %}{% url 'items:admin_dashboard' %}{% else %}{% url 'items:seller_dashboard' %}{% endif %}" class="btn-outline btn-lg">
                 <i class="fa fa-times"></i> Cancel
             </a>
             {% if product and product.status != 'discontinued' %}
@@ -757,7 +757,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.status === 'success') {
                 showToast(data.message, 'success');
                 setTimeout(() => {
-                    window.location.href = "{% url 'items:admin_dashboard' %}";
+                    window.location.href = "{% if is_superuser %}{% url 'items:admin_dashboard' %}{% else %}{% url 'items:seller_dashboard' %}{% endif %}";
                 }, 1000);
             } else {
                 showToast(data.message || 'Failed to archive product', 'error');
@@ -865,7 +865,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.querySelectorAll('.variant-row [name$="-stock"]').forEach(sf => {
                     sf.classList.add('error');
                 });
-                window.showToast(`The sum of your variant stocks (${variantStockSum}) must match the base product stock (${baseStock}).`, 'error');
+                window.showToast(`The sum of your active variant stocks (${variantStockSum}) does not match the base product stock (${baseStock}). Your variant quantity is ${variantStockSum < baseStock ? 'less' : 'more'} than the base quantity. They must match exactly.`, 'error');
                 return false;
             } else {
                 baseStockInput?.classList.remove('error');
@@ -1070,4 +1070,150 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 {% endblock %}
 
-{% block extra_css %}{% endblock %}
+{% block extra_css %}
+<style>
+    .product-form-container {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 30px 20px;
+    }
+    .product-form {
+        background: #ffffff;
+        border-radius: 20px;
+        padding: 40px;
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.04);
+    }
+    .form-section {
+        background: #ffffff;
+        border-radius: 16px;
+        border: 1px solid var(--gray-200);
+        padding: 28px;
+        margin-bottom: 32px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.01);
+        transition: border-color 0.25s, box-shadow 0.25s;
+    }
+    .form-section:hover {
+        border-color: var(--blue-300);
+        box-shadow: 0 6px 20px rgba(40, 116, 240, 0.04);
+    }
+    .section-header {
+        border-bottom: 2px solid var(--gray-100);
+        padding-bottom: 14px;
+        margin-bottom: 24px;
+    }
+    .section-header h3 {
+        font-family: 'Syne', sans-serif;
+        font-weight: 800;
+        font-size: 1.25rem;
+        color: var(--gray-900);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .form-group label {
+        font-weight: 700;
+        color: var(--gray-700);
+        font-size: 0.88rem;
+        margin-bottom: 8px;
+    }
+    .form-input, .form-select, textarea {
+        border: 1.5px solid var(--gray-200) !important;
+        border-radius: 10px !important;
+        height: 44px;
+        padding: 0 14px;
+        transition: all 0.2s ease !important;
+        font-size: 0.92rem !important;
+        color: var(--gray-800) !important;
+    }
+    textarea {
+        height: auto !important;
+        padding: 12px 14px !important;
+    }
+    .form-input:focus, .form-select:focus, textarea:focus {
+        border-color: var(--blue-500) !important;
+        box-shadow: 0 0 0 3px rgba(40,116,240,0.12) !important;
+        outline: none !important;
+    }
+    .variant-row {
+        background: var(--gray-50);
+        border: 1.5px solid var(--gray-200);
+        border-radius: 14px;
+        padding: 24px;
+        margin-bottom: 20px;
+        transition: all 0.25s ease;
+    }
+    .variant-row:hover {
+        border-color: var(--blue-300);
+        background: #fff;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+    }
+    .variant-row.new-variant {
+        background: var(--blue-50);
+        border-color: rgba(40, 116, 240, 0.3);
+    }
+    .variant-row.new-variant:hover {
+        background: #fff;
+    }
+    .variant-header {
+        border-bottom: 1px dashed var(--gray-200);
+        padding-bottom: 12px;
+        margin-bottom: 20px;
+    }
+    .image-preview {
+        border: 2px dashed var(--gray-300);
+        border-radius: 14px;
+        padding: 16px;
+        background: var(--gray-50);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 160px;
+        margin-top: 10px;
+        transition: border-color 0.2s;
+    }
+    .image-preview img {
+        max-height: 140px;
+        border-radius: 8px;
+        object-fit: contain;
+    }
+    .btn-primary {
+        border-radius: 10px !important;
+        font-weight: 700 !important;
+        padding: 12px 24px !important;
+        font-size: 0.95rem !important;
+        transition: all 0.2s ease !important;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(40, 116, 240, 0.15);
+    }
+    .btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(40, 116, 240, 0.25);
+    }
+    .btn-outline {
+        border-radius: 10px !important;
+        font-weight: 700 !important;
+        padding: 12px 24px !important;
+        font-size: 0.95rem !important;
+        transition: all 0.2s ease !important;
+        border: 1.5px solid var(--gray-300) !important;
+        color: var(--gray-600) !important;
+    }
+    .btn-outline:hover {
+        background: var(--gray-50) !important;
+        color: var(--gray-800) !important;
+        border-color: var(--gray-400) !important;
+    }
+    .form-actions {
+        display: flex;
+        gap: 16px;
+        justify-content: flex-end;
+        margin-top: 40px;
+    }
+    .form-input.error, .form-select.error, .error-highlight {
+        border-color: #ef4444 !important;
+        box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
+        background-color: #fdf2f2 !important;
+    }
+</style>
+{% endblock %}

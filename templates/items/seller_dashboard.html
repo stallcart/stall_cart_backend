@@ -1,315 +1,466 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Product Dashboard | {% if is_superuser %}Admin{% else %}{{ user.seller_profile.shop_name }}{% endif %}{% endblock %}
+{% block title %}Seller Inventory | {{ site_settings.site_name }}{% endblock %}
 
 {% block content %}
-<div class="container" style="padding-top: 24px; padding-bottom: 40px;">
-    <div style="margin-bottom: 20px;">
-        <a href="{% url 'shop:home' %}" class="back-link">
+<div class="container" style="padding-top: 28px; padding-bottom: 60px;">
+    
+    <!-- Back Navigation -->
+    <div style="margin-bottom: 24px;">
+        <a href="{% url 'shop:home' %}" class="back-link" style="font-weight: 600; font-size: 0.9rem; display: inline-flex; align-items: center; gap: 6px; color: var(--blue-500); text-decoration: none; transition: color var(--tr);">
             <i class="fa fa-arrow-left"></i> Back to Store
         </a>
     </div>
 
+    <!-- Alert for Bank Details -->
     {% if not has_bank_details %}
-    <div style="background: #fffbeb; border: 1.5px solid #fcd34d; border-radius: 12px; padding: 20px; margin-bottom: 24px; display: flex; align-items: flex-start; gap: 16px; box-shadow: 0 4px 12px rgba(217, 119, 6, 0.05);">
-        <span style="font-size: 1.5rem; line-height: 1; color: #d97706; display: flex; align-items: center; height: 1.8rem;"><i class="fa fa-exclamation-triangle"></i></span>
+    <div style="background: #fffbeb; border: 1.5px solid #fcd34d; border-radius: 16px; padding: 24px; margin-bottom: 32px; display: flex; align-items: flex-start; gap: 20px; box-shadow: 0 10px 25px rgba(217, 119, 6, 0.06);">
+        <span style="font-size: 1.8rem; line-height: 1; color: #d97706; display: flex; align-items: center; height: 2rem;"><i class="fa fa-exclamation-triangle"></i></span>
         <div style="flex: 1;">
-            <h4 style="margin: 0 0 6px; color: #92400e; font-weight: 700; font-size: 1.05rem; font-family: 'Syne', sans-serif;">Payout Bank Details Required</h4>
-            <p style="margin: 0 0 14px; color: #78350f; font-size: 0.9rem; line-height: 1.6;">
-                You haven't completed your bank details yet. To list or add products to StallCart, please complete your bank details first in your profile dashboard.
+            <h4 style="margin: 0 0 6px; color: #92400e; font-weight: 800; font-size: 1.1rem; font-family: 'Syne', sans-serif;">Payout Bank Details Required</h4>
+            <p style="margin: 0 0 16px; color: #78350f; font-size: 0.92rem; line-height: 1.6;">
+                You haven't completed your bank payout details yet. To list or add products to the catalog, please fill out your bank details in your seller profile.
             </p>
-            <a href="{% url 'accounts:profile' %}#bank-details" class="btn-primary" style="background: #d97706; border: none; font-size: 0.85rem; padding: 10px 18px; border-radius: 8px; text-decoration: none; color: white; display: inline-flex; align-items: center; gap: 6px; font-weight: 700; cursor: pointer; transition: background 0.15s;">
+            <a href="{% url 'accounts:profile' %}#bank-details" class="btn-primary" style="background: #d97706; border: none; font-size: 0.85rem; padding: 11px 20px; border-radius: 10px; text-decoration: none; color: white; display: inline-flex; align-items: center; gap: 8px; font-weight: 700; cursor: pointer; transition: background 0.2s; box-shadow: 0 4px 12px rgba(217, 119, 6, 0.2);">
                 <i class="fa fa-university"></i> Complete Bank Details
             </a>
         </div>
     </div>
     {% endif %}
 
-    <!-- Header -->
-    <div class="panel-header">
+    <!-- Premium Dashboard Header -->
+    <div class="panel-header" style="margin-bottom: 28px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
         <div>
-            <h2><i class="fa fa-boxes" style="margin-right: 8px;"></i>Product Dashboard</h2>
-            <p class="page-subtitle">{% if is_superuser %}Manage all store items{% else %}Manage your shop inventory{% endif %}</p>
+            <h2 style="font-family: 'Syne', sans-serif; font-size: 1.85rem; font-weight: 800; color: var(--gray-900); margin: 0 0 4px; display: flex; align-items: center; gap: 10px;">
+                <i class="fa fa-boxes" style="color: var(--blue-500);"></i> Shop Inventory
+            </h2>
+            <p class="page-subtitle" style="margin: 0; color: var(--gray-500); font-size: 0.95rem;">
+                {% if is_superuser %}Manage products across all sellers{% else %}Monitor and update your store inventory{% endif %}
+            </p>
         </div>
-        <button class="btn-primary" id="openAddModal">+ Add New Product</button>
+        <div>
+            <a href="{% url 'items:product_create' %}" class="btn-primary" id="openAddBtn" style="text-decoration: none; display: inline-flex; align-items: center; gap: 8px; padding: 11px 22px; font-size: 0.9rem; font-weight: 700; border-radius: 10px; box-shadow: 0 4px 12px rgba(40, 116, 240, 0.2);">
+                <i class="fa fa-plus"></i> Add New Product
+            </a>
+        </div>
     </div>
 
-    <!-- Stats Cards -->
-    <div class="stats-grid">
-        <div class="stat-card"><span class="num">{{ stats.total }}</span><span class="label">Total Products</span></div>
-        <div class="stat-card success"><span class="num">{{ stats.published }}</span><span class="label">Published</span></div>
-        <div class="stat-card warning"><span class="num">{{ stats.low_stock }}</span><span class="label">Low Stock</span></div>
-        <div class="stat-card danger"><span class="num">{{ stats.out_of_stock }}</span><span class="label">Out of Stock</span></div>
+    <!-- Redesigned 6-Column Stats Cards Grid -->
+    <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); margin-bottom: 32px; gap: 16px;">
+        <div class="stat-card total" id="stat-total-card">
+            <span class="num" id="stat-total">{{ stats.total }}</span>
+            <small class="label">Total Products</small>
+        </div>
+        <div class="stat-card success" id="stat-published-card">
+            <span class="num" id="stat-published">{{ stats.published }}</span>
+            <small class="label">Published</small>
+        </div>
+        <div class="stat-card warning" id="stat-low-stock-card">
+            <span class="num" id="stat-low-stock">{{ stats.low_stock }}</span>
+            <small class="label">Low Stock</small>
+        </div>
+        <div class="stat-card danger" id="stat-oos-card">
+            <span class="num" id="stat-oos">{{ stats.out_of_stock }}</span>
+            <small class="label">Out of Stock</small>
+        </div>
+        <div class="stat-card info">
+            <span class="num" style="display: inline-flex; align-items: center; gap: 6px;"><i class="fa fa-eye" style="font-size: 1.25rem; color: var(--blue-500);"></i>{{ stats.total_views }}</span>
+            <small class="label">Total Views</small>
+        </div>
+        <div class="stat-card success">
+            <span class="num" style="display: inline-flex; align-items: center; gap: 6px;"><i class="fa fa-shopping-bag" style="font-size: 1.25rem; color: var(--green);"></i>{{ stats.total_sold }}</span>
+            <small class="label">Items Sold</small>
+        </div>
     </div>
 
-    <!-- Filters -->
-    <form method="get" class="filters-bar">
-        <input type="text" name="search" placeholder="Search by name or SKU..." value="{{ filters.search }}" class="form-input" style="flex: 1; min-width: 180px; max-width: 360px;">
-        <select name="category" class="form-select" style="min-width: 150px;" onchange="this.form.submit()">
+    <!-- Filters Bar (Dynamic AJAX Search/Filter inputs) -->
+    <form method="get" id="filterForm" class="filters-bar" style="margin-bottom: 28px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; background: #fff; padding: 18px; border-radius: 16px; border: 1.5px solid var(--gray-100); box-shadow: var(--sh-sm);">
+        <div style="flex: 1; min-width: 200px; position: relative;">
+            <i class="fa fa-search" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--gray-400); font-size: 0.9rem;"></i>
+            <input type="text" name="search" id="searchQuery" placeholder="Search by name, brand or SKU..." value="{{ filters.search }}" class="form-input" style="padding-left: 38px; width: 100%; box-sizing: border-box;">
+        </div>
+        
+        <select name="category" id="categorySelect" class="form-select" style="min-width: 160px; height: 42px;">
             <option value="">All Categories</option>
             {% for cat in categories %}
                 <option value="{{ cat.id }}" {% if filters.category == cat.id|stringformat:"s" %}selected{% endif %}>{{ cat.name }}</option>
             {% endfor %}
         </select>
-        <select name="status" class="form-select" style="min-width: 140px;" onchange="this.form.submit()">
-            <option value="">All Status</option>
+        
+        <select name="status" id="statusSelect" class="form-select" style="min-width: 150px; height: 42px;">
+            <option value="">All Statuses</option>
             <option value="published" {% if filters.status == 'published' %}selected{% endif %}>Published</option>
             <option value="draft" {% if filters.status == 'draft' %}selected{% endif %}>Draft</option>
             <option value="discontinued" {% if filters.status == 'discontinued' %}selected{% endif %}>Discontinued</option>
         </select>
-        <button type="submit" class="btn-primary">
-            <i class="fa fa-filter"></i> Filter
-        </button>
+        
         {% if filters.search or filters.category or filters.status %}
-            <a href="{% url 'items:seller_dashboard' %}" class="btn-outline">
-                <i class="fa fa-times"></i> Clear
+            <a href="{% url 'items:seller_dashboard' %}" class="btn-outline" id="clearFiltersBtn" style="height: 42px; text-decoration: none; padding: 0 16px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-radius: 10px; border: 1.5px solid var(--gray-200); color: var(--gray-600); font-weight: 600; cursor: pointer; transition: all var(--tr);">
+                <i class="fa fa-times"></i> Clear Filters
             </a>
         {% endif %}
     </form>
 
-    <!-- Products Table -->
-    <div class="table-wrapper">
-        <table class="data-table" style="min-width: 820px;">
-            <thead>
-                <tr>
-                    <th>Product</th>
-                    {% if is_superuser %}<th>Seller</th>{% endif %}
-                    <th>Category</th>
-                    <th>Price</th>
-                    <th>Stock</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for p in products %}
-                <tr data-id="{{ p.id }}">
-                    <td>
-                        <div class="prod-cell">
-                            {% if p.primary_image %}<img src="{{ p.primary_image.url }}" alt="{{ p.name }}" class="thumb">{% endif %}
-                            <div>
-                                <strong>{{ p.name }}</strong><br>
-                                <small class="text-muted">{{ p.sku }}</small>
-                            </div>
-                        </div>
-                    </td>
-                    {% if is_superuser %}<td>{{ p.seller.shop_name }}</td>{% endif %}
-                    <td>{{ p.category.name|default:'-' }}</td>
-                    <td>₹{{ p.price|floatformat:2 }}</td>
-                    <td>
-                        {% if p.stock == 0 %}<span class="status-pill status-oos">0 — Out</span>
-                        {% elif p.stock <= 5 %}<span class="status-pill status-draft"><i class="fa fa-exclamation-triangle" style="margin-right: 4px;"></i>{{ p.stock }}</span>
-                        {% else %}<span class="status-pill status-published">{{ p.stock }}</span>{% endif %}
-                    </td>
-                    <td>
-                        <label class="toggle">
-                            <input type="checkbox" class="status-toggle" data-id="{{ p.id }}" 
-                                   {% if p.status == 'published' %}checked{% endif %}
-                                   {% if p.status == 'discontinued' %}disabled{% endif %}>
-                            <span class="slider"></span>
-                        </label>
-                        <small class="status-text" style="font-size: 0.8rem; font-weight: 600; margin-left: 4px; color: var(--gray-600);">{{ p.get_status_display }}</small>
-                    </td>
-                    <td>
-                        <div class="action-group">
-                            <button class="act-btn act-edit" onclick="openEditModal({{ p.id }})"><i class="fa fa-pencil-alt"></i> Edit</button>
-                            <button class="act-btn act-archive" onclick="archiveProduct({{ p.id }})"><i class="fa fa-trash-alt"></i> Archive</button>
-                        </div>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr><td colspan="{% if is_superuser %}7{% else %}6{% endif %}" class="empty-state">No products found</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-
-    <!-- Pagination -->
-    {% if products.has_other_pages %}
-    <div style="display: flex; justify-content: center; gap: 8px; margin-top: 24px; flex-wrap: wrap;">
-        {% if products.has_previous %}<a href="?page={{ products.previous_page_number }}&search={{ filters.search }}&category={{ filters.category }}&status={{ filters.status }}" class="btn-outline">← Prev</a>{% endif %}
-        <span class="btn-primary" style="padding: 8px 14px; font-size: 0.85rem; cursor: default;">Page {{ products.number }} of {{ products.paginator.num_pages }}</span>
-        {% if products.has_next %}<a href="?page={{ products.next_page_number }}&search={{ filters.search }}&category={{ filters.category }}&status={{ filters.status }}" class="btn-outline">Next →</a>{% endif %}
-    </div>
-    {% endif %}
-</div>
-
-<!-- Add/Edit Product Modal -->
-<div id="productModal" class="modal" role="dialog" aria-modal="true">
-    <div class="modal-content large">
-        <div class="modal-header-bar">
-            <h3 id="modalTitle">Add New Product</h3>
-            <button type="button" class="modal-close" onclick="closeModal()" aria-label="Close">&times;</button>
+    <!-- Products Table Container (AJAX Target) -->
+    <div id="sellerProductsTableContainer" style="position: relative; transition: opacity var(--tr); background: #fff; border-radius: 16px; border: 1.5px solid var(--gray-100); box-shadow: var(--sh-md); overflow: hidden;">
+        <!-- Loading spinner overlay -->
+        <div id="tableLoadingOverlay" style="display: none; position: absolute; inset: 0; background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(2px); z-index: 100; align-items: center; justify-content: center;">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 12px; color: var(--blue-500);">
+                <i class="fa fa-spinner fa-spin" style="font-size: 2.2rem;"></i>
+                <strong style="font-size: 0.92rem; font-weight: 700; color: var(--gray-700);">Fetching inventory...</strong>
+            </div>
         </div>
-        <div class="modal-body">
-            <form id="productForm" enctype="multipart/form-data">
-                {% csrf_token %}
-                <input type="hidden" name="product_id" id="prodId">
-                
-                <div class="form-row two-col">
-                    <div class="form-group">
-                        <label>Product Name *</label>
-                        <input type="text" name="name" id="prodName" class="form-input" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Category *</label>
-                        <select name="category" id="prodCat" class="form-select" required>
-                            <option value="">Select...</option>
-                            {% for cat in categories %}<option value="{{ cat.id }}">{{ cat.name }}</option>{% endfor %}
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="form-row three-col">
-                    <div class="form-group">
-                        <label>Price (₹) *</label>
-                        <input type="number" name="price" id="prodPrice" class="form-input" step="0.01" min="0" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Stock *</label>
-                        <input type="number" name="stock" id="prodStock" class="form-input" min="0" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Status</label>
-                        <select name="status" id="prodStatus" class="form-select">
-                            <option value="draft">Draft</option>
-                            <option value="published">Published</option>
-                            <option value="out_of_stock">Out of Stock</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="form-group checkbox-group" style="margin-bottom: 15px;">
-                    <label class="check-label">
-                        <input type="checkbox" name="is_returnable" id="prodReturnable" checked>
-                        <span><i class="fa fa-sync-alt" style="margin-right: 6px;"></i>Eligible for Return/Refund</span>
-                    </label>
-                </div>
-                
-                <div class="form-group">
-                    <label>Short Description</label>
-                    <textarea name="short_description" id="prodShort" class="form-input" rows="2"></textarea>
-                </div>
-                <div class="form-group">
-                    <label>Full Description</label>
-                    <textarea name="description" id="prodDesc" class="form-input" rows="4"></textarea>
-                </div>
-                
-                <div class="form-group">
-                    <label>Primary Image</label>
-                    <input type="file" name="primary_image" id="prodImg" class="form-input" accept="image/*">
-                    <small class="form-help">Recommended: 800x800px PNG/JPG</small>
-                </div>
-                
-                <div class="form-actions">
-                    <button type="submit" class="btn-primary" id="submitBtn">Save Product</button>
-                    <button type="button" class="btn-outline" onclick="closeModal()">Cancel</button>
-                </div>
-            </form>
-        </div>
+        
+        {% include 'items/seller_dashboard_table.html' %}
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-const csrf = '{{ csrf_token }}';
-const modal = document.getElementById('productModal');
-const form = document.getElementById('productForm');
+const csrfToken = '{{ csrf_token }}';
 
-// Open Modal
-document.getElementById('openAddModal').onclick = () => {
-    {% if not has_bank_details %}
-    alert('Bank details required: Please complete your bank details in your profile first before listing products.');
-    window.location.href = "{% url 'accounts:profile' %}#bank-details";
-    return;
-    {% endif %}
-    document.getElementById('modalTitle').textContent = 'Add New Product';
-    form.reset(); document.getElementById('prodId').value = '';
-    document.getElementById('prodReturnable').checked = true;
-    modal.classList.add('show');
-};
-
-window.openEditModal = async (id) => {
-    document.getElementById('modalTitle').textContent = 'Edit Product';
-    document.getElementById('prodId').value = id;
-    
-    // Fetch existing data
-    try {
-        const res = await fetch(`/items/api/product/${id}/`);
-        const p = await res.json();
-        document.getElementById('prodName').value = p.name;
-        document.getElementById('prodCat').value = p.category;
-        document.getElementById('prodPrice').value = p.price;
-        document.getElementById('prodStock').value = p.stock;
-        document.getElementById('prodStatus').value = p.status;
-        document.getElementById('prodReturnable').checked = p.is_returnable;
-        document.getElementById('prodShort').value = p.short_description || '';
-        document.getElementById('prodDesc').value = p.description || '';
-        modal.classList.add('show');
-    } catch(e) { alert('Failed to load product data'); }
-};
-
-window.closeModal = () => modal.classList.remove('show');
-
-// Submit Form (AJAX + FormData)
-form.onsubmit = async (e) => {
-    e.preventDefault();
-    const btn = document.getElementById('submitBtn');
-    const orig = btn.innerHTML;
-    btn.disabled = true; btn.textContent = 'Saving...';
-    
-    const fd = new FormData(form);
-    try {
-        const res = await fetch("{% url 'items:save_product' %}", {
-            method: 'POST', headers: {'X-CSRFToken': csrf}, body: fd
-        });
-        const data = await res.json();
-        
-        if(data.status === 'success') {
-            closeModal();
-            window.location.reload(); // Refresh to show updated table
-        } else {
-            alert('Error: ' + (data.message || 'Invalid data'));
-        }
-    } catch(err) { alert('Network error'); }
-    finally { btn.disabled = false; btn.textContent = 'Save Product'; }
-};
-
-// Toggle Status
-document.querySelectorAll('.status-toggle').forEach(t => {
-    t.onchange = async (e) => {
-        const id = e.target.dataset.id;
-        try {
-            const res = await fetch(`/items/product/${id}/toggle/`, {
-                method: 'POST', headers: {'X-CSRFToken': csrf}
-            });
-            if (!res.ok) {
-                throw new Error('Server error');
-            }
-            const data = await res.json();
-            if (data.status === 'success') {
-                e.target.closest('tr').querySelector('.status-text').textContent = data.new_status === 'published' ? 'Published' : 'Draft';
-            } else {
-                throw new Error(data.message || 'Failed to update status');
-            }
-        } catch(err) {
-            alert(err.message || 'Failed to update status');
-            e.target.checked = !e.target.checked;
-        }
+// 1. Bank Details Check on New Product Add
+const openAddBtn = document.getElementById('openAddBtn');
+if (openAddBtn) {
+    openAddBtn.onclick = (e) => {
+        {% if not has_bank_details %}
+        e.preventDefault();
+        window.alert('Bank details required: Please complete your bank details in your profile first before listing products.');
+        window.location.href = "{% url 'accounts:profile' %}#bank-details";
+        {% endif %}
     };
+}
+
+// 2. AJAX-based search & filtering logic
+const filterForm = document.getElementById('filterForm');
+const searchQuery = document.getElementById('searchQuery');
+const categorySelect = document.getElementById('categorySelect');
+const statusSelect = document.getElementById('statusSelect');
+let searchTimeout = null;
+
+// Prevent form submission reloads
+if (filterForm) {
+    filterForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        fetchFilteredProducts(1);
+    });
+}
+
+// Bind live inputs
+searchQuery?.addEventListener('input', () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        fetchFilteredProducts(1);
+    }, 350);
 });
 
-// Archive Product
-window.archiveProduct = async (id) => {
-    if(!confirm('Archive this product? It will be hidden from the shop.')) return;
-    try {
-        await fetch(`/items/product/${id}/delete/`, { method: 'POST', headers: {'X-CSRFToken': csrf} });
-        document.querySelector(`tr[data-id="${id}"]`).remove();
-    } catch(err) { alert('Failed to archive'); }
-};
+categorySelect?.addEventListener('change', () => fetchFilteredProducts(1));
+statusSelect?.addEventListener('change', () => fetchFilteredProducts(1));
 
-window.onclick = (e) => { if(e.target === modal) closeModal(); };
+function fetchFilteredProducts(page = 1) {
+    const search = searchQuery?.value.trim() || '';
+    const category = categorySelect?.value || '';
+    const status = statusSelect?.value || '';
+    
+    const container = document.getElementById('sellerProductsTableContainer');
+    const overlay = document.getElementById('tableLoadingOverlay');
+    
+    if (overlay) overlay.style.display = 'flex';
+    if (container) container.style.opacity = '0.65';
+    
+    const params = new URLSearchParams({
+        search: search,
+        category: category,
+        status: status,
+        page: page,
+        ajax: '1'
+    });
+    
+    fetch(`?${params.toString()}`, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(res => {
+        if (!res.ok) throw new Error('Failed to load filter results');
+        return res.text();
+    })
+    .then(html => {
+        if (container) container.innerHTML = html;
+        bindInteractiveEvents();
+    })
+    .catch(err => {
+        console.error(err);
+        window.alert('Failed to load products: Network error.');
+    })
+    .finally(() => {
+        if (container) container.style.opacity = '1';
+        const overlay = document.getElementById('tableLoadingOverlay');
+        if (overlay) overlay.style.display = 'none';
+    });
+}
+
+// 3. Stats update handler
+function updateStatsCounters(stats) {
+    if (!stats) return;
+    const total = document.getElementById('stat-total');
+    const published = document.getElementById('stat-published');
+    const lowStock = document.getElementById('stat-low-stock');
+    const oos = document.getElementById('stat-oos');
+    
+    if (total) total.textContent = stats.total;
+    if (published) published.textContent = stats.published;
+    if (lowStock) lowStock.textContent = stats.low_stock;
+    if (oos) oos.textContent = stats.out_of_stock;
+}
+
+// 4. Bind interactive elements (Pagination buttons, stock inline editors, toggle switches, archive)
+function bindInteractiveEvents() {
+    const container = document.getElementById('sellerProductsTableContainer');
+    if (!container) return;
+    
+    // Pagination clicks
+    container.querySelectorAll('.page-btn').forEach(btn => {
+        btn.onclick = (e) => {
+            e.preventDefault();
+            const pageNum = btn.dataset.page;
+            fetchFilteredProducts(pageNum);
+            // Smooth scroll back to table start
+            window.scrollTo({
+                top: container.getBoundingClientRect().top + window.scrollY - 100,
+                behavior: 'smooth'
+            });
+        };
+    });
+    
+    // Status checkboxes toggle
+    container.querySelectorAll('.status-toggle').forEach(t => {
+        t.onchange = async (e) => {
+            const id = e.target.dataset.id;
+            const originalChecked = e.target.checked;
+            e.target.disabled = true;
+            
+            try {
+                const res = await fetch(`/items/product/${id}/toggle/`, {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                
+                if (!res.ok) throw new Error('Failed to update status on server.');
+                const data = await res.json();
+                
+                if (data.status === 'success') {
+                    // Update text pill content and class
+                    const pill = document.getElementById(`status-pill-${id}`);
+                    if (pill) {
+                        pill.className = `status-pill status-pill-text ${data.new_status === 'published' ? 'status-published' : 'status-draft'}`;
+                        pill.textContent = data.new_status === 'published' ? 'Published' : 'Draft';
+                    }
+                    
+                    // Update View button state
+                    const row = document.getElementById(`row-${id}`);
+                    if (row) {
+                        const viewBtn = row.querySelector('.action-group');
+                        const viewIcon = row.querySelector('.act-btn:first-child');
+                        if (data.new_status === 'published') {
+                            if (viewIcon && viewIcon.classList.contains('act-view-off')) {
+                                // Reload page block locally to swap link or just re-fetch
+                                fetchFilteredProducts(document.querySelector('.page-link.active')?.textContent || 1);
+                            }
+                        } else {
+                            if (viewIcon && viewIcon.classList.contains('act-view')) {
+                                fetchFilteredProducts(document.querySelector('.page-link.active')?.textContent || 1);
+                            }
+                        }
+                    }
+                    
+                    // Update counters in stats
+                    updateStatsCounters(data.stats);
+                    window.showToast(data.message, 'success');
+                } else {
+                    throw new Error(data.message || 'Failed to update status.');
+                }
+            } catch (err) {
+                window.alert(err.message || 'Status update failed.');
+                e.target.checked = !originalChecked;
+            } finally {
+                e.target.disabled = false;
+            }
+        };
+    });
+    
+    // Inline Quick Stock Edit buttons
+    container.querySelectorAll('.quick-stock-edit-btn').forEach(btn => {
+        btn.onclick = (e) => {
+            const row = btn.closest('tr');
+            const id = row.dataset.id;
+            const displayBlock = row.querySelector('.stock-display-container');
+            const editBlock = row.querySelector('.stock-edit-container');
+            const input = editBlock.querySelector('.quick-stock-input');
+            
+            if (displayBlock && editBlock) {
+                displayBlock.style.display = 'none';
+                editBlock.style.display = 'flex';
+                input.focus();
+                input.select();
+            }
+        };
+    });
+    
+    // Inline Stock Cancel
+    container.querySelectorAll('.quick-stock-cancel-btn').forEach(btn => {
+        btn.onclick = (e) => {
+            const row = btn.closest('tr');
+            const displayBlock = row.querySelector('.stock-display-container');
+            const editBlock = row.querySelector('.stock-edit-container');
+            
+            if (displayBlock && editBlock) {
+                editBlock.style.display = 'none';
+                displayBlock.style.display = 'flex';
+            }
+        };
+    });
+    
+    // Inline Stock Save
+    container.querySelectorAll('.quick-stock-save-btn').forEach(btn => {
+        btn.onclick = () => saveInlineStock(btn);
+    });
+    
+    // Inline Stock input Enter key handler
+    container.querySelectorAll('.quick-stock-input').forEach(input => {
+        input.onkeydown = (e) => {
+            if (e.key === 'Enter') {
+                const saveBtn = input.nextElementSibling;
+                if (saveBtn) saveInlineStock(saveBtn);
+            } else if (e.key === 'Escape') {
+                const cancelBtn = input.nextElementSibling.nextElementSibling;
+                if (cancelBtn) cancelBtn.click();
+            }
+        };
+    });
+    
+    // Archive confirmation clicks
+    container.querySelectorAll('.act-archive').forEach(btn => {
+        btn.onclick = async (e) => {
+            const id = btn.dataset.id;
+            const name = btn.dataset.name;
+            
+            if (!confirm(`Are you sure you want to archive "${name}"?\nThis hides it from customers but keeps it in your dashboard.`)) {
+                return;
+            }
+            
+            const origHTML = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
+            
+            try {
+                const res = await fetch(`/items/product/${id}/delete/`, {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                const data = await res.json();
+                
+                if (data.status === 'success') {
+                    const row = document.getElementById(`row-${id}`);
+                    if (row) {
+                        row.style.transition = 'all 0.35s ease';
+                        row.style.opacity = '0';
+                        row.style.transform = 'translateX(-20px)';
+                        setTimeout(() => {
+                            row.remove();
+                            // If table is empty, reload dashboard state
+                            if (document.querySelectorAll('#productsTableBody tr').length === 0) {
+                                fetchFilteredProducts(1);
+                            }
+                        }, 350);
+                    }
+                    updateStatsCounters(data.stats);
+                    window.showToast(data.message, 'success');
+                } else {
+                    throw new Error(data.message || 'Archive failed.');
+                }
+            } catch (err) {
+                window.alert(err.message || 'Archive failed.');
+                btn.innerHTML = origHTML;
+                btn.disabled = false;
+            }
+        };
+    });
+}
+
+// Inline Stock Save execution
+async function saveInlineStock(btn) {
+    const row = btn.closest('tr');
+    const id = row.dataset.id;
+    const displayBlock = row.querySelector('.stock-display-container');
+    const editBlock = row.querySelector('.stock-edit-container');
+    const input = editBlock.querySelector('.quick-stock-input');
+    const valSpan = displayBlock.querySelector('.stock-val-span');
+    
+    const val = input.value.trim();
+    if (val === '' || isNaN(val) || parseInt(val) < 0) {
+        window.alert('Invalid stock quantity: Must be 0 or a positive integer.');
+        return;
+    }
+    
+    const stockVal = parseInt(val);
+    btn.disabled = true;
+    input.disabled = true;
+    
+    try {
+        const fd = new FormData();
+        fd.append('stock', stockVal);
+        
+        const res = await fetch(`/items/product/${id}/update-stock/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
+            body: fd
+        });
+        
+        if (!res.ok) {
+            const errData = await res.json();
+            throw new Error(errData.message || 'Server stock update error.');
+        }
+        const data = await res.json();
+        
+        if (data.status === 'success') {
+            // Update stock badge
+            valSpan.innerHTML = '';
+            if (stockVal <= 5 && stockVal > 0) {
+                valSpan.innerHTML += '<i class="fa fa-exclamation-triangle text-warning"></i> ';
+            }
+            valSpan.innerHTML += stockVal;
+            
+            // Adjust styling classes
+            valSpan.classList.remove('status-published', 'status-draft', 'status-oos');
+            if (stockVal === 0) {
+                valSpan.classList.add('status-oos');
+            } else if (stockVal <= 5) {
+                valSpan.classList.add('status-draft');
+            } else {
+                valSpan.classList.add('status-published');
+            }
+            
+            // Show stats cards updates
+            updateStatsCounters(data.stats);
+            
+            editBlock.style.display = 'none';
+            displayBlock.style.display = 'flex';
+            window.showToast(data.message, 'success');
+        } else {
+            throw new Error(data.message || 'Failed to save stock.');
+        }
+    } catch (err) {
+        window.alert(err.message || 'Failed to update stock.');
+    } finally {
+        btn.disabled = false;
+        input.disabled = false;
+    }
+}
+
+// Initial Bind
+document.addEventListener('DOMContentLoaded', () => {
+    bindInteractiveEvents();
+});
 </script>
 {% endblock %}
