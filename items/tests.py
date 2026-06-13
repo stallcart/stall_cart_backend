@@ -246,6 +246,82 @@ class ProductCalculationAndStockTests(TestCase):
         form = ProductForm(data=form_data)
         self.assertTrue(form.is_valid())
 
+    def test_product_variant_inactive_via_formset(self):
+        """Verify that an inactive variant's stock is excluded from sum validation and parent stock updates."""
+        product = Product.objects.create(
+            seller=self.seller_profile,
+            category=self.category,
+            name="Boot",
+            price=Decimal("15.00"),
+            stock=10,
+            status="published"
+        )
+        v1 = ProductVariant.objects.create(
+            product=product,
+            size_value="9",
+            stock=4,
+            is_active=True
+        )
+        v2 = ProductVariant.objects.create(
+            product=product,
+            size_value="10",
+            stock=6,
+            is_active=True
+        )
+        product.refresh_from_db()
+        self.assertEqual(product.stock, 10)
+
+        # POST data marking v2 as inactive, base stock set to 4 (sum of active M=4)
+        post_data = {
+            'name': 'Boot',
+            'category': self.category.id,
+            'price': '15.00',
+            'cost_price': '5.00',
+            'discount_percent': '0',
+            'stock': '4',  # sum of active variants (v1 stock = 4, v2 is inactive so ignored)
+            'low_stock_threshold': '1',
+            'status': 'published',
+            'description': 'Description text long enough...',
+            'variants-TOTAL_FORMS': '2',
+            'variants-INITIAL_FORMS': '2',
+            'variants-MIN_NUM_FORMS': '0',
+            'variants-MAX_NUM_FORMS': '1000',
+            
+            # Form 0: v1 remains active
+            'variants-0-id': str(v1.id),
+            'variants-0-size_value': '9',
+            'variants-0-size_type': 'footwear',
+            'variants-0-color': '',
+            'variants-0-price_override': '',
+            'variants-0-stock': '4',
+            'variants-0-is_active': 'on',
+            'variants-0-DELETE': '',
+            
+            # Form 1: v2 is inactive (is_active is not 'on')
+            'variants-1-id': str(v2.id),
+            'variants-1-size_value': '10',
+            'variants-1-size_type': 'footwear',
+            'variants-1-color': '',
+            'variants-1-price_override': '',
+            'variants-1-stock': '6',
+            'variants-1-is_active': '',  # Inactive
+            'variants-1-DELETE': '',
+        }
+        self.client.login(phone="8888888888", password="sellerpassword")
+        response = self.client.post(f'/items/product/{product.id}/edit/', post_data)
+        
+        # Should succeed and redirect
+        self.assertEqual(response.status_code, 302)
+        
+        product.refresh_from_db()
+        v1.refresh_from_db()
+        v2.refresh_from_db()
+        
+        # Parent stock should only include active variants (v1 only = 4)
+        self.assertEqual(product.stock, 4)
+        self.assertTrue(v1.is_active)
+        self.assertFalse(v2.is_active)
+
 
 class ProductAndSellerReviewTests(TestCase):
     def setUp(self):

@@ -788,9 +788,69 @@ document.addEventListener('DOMContentLoaded', function() {
     const productForm = document.getElementById('productForm');
     const saveBtn = document.getElementById('saveBtn');
     
+    // Auto-calculate base stock from variants
+    function updateBaseStockFromVariants() {
+        const baseStockInput = document.getElementById('{{ form.stock.id_for_label }}');
+        if (!baseStockInput) return;
+        
+        const rows = document.querySelectorAll('.variant-row');
+        let hasActiveVariants = false;
+        let variantStockSum = 0;
+        
+        rows.forEach(row => {
+            const sizeField = row.querySelector('[name$="-size_value"]');
+            const stockField = row.querySelector('[name$="-stock"]');
+            const colorField = row.querySelector('[name$="-color"]');
+            const priceField = row.querySelector('[name$="-price_override"]');
+            const idField = row.querySelector('[name$="-id"]');
+            const deleteField = row.querySelector('[name$="-DELETE"]');
+            const isActiveField = row.querySelector('[name$="-is_active"]');
+            
+            const sizeVal = sizeField?.value?.trim() || '';
+            const stockVal = stockField?.value?.trim() || '';
+            const colorVal = colorField?.value?.trim() || '';
+            const priceVal = priceField?.value?.trim() || '';
+            
+            const isDeleted = row.classList.contains('marked-for-delete') || (deleteField ? (deleteField.type === 'checkbox' ? deleteField.checked : deleteField.value === 'on') : false);
+            const isActive = isActiveField ? isActiveField.checked : true;
+            const hasData = sizeVal || stockVal || colorVal || priceVal;
+            
+            if (!isDeleted && hasData && isActive) {
+                hasActiveVariants = true;
+                variantStockSum += parseInt(stockVal) || 0;
+            }
+        });
+        
+        if (hasActiveVariants) {
+            baseStockInput.value = variantStockSum;
+            baseStockInput.readOnly = true;
+            baseStockInput.style.backgroundColor = '#f3f4f6';
+            baseStockInput.style.cursor = 'not-allowed';
+            
+            let helper = document.getElementById('base-stock-helper-variants');
+            if (!helper) {
+                helper = document.createElement('small');
+                helper.id = 'base-stock-helper-variants';
+                helper.className = 'form-help';
+                helper.style.color = '#2563eb';
+                helper.style.fontWeight = '600';
+                helper.textContent = 'Auto-calculated from active variants';
+                baseStockInput.parentNode.appendChild(helper);
+            }
+        } else {
+            baseStockInput.readOnly = false;
+            baseStockInput.style.backgroundColor = '';
+            baseStockInput.style.cursor = '';
+            const helper = document.getElementById('base-stock-helper-variants');
+            if (helper) helper.remove();
+        }
+    }
+    
+    // Expose updateBaseStockFromVariants globally within this script context
+    window.updateBaseStockFromVariants = updateBaseStockFromVariants;
+
     productForm?.addEventListener('submit', function(e) {
         const baseStockInput = document.getElementById('{{ form.stock.id_for_label }}');
-        const baseStock = parseInt(baseStockInput?.value) || 0;
         
         // 1. Remove completely empty new variant rows from DOM
         const rows = Array.from(document.querySelectorAll('.variant-row'));
@@ -807,12 +867,14 @@ document.addEventListener('DOMContentLoaded', function() {
             const priceField = row.querySelector('[name$="-price_override"]');
             const idField = row.querySelector('[name$="-id"]');
             const deleteField = row.querySelector('[name$="-DELETE"]');
+            const isActiveField = row.querySelector('[name$="-is_active"]');
             
             const sizeVal = sizeField?.value?.trim() || '';
             const stockVal = stockField?.value?.trim() || '';
             const colorVal = colorField?.value?.trim() || '';
             const priceVal = priceField?.value?.trim() || '';
             const isDeleted = row.classList.contains('marked-for-delete') || (deleteField ? (deleteField.type === 'checkbox' ? deleteField.checked : deleteField.value === 'on') : false);
+            const isActive = isActiveField ? isActiveField.checked : true;
             
             // Check if this is a new variant (no ID)
             const isNew = !idField || !idField.value || idField.value.trim() === '';
@@ -831,8 +893,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         stockField?.classList.toggle('error', !stockVal);
                         validationError = "Please fill out both Size/Value and Stock for all variants.";
                     }
-                    hasActiveVariants = true;
-                    variantStockSum += parseInt(stockVal) || 0;
+                    if (isActive) {
+                        hasActiveVariants = true;
+                        variantStockSum += parseInt(stockVal) || 0;
+                    }
                 }
             }
         }
@@ -841,6 +905,10 @@ document.addEventListener('DOMContentLoaded', function() {
         if (typeof reindexVariantForms === 'function') {
             reindexVariantForms();
         }
+        
+        // Recalculate base stock one last time
+        updateBaseStockFromVariants();
+        const baseStock = parseInt(baseStockInput?.value) || 0;
         
         // 2. Validate standard product required fields (name, price, stock, category, status)
         const requiredFields = [
@@ -1003,6 +1071,9 @@ document.addEventListener('DOMContentLoaded', function() {
             reindexVariantForms();
             window.showToast('Variant row added', 'success');
             
+            // Recalculate base stock
+            updateBaseStockFromVariants();
+            
             // Smoothly scroll the new row into view
             newRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
@@ -1063,6 +1134,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     removeBtn.classList.remove('btn-outline');
                     window.showToast('Variant undeleted', 'success');
                     removeBtn.onclick = null;
+                    
+                    // Recalculate base stock after undeleting
+                    updateBaseStockFromVariants();
                 };
             } else {
                 // New unsaved variant: just remove from DOM and re-index
@@ -1070,6 +1144,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 reindexVariantForms();
                 window.showToast('Variant removed', 'success');
             }
+            
+            // Recalculate base stock after removal/marked-for-delete
+            updateBaseStockFromVariants();
         });
         
         // Initialize a variant row's widgets and event listeners
@@ -1087,6 +1164,8 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const sizeField = row.querySelector('[name$="-size_value"]');
             const colorField = row.querySelector('[name$="-color"]');
+            const stockField = row.querySelector('[name$="-stock"]');
+            const isActiveField = row.querySelector('[name$="-is_active"]');
             const titleEl = row.querySelector('.variant-title');
             
             function updateTitle() {
@@ -1098,10 +1177,61 @@ document.addEventListener('DOMContentLoaded', function() {
             
             sizeField?.addEventListener('input', updateTitle);
             colorField?.addEventListener('input', updateTitle);
+            
+            // Listen to variant stock changes to update the base stock sum in real-time
+            stockField?.addEventListener('input', updateBaseStockFromVariants);
+            isActiveField?.addEventListener('change', updateBaseStockFromVariants);
+            
+            // Restore deleted state if checked on page load
+            const deleteField = row.querySelector('[name$="-DELETE"]');
+            const removeBtn = row.querySelector('.remove-variant-btn');
+            
+            if (deleteField && removeBtn && (deleteField.type === 'checkbox' ? deleteField.checked : deleteField.value === 'on')) {
+                row.classList.add('marked-for-delete');
+                row.style.opacity = '0.5';
+                row.querySelectorAll('input:not([type="hidden"]):not([name$="-DELETE"]), select, textarea').forEach(el => {
+                    el.disabled = true;
+                });
+                
+                if (titleEl && !titleEl.querySelector('.delete-marker')) {
+                    titleEl.innerHTML += ' <span style="color:#c62828;font-weight:600;" class="delete-marker">(Marked for deletion)</span>';
+                }
+                removeBtn.innerHTML = '<i class="fa fa-undo"></i> Undelete';
+                removeBtn.classList.remove('btn-danger');
+                removeBtn.classList.add('btn-outline');
+                
+                removeBtn.onclick = function(ev) {
+                    ev.stopPropagation();
+                    deleteField.value = '';
+                    if (deleteField.type === 'checkbox') {
+                        deleteField.checked = false;
+                    }
+                    
+                    row.classList.remove('marked-for-delete');
+                    row.style.opacity = '1';
+                    row.querySelectorAll('input:not([type="hidden"]):not([name$="-DELETE"]), select, textarea').forEach(el => {
+                        el.disabled = false;
+                    });
+                    
+                    const marker = titleEl?.querySelector('span.delete-marker');
+                    if (marker) marker.remove();
+                    removeBtn.innerHTML = '<i class="fa fa-trash"></i> Remove';
+                    removeBtn.classList.add('btn-danger');
+                    removeBtn.classList.remove('btn-outline');
+                    window.showToast('Variant undeleted', 'success');
+                    removeBtn.onclick = null;
+                    
+                    // Recalculate base stock after undeleting
+                    updateBaseStockFromVariants();
+                };
+            }
         }
         
         // Initialize all existing rows
         document.querySelectorAll('.variant-row').forEach(initializeVariantRow);
+        
+        // Calculate initial base stock on page load
+        updateBaseStockFromVariants();
     }
     
     // Initialize variant manager
