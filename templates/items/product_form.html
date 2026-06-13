@@ -379,6 +379,13 @@
                 {% endif %}
             </div>
             
+            <!-- Bottom Add Variant Button -->
+            <div class="variants-bottom-actions" style="display:flex; justify-content:center; margin: 20px 0;">
+                <button type="button" class="btn btn-outline" id="addVariantBtnBottom" style="display:inline-flex; align-items:center; gap:8px;">
+                    <i class="fa fa-plus"></i> Add Variant
+                </button>
+            </div>
+            
             <!-- Empty Form Template (for JavaScript cloning) -->
             {% if variant_formset %}
             <template id="variantTemplate">
@@ -970,13 +977,13 @@ document.addEventListener('DOMContentLoaded', function() {
     function setupVariantManager() {
         const container = document.getElementById('variantsContainer');
         const addBtn = document.getElementById('addVariantBtn');
+        const addBtnBottom = document.getElementById('addVariantBtnBottom');
         const template = document.getElementById('variantTemplate');
         const totalForms = document.querySelector('#id_variants-TOTAL_FORMS');
         
-        if (!container || !addBtn || !template) return;
+        if (!container || !template) return;
         
-        // Add new variant row
-        addBtn.addEventListener('click', function() {
+        function addVariantRow() {
             let formIndex = parseInt(totalForms?.value || 0);
             const templateContent = template.innerHTML;
             
@@ -995,7 +1002,13 @@ document.addEventListener('DOMContentLoaded', function() {
             initializeVariantRow(newRow);
             reindexVariantForms();
             window.showToast('Variant row added', 'success');
-        });
+            
+            // Smoothly scroll the new row into view
+            newRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+        
+        addBtn?.addEventListener('click', addVariantRow);
+        addBtnBottom?.addEventListener('click', addVariantRow);
         
         // Remove variant row (event delegation)
         container.addEventListener('click', function(e) {

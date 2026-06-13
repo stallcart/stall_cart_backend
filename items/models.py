@@ -519,11 +519,18 @@ class ProductImage(BaseModel):
         ordering = ['display_order', '-is_primary']
 
 
+class ProductVariantManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(is_deleted=False)
+
+
 class ProductVariant(BaseModel):
     """
     Handles size/color/variant-specific stock & pricing.
     Works for clothing (S/M/L), jewelry (ring size 6/7), furniture (dimensions), etc.
     """
+    objects = ProductVariantManager()
+    all_objects = models.Manager()
     SIZE_TYPE_CHOICES = [
         ('standard', 'Standard / Free Size'),
         ('clothing', 'Clothing (XS-XXL, Numeric)'),
