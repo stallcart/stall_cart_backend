@@ -377,6 +377,67 @@ class ProductCalculationAndStockTests(TestCase):
         # attributes should default/fallback to an empty dictionary
         self.assertEqual(v1.attributes, {})
 
+    def test_variant_custom_attributes_formset_save(self):
+        """Verify that submitting a valid JSON custom attribute on a variant saves it successfully in the DB."""
+        product = Product.objects.create(
+            seller=self.seller_profile,
+            category=self.category,
+            name="Saree",
+            price=Decimal("990.00"),
+            stock=3,
+            status="published"
+        )
+        v1 = ProductVariant.objects.create(
+            product=product,
+            size_value="Free Size",
+            stock=3,
+            is_active=True,
+            attributes={"fabric": "Premium Silk"}
+        )
+        
+        post_data = {
+            'seller': str(self.seller_profile.id),
+            'name': 'Saree',
+            'category': self.category.id,
+            'price': '990.00',
+            'cost_price': '500.00',
+            'discount_percent': '0',
+            'stock': '3',
+            'low_stock_threshold': '1',
+            'status': 'published',
+            'description': 'Elegant purple shimmer saree...',
+            'variants-TOTAL_FORMS': '1',
+            'variants-INITIAL_FORMS': '1',
+            'variants-MIN_NUM_FORMS': '0',
+            'variants-MAX_NUM_FORMS': '1000',
+            
+            'variants-0-id': str(v1.id),
+            'variants-0-size_value': 'Free Size',
+            'variants-0-size_type': 'clothing',
+            'variants-0-color': 'Purple',
+            'variants-0-price_override': '',
+            'variants-0-stock': '3',
+            'variants-0-is_active': 'on',
+            'variants-0-attributes': '{"fabric": "Premium Shimmer Fabric", "fit": "Free Size"}',
+            'variants-0-DELETE': '',
+        }
+        
+        admin_user = User.objects.create_superuser(
+            phone="7777777777",
+            password="adminpassword",
+            role="admin",
+            full_name="Admin User"
+        )
+        self.client.login(phone="7777777777", password="adminpassword")
+        response = self.client.post(f'/items/product/{product.id}/edit/', post_data)
+        
+        # Should succeed and redirect
+        self.assertEqual(response.status_code, 302)
+        
+        v1.refresh_from_db()
+        # attributes should be updated to the new JSON dictionary
+        self.assertEqual(v1.attributes, {"fabric": "Premium Shimmer Fabric", "fit": "Free Size"})
+
 
 class ProductAndSellerReviewTests(TestCase):
     def setUp(self):

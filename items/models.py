@@ -613,6 +613,8 @@ class ProductVariant(BaseModel):
     def is_in_stock(self):
         return self.stock > 0 and self.is_active
     def save(self, *args, **kwargs):
+        if self.attributes is None:
+            self.attributes = {}
         super().save(*args, **kwargs)
 
         # Update parent product stock

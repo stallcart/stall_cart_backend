@@ -80,11 +80,14 @@ class ProductImageInline(admin.TabularInline):
     image_preview.short_description = "Preview"
 
 
+from .forms import ProductVariantForm
+
 # ─────────────────────────────────────────────
 # Product Variant Inline
 # ─────────────────────────────────────────────
 class ProductVariantInline(admin.TabularInline):
     model = ProductVariant
+    form = ProductVariantForm
     extra = 1
 
     fields = (
@@ -95,6 +98,7 @@ class ProductVariantInline(admin.TabularInline):
         'stock',
         'is_active',
         'sku',
+        'attributes',
     )
 
     show_change_link = True
