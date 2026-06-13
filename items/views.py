@@ -561,8 +561,13 @@ def product_create(request):
                     alt_text=product.name,
                 )
 
-            # ✅ Save variants with SKU generation
+            # ✅ Save variants with SKU generation (commit=False to populate deleted_objects)
             variants = variant_formset.save(commit=False)
+            
+            # ✅ Handle deleted variants first
+            for obj in variant_formset.deleted_objects:
+                obj.delete()
+
             for variant in variants:
                 variant.product = product
                 
@@ -586,9 +591,6 @@ def product_create(request):
                     variant.sku = final_sku
                 
                 variant.save()
-            
-            for obj in variant_formset.deleted_objects:
-                obj.delete()
 
             messages.success(request, f'✅ Product "{product.name}" created successfully!')
             if request.user.is_admin:
@@ -663,8 +665,13 @@ def product_edit(request, product_id):
                         alt_text=updated.name,
                     )
 
-            # ✅ Save variants
+            # ✅ Save variants (commit=False to populate deleted_objects)
             variants = variant_formset.save(commit=False)
+            
+            # ✅ Handle deleted variants first
+            for obj in variant_formset.deleted_objects:
+                obj.delete()
+
             for variant in variants:
                 variant.product = updated
                 
@@ -691,10 +698,6 @@ def product_edit(request, product_id):
                     variant.sku = final_sku
                 
                 variant.save()
-            
-            # ✅ Handle deleted variants
-            for obj in variant_formset.deleted_objects:
-                obj.delete()
 
             messages.success(request, f'✅ Product "{updated.name}" updated successfully!')
             if request.user.is_admin:
