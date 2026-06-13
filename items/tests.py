@@ -438,6 +438,80 @@ class ProductCalculationAndStockTests(TestCase):
         # attributes should be updated to the new JSON dictionary
         self.assertEqual(v1.attributes, {"fabric": "Premium Shimmer Fabric", "fit": "Free Size"})
 
+    def test_variant_delete_and_add_stock_sync_in_views(self):
+        """Verify that when editing a product, deleting an old variant and adding a new variant works successfully, and parent stock is correctly updated to match only the active variants in the DB (preventing stale prefetch/cache issues)."""
+        product = Product.objects.create(
+            seller=self.seller_profile,
+            category=self.category,
+            name="Kurti",
+            price=Decimal("499.00"),
+            stock=5,
+            status="published"
+        )
+        v1 = ProductVariant.objects.create(
+            product=product,
+            size_value="M",
+            stock=5,
+            is_active=True
+        )
+        product.refresh_from_db()
+        self.assertEqual(product.stock, 5)
+
+        # POST data: delete v1 (M, stock 5) and add new variant v2 (L, stock 3)
+        # Total active variant stock will be 3, so base stock should be 3
+        post_data = {
+            'name': 'Kurti',
+            'category': self.category.id,
+            'price': '499.00',
+            'cost_price': '200.00',
+            'discount_percent': '0',
+            'stock': '3',  # New expected base stock
+            'low_stock_threshold': '1',
+            'status': 'published',
+            'description': 'Description text long enough...',
+            'variants-TOTAL_FORMS': '2',
+            'variants-INITIAL_FORMS': '1',
+            'variants-MIN_NUM_FORMS': '0',
+            'variants-MAX_NUM_FORMS': '1000',
+            
+            # v1 (deleted)
+            'variants-0-id': str(v1.id),
+            'variants-0-size_value': 'M',
+            'variants-0-size_type': 'clothing',
+            'variants-0-color': '',
+            'variants-0-price_override': '',
+            'variants-0-stock': '5',
+            'variants-0-is_active': 'on',
+            'variants-0-DELETE': 'on',  # Check DELETE
+            
+            # v2 (new)
+            'variants-1-id': '',
+            'variants-1-size_value': 'L',
+            'variants-1-size_type': 'clothing',
+            'variants-1-color': '',
+            'variants-1-price_override': '',
+            'variants-1-stock': '3',
+            'variants-1-is_active': 'on',
+            'variants-1-DELETE': '',
+        }
+        self.client.login(phone="8888888888", password="sellerpassword")
+        response = self.client.post(f'/items/product/{product.id}/edit/', post_data)
+        
+        # Should succeed and redirect
+        self.assertEqual(response.status_code, 302)
+        
+        # Verify database state
+        self.assertFalse(ProductVariant.objects.filter(id=v1.id).exists()) # v1 is hard-deleted
+        self.assertEqual(ProductVariant.objects.filter(product=product).count(), 1) # only v2 exists
+        
+        v2 = ProductVariant.objects.get(product=product)
+        self.assertEqual(v2.size_value, "L")
+        self.assertEqual(v2.stock, 3)
+        
+        product.refresh_from_db()
+        self.assertEqual(product.stock, 3)
+        self.assertEqual(product.status, "published")
+
 
 class ProductAndSellerReviewTests(TestCase):
     def setUp(self):

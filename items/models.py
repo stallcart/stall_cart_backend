@@ -305,6 +305,30 @@ class Product(BaseModel):
     rating_avg = models.DecimalField(max_digits=3, decimal_places=2, default=0.00)
     review_count = models.PositiveIntegerField(default=0)
     
+    def update_stock_from_variants(self, save=True):
+        """
+        Recalculates base stock from active variants using a direct DB query.
+        Returns the updated stock.
+        """
+        active_variants = ProductVariant.objects.filter(product=self, is_active=True)
+        if active_variants.exists():
+            total_stock = active_variants.aggregate(
+                total=models.Sum('stock')
+            )['total'] or 0
+            self.stock = total_stock
+            if total_stock <= 0:
+                self.status = 'out_of_stock'
+            elif self.status == 'out_of_stock':
+                self.status = 'published'
+        else:
+            if ProductVariant.objects.filter(product=self).exists():
+                self.stock = 0
+                self.status = 'out_of_stock'
+        
+        if save and self.pk:
+            Product.objects.filter(pk=self.pk).update(stock=self.stock, status=self.status)
+        return self.stock
+
     def save(self, *args, **kwargs):
         is_new = self.pk is None
 
@@ -338,14 +362,7 @@ class Product(BaseModel):
 
         # If this product has active variants, synchronize parent product stock and status before save
         if not is_new:
-            active_variants = self.variants.filter(is_active=True)
-            if active_variants.exists():
-                total_stock = sum(v.stock for v in active_variants)
-                self.stock = total_stock
-                if total_stock <= 0:
-                    self.status = 'out_of_stock'
-                elif self.status == 'out_of_stock':
-                    self.status = 'published'
+            self.update_stock_from_variants(save=False)
 
         super().save(*args, **kwargs)
 
@@ -616,44 +633,12 @@ class ProductVariant(BaseModel):
         if self.attributes is None:
             self.attributes = {}
         super().save(*args, **kwargs)
-
-        # Update parent product stock
-        total_stock = self.product.variants.filter(
-            is_active=True
-        ).aggregate(
-            total=models.Sum('stock')
-        )['total'] or 0
-
-        self.product.stock = total_stock
-
-        # Auto update status
-        if total_stock <= 0:
-            self.product.status = 'out_of_stock'
-        elif self.product.status == 'out_of_stock':
-            self.product.status = 'published'
-
-        self.product.save(update_fields=['stock', 'status'])
+        self.product.update_stock_from_variants()
 
     def delete(self, *args, **kwargs):
         product = self.product
         super().delete(*args, **kwargs)
-
-        # Update parent product stock
-        active_variants = product.variants.filter(is_active=True)
-        if active_variants.exists():
-            total_stock = active_variants.aggregate(
-                total=models.Sum('stock')
-            )['total'] or 0
-            product.stock = total_stock
-            if total_stock <= 0:
-                product.status = 'out_of_stock'
-            elif product.status == 'out_of_stock':
-                product.status = 'published'
-        else:
-            product.stock = 0
-            product.status = 'out_of_stock'
-
-        product.save(update_fields=['stock', 'status'])
+        product.update_stock_from_variants()
     class Meta:
         verbose_name = 'Product Variant'
         verbose_name_plural = 'Product Variants'

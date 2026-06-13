@@ -2293,10 +2293,7 @@ def authorized_cancel_order(request, order_id):
                 if variant:
                     variant.stock = (variant.stock or 0) + qty
                     variant.save(update_fields=['stock', 'updated_at'])
-                    product.stock = product.variants.filter(is_active=True).aggregate(
-                        total=models.Sum('stock')
-                    )['total'] or 0
-                    product.save(update_fields=['stock', 'updated_at'])
+                    product.update_stock_from_variants()
                 else:
                     product.stock = (product.stock or 0) + qty
                     product.save(update_fields=['stock', 'updated_at'])

@@ -427,10 +427,7 @@ def create_order(request):
                     if variant:
                         variant.stock = max(0, variant.stock - item.quantity)
                         variant.save(update_fields=['stock'])
-                        product.stock = product.variants.filter(is_active=True).aggregate(
-                            total=models.Sum('stock')
-                        )['total'] or 0
-                        product.save(update_fields=['stock'])
+                        product.update_stock_from_variants()
                     else:
                         product.stock = max(0, product.stock - item.quantity)
                         product.save(update_fields=['stock'])
@@ -582,10 +579,7 @@ def create_order(request):
                     if variant:
                         variant.stock = max(0, variant.stock - item.quantity)
                         variant.save(update_fields=['stock'])
-                        product.stock = product.variants.filter(is_active=True).aggregate(
-                            total=models.Sum('stock')
-                        )['total'] or 0
-                        product.save(update_fields=['stock'])
+                        product.update_stock_from_variants()
                     else:
                         product.stock = max(0, product.stock - item.quantity)
                         product.save(update_fields=['stock'])
@@ -816,10 +810,7 @@ def _deduct_stock_for_order_items(cart_items):
         if variant:
             variant.stock = max(0, variant.stock - item.quantity)
             variant.save(update_fields=['stock'])
-            product.stock = product.variants.filter(is_active=True).aggregate(
-                total=Sum('stock')
-            )['total'] or 0
-            product.save(update_fields=['stock'])
+            product.update_stock_from_variants()
         else:
             product.stock = max(0, product.stock - item.quantity)
             product.save(update_fields=['stock'])
@@ -974,11 +965,7 @@ def verify_payment(request):
                 if variant:
                     variant.stock = max(0, variant.stock - item_data['quantity'])
                     variant.save(update_fields=['stock'])
-                    # Recalculate product stock from variants
-                    product.stock = product.variants.filter(is_active=True).aggregate(
-                        total=models.Sum('stock')
-                    )['total'] or 0
-                    product.save(update_fields=['stock'])
+                    product.update_stock_from_variants()
                 else:
                     product.stock = max(0, product.stock - item_data['quantity'])
                     product.save(update_fields=['stock'])
@@ -1057,10 +1044,7 @@ def _cancel_pending_order(order_unique_id, user):
                 if variant:
                     variant.stock += item.quantity
                     variant.save(update_fields=['stock'])
-                    product.stock = product.variants.filter(is_active=True).aggregate(
-                        total=models.Sum('stock')
-                    )['total'] or 0
-                    product.save(update_fields=['stock'])
+                    product.update_stock_from_variants()
                 else:
                     product.stock += item.quantity
                     product.save(update_fields=['stock'])
