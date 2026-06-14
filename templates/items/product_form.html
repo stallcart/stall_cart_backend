@@ -1055,12 +1055,11 @@ document.addEventListener('DOMContentLoaded', function() {
             let formIndex = parseInt(totalForms?.value || 0);
             const templateContent = template.innerHTML;
             
-            // Create new row with replaced prefix
-            const newRow = document.createElement('div');
-            newRow.className = 'variant-row new-variant';
-            newRow.dataset.formIndex = formIndex;
+            // Create a temporary container to parse the template HTML without nesting variant-row divs
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = templateContent.replace(/__prefix__/g, formIndex).trim();
+            const newRow = tempDiv.firstElementChild;
             
-            newRow.innerHTML = templateContent.replace(/__prefix__/g, formIndex);
             container.appendChild(newRow);
             
             if (totalForms) {
@@ -1100,11 +1099,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     deleteField.checked = true;
                 }
                 
-                // Visual indicators
+                // Visual indicators: use pointer-events: none on fields instead of disabling them,
+                // so they are still submitted and preserved on validation error re-renders
                 row.classList.add('marked-for-delete');
                 row.style.opacity = '0.5';
-                row.querySelectorAll('input:not([type="hidden"]):not([name$="-DELETE"]), select, textarea').forEach(el => {
-                    el.disabled = true;
+                row.querySelectorAll('.form-row, .form-group').forEach(el => {
+                    el.style.pointerEvents = 'none';
                 });
                 
                 row.querySelector('.variant-title').innerHTML += ' <span style="color:#c62828;font-weight:600;" class="delete-marker">(Marked for deletion)</span>';
@@ -1123,8 +1123,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     row.classList.remove('marked-for-delete');
                     row.style.opacity = '1';
-                    row.querySelectorAll('input:not([type="hidden"]):not([name$="-DELETE"]), select, textarea').forEach(el => {
-                        el.disabled = false;
+                    row.querySelectorAll('.form-row, .form-group').forEach(el => {
+                        el.style.pointerEvents = 'auto';
                     });
                     
                     const marker = row.querySelector('.variant-title span.delete-marker');
@@ -1189,8 +1189,8 @@ document.addEventListener('DOMContentLoaded', function() {
             if (deleteField && removeBtn && (deleteField.type === 'checkbox' ? deleteField.checked : deleteField.value === 'on')) {
                 row.classList.add('marked-for-delete');
                 row.style.opacity = '0.5';
-                row.querySelectorAll('input:not([type="hidden"]):not([name$="-DELETE"]), select, textarea').forEach(el => {
-                    el.disabled = true;
+                row.querySelectorAll('.form-row, .form-group').forEach(el => {
+                    el.style.pointerEvents = 'none';
                 });
                 
                 if (titleEl && !titleEl.querySelector('.delete-marker')) {
@@ -1209,8 +1209,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     row.classList.remove('marked-for-delete');
                     row.style.opacity = '1';
-                    row.querySelectorAll('input:not([type="hidden"]):not([name$="-DELETE"]), select, textarea').forEach(el => {
-                        el.disabled = false;
+                    row.querySelectorAll('.form-row, .form-group').forEach(el => {
+                        el.style.pointerEvents = 'auto';
                     });
                     
                     const marker = titleEl?.querySelector('span.delete-marker');

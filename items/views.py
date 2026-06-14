@@ -4,7 +4,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
-from django.db.models import F, Avg, Count, Q , Sum
+from django.db.models import F, Avg, Count, Q, Sum, ProtectedError
 from .models import *
 from .forms import *
 from common.decorators import *
@@ -565,8 +565,33 @@ def product_create(request):
             variants = variant_formset.save(commit=False)
             
             # ✅ Handle deleted variants first
+            soft_deleted_count = 0
             for obj in variant_formset.deleted_objects:
-                obj.delete()
+                try:
+                    obj.delete()
+                except ProtectedError:
+                    # Soft delete variant if referenced by existing order items
+                    obj.is_active = False
+                    obj.is_deleted = True
+                    
+                    # Prevent unique constraint violations
+                    suffix = f" (deleted-{obj.id})"
+                    max_len = 50 - len(suffix)
+                    obj.size_value = f"{obj.size_value[:max_len]}{suffix}"
+                    
+                    if obj.sku:
+                        sku_suffix = f"-deleted-{obj.id}"
+                        sku_max_len = 50 - len(sku_suffix)
+                        obj.sku = f"{obj.sku[:sku_max_len]}{sku_suffix}"
+                    
+                    obj.save()
+                    soft_deleted_count += 1
+            
+            if soft_deleted_count > 0:
+                messages.warning(
+                    request,
+                    f"⚠️ {soft_deleted_count} variant(s) could not be permanently deleted because they have been ordered by customers. They have been deactivated and hidden instead."
+                )
 
             for variant in variants:
                 variant.product = product
@@ -669,8 +694,33 @@ def product_edit(request, product_id):
             variants = variant_formset.save(commit=False)
             
             # ✅ Handle deleted variants first
+            soft_deleted_count = 0
             for obj in variant_formset.deleted_objects:
-                obj.delete()
+                try:
+                    obj.delete()
+                except ProtectedError:
+                    # Soft delete variant if referenced by existing order items
+                    obj.is_active = False
+                    obj.is_deleted = True
+                    
+                    # Prevent unique constraint violations
+                    suffix = f" (deleted-{obj.id})"
+                    max_len = 50 - len(suffix)
+                    obj.size_value = f"{obj.size_value[:max_len]}{suffix}"
+                    
+                    if obj.sku:
+                        sku_suffix = f"-deleted-{obj.id}"
+                        sku_max_len = 50 - len(sku_suffix)
+                        obj.sku = f"{obj.sku[:sku_max_len]}{sku_suffix}"
+                    
+                    obj.save()
+                    soft_deleted_count += 1
+            
+            if soft_deleted_count > 0:
+                messages.warning(
+                    request,
+                    f"⚠️ {soft_deleted_count} variant(s) could not be permanently deleted because they have been ordered by customers. They have been deactivated and hidden instead."
+                )
 
             for variant in variants:
                 variant.product = updated

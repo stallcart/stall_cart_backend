@@ -223,6 +223,108 @@ class ProductCalculationAndStockTests(TestCase):
         # Stock should sync to v1's stock, i.e., 4
         self.assertEqual(product.stock, 4)
 
+    def test_product_variant_protected_delete(self):
+        """Verify that a variant referenced by an OrderItem is soft-deleted instead of raising ProtectedError."""
+        # 1. Create a product and two variants
+        product = Product.objects.create(
+            seller=self.seller_profile,
+            category=self.category,
+            name="Sweater",
+            price=Decimal("20.00"),
+            stock=10,
+            status="published"
+        )
+        v1 = ProductVariant.objects.create(
+            product=product,
+            size_value="M",
+            stock=4,
+            is_active=True
+        )
+        v2 = ProductVariant.objects.create(
+            product=product,
+            size_value="L",
+            stock=6,
+            is_active=True
+        )
+        
+        # 2. Place an order containing v2 (to trigger ProtectedError on delete)
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        customer = User.objects.create_user(phone="9999999999", password="customerpassword")
+        
+        from orders.models import Order, OrderItem
+        order = Order.objects.create(
+            user=customer,
+            unique_order_id="ORD-TEST-12345",
+            total_amount=Decimal("120.00"),
+            payment_status="paid"
+        )
+        OrderItem.objects.create(
+            order=order,
+            product=product,
+            variant=v2,
+            seller=self.seller_profile,
+            quantity=1,
+            price=Decimal("20.00"),
+            total=Decimal("20.00")
+        )
+        
+        # 3. POST to delete both variants: v1 (no orders) and v2 (ordered)
+        post_data = {
+            'name': 'Sweater',
+            'category': self.category.id,
+            'price': '20.00',
+            'cost_price': '10.00',
+            'discount_percent': '0',
+            'stock': '0',  # v1 deleted, v2 soft-deleted and deactivated, so active variants stock sum is 0
+            'low_stock_threshold': '1',
+            'status': 'published',
+            'description': 'Product description long enough...',
+            'variants-TOTAL_FORMS': '2',
+            'variants-INITIAL_FORMS': '2',
+            'variants-MIN_NUM_FORMS': '0',
+            'variants-MAX_NUM_FORMS': '1000',
+            
+            # v1: delete
+            'variants-0-id': str(v1.id),
+            'variants-0-size_value': 'M',
+            'variants-0-size_type': 'clothing',
+            'variants-0-color': '',
+            'variants-0-price_override': '',
+            'variants-0-stock': '4',
+            'variants-0-is_active': 'on',
+            'variants-0-DELETE': 'on',
+            
+            # v2: delete
+            'variants-1-id': str(v2.id),
+            'variants-1-size_value': 'L',
+            'variants-1-size_type': 'clothing',
+            'variants-1-color': '',
+            'variants-1-price_override': '',
+            'variants-1-stock': '6',
+            'variants-1-is_active': 'on',
+            'variants-1-DELETE': 'on',
+        }
+        
+        self.client.login(phone="8888888888", password="sellerpassword")
+        response = self.client.post(f'/items/product/{product.id}/edit/', post_data)
+        
+        # Should redirect on success
+        self.assertEqual(response.status_code, 302)
+        
+        # v1 (no orders) should be hard deleted
+        self.assertFalse(ProductVariant.objects.filter(id=v1.id).exists())
+        
+        # v2 (ordered) should still exist, but be soft-deleted
+        # ProductVariant.objects filters by is_deleted=False, so v2 is not visible in standard queries
+        self.assertFalse(ProductVariant.objects.filter(id=v2.id).exists())
+        
+        # But ProductVariant.all_objects should contain it
+        v2_from_db = ProductVariant.all_objects.get(id=v2.id)
+        self.assertTrue(v2_from_db.is_deleted)
+        self.assertFalse(v2_from_db.is_active)
+        self.assertIn("deleted-", v2_from_db.size_value)
+
     def test_cost_price_validation(self):
         """Form must reject negative cost prices."""
         form_data = {
