@@ -272,9 +272,6 @@
             <div class="section-header">
                 <h3><i class="fa fa-ruler-combined" style="margin-right: 6px;"></i>Variants / Sizes</h3>
                 <span class="section-badge">Optional</span>
-                <button type="button" class="btn-sm btn-outline" id="addVariantBtn" style="margin-left:auto;">
-                    <i class="fa fa-plus"></i> Add Variant
-                </button>
             </div>
             
             <p class="form-help" style="margin-bottom:15px;">
@@ -813,7 +810,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const isDeleted = row.classList.contains('marked-for-delete') || (deleteField ? (deleteField.type === 'checkbox' ? deleteField.checked : deleteField.value === 'on') : false);
             const isActive = isActiveField ? isActiveField.checked : true;
-            const hasData = sizeVal || stockVal || colorVal || priceVal;
+            const hasData = sizeVal || colorVal || priceVal || (stockVal && stockVal !== '0');
             
             if (!isDeleted && hasData && isActive) {
                 hasActiveVariants = true;
@@ -879,8 +876,8 @@ document.addEventListener('DOMContentLoaded', function() {
             // Check if this is a new variant (no ID)
             const isNew = !idField || !idField.value || idField.value.trim() === '';
             
-            // Check if the row has any input at all
-            const hasData = sizeVal || stockVal || colorVal || priceVal;
+            // Check if the row has any input at all (stock defaulted to '0' is not considered user-entered data unless size/color/price is entered)
+            const hasData = sizeVal || colorVal || priceVal || (stockVal && stockVal !== '0');
             
             if (isNew && !hasData) {
                 // Completely empty new row, remove it!
