@@ -198,7 +198,7 @@ class SellerProfile(BaseModel):
 
 class Category(BaseModel):
     name = models.CharField(max_length=100, unique=True)
-    slug = models.SlugField(unique=True, blank=True)
+    slug = models.SlugField(max_length=255, unique=True, blank=True)
     description = models.TextField(blank=True,null=True)
     commision_percentage = models.FloatField(default=0)
     parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL, related_name='children')
@@ -206,7 +206,21 @@ class Category(BaseModel):
     
     def save(self, *args, **kwargs):
         if not self.slug:
-            self.slug = slugify(self.name)
+            max_len = self._meta.get_field('slug').max_length or 255
+            base_slug = slugify(self.name)
+            reserved_chars = 15
+            if len(base_slug) > max_len - reserved_chars:
+                base_slug = base_slug[:max_len - reserved_chars].rstrip('-')
+            
+            slug = base_slug
+            if not slug:
+                slug = 'category'
+            
+            counter = 1
+            while Category.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+            self.slug = slug
         super().save(*args, **kwargs)
     
     def __str__(self):
@@ -261,7 +275,7 @@ class Product(BaseModel):
     )
     
     name = models.CharField(max_length=200)
-    slug = models.SlugField(unique=True, blank=True)
+    slug = models.SlugField(max_length=255, unique=True, blank=True)
     description = models.TextField()
     short_description = models.CharField(max_length=255, blank=True)
     
@@ -333,8 +347,16 @@ class Product(BaseModel):
         is_new = self.pk is None
 
         if not self.slug:
+            max_len = self._meta.get_field('slug').max_length or 255
             base_slug = slugify(self.name)
+            reserved_chars = 15
+            if len(base_slug) > max_len - reserved_chars:
+                base_slug = base_slug[:max_len - reserved_chars].rstrip('-')
+            
             slug = base_slug
+            if not slug:
+                slug = 'product'
+            
             counter = 1
             while Product.objects.filter(slug=slug).exclude(pk=self.pk).exists():
                 slug = f"{base_slug}-{counter}"

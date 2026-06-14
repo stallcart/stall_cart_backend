@@ -1017,3 +1017,89 @@ class ProductListPaginationTests(TestCase):
         self.assertEqual(len(response.context['products']), 3)
 
 
+class ProductSlugLengthAndUniquenessTests(TestCase):
+    def setUp(self):
+        # Create a verified seller user
+        self.seller_user = User.objects.create_user(
+            phone="8888888888",
+            password="sellerpassword",
+            role="seller",
+            full_name="Test Seller"
+        )
+        self.seller_profile = SellerProfile.objects.create(
+            user=self.seller_user,
+            shop_name="Test Shop",
+            is_verified=True
+        )
+        
+        # Create a category with a commission percentage
+        self.category = Category.objects.create(
+            name="Clothing", 
+            commision_percentage=15.0  # 15% commission
+        )
+
+    def test_extremely_long_product_name_slug_truncation(self):
+        """Verify that a product with a name longer than 255 characters is saved with a truncated slug without crashing."""
+        long_name = "A" * 300
+        product = Product.objects.create(
+            seller=self.seller_profile,
+            category=self.category,
+            name=long_name,
+            price=Decimal("100.00"),
+            stock=10,
+            status="published"
+        )
+        # Verify it saved successfully and length of slug is <= 255
+        self.assertTrue(product.slug)
+        self.assertLessEqual(len(product.slug), 255)
+        # It should start with 'a'
+        self.assertTrue(product.slug.startswith("a"))
+
+    def test_duplicate_extremely_long_product_names(self):
+        """Verify that multiple products with the same extremely long name receive unique truncated slugs without clashing or overflowing."""
+        long_name = "B" * 300
+        p1 = Product.objects.create(
+            seller=self.seller_profile,
+            category=self.category,
+            name=long_name,
+            price=Decimal("100.00"),
+            stock=10,
+            status="published"
+        )
+        p2 = Product.objects.create(
+            seller=self.seller_profile,
+            category=self.category,
+            name=long_name,
+            price=Decimal("120.00"),
+            stock=5,
+            status="published"
+        )
+        p3 = Product.objects.create(
+            seller=self.seller_profile,
+            category=self.category,
+            name=long_name,
+            price=Decimal("150.00"),
+            stock=1,
+            status="published"
+        )
+        
+        self.assertNotEqual(p1.slug, p2.slug)
+        self.assertNotEqual(p1.slug, p3.slug)
+        self.assertNotEqual(p2.slug, p3.slug)
+        
+        self.assertLessEqual(len(p1.slug), 255)
+        self.assertLessEqual(len(p2.slug), 255)
+        self.assertLessEqual(len(p3.slug), 255)
+
+    def test_extremely_long_category_name_slug_truncation(self):
+        """Verify that a category with an extremely long name is saved with a truncated slug."""
+        long_name = "C" * 300
+        category = Category.objects.create(
+            name=long_name,
+            commision_percentage=5.0
+        )
+        self.assertTrue(category.slug)
+        self.assertLessEqual(len(category.slug), 255)
+
+
+
