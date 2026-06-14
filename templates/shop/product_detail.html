@@ -775,6 +775,7 @@
 <script>
 // ── Constants from Django context ───────────────────────────────
 const csrfToken   = '{{ csrf_token }}';
+const isAuthenticated = {% if user.is_authenticated %}true{% else %}false{% endif %};
 const userRole    = '{{ user.role|default:"guest" }}';
 const hasVariants = {{ has_variants|yesno:"true,false" }};
 const baseMrp     = {{ product.mrp|default:product.price }};
@@ -1114,7 +1115,12 @@ function setupAddToCart() {
     if (!btn) return;
 
     btn.addEventListener('click', async function () {
-        if (userRole && userRole !== 'customer' && userRole !== 'guest') {
+        if (!isAuthenticated) {
+            window.location.href = "{% url 'accounts:login' %}?next=" + encodeURIComponent(window.location.pathname);
+            return;
+        }
+
+        if (userRole && userRole !== 'customer') {
             showToast('Only customers can add items to cart', 'error');
             return;
         }
@@ -1207,7 +1213,12 @@ function setupBuyNow() {
     if (!buyBtn) return;
 
     buyBtn.addEventListener('click', function () {
-        if (userRole && userRole !== 'customer' && userRole !== 'guest') {
+        if (!isAuthenticated) {
+            window.location.href = "{% url 'accounts:login' %}?next=" + encodeURIComponent(window.location.pathname);
+            return;
+        }
+
+        if (userRole && userRole !== 'customer') {
             showToast('Only customers can proceed to checkout', 'error');
             return;
         }
@@ -1280,20 +1291,24 @@ if (!document.querySelector('#toast-animations')) {
 
 // ── Share Product Function ───────────────────────────────────────
 window.shareProduct = function(productName, productUrl) {
+    // Append a unique cache-buster parameter to force crawlers (like WhatsApp) to fetch fresh metadata
+    const separator = productUrl.includes('?') ? '&' : '?';
+    const sharedUrl = productUrl + separator + 'v=' + Date.now();
+    
     if (navigator.share) {
         navigator.share({
             title: productName,
             text: 'Check out this product on StallCart: ' + productName,
-            url: productUrl,
+            url: sharedUrl,
         })
         .then(() => showToast('Shared successfully!', 'success'))
         .catch((err) => {
             if (err.name !== 'AbortError') {
-                copyToClipboard(productUrl);
+                copyToClipboard(sharedUrl);
             }
         });
     } else {
-        copyToClipboard(productUrl);
+        copyToClipboard(sharedUrl);
     }
 };
 
@@ -1314,8 +1329,13 @@ function setupWishlist() {
     if (!wishlistBtn) return;
 
     wishlistBtn.addEventListener('click', async function () {
+        if (!isAuthenticated) {
+            window.location.href = "{% url 'accounts:login' %}?next=" + encodeURIComponent(window.location.pathname);
+            return;
+        }
+
         if (userRole !== 'customer') {
-            showToast('Please login to use wishlist', 'error');
+            showToast('Only customers can manage wishlist.', 'error');
             return;
         }
 
