@@ -1043,3 +1043,55 @@ class AjaxExceptionMiddlewareTest(SimpleTestCase):
         data = json.loads(response.content)
         self.assertEqual(data['status'], 'error')
         self.assertEqual(data['message'], 'Something went wrong on our server. Please try again later.')
+
+
+class AdminUserManagementPaginationTests(TestCase):
+    def setUp(self):
+        from django.test import Client
+        from common.models import _thread_locals
+        _thread_locals.user = None
+        
+        self.client = Client()
+        self.superuser = User.objects.create_superuser(phone="9999999990", password="pass", role="admin")
+        
+        # Create 15 staff members, 15 sellers, and 15 customers
+        for i in range(15):
+            User.objects.create_user(phone=f"90000000{i:02d}", password="pass", role="staff", full_name=f"Staff {i}")
+            
+            seller = User.objects.create_user(phone=f"91000000{i:02d}", password="pass", role="seller", full_name=f"Seller {i}")
+            from items.models import SellerProfile
+            SellerProfile.objects.create(user=seller, shop_name=f"Shop {i}", is_verified=True)
+            
+            User.objects.create_user(phone=f"92000000{i:02d}", password="pass", role="customer", full_name=f"Customer {i}")
+
+    def test_pagination_independent_pages(self):
+        self.client.login(phone="9999999990", password="pass")
+        url = reverse('accounts:admin_user_management')
+        
+        # Test default first page (page size 10)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        
+        # Context lists should only contain 10 items
+        self.assertEqual(len(response.context['staff_list']), 10)
+        self.assertEqual(len(response.context['seller_list']), 10)
+        self.assertEqual(len(response.context['customer_list']), 10)
+        
+        # Tab counts should show the total count (15 staff, 15 sellers, 15 customers)
+        self.assertEqual(response.context['staff_list'].paginator.count, 15)
+        self.assertEqual(response.context['seller_list'].paginator.count, 15)
+        self.assertEqual(response.context['customer_list'].paginator.count, 15)
+        
+        # Request second page of staff
+        response = self.client.get(f"{url}?staff_page=2")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context['staff_list']), 5)
+        self.assertEqual(len(response.context['seller_list']), 10) # seller is still page 1
+        
+        # Request second page of seller and customer
+        response = self.client.get(f"{url}?seller_page=2&customer_page=2")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context['staff_list']), 10) # staff resets to default page 1 or keeps page 1
+        self.assertEqual(len(response.context['seller_list']), 5)
+        self.assertEqual(len(response.context['customer_list']), 5)
+

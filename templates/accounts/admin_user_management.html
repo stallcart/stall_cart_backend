@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
+{% load custom_filters %}
 
 {% block title %}Account & User Management | {{ site_settings.site_name }}{% endblock %}
 
@@ -415,13 +416,13 @@
     <!-- Tabs Nav -->
     <div class="mgmt-tabs">
         <button class="tab-trigger active" data-target="staff-pane">
-            <i class="fa fa-user-shield"></i> Staff Members ({{ staff_list|length }})
+            <i class="fa fa-user-shield"></i> Staff Members ({{ staff_list.paginator.count }})
         </button>
         <button class="tab-trigger" data-target="sellers-pane">
-            <i class="fa fa-store"></i> Verified/Pending Sellers ({{ seller_list|length }})
+            <i class="fa fa-store"></i> Verified/Pending Sellers ({{ seller_list.paginator.count }})
         </button>
         <button class="tab-trigger" data-target="customers-pane">
-            <i class="fa fa-users"></i> Registered Customers ({{ customer_list|length }})
+            <i class="fa fa-users"></i> Registered Customers ({{ customer_list.paginator.count }})
         </button>
     </div>
 
@@ -489,6 +490,41 @@
                     </tbody>
                 </table>
             </div>
+            
+            {% if staff_list.has_other_pages %}
+            <div style="display: flex; justify-content: center; gap: 8px; margin-top: 24px; flex-wrap: wrap;">
+                {% if staff_list.has_previous %}
+                    <a href="?{% modify_query request staff_page=1 %}" 
+                       class="btn-outline" style="padding: 8px 14px; font-size: 0.85rem; border-radius: var(--r-sm); text-decoration: none; font-weight: 600;">
+                        <i class="fa fa-angle-double-left"></i>
+                    </a>
+                    <a href="?{% modify_query request staff_page=staff_list.previous_page_number %}" 
+                       class="btn-outline" style="padding: 8px 14px; font-size: 0.85rem; border-radius: var(--r-sm); text-decoration: none; font-weight: 600;">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                {% endif %}
+                
+                {% for num in staff_list.paginator.page_range %}
+                    {% if staff_list.number == num %}
+                        <span style="padding: 8px 14px; font-size: 0.85rem; border-radius: var(--r-sm); cursor: default; background: var(--blue-500); color: white; border: 1.5px solid var(--blue-500); font-weight: 700;">{{ num }}</span>
+                    {% elif num > staff_list.number|add:'-3' and num < staff_list.number|add:'3' %}
+                        <a href="?{% modify_query request staff_page=num %}" 
+                           class="btn-outline" style="padding: 8px 14px; font-size: 0.85rem; border-radius: var(--r-sm); text-decoration: none; font-weight: 600;">{{ num }}</a>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if staff_list.has_next %}
+                    <a href="?{% modify_query request staff_page=staff_list.next_page_number %}" 
+                       class="btn-outline" style="padding: 8px 14px; font-size: 0.85rem; border-radius: var(--r-sm); text-decoration: none; font-weight: 600;">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                    <a href="?{% modify_query request staff_page=staff_list.paginator.num_pages %}" 
+                       class="btn-outline" style="padding: 8px 14px; font-size: 0.85rem; border-radius: var(--r-sm); text-decoration: none; font-weight: 600;">
+                        <i class="fa fa-angle-double-right"></i>
+                    </a>
+                {% endif %}
+            </div>
+            {% endif %}
         </div>
     </div>
 
@@ -564,6 +600,41 @@
                     </tbody>
                 </table>
             </div>
+            
+            {% if seller_list.has_other_pages %}
+            <div style="display: flex; justify-content: center; gap: 8px; margin-top: 24px; flex-wrap: wrap;">
+                {% if seller_list.has_previous %}
+                    <a href="?{% modify_query request seller_page=1 %}" 
+                       class="btn-outline" style="padding: 8px 14px; font-size: 0.85rem; border-radius: var(--r-sm); text-decoration: none; font-weight: 600;">
+                        <i class="fa fa-angle-double-left"></i>
+                    </a>
+                    <a href="?{% modify_query request seller_page=seller_list.previous_page_number %}" 
+                       class="btn-outline" style="padding: 8px 14px; font-size: 0.85rem; border-radius: var(--r-sm); text-decoration: none; font-weight: 600;">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                {% endif %}
+                
+                {% for num in seller_list.paginator.page_range %}
+                    {% if seller_list.number == num %}
+                        <span style="padding: 8px 14px; font-size: 0.85rem; border-radius: var(--r-sm); cursor: default; background: var(--blue-500); color: white; border: 1.5px solid var(--blue-500); font-weight: 700;">{{ num }}</span>
+                    {% elif num > seller_list.number|add:'-3' and num < seller_list.number|add:'3' %}
+                        <a href="?{% modify_query request seller_page=num %}" 
+                           class="btn-outline" style="padding: 8px 14px; font-size: 0.85rem; border-radius: var(--r-sm); text-decoration: none; font-weight: 600;">{{ num }}</a>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if seller_list.has_next %}
+                    <a href="?{% modify_query request seller_page=seller_list.next_page_number %}" 
+                       class="btn-outline" style="padding: 8px 14px; font-size: 0.85rem; border-radius: var(--r-sm); text-decoration: none; font-weight: 600;">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                    <a href="?{% modify_query request seller_page=seller_list.paginator.num_pages %}" 
+                       class="btn-outline" style="padding: 8px 14px; font-size: 0.85rem; border-radius: var(--r-sm); text-decoration: none; font-weight: 600;">
+                        <i class="fa fa-angle-double-right"></i>
+                    </a>
+                {% endif %}
+            </div>
+            {% endif %}
         </div>
     </div>
 
@@ -628,6 +699,41 @@
                     </tbody>
                 </table>
             </div>
+            
+            {% if customer_list.has_other_pages %}
+            <div style="display: flex; justify-content: center; gap: 8px; margin-top: 24px; flex-wrap: wrap;">
+                {% if customer_list.has_previous %}
+                    <a href="?{% modify_query request customer_page=1 %}" 
+                       class="btn-outline" style="padding: 8px 14px; font-size: 0.85rem; border-radius: var(--r-sm); text-decoration: none; font-weight: 600;">
+                        <i class="fa fa-angle-double-left"></i>
+                    </a>
+                    <a href="?{% modify_query request customer_page=customer_list.previous_page_number %}" 
+                       class="btn-outline" style="padding: 8px 14px; font-size: 0.85rem; border-radius: var(--r-sm); text-decoration: none; font-weight: 600;">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                {% endif %}
+                
+                {% for num in customer_list.paginator.page_range %}
+                    {% if customer_list.number == num %}
+                        <span style="padding: 8px 14px; font-size: 0.85rem; border-radius: var(--r-sm); cursor: default; background: var(--blue-500); color: white; border: 1.5px solid var(--blue-500); font-weight: 700;">{{ num }}</span>
+                    {% elif num > customer_list.number|add:'-3' and num < customer_list.number|add:'3' %}
+                        <a href="?{% modify_query request customer_page=num %}" 
+                           class="btn-outline" style="padding: 8px 14px; font-size: 0.85rem; border-radius: var(--r-sm); text-decoration: none; font-weight: 600;">{{ num }}</a>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if customer_list.has_next %}
+                    <a href="?{% modify_query request customer_page=customer_list.next_page_number %}" 
+                       class="btn-outline" style="padding: 8px 14px; font-size: 0.85rem; border-radius: var(--r-sm); text-decoration: none; font-weight: 600;">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                    <a href="?{% modify_query request customer_page=customer_list.paginator.num_pages %}" 
+                       class="btn-outline" style="padding: 8px 14px; font-size: 0.85rem; border-radius: var(--r-sm); text-decoration: none; font-weight: 600;">
+                        <i class="fa fa-angle-double-right"></i>
+                    </a>
+                {% endif %}
+            </div>
+            {% endif %}
         </div>
     </div>
 

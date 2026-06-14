@@ -104,3 +104,58 @@ class ProductOpenGraphTest(TestCase):
         self.assertContains(response, '<meta property="og:type" content="product">')
         self.assertContains(response, 'Modern Polo Shirt')
         self.assertContains(response, 'Detailed description for social media.')
+
+    def test_product_detail_guest_access_and_open_graph_meta_tags(self):
+        # Access product detail page without logging in
+        response = self.client.get(reverse('items:product_detail', kwargs={'slug': self.product.slug}))
+        self.assertEqual(response.status_code, 200)
+        
+        # Verify custom meta tags are present in HTML response
+        self.assertContains(response, '<meta property="og:type" content="product">')
+        self.assertContains(response, 'Modern Polo Shirt')
+        self.assertContains(response, 'Detailed description for social media.')
+
+
+
+class HomepageProductSlicingTests(TestCase):
+    def setUp(self):
+        from common.models import _thread_locals
+        _thread_locals.user = None
+        
+        from items.models import Category, SellerProfile, Product
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        
+        self.seller_user = User.objects.create_user(phone="8888888888", password="sellerpassword")
+        self.seller_profile = SellerProfile.objects.create(
+            user=self.seller_user,
+            shop_name="Test Store 2",
+            is_verified=True
+        )
+        
+        self.category = Category.objects.create(
+            name="Clothing 2",
+            slug="clothing-2"
+        )
+        
+        # Create 15 published, in-stock products
+        for i in range(15):
+            Product.objects.create(
+                seller=self.seller_profile,
+                category=self.category,
+                name=f"Product {i}",
+                price=10.0 + i,
+                stock=5,
+                status="published"
+            )
+
+    def test_homepage_product_slicing(self):
+        response = self.client.get(reverse('shop:home'))
+        self.assertEqual(response.status_code, 200)
+        
+        # Context products should contain exactly 12 products
+        self.assertEqual(len(response.context['products']), 12)
+        
+        # Context product_count should be 15
+        self.assertEqual(response.context['product_count'], 15)
+

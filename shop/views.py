@@ -28,11 +28,14 @@ def home(request):
         return redirect('accounts:admin_business_dashboard')
         
     # Only show published, in-stock products
-    products = Product.objects.filter(
+    products_qs = Product.objects.filter(
         status='published',  # ✅ Use status field
         stock__gt=0,
         is_active=True
     ).select_related('category', 'seller').prefetch_related('product_image_product')
+    
+    product_count = products_qs.count()
+    products = products_qs[:12]
     
     categories = Category.objects.filter(is_active=True)
     cart_count = 0
@@ -60,7 +63,7 @@ def home(request):
         'user_role': request.user.role if request.user.is_authenticated else None,
         'show_category_nav': True,
         'customer_count': customer_count,
-        'product_count': products.count() if products else 0,
+        'product_count': product_count,
         'slider_banners': slider_banners,
         'festive_banners': festive_banners,
         'coming_soon_banners': coming_soon_banners,

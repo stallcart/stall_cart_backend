@@ -41,3 +41,15 @@ def is_in_wishlist(product, user):
         return product.is_in_user_wishlist(user)
     except Exception:
         return False
+
+
+@register.simple_tag
+def modify_query(request, **kwargs):
+    """Override or set parameters in URL query string, keeping other parameters intact."""
+    updated = request.GET.copy()
+    for k, v in kwargs.items():
+        if v is not None:
+            updated[k] = v
+        else:
+            updated.pop(k, None)
+    return updated.urlencode()

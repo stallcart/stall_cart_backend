@@ -942,3 +942,78 @@ class SellerBankDetailsRestrictionTests(TestCase):
         self.assertEqual(save_response.status_code, 200)
         self.assertEqual(save_response.json()['status'], 'success')
 
+
+class ProductListPaginationTests(TestCase):
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        from items.models import Category, SellerProfile, Product
+        from django.urls import reverse
+        
+        from common.models import _thread_locals
+        _thread_locals.user = None
+        
+        self.seller_user = User.objects.create_user(
+            phone="9000000000",
+            password="sellerpassword",
+            role="seller",
+            full_name="Dashboard Seller"
+        )
+        self.seller_profile = SellerProfile.objects.create(
+            user=self.seller_user,
+            shop_name="Seller Shop Ltd",
+            is_verified=True,
+            bank_name="SBI",
+            account_number="123456",
+            ifsc_code="SBIN0001234",
+            account_holder_name="Dashboard Seller"
+        )
+        self.category = Category.objects.create(
+            name="Toys",
+            commision_percentage=10.0
+        )
+        
+        # Create 15 published, in-stock products
+        for i in range(15):
+            Product.objects.create(
+                seller=self.seller_profile,
+                category=self.category,
+                name=f"Product {i}",
+                price=10.0 + i,
+                stock=5,
+                status="published"
+            )
+            
+    def test_admin_dashboard_pagination(self):
+        from django.urls import reverse
+        self.client.login(phone="9000000000", password="sellerpassword")
+        url = reverse('items:admin_dashboard')
+        
+        # Default page size is 10
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context['products']), 10)
+        self.assertEqual(response.context['products'].paginator.count, 15)
+        
+        # Request page 2
+        response = self.client.get(f"{url}?page=2")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context['products']), 5)
+        
+    def test_public_product_list_pagination(self):
+        from django.urls import reverse
+        url = reverse('items:product_list')
+        
+        # Default page size is 12 for public product_list
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context['products']), 12)
+        self.assertEqual(response.context['page_obj'].paginator.count, 15)
+        self.assertTrue(response.context['is_paginated'])
+        
+        # Request page 2
+        response = self.client.get(f"{url}?page=2")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context['products']), 3)
+
+

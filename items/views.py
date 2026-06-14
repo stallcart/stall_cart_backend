@@ -113,8 +113,19 @@ def admin_dashboard(request):
         sel = request.user.seller_profile
         has_bank_details = bool(sel.bank_name and sel.account_number and sel.ifsc_code and sel.account_holder_name)
 
+    # Pagination
+    from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+    page = request.GET.get('page', 1)
+    paginator = Paginator(products.order_by('-created_at'), 10)
+    try:
+        paginated_products = paginator.page(page)
+    except PageNotAnInteger:
+        paginated_products = paginator.page(1)
+    except EmptyPage:
+        paginated_products = paginator.page(paginator.num_pages)
+
     context = {
-        'products':     products.order_by('-created_at'),
+        'products':     paginated_products,
         'stats':        stats,
         'categories':   Category.objects.filter(is_active=True),
         'sellers':      sellers,
@@ -1008,8 +1019,21 @@ def product_list(request):
     order_by = sort_options.get(sort, '-created_at')
     products = products.order_by(order_by)
 
+    # Pagination
+    from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+    page = request.GET.get('page', 1)
+    paginator = Paginator(products, 12)  # Let's say 12 items per page
+    try:
+        page_obj = paginator.page(page)
+    except PageNotAnInteger:
+        page_obj = paginator.page(1)
+    except EmptyPage:
+        page_obj = paginator.page(paginator.num_pages)
+
     context = {
-        'products': products,
+        'products': page_obj.object_list,
+        'page_obj': page_obj,
+        'is_paginated': page_obj.has_other_pages(),
         'categories': Category.objects.filter(is_active=True),
         'genders': Product.GENDER_CHOICES,
         'filters': request.GET.dict(),
@@ -1210,7 +1234,6 @@ def get_related_products(product, limit=10):
     return unique_candidates[:limit]
 
 
-@login_required
 def product_detail(request, slug):
     """Product detail page with reviews (customer-only visibility)"""
     

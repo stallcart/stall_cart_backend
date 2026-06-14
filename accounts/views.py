@@ -1552,10 +1552,44 @@ def admin_user_management(request):
         seller_qs = seller_qs.filter(is_active=is_active_val)
         customer_qs = customer_qs.filter(is_active=is_active_val)
         
+    staff_qs = staff_qs.order_by('-created_at')
+    seller_qs = seller_qs.order_by('-created_at')
+    customer_qs = customer_qs.order_by('-created_at')
+
+    # Pagination
+    from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+    staff_page = request.GET.get('staff_page', 1)
+    seller_page = request.GET.get('seller_page', 1)
+    customer_page = request.GET.get('customer_page', 1)
+
+    staff_paginator = Paginator(staff_qs, 10)
+    try:
+        staff_list = staff_paginator.page(staff_page)
+    except PageNotAnInteger:
+        staff_list = staff_paginator.page(1)
+    except EmptyPage:
+        staff_list = staff_paginator.page(staff_paginator.num_pages)
+
+    seller_paginator = Paginator(seller_qs, 10)
+    try:
+        seller_list = seller_paginator.page(seller_page)
+    except PageNotAnInteger:
+        seller_list = seller_paginator.page(1)
+    except EmptyPage:
+        seller_list = seller_paginator.page(seller_paginator.num_pages)
+
+    customer_paginator = Paginator(customer_qs, 10)
+    try:
+        customer_list = customer_paginator.page(customer_page)
+    except PageNotAnInteger:
+        customer_list = customer_paginator.page(1)
+    except EmptyPage:
+        customer_list = customer_paginator.page(customer_paginator.num_pages)
+        
     context = {
-        'staff_list': staff_qs.order_by('-created_at'),
-        'seller_list': seller_qs.order_by('-created_at'),
-        'customer_list': customer_qs.order_by('-created_at'),
+        'staff_list': staff_list,
+        'seller_list': seller_list,
+        'customer_list': customer_list,
         'search_query': search_query,
         'status_filter': status_filter,
     }
