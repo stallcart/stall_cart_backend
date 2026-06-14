@@ -306,7 +306,7 @@ class UserRegistrationOTPTests(TestCase):
         self.sms_patcher.stop()
 
     def test_registration_trigger_otp(self):
-        """Triggering registration OTP works successfully and creates OTP requests in db."""
+        """Triggering registration OTP works successfully and creates only email OTP request in db first."""
         url = reverse('accounts:register')
         payload = {
             "action": "send_register_otps",
@@ -326,12 +326,35 @@ class UserRegistrationOTPTests(TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(data['status'], 'success')
+        self.assertIn("Verification OTP sent to email", data['message'])
         
-        # Verify OTPRequest instances exist
-        phone_otp = OTPRequest.objects.filter(phone="9998887776", purpose="register_phone").first()
-        self.assertIsNotNone(phone_otp)
+        # Verify email OTPRequest exists but phone OTPRequest does not yet
         email_otp = OTPRequest.objects.filter(phone="newreg@example.com", purpose="register_email").first()
         self.assertIsNotNone(email_otp)
+        phone_otp = OTPRequest.objects.filter(phone="9998887776", purpose="register_phone").first()
+        self.assertIsNone(phone_otp)
+
+        # Now verify email OTP to trigger phone OTP
+        verify_payload = {
+            "action": "verify_email_otp",
+            "email": "newreg@example.com",
+            "phone": "9998887776",
+            "email_otp": email_otp.otp
+        }
+        verify_response = self.client.post(
+            url,
+            data=json.dumps(verify_payload),
+            content_type="application/json",
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest"
+        )
+        self.assertEqual(verify_response.status_code, 200)
+        verify_data = verify_response.json()
+        self.assertEqual(verify_data['status'], 'success')
+        self.assertIn("Verification OTP sent to mobile", verify_data['message'])
+
+        # Verify phone OTPRequest is now created
+        phone_otp = OTPRequest.objects.filter(phone="9998887776", purpose="register_phone").first()
+        self.assertIsNotNone(phone_otp)
 
     def test_registration_validation_fails(self):
         """Form validation failures (e.g. mismatched passwords) return 400 and form errors."""
@@ -357,9 +380,9 @@ class UserRegistrationOTPTests(TestCase):
         self.assertIn('errors', data)
 
     def test_registration_verification_success(self):
-        """Registering with correct OTPs succeeds and creates a user in db."""
+        """Registering with correct sequential steps succeeds and creates a user in db."""
         url = reverse('accounts:register')
-        # Trigger sending first
+        # 1. Trigger email OTP sending first
         self.client.post(
             url,
             data=json.dumps({
@@ -375,9 +398,24 @@ class UserRegistrationOTPTests(TestCase):
             HTTP_X_REQUESTED_WITH="XMLHttpRequest"
         )
         
-        phone_otp = OTPRequest.objects.filter(phone="9998887776", purpose="register_phone").first().otp
         email_otp = OTPRequest.objects.filter(phone="newreg@example.com", purpose="register_email").first().otp
         
+        # 2. Verify Email OTP to generate Phone OTP
+        self.client.post(
+            url,
+            data=json.dumps({
+                "action": "verify_email_otp",
+                "email": "newreg@example.com",
+                "phone": "9998887776",
+                "email_otp": email_otp
+            }),
+            content_type="application/json",
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest"
+        )
+        
+        phone_otp = OTPRequest.objects.filter(phone="9998887776", purpose="register_phone").first().otp
+        
+        # 3. Submit final registration payload containing the Phone OTP
         payload = {
             "action": "register",
             "phone": "9998887776",
@@ -386,8 +424,7 @@ class UserRegistrationOTPTests(TestCase):
             "password1": "testpass123",
             "password2": "testpass123",
             "user_role": "customer",
-            "phone_otp": phone_otp,
-            "email_otp": email_otp
+            "phone_otp": phone_otp
         }
         response = self.client.post(
             url,
@@ -950,3 +987,59 @@ class SellerPANVerificationTests(TestCase):
         self.assertFalse(profile.is_verified)
         self.assertEqual(profile.pan_verification_status, 'rejected')
         self.assertEqual(profile.pan_rejection_reason, 'Documents are blurry')
+
+
+from django.test import RequestFactory, SimpleTestCase
+from django.http import HttpResponse, JsonResponse
+from stall_cart.middleware import AjaxExceptionMiddleware
+
+class AjaxExceptionMiddlewareTest(SimpleTestCase):
+    def setUp(self):
+        self.factory = RequestFactory()
+
+    def test_ajax_unhandled_exception_returns_json_500(self):
+        # A view that raises an error
+        def view_raising_error(request):
+            raise ValueError("Test database error")
+
+        middleware = AjaxExceptionMiddleware(view_raising_error)
+        
+        # Non-AJAX request raises exception as usual
+        request_non_ajax = self.factory.get('/some-url/')
+        with self.assertRaises(ValueError):
+            middleware(request_non_ajax)
+
+        # AJAX request intercepts exception and returns JsonResponse with status 500
+        request_ajax = self.factory.get('/some-url/', HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        response = middleware(request_ajax)
+        self.assertIsInstance(response, JsonResponse)
+        self.assertEqual(response.status_code, 500)
+        
+        import json
+        data = json.loads(response.content)
+        self.assertEqual(data['status'], 'error')
+        self.assertEqual(data['message'], 'Something went wrong on our server. Please try again later.')
+
+    def test_ajax_explicit_500_html_returns_json_500(self):
+        # A view that returns explicit 500 HTML page
+        def view_500_html(request):
+            return HttpResponse("<html><body>Server Error</body></html>", status=500, content_type="text/html")
+
+        middleware = AjaxExceptionMiddleware(view_500_html)
+        
+        # Non-AJAX gets HTML 500
+        request_non_ajax = self.factory.get('/some-url/')
+        response = middleware(request_non_ajax)
+        self.assertEqual(response.status_code, 500)
+        self.assertIn('text/html', response.headers['Content-Type'])
+
+        # AJAX gets JsonResponse 500
+        request_ajax = self.factory.get('/some-url/', HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        response = middleware(request_ajax)
+        self.assertIsInstance(response, JsonResponse)
+        self.assertEqual(response.status_code, 500)
+        
+        import json
+        data = json.loads(response.content)
+        self.assertEqual(data['status'], 'error')
+        self.assertEqual(data['message'], 'Something went wrong on our server. Please try again later.')

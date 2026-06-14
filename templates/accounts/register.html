@@ -141,25 +141,41 @@
 
 <!-- Verification Modal for Registration -->
 <div id="verifyRegisterModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
-    <div style="background:#fff; padding:30px; border-radius:12px; width:90%; max-width:400px; box-shadow:0 4px 20px rgba(0,0,0,0.2); box-sizing: border-box;">
-        <h3 style="margin-top:0; margin-bottom:15px; text-align:center;"><i class="fa fa-shield-halved" style="margin-right: 8px; color: var(--primary-color, #2874f0);"></i>Verify Registration OTP</h3>
-        <p id="verifyModalSubtitle" style="font-size:0.9rem; color:#666; margin-bottom:20px; text-align:center; line-height:1.4;"></p>
+    <div style="background:#fff; padding:30px; border-radius:12px; width:90%; max-width:420px; box-shadow:0 10px 25px rgba(0,0,0,0.2); box-sizing: border-box;">
+        <h3 id="verifyModalTitle" style="margin-top:0; margin-bottom:15px; text-align:center; font-weight: 600; color: #333;">
+            <i class="fa fa-envelope" id="verifyModalIcon" style="margin-right: 8px; color: var(--primary-color, #2874f0);"></i>Verify Email Address
+        </h3>
         
-        <!-- Email OTP Input -->
-        <div class="form-group" id="emailOtpGroup" style="margin-bottom:15px;">
-            <label for="emailOtp" style="font-weight:500; font-size:0.9rem; display:block; margin-bottom:5px;">Email Verification OTP</label>
-            <input type="text" id="emailOtp" class="form-input" placeholder="6-digit Email OTP" maxlength="6" style="text-align:center; letter-spacing:2px; width:100%; box-sizing:border-box; padding:10px;">
+        <!-- Stepper -->
+        <div class="otp-stepper" style="display:flex; justify-content:center; align-items:center; margin-bottom:20px; gap:10px;">
+            <div id="stepEmail" class="otp-step active" style="display:flex; align-items:center; gap:6px;">
+                <span id="stepEmailBadge" class="step-num" style="width:24px; height:24px; border-radius:50%; background:var(--primary-color, #2874f0); color:#fff; display:flex; align-items:center; justify-content:center; font-size:0.8rem; font-weight:bold; transition: all 0.3s;">1</span>
+                <span id="stepEmailText" class="step-text" style="font-size:0.85rem; font-weight:600; color:#333;">Email</span>
+            </div>
+            <div style="width:40px; height:2px; background:#e0e0e0; transition: background 0.3s;" id="stepLine"></div>
+            <div id="stepPhone" class="otp-step" style="display:flex; align-items:center; gap:6px; opacity:0.5; transition: opacity 0.3s;">
+                <span id="stepPhoneBadge" class="step-num" style="width:24px; height:24px; border-radius:50%; background:#ccc; color:#fff; display:flex; align-items:center; justify-content:center; font-size:0.8rem; font-weight:bold; transition: all 0.3s;">2</span>
+                <span id="stepPhoneText" class="step-text" style="font-size:0.85rem; font-weight:500; color:#666;">Mobile</span>
+            </div>
         </div>
         
-        <!-- Phone OTP Input -->
-        <div class="form-group" id="phoneOtpGroup" style="margin-bottom:20px;">
-            <label for="phoneOtp" style="font-weight:500; font-size:0.9rem; display:block; margin-bottom:5px;">Mobile Verification OTP</label>
-            <input type="text" id="phoneOtp" class="form-input" placeholder="6-digit Mobile OTP" maxlength="6" style="text-align:center; letter-spacing:2px; width:100%; box-sizing:border-box; padding:10px;">
+        <p id="verifyModalSubtitle" style="font-size:0.9rem; color:#555; margin-bottom:20px; text-align:center; line-height:1.5; height: 45px; display: flex; align-items: center; justify-content: center;"></p>
+        
+        <!-- Email OTP Input Group -->
+        <div class="form-group" id="emailOtpGroup" style="margin-bottom:20px;">
+            <label for="emailOtp" style="font-weight:600; font-size:0.85rem; color:#444; display:block; margin-bottom:8px;">Enter 6-Digit Email OTP</label>
+            <input type="text" id="emailOtp" class="form-input" placeholder="••••••" maxlength="6" style="text-align:center; letter-spacing:8px; font-size: 1.4rem; font-weight: 600; width:100%; box-sizing:border-box; padding:12px; border-radius: 8px; border: 1.5px solid #ddd;">
         </div>
         
-        <div style="display:flex; gap:10px; margin-top:20px;">
-            <button type="button" id="confirmVerifyRegisterBtn" class="btn-primary" style="flex:1; margin:0;">Verify & Register</button>
-            <button type="button" id="closeVerifyRegisterBtn" class="btn-outline" style="flex:1; margin:0;">Cancel</button>
+        <!-- Phone OTP Input Group (Initially Hidden) -->
+        <div class="form-group" id="phoneOtpGroup" style="margin-bottom:20px; display: none;">
+            <label for="phoneOtp" style="font-weight:600; font-size:0.85rem; color:#444; display:block; margin-bottom:8px;">Enter 6-Digit Mobile OTP</label>
+            <input type="text" id="phoneOtp" class="form-input" placeholder="••••••" maxlength="6" style="text-align:center; letter-spacing:8px; font-size: 1.4rem; font-weight: 600; width:100%; box-sizing:border-box; padding:12px; border-radius: 8px; border: 1.5px solid #ddd;">
+        </div>
+        
+        <div style="display:flex; gap:12px; margin-top:25px;">
+            <button type="button" id="confirmVerifyRegisterBtn" class="btn-primary" style="flex:1; margin:0; padding:12px 14px; font-size:0.95rem;">Verify Email</button>
+            <button type="button" id="closeVerifyRegisterBtn" class="btn-outline" style="flex:1; margin:0; padding:12px 14px; font-size:0.95rem; border: 1.5px solid #ccc; background: transparent; color: #666; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s;">Cancel</button>
         </div>
     </div>
 </div>
@@ -221,6 +237,41 @@ document.addEventListener('DOMContentLoaded', () => {
     const emailOtpInput = document.getElementById('emailOtp');
     const phoneOtpInput = document.getElementById('phoneOtp');
     
+    // Modal Element styling targets
+    const verifyModalTitle = document.getElementById('verifyModalTitle');
+    const verifyModalIcon = document.getElementById('verifyModalIcon');
+    const stepEmailBadge = document.getElementById('stepEmailBadge');
+    const stepEmailText = document.getElementById('stepEmailText');
+    const stepLine = document.getElementById('stepLine');
+    const stepPhone = document.getElementById('stepPhone');
+    const stepPhoneBadge = document.getElementById('stepPhoneBadge');
+    const stepPhoneText = document.getElementById('stepPhoneText');
+    const emailOtpGroup = document.getElementById('emailOtpGroup');
+    const phoneOtpGroup = document.getElementById('phoneOtpGroup');
+    
+    let modalState = 'email'; // 'email' or 'phone'
+    
+    // Restrict inputs to numeric digits
+    const restrictNumeric = (inputEl) => {
+        inputEl.addEventListener('input', (e) => {
+            e.target.value = e.target.value.replace(/[^0-9]/g, '');
+        });
+    };
+    restrictNumeric(emailOtpInput);
+    restrictNumeric(phoneOtpInput);
+    
+    // Custom button style hover behaviors
+    if (closeVerifyRegisterBtn) {
+        closeVerifyRegisterBtn.addEventListener('mouseenter', () => {
+            closeVerifyRegisterBtn.style.background = '#f5f5f5';
+            closeVerifyRegisterBtn.style.borderColor = '#bbb';
+        });
+        closeVerifyRegisterBtn.addEventListener('mouseleave', () => {
+            closeVerifyRegisterBtn.style.background = 'transparent';
+            closeVerifyRegisterBtn.style.borderColor = '#ccc';
+        });
+    }
+
     closeVerifyRegisterBtn?.addEventListener('click', () => {
         verifyRegisterModal.style.display = 'none';
     });
@@ -282,9 +333,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const submitBtn = authForm.querySelector('button[type="submit"]');
         const originalText = submitBtn.innerHTML;
         submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Sending verification codes...';
+        submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Validating & sending email OTP...';
         
-        // Build FormData
+        // Build FormData for first action (Send Email OTP)
         const formData = new FormData();
         formData.append('action', 'send_register_otps');
         formData.append('phone', phone);
@@ -317,73 +368,156 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (data.status === 'success') {
                 toast(data.message, 'success');
-                verifyModalSubtitle.textContent = `We have sent verification codes to verify your email (${email}) and mobile number (${phone}).`;
+                
+                // Initialize Modal State to Email verification
+                modalState = 'email';
+                
+                verifyModalTitle.innerHTML = '<i class="fa fa-envelope" id="verifyModalIcon" style="margin-right: 8px; color: var(--primary-color, #2874f0);"></i>Verify Email Address';
+                verifyModalSubtitle.innerHTML = `We have sent a verification code to verify your email:<br><strong>${email}</strong>`;
                 emailOtpInput.value = '';
                 phoneOtpInput.value = '';
+                
+                // Stepper styling reset
+                stepEmailBadge.style.background = 'var(--primary-color, #2874f0)';
+                stepEmailBadge.innerHTML = '1';
+                stepEmailText.style.color = '#333';
+                stepEmailText.style.fontWeight = '600';
+                stepLine.style.background = '#e0e0e0';
+                
+                stepPhone.style.opacity = '0.5';
+                stepPhoneBadge.style.background = '#ccc';
+                stepPhoneBadge.innerHTML = '2';
+                stepPhoneText.style.color = '#666';
+                stepPhoneText.style.fontWeight = '500';
+                
+                emailOtpGroup.style.display = 'block';
+                phoneOtpGroup.style.display = 'none';
+                
+                confirmVerifyRegisterBtn.textContent = 'Verify Email';
+                confirmVerifyRegisterBtn.disabled = false;
                 
                 // Show verification modal
                 verifyRegisterModal.style.display = 'flex';
                 
-                // On verify trigger click
+                // Set click event handler for verify button
                 confirmVerifyRegisterBtn.onclick = async () => {
-                    const emailOtpVal = emailOtpInput.value.trim();
-                    const phoneOtpVal = phoneOtpInput.value.trim();
-                    
-                    if (!emailOtpVal || emailOtpVal.length !== 6) {
-                        alert('Please enter a valid 6-digit email OTP.');
-                        return;
-                    }
-                    if (!phoneOtpVal || phoneOtpVal.length !== 6) {
-                        alert('Please enter a valid 6-digit mobile OTP.');
-                        return;
-                    }
-                    
-                    confirmVerifyRegisterBtn.disabled = true;
-                    confirmVerifyRegisterBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Creating Account...';
-                    
-                    const regFormData = new FormData();
-                    regFormData.append('action', 'register');
-                    regFormData.append('phone', phone);
-                    regFormData.append('email', email);
-                    regFormData.append('full_name', fullName);
-                    regFormData.append('password1', password1);
-                    regFormData.append('password2', password2);
-                    regFormData.append('user_role', userRole);
-                    if (userRole === 'seller') {
-                        regFormData.append('shop_name', shopName);
-                        regFormData.append('shop_description', shopDescription);
-                        regFormData.append('gst_number', gstNumber);
-                        regFormData.append('pan_number', panNumber);
-                        if (panCardFile) {
-                            regFormData.append('pan_card_file', panCardFile);
+                    if (modalState === 'email') {
+                        const emailOtpVal = emailOtpInput.value.trim();
+                        if (!emailOtpVal || emailOtpVal.length !== 6) {
+                            alert('Please enter a valid 6-digit email OTP.');
+                            return;
                         }
-                    }
-                    regFormData.append('email_otp', emailOtpVal);
-                    regFormData.append('phone_otp', phoneOtpVal);
-                    
-                    try {
-                        const regRes = await fetch("{% url 'accounts:register' %}", {
-                            method: 'POST',
-                            headers: {
-                                'X-CSRFToken': '{{ csrf_token }}',
-                                'X-Requested-With': 'XMLHttpRequest'
-                            },
-                            body: regFormData
-                        });
                         
-                        const regData = await regRes.json();
-                        if (regData.status === 'success') {
-                            toast('Account created successfully!', 'success');
-                            window.location.href = regData.redirect || '/';
-                        } else {
-                            alert(regData.message || 'Verification failed.');
+                        confirmVerifyRegisterBtn.disabled = true;
+                        confirmVerifyRegisterBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Verifying Email...';
+                        
+                        const verifyEmailData = new FormData();
+                        verifyEmailData.append('action', 'verify_email_otp');
+                        verifyEmailData.append('email', email);
+                        verifyEmailData.append('phone', phone);
+                        verifyEmailData.append('email_otp', emailOtpVal);
+                        
+                        try {
+                            const verifyRes = await fetch("{% url 'accounts:register' %}", {
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRFToken': '{{ csrf_token }}',
+                                    'X-Requested-With': 'XMLHttpRequest'
+                                },
+                                body: verifyEmailData
+                            });
+                            
+                            const verifyData = await verifyRes.json();
+                            
+                            if (verifyData.status === 'success') {
+                                toast(verifyData.message, 'success');
+                                
+                                // Transition Modal State to Mobile verification
+                                modalState = 'phone';
+                                
+                                verifyModalTitle.innerHTML = '<i class="fa fa-phone" id="verifyModalIcon" style="margin-right: 8px; color: #2e7d32;"></i>Verify Mobile Number';
+                                verifyModalSubtitle.innerHTML = `Email verified! We have now sent a verification code to your mobile:<br><strong>${phone}</strong>`;
+                                
+                                // Stepper styling updates
+                                stepEmailBadge.style.background = '#2e7d32';
+                                stepEmailBadge.innerHTML = '<i class="fa fa-check"></i>';
+                                stepEmailText.style.color = '#2e7d32';
+                                stepLine.style.background = '#2e7d32';
+                                
+                                stepPhone.style.opacity = '1';
+                                stepPhoneBadge.style.background = 'var(--primary-color, #2874f0)';
+                                stepPhoneText.style.color = '#333';
+                                stepPhoneText.style.fontWeight = '600';
+                                
+                                emailOtpGroup.style.display = 'none';
+                                phoneOtpGroup.style.display = 'block';
+                                
+                                confirmVerifyRegisterBtn.textContent = 'Verify Mobile & Register';
+                            } else {
+                                alert(verifyData.message || 'Email verification failed.');
+                            }
+                        } catch (err) {
+                            console.error('Email verification error:', err);
+                            alert('An error occurred during email verification.');
+                        } finally {
+                            confirmVerifyRegisterBtn.disabled = false;
+                            if (modalState === 'email') {
+                                confirmVerifyRegisterBtn.textContent = 'Verify Email';
+                            }
                         }
-                    } catch (err) {
-                        console.error('Registration verification error:', err);
-                        alert('Registration error. Please check values and try again.');
-                    } finally {
-                        confirmVerifyRegisterBtn.disabled = false;
-                        confirmVerifyRegisterBtn.innerHTML = 'Verify & Register';
+                    } else if (modalState === 'phone') {
+                        const phoneOtpVal = phoneOtpInput.value.trim();
+                        if (!phoneOtpVal || phoneOtpVal.length !== 6) {
+                            alert('Please enter a valid 6-digit mobile OTP.');
+                            return;
+                        }
+                        
+                        confirmVerifyRegisterBtn.disabled = true;
+                        confirmVerifyRegisterBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Creating Account...';
+                        
+                        const regFormData = new FormData();
+                        regFormData.append('action', 'register');
+                        regFormData.append('phone', phone);
+                        regFormData.append('email', email);
+                        regFormData.append('full_name', fullName);
+                        regFormData.append('password1', password1);
+                        regFormData.append('password2', password2);
+                        regFormData.append('user_role', userRole);
+                        if (userRole === 'seller') {
+                            regFormData.append('shop_name', shopName);
+                            regFormData.append('shop_description', shopDescription);
+                            regFormData.append('gst_number', gstNumber);
+                            regFormData.append('pan_number', panNumber);
+                            if (panCardFile) {
+                                regFormData.append('pan_card_file', panCardFile);
+                            }
+                        }
+                        regFormData.append('phone_otp', phoneOtpVal);
+                        
+                        try {
+                            const regRes = await fetch("{% url 'accounts:register' %}", {
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRFToken': '{{ csrf_token }}',
+                                    'X-Requested-With': 'XMLHttpRequest'
+                                },
+                                body: regFormData
+                            });
+                            
+                            const regData = await regRes.json();
+                            if (regData.status === 'success') {
+                                toast('Account created successfully!', 'success');
+                                window.location.href = regData.redirect || '/';
+                            } else {
+                                alert(regData.message || 'Mobile verification failed.');
+                            }
+                        } catch (err) {
+                            console.error('Registration verification error:', err);
+                            alert('Registration error. Please check values and try again.');
+                        } finally {
+                            confirmVerifyRegisterBtn.disabled = false;
+                            confirmVerifyRegisterBtn.textContent = 'Verify Mobile & Register';
+                        }
                     }
                 };
             } else {

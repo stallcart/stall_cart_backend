@@ -733,6 +733,31 @@ window.alert = function(message) {
     }
 };
 
+// Intercept all global fetch requests to catch and report 500 / network errors via Toast
+const originalFetch = window.fetch;
+window.fetch = async function(...args) {
+    try {
+        const response = await originalFetch(...args);
+        if (!response.ok && response.status >= 500) {
+            try {
+                const clone = response.clone();
+                const data = await clone.json();
+                if (data && data.message) {
+                    if (window.showToast) window.showToast(data.message, 'error');
+                } else {
+                    if (window.showToast) window.showToast('Something went wrong on our server. Please try again later.', 'error');
+                }
+            } catch (e) {
+                if (window.showToast) window.showToast('Something went wrong on our server. Please try again later.', 'error');
+            }
+        }
+        return response;
+    } catch (error) {
+        if (window.showToast) window.showToast('Network error. Please check your internet connection and try again.', 'error');
+        throw error;
+    }
+};
+
 // Disable scroll wheel changing values on focused number inputs globally
 document.addEventListener('focusin', function(e) {
     if (e.target.tagName === 'INPUT' && e.target.type === 'number') {

@@ -89,7 +89,7 @@ def register_view(request):
                 data = request.POST
             action = data.get('action')
             
-            # Action 1: Send OTPs for registration
+            # Action 1: Send Email OTP for registration
             if action == 'send_register_otps':
                 phone = data.get('phone', '').strip()
                 email = data.get('email', '').strip().lower()
@@ -118,15 +118,10 @@ def register_view(request):
                 form = UserRegistrationForm(form_data)
                 if not form.is_valid():
                     return JsonResponse({'status': 'error', 'errors': form.errors}, status=400)
-                         # Generate and send phone OTP
-                otp_phone_req, err = OTPRequest.check_and_create_otp(phone, 'register_phone')
-                if err:
-                    return JsonResponse({'status': 'error', 'message': err}, status=400)
                 
                 # Generate and send email OTP
                 otp_email_req, err = OTPRequest.check_and_create_otp(email, 'register_email')
                 if err:
-                    otp_phone_req.delete()  # Clean up phone OTP request
                     return JsonResponse({'status': 'error', 'message': err}, status=400)
                 
                 # Try sending email OTP via dynamic template
@@ -136,6 +131,50 @@ def register_view(request):
                 except Exception as e:
                     logger.error(f"Failed to send registration email OTP: {e}")
                 
+                print(f"📧 [EMAIL OTP DEMO] Sent OTP to {email} for registration: {otp_email_req.otp}")
+                
+                return JsonResponse({
+                    'status': 'success',
+                    'message': f'Verification OTP sent to email: {email}.'
+                })
+            
+            # Action 1.5: Verify Email OTP and Send Mobile OTP
+            elif action == 'verify_email_otp':
+                phone = data.get('phone', '').strip()
+                email = data.get('email', '').strip().lower()
+                email_otp = data.get('email_otp', '').strip()
+                
+                if not email or not email_otp:
+                    return JsonResponse({'status': 'error', 'message': 'Email address and verification code are required.'}, status=400)
+                
+                # Check uniqueness
+                if User.objects.filter(email=email).exists():
+                    return JsonResponse({'status': 'error', 'message': 'Email address already registered by another user.'}, status=400)
+                if User.objects.filter(phone=phone).exists():
+                    return JsonResponse({'status': 'error', 'message': 'Mobile number already registered by another user.'}, status=400)
+                
+                from django.utils import timezone
+                # Verify Email OTP
+                otp_email_req = OTPRequest.objects.filter(
+                    phone=email,
+                    purpose='register_email',
+                    otp=email_otp,
+                    is_verified=False,
+                    expires_at__gt=timezone.now()
+                ).first()
+                
+                if not otp_email_req:
+                    return JsonResponse({'status': 'error', 'message': 'Invalid or expired Email OTP'}, status=400)
+                
+                # Mark Email OTP as verified
+                otp_email_req.is_verified = True
+                otp_email_req.save()
+                
+                # Generate and send phone OTP
+                otp_phone_req, err = OTPRequest.check_and_create_otp(phone, 'register_phone')
+                if err:
+                    return JsonResponse({'status': 'error', 'message': err}, status=400)
+                
                 # Try sending phone SMS OTP via 2Factor API
                 try:
                     from common.sms_service import send_sms_via_2factor
@@ -143,15 +182,14 @@ def register_view(request):
                 except Exception as e:
                     logger.error(f"Failed to send registration SMS OTP: {e}")
                     
-                print(f"📧 [EMAIL OTP DEMO] Sent OTP to {email} for registration: {otp_email_req.otp}")
                 print(f"📱 [PHONE OTP DEMO] Sent OTP to {phone} for registration: {otp_phone_req.otp}")
                 
                 return JsonResponse({
                     'status': 'success',
-                    'message': f'Verification OTPs sent to email: {email} and mobile: {phone}.'
+                    'message': f'Email verified successfully. Verification OTP sent to mobile: {phone}.'
                 })
             
-            # Action 2: Verify OTPs and complete registration
+            # Action 2: Verify Phone OTP and complete registration
             elif action == 'register':
                 from django.db import transaction
                 with transaction.atomic():
@@ -162,15 +200,26 @@ def register_view(request):
                     if not form.is_valid():
                         return JsonResponse({'status': 'error', 'errors': form.errors}, status=400)
                     
-                    email_otp = data.get('email_otp', '').strip()
                     phone_otp = data.get('phone_otp', '').strip()
                     
-                    if not email_otp or not phone_otp:
-                        return JsonResponse({'status': 'error', 'message': 'Email OTP and Mobile OTP are required to verify and create account.'}, status=400)
+                    if not phone_otp:
+                        return JsonResponse({'status': 'error', 'message': 'Mobile OTP is required to verify and create account.'}, status=400)
                     
                     phone = form.cleaned_data['phone']
                     email = form.cleaned_data['email']
                     from django.utils import timezone
+                    
+                    # Verify Email OTP request was previously verified
+                    from datetime import timedelta
+                    otp_email_verified = OTPRequest.objects.filter(
+                        phone=email,
+                        purpose='register_email',
+                        is_verified=True,
+                        updated_at__gt=timezone.now() - timedelta(minutes=30)
+                    ).exists()
+                    
+                    if not otp_email_verified:
+                        return JsonResponse({'status': 'error', 'message': 'Email address must be verified first.'}, status=400)
                     
                     # Verify Phone OTP
                     otp_phone_req = OTPRequest.objects.filter(
@@ -181,25 +230,12 @@ def register_view(request):
                         expires_at__gt=timezone.now()
                     ).first()
                     
-                    # Verify Email OTP
-                    otp_email_req = OTPRequest.objects.filter(
-                        phone=email,
-                        purpose='register_email',
-                        otp=email_otp,
-                        is_verified=False,
-                        expires_at__gt=timezone.now()
-                    ).first()
-                    
                     if not otp_phone_req:
                         return JsonResponse({'status': 'error', 'message': 'Invalid or expired Mobile OTP'}, status=400)
-                    if not otp_email_req:
-                        return JsonResponse({'status': 'error', 'message': 'Invalid or expired Email OTP'}, status=400)
                     
-                    # Mark OTPs as verified
+                    # Mark Phone OTP as verified
                     otp_phone_req.is_verified = True
                     otp_phone_req.save()
-                    otp_email_req.is_verified = True
-                    otp_email_req.save()
                     
                     # Create user
                     user = form.save(commit=False)
