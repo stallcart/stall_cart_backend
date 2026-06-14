@@ -12,7 +12,11 @@
     <meta property="og:type" content="{% block og_type %}website{% endblock %}">
     <meta property="og:title" content="{% block og_title %}{{ site_settings.site_name|default:"StallCart" }}{% endblock %}">
     <meta property="og:description" content="{% block og_description %}{{ site_settings.meta_description|default:"Shop premium fashion at unbeatable prices" }}{% endblock %}">
-    <meta property="og:image" content="{% block og_image %}{% if request %}{% if site_settings.logo_primary %}{{ request.scheme }}://{{ request.get_host }}{{ site_settings.logo_primary.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'images/favicon.png' %}{% endif %}{% endif %}{% endblock %}">
+    <meta property="og:image" content="{% block og_image %}{% if request %}{% if 'localhost' in request.get_host or '127.0.0.1' in request.get_host %}http{% else %}https{% endif %}://{{ request.get_host }}{% if site_settings.logo_primary %}{{ site_settings.logo_primary.url }}{% else %}{% static 'images/favicon.png' %}{% endif %}{% endif %}{% endblock %}">
+    <meta property="og:image:secure_url" content="{% block og_image_secure %}{% if request %}{% if 'localhost' in request.get_host or '127.0.0.1' in request.get_host %}http{% else %}https{% endif %}://{{ request.get_host }}{% if site_settings.logo_primary %}{{ site_settings.logo_primary.url }}{% else %}{% static 'images/favicon.png' %}{% endif %}{% endif %}{% endblock %}">
+    <meta property="og:image:width" content="600">
+    <meta property="og:image:height" content="600">
+    <meta property="og:image:type" content="image/jpeg">
     <meta property="og:url" content="{% block og_url %}{% if request %}{{ request.build_absolute_uri }}{% endif %}{% endblock %}">
     <meta property="og:site_name" content="{{ site_settings.site_name|default:"StallCart" }}">
 
@@ -20,7 +24,7 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="{% block twitter_title %}{{ site_settings.site_name|default:"StallCart" }}{% endblock %}">
     <meta name="twitter:description" content="{% block twitter_description %}{{ site_settings.meta_description|default:"Shop premium fashion at unbeatable prices" }}{% endblock %}">
-    <meta name="twitter:image" content="{% block twitter_image %}{% if request %}{% if site_settings.logo_primary %}{{ request.scheme }}://{{ request.get_host }}{{ site_settings.logo_primary.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'images/favicon.png' %}{% endif %}{% endif %}{% endblock %}">
+    <meta name="twitter:image" content="{% block twitter_image %}{% if request %}{% if 'localhost' in request.get_host or '127.0.0.1' in request.get_host %}http{% else %}https{% endif %}://{{ request.get_host }}{% if site_settings.logo_primary %}{{ site_settings.logo_primary.url }}{% else %}{% static 'images/favicon.png' %}{% endif %}{% endif %}{% endblock %}">
 
     {% if site_settings.favicon %}
         <link rel="icon" type="image/png" href="{{ site_settings.favicon.url }}">

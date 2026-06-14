@@ -8,12 +8,13 @@
 {% block og_type %}product{% endblock %}
 {% block og_title %}{{ product.name }} | {{ site_settings.site_name|default:"StallCart" }}{% endblock %}
 {% block og_description %}{{ product.meta_description|default:product.short_description|default:"Buy this product at best price. Free delivery & secure checkout." }}{% endblock %}
-{% block og_image %}{% if request %}{% if product.primary_image %}{{ request.scheme }}://{{ request.get_host }}{{ product.primary_image.url }}{% elif images and images.0.image %}{{ request.scheme }}://{{ request.get_host }}{{ images.0.image.url }}{% else %}{% if site_settings.logo_primary %}{{ request.scheme }}://{{ request.get_host }}{{ site_settings.logo_primary.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'images/favicon.png' %}{% endif %}{% endif %}{% endif %}{% endblock %}
+{% block og_image %}{% if request %}{% if 'localhost' in request.get_host or '127.0.0.1' in request.get_host %}http{% else %}https{% endif %}://{{ request.get_host }}{% if product.primary_image %}{{ product.primary_image.url }}{% elif images and images.0.image %}{{ images.0.image.url }}{% else %}{% if site_settings.logo_primary %}{{ site_settings.logo_primary.url }}{% else %}{% static 'images/favicon.png' %}{% endif %}{% endif %}{% endif %}{% endblock %}
+{% block og_image_secure %}{% if request %}{% if 'localhost' in request.get_host or '127.0.0.1' in request.get_host %}http{% else %}https{% endif %}://{{ request.get_host }}{% if product.primary_image %}{{ product.primary_image.url }}{% elif images and images.0.image %}{{ images.0.image.url }}{% else %}{% if site_settings.logo_primary %}{{ site_settings.logo_primary.url }}{% else %}{% static 'images/favicon.png' %}{% endif %}{% endif %}{% endif %}{% endblock %}
 {% block og_url %}{% if request %}{{ request.build_absolute_uri }}{% endif %}{% endblock %}
 
 {% block twitter_title %}{{ product.name }} | {{ site_settings.site_name|default:"StallCart" }}{% endblock %}
 {% block twitter_description %}{{ product.meta_description|default:product.short_description|default:"Buy this product at best price. Free delivery & secure checkout." }}{% endblock %}
-{% block twitter_image %}{% if request %}{% if product.primary_image %}{{ request.scheme }}://{{ request.get_host }}{{ product.primary_image.url }}{% elif images and images.0.image %}{{ request.scheme }}://{{ request.get_host }}{{ images.0.image.url }}{% else %}{% if site_settings.logo_primary %}{{ request.scheme }}://{{ request.get_host }}{{ site_settings.logo_primary.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'images/favicon.png' %}{% endif %}{% endif %}{% endif %}{% endblock %}
+{% block twitter_image %}{% if request %}{% if 'localhost' in request.get_host or '127.0.0.1' in request.get_host %}http{% else %}https{% endif %}://{{ request.get_host }}{% if product.primary_image %}{{ product.primary_image.url }}{% elif images and images.0.image %}{{ images.0.image.url }}{% else %}{% if site_settings.logo_primary %}{{ site_settings.logo_primary.url }}{% else %}{% static 'images/favicon.png' %}{% endif %}{% endif %}{% endif %}{% endblock %}
 
 {% block content %}
 <!-- Breadcrumb -->
