@@ -480,22 +480,38 @@
             <!-- ── Right: Price Details (Sticky) ──────────────────── -->
             <aside class="price-details">
                 <h3>Price Details</h3>
-                <div class="price-row"><span>Price ({{ cart_items|length }} item{{ cart_items|length|pluralize }})</span><span>₹{{ mrp_subtotal|floatformat:2 }}</span></div>
-                <div class="price-row"><span>Discount</span><span class="discount">−₹{{ total_savings|floatformat:2 }}</span></div>
-                <div class="price-row"><span>Delivery Charges</span><span class="{% if delivery_charge == 0 %}free{% endif %}">{% if delivery_charge == 0 %}<i class="fa fa-check-circle"></i> FREE{% else %}₹{{ delivery_charge }}{% endif %}</span></div>
+                <div class="price-row">
+                    <span id="cartItemCountLabel">Price ({{ cart_items|length }} item{{ cart_items|length|pluralize }})</span>
+                    <span id="mrpSubtotalValue">₹{{ mrp_subtotal|floatformat:2 }}</span>
+                </div>
+                <div class="price-row">
+                    <span>Discount</span>
+                    <span class="discount" id="discountValue">−₹{{ total_savings|floatformat:2 }}</span>
+                </div>
+                <div class="price-row">
+                    <span>Delivery Charges</span>
+                    <span id="deliveryChargeValue" class="{% if delivery_charge == 0 %}free{% endif %}">
+                        {% if delivery_charge == 0 %}<i class="fa fa-check-circle"></i> FREE{% else %}₹{{ delivery_charge }}{% endif %}
+                    </span>
+                </div>
                 
-                {% if subtotal < 499 %}
-                <div class="free-delivery-hint"><i class="fa fa-info-circle"></i> Add ₹{{ remaining_for_free_delivery|floatformat:0 }} more for FREE delivery</div>
-                {% endif %}
+                <div id="freeDeliveryHint" class="free-delivery-hint" style="{% if subtotal >= 499 %}display:none;{% endif %}">
+                    <i class="fa fa-info-circle"></i> Add ₹<span id="remainingForFreeValue">{{ remaining_for_free_delivery|floatformat:0 }}</span> more for FREE delivery
+                </div>
                 
                 <div class="price-divider"></div>
-                <div class="price-row total-row"><strong>Total Amount</strong><strong id="grandTotal">₹{{ grand_total|floatformat:2 }}</strong></div>
+                <div class="price-row total-row">
+                    <strong>Total Amount</strong>
+                    <strong id="grandTotal">₹{{ grand_total|floatformat:2 }}</strong>
+                </div>
                 
-                {% if total_savings > 0 %}
-                <div class="savings-msg success"><i class="fa fa-tag"></i> You saved <strong>₹{{ total_savings|floatformat:2 }}</strong>!</div>
-                {% else %}
-                <div class="savings-msg info"><i class="fa fa-info-circle"></i> No discounts applied</div>
-                {% endif %}
+                <div id="savingsMsgContainer">
+                    {% if total_savings > 0 %}
+                    <div class="savings-msg success"><i class="fa fa-tag"></i> You saved <strong>₹{{ total_savings|floatformat:2 }}</strong>!</div>
+                    {% else %}
+                    <div class="savings-msg info"><i class="fa fa-info-circle"></i> No discounts applied</div>
+                    {% endif %}
+                </div>
                 
                 <div class="return-policy-agreement" style="margin: 15px 0 12px; padding: 12px; background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: var(--r-md); text-align: left;">
                     <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 0.82rem; color: #475569; line-height: 1.4; user-select: none;">
@@ -822,6 +838,75 @@ document.addEventListener('DOMContentLoaded', function() {
         };
     }
     
+    // ── Update Sidebar Totals dynamically ──
+    function updateSidebarTotals(result) {
+        if (!result) return;
+        
+        // Update label count
+        const itemCountLabel = document.getElementById('cartItemCountLabel');
+        if (itemCountLabel && result.cart_count !== undefined) {
+            const count = result.cart_count;
+            itemCountLabel.textContent = `Price (${count} item${count !== 1 ? 's' : ''})`;
+        }
+        
+        // Update MRP Subtotal
+        const mrpSubtotalVal = document.getElementById('mrpSubtotalValue');
+        if (mrpSubtotalVal && result.mrp_subtotal !== undefined) {
+            mrpSubtotalVal.textContent = `₹${parseFloat(result.mrp_subtotal).toFixed(2)}`;
+        }
+        
+        // Update Discount
+        const discountVal = document.getElementById('discountValue');
+        if (discountVal && result.total_savings !== undefined) {
+            discountVal.textContent = `−₹${parseFloat(result.total_savings).toFixed(2)}`;
+        }
+        
+        // Update Delivery Charges
+        const deliveryChargeVal = document.getElementById('deliveryChargeValue');
+        if (deliveryChargeVal && result.delivery_charge !== undefined) {
+            const deliveryCharge = parseFloat(result.delivery_charge);
+            if (deliveryCharge === 0) {
+                deliveryChargeVal.className = 'free';
+                deliveryChargeVal.innerHTML = '<i class="fa fa-check-circle"></i> FREE';
+            } else {
+                deliveryChargeVal.className = '';
+                deliveryChargeVal.textContent = `₹${deliveryCharge.toFixed(2)}`;
+            }
+        }
+        
+        // Update Free Delivery Hint
+        const freeDeliveryHint = document.getElementById('freeDeliveryHint');
+        const remainingForFreeValue = document.getElementById('remainingForFreeValue');
+        if (freeDeliveryHint && result.remaining_for_free_delivery !== undefined) {
+            const remaining = parseFloat(result.remaining_for_free_delivery);
+            if (remaining > 0) {
+                freeDeliveryHint.style.display = '';
+                if (remainingForFreeValue) {
+                    remainingForFreeValue.textContent = remaining.toFixed(0);
+                }
+            } else {
+                freeDeliveryHint.style.display = 'none';
+            }
+        }
+        
+        // Update Grand Total
+        const grandTotal = document.getElementById('grandTotal');
+        if (grandTotal && result.grand_total !== undefined) {
+            grandTotal.textContent = `₹${parseFloat(result.grand_total).toFixed(2)}`;
+        }
+        
+        // Update Savings Message
+        const savingsMsgContainer = document.getElementById('savingsMsgContainer');
+        if (savingsMsgContainer && result.total_savings !== undefined) {
+            const savings = parseFloat(result.total_savings);
+            if (savings > 0) {
+                savingsMsgContainer.innerHTML = `<div class="savings-msg success"><i class="fa fa-tag"></i> You saved <strong>₹${savings.toFixed(2)}</strong>!</div>`;
+            } else {
+                savingsMsgContainer.innerHTML = `<div class="savings-msg info"><i class="fa fa-info-circle"></i> No discounts applied</div>`;
+            }
+        }
+    }
+    
     // ── Update Cart Item (AJAX) ──
     async function updateCartItem(itemEl, quantity, action = 'update') {
         const data = getCartItemData(itemEl);
@@ -840,12 +925,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (typeof window.updateCartCount === 'function') window.updateCartCount(result.cart_count);
                 if (action === 'remove' || quantity === 0) {
                     itemEl.classList.add('removing');
-                    setTimeout(() => { itemEl.remove(); if (!document.querySelector('.cart-item')) location.reload(); }, 320);
+                    setTimeout(() => { 
+                        itemEl.remove(); 
+                        if (!document.querySelector('.cart-item')) {
+                            location.reload(); 
+                        } else {
+                            updateSidebarTotals(result);
+                        }
+                    }, 320);
                     toast('Item removed', 'success');
                 } else {
                     if (subtotalEl && quantityInput) subtotalEl.textContent = `₹${(unitPrice * quantity).toFixed(2)}`;
                     if (quantityInput && stock >= quantity) quantityInput.max = stock;
-                    setTimeout(() => location.reload(), 300);
+                    updateSidebarTotals(result);
                     toast('Cart updated', 'success');
                 }
             } else { toast(result.message || 'Failed to update cart', 'error'); if (quantityInput) quantityInput.value = quantityInput.dataset.prevValue || quantityInput.value; }

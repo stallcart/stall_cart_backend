@@ -211,10 +211,18 @@ def update_cart(request):
         )
         
         if success:
+            summary = CartService.get_cart_summary(request)
             return JsonResponse({
                 'status': 'success',
                 'message': message,
-                'cart_count': cart_count
+                'cart_count': cart_count,
+                'subtotal': float(summary['subtotal']),
+                'mrp_subtotal': float(summary['subtotal'] + summary['total_savings']),
+                'total_savings': float(summary['total_savings']),
+                'delivery_charge': float(summary['delivery_charge']),
+                'grand_total': float(summary['grand_total']),
+                'remaining_for_free_delivery': float(summary['remaining_for_free']),
+                'free_delivery_eligible': summary['free_delivery_eligible'],
             })
         else:
             return JsonResponse({'status': 'error', 'message': message}, status=400)
