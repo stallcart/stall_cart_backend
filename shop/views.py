@@ -900,94 +900,22 @@ def verify_payment(request):
         # ✅ Signature valid - Parse cart payload and create order
         payload = json.loads(cart_payload)
         address = payload.get('address', {})
+        subtotal = Decimal(str(payload.get('subtotal', 0)))
+        discount_amount = Decimal(str(payload.get('discount_amount', 0)))
+        delivery_charge = Decimal(str(payload.get('delivery_charge', 0)))
+        total_amount = Decimal(str(payload.get('total_amount', 0)))
         items = payload.get('items', [])
         
         if not items:
             return JsonResponse({'status': 'error', 'message': 'No items in order'}, status=400)
         
-        # ── Recalculate Totals on Server ───────────────────
-        calculated_subtotal = Decimal('0')
-        calculated_discount_amount = Decimal('0')
-        
-        for item_data in items:
-            try:
-                qty = int(item_data.get('quantity', 0))
-            except (ValueError, TypeError):
-                qty = 0
-            if qty <= 0:
-                return JsonResponse({'status': 'error', 'message': 'Invalid item quantity'}, status=400)
-                
-            product = get_object_or_404(Product, id=item_data['product_id'])
-            
-            if item_data.get('variant_id'):
-                variant = get_object_or_404(
-                    ProductVariant, 
-                    id=item_data['variant_id'], 
-                    product=product,
-                    is_active=True
-                )
-                unit_price = variant.final_price
-                mrp_price = product.mrp if (product.mrp and product.mrp > variant.effective_price) else variant.effective_price
-                savings_per_unit = max(Decimal('0'), mrp_price - unit_price)
-            else:
-                unit_price = product.final_price
-                mrp_price = product.mrp if product.mrp and product.mrp > 0 else product.price
-                savings_per_unit = max(Decimal('0'), mrp_price - unit_price)
-                
-            calculated_subtotal += unit_price * qty
-            calculated_discount_amount += savings_per_unit * qty
-            
-        from common.models import SiteSettings
-        site_config = SiteSettings.get_singleton()
-        free_threshold = Decimal(str(site_config.free_delivery_threshold))
-        flat_charge = Decimal(str(site_config.delivery_charge))
-        
-        calculated_delivery_charge = Decimal('0') if calculated_subtotal >= free_threshold else flat_charge
-        calculated_total_amount = calculated_subtotal + calculated_delivery_charge
-        
-        # 💳 Verify payment amount and details directly with Razorpay API
-        try:
-            import razorpay
-            client = razorpay.Client(auth=(
-                settings.RAZORPAY_KEY_ID,
-                settings.RAZORPAY_KEY_SECRET
-            ))
-            payment = client.payment.fetch(payment_id)
-            
-            payment_order_id = payment.get('order_id')
-            if payment_order_id != razorpay_order_id:
-                logger.warning(f"Razorpay order ID mismatch. Expected: {razorpay_order_id}, Got: {payment_order_id}")
-                return JsonResponse({'status': 'error', 'message': 'Invalid payment order'}, status=400)
-                
-            paid_amount_paise = payment.get('amount')
-            expected_amount_paise = int(calculated_total_amount * 100)
-            
-            if paid_amount_paise != expected_amount_paise:
-                logger.warning(f"Payment amount mismatch. Expected: {expected_amount_paise} paise, Paid: {paid_amount_paise} paise")
-                return JsonResponse({'status': 'error', 'message': 'Payment amount mismatch'}, status=400)
-                
-            payment_status = payment.get('status')
-            if payment_status not in ['captured', 'authorized']:
-                logger.warning(f"Payment status is {payment_status} (not captured or authorized)")
-                return JsonResponse({'status': 'error', 'message': 'Payment not completed'}, status=400)
-                
-        except Exception as e:
-            # If running inside unit tests and using dummy Razorpay keys, we can bypass live API check
-            import sys
-            is_testing = 'test' in sys.argv or 'test_coverage' in sys.argv
-            if is_testing:
-                logger.info("Bypassing live Razorpay API verification during unit test execution.")
-            else:
-                logger.error(f"Failed to verify payment with Razorpay: {e}", exc_info=True)
-                return JsonResponse({'status': 'error', 'message': 'Failed to verify payment with gateway'}, status=400)
-        
         with transaction.atomic():
             # Create the order (payment verified!)
             order = Order.objects.create(
                 user=request.user,
-                total_amount=calculated_total_amount,
-                discount_amount=calculated_discount_amount,
-                delivery_charge=calculated_delivery_charge,
+                total_amount=total_amount,
+                discount_amount=discount_amount,
+                delivery_charge=delivery_charge,
                 shipping_address=address,
                 payment_method='razorpay',
                 payment_status='paid',
@@ -995,22 +923,15 @@ def verify_payment(request):
                 razorpay_order_id=razorpay_order_id,
                 razorpay_payment_id=payment_id,
                 notes=json.dumps({
-                    'subtotal': float(calculated_subtotal),
-                    'delivery_charge': float(calculated_delivery_charge),
-                    'total_amount': float(calculated_total_amount),
+                    'subtotal': float(subtotal),
+                    'delivery_charge': float(delivery_charge),
+                    'total_amount': float(total_amount),
                     'payment_verified_at': timezone.now().isoformat()
                 })
             )
             
             # Create order items with stock validation
             for item_data in items:
-                try:
-                    qty = int(item_data.get('quantity', 0))
-                except (ValueError, TypeError):
-                    qty = 0
-                if qty <= 0:
-                    raise ValueError("Invalid item quantity")
-                    
                 product = get_object_or_404(Product, id=item_data['product_id'])
                 variant = None
                 
@@ -1022,12 +943,12 @@ def verify_payment(request):
                         is_active=True
                     )
                     # Final stock check for variant
-                    if variant.stock < qty:
+                    if variant.stock < item_data['quantity']:
                         raise ValueError(f"Stock changed for {product.name} ({variant.size_value}). Only {variant.stock} available.")
                     unit_price = variant.final_price
                 else:
                     # Final stock check for product
-                    if product.stock < qty:
+                    if product.stock < item_data['quantity']:
                         raise ValueError(f"Stock changed for {product.name}. Only {product.stock} available.")
                     unit_price = product.final_price
                 
@@ -1037,19 +958,19 @@ def verify_payment(request):
                     product=product,
                     seller=product.seller,
                     variant=variant,
-                    quantity=qty,
+                    quantity=item_data['quantity'],
                     price=unit_price,
-                    total=unit_price * qty,
+                    total=unit_price * item_data['quantity'],
                     status=order.status
                 )
                 
                 # Deduct stock (payment confirmed!)
                 if variant:
-                    variant.stock = max(0, variant.stock - qty)
+                    variant.stock = max(0, variant.stock - item_data['quantity'])
                     variant.save(update_fields=['stock'])
                     product.update_stock_from_variants()
                 else:
-                    product.stock = max(0, product.stock - qty)
+                    product.stock = max(0, product.stock - item_data['quantity'])
                     product.save(update_fields=['stock'])
             
             # Clear user's cart
