@@ -115,58 +115,67 @@
         line-height: 1.5;
     }
 
-    /* action button styles */
+    /* action button styles with strict overrides to prevent global template distortion */
     .action-buttons {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 12px;
-        margin-bottom: 24px;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 12px !important;
+        margin-bottom: 24px !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
     }
 
     .btn-download {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 10px;
-        background: #2874F0;
-        color: #ffffff;
-        border: none;
-        border-radius: 12px;
-        padding: 14px;
-        font-size: 0.95rem;
-        font-weight: 700;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        box-shadow: 0 4px 12px rgba(40, 116, 240, 0.25);
-        text-decoration: none;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 10px !important;
+        background-color: #2874F0 !important;
+        color: #ffffff !important;
+        border: none !important;
+        border-radius: 12px !important;
+        padding: 14px 20px !important;
+        font-size: 0.95rem !important;
+        font-weight: 700 !important;
+        cursor: pointer !important;
+        transition: all 0.2s ease !important;
+        box-shadow: 0 4px 12px rgba(40, 116, 240, 0.25) !important;
+        text-decoration: none !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        height: auto !important;
     }
 
     .btn-download:hover {
-        background: #1a5fd4;
-        box-shadow: 0 6px 16px rgba(40, 116, 240, 0.35);
-        transform: translateY(-1px);
+        background-color: #1a5fd4 !important;
+        box-shadow: 0 6px 16px rgba(40, 116, 240, 0.35) !important;
+        transform: translateY(-1px) !important;
+        color: #ffffff !important;
     }
 
     .btn-share-native {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 10px;
-        background: #eff6ff;
-        color: #2874F0;
-        border: 1.5px solid #bfdbfe;
-        border-radius: 12px;
-        padding: 14px;
-        font-size: 0.95rem;
-        font-weight: 700;
-        cursor: pointer;
-        transition: all 0.2s ease;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 10px !important;
+        background-color: #eff6ff !important;
+        color: #2874F0 !important;
+        border: 1.5px solid #bfdbfe !important;
+        border-radius: 12px !important;
+        padding: 14px 20px !important;
+        font-size: 0.95rem !important;
+        font-weight: 700 !important;
+        cursor: pointer !important;
+        transition: all 0.2s ease !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        height: auto !important;
     }
 
     .btn-share-native:hover {
-        background: #dbeafe;
-        color: #1a5fd4;
-        border-color: #93c5fd;
+        background-color: #dbeafe !important;
+        color: #1a5fd4 !important;
+        border-color: #93c5fd !important;
     }
 
     /* social sharing tray */
@@ -192,26 +201,31 @@
     .social-divider:not(:empty)::after { margin-left: .5em; }
 
     .social-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 10px;
+        display: grid !important;
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 10px !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
     }
 
     .social-btn {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 6px;
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 12px;
-        padding: 12px;
-        font-size: 0.8rem;
-        font-weight: 600;
-        color: #475569;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        text-decoration: none;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        gap: 6px !important;
+        background-color: #f8fafc !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 12px !important;
+        padding: 12px 6px !important;
+        font-size: 0.8rem !important;
+        font-weight: 600 !important;
+        color: #475569 !important;
+        cursor: pointer !important;
+        transition: all 0.2s ease !important;
+        text-decoration: none !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        height: auto !important;
     }
 
     .social-btn:hover {
@@ -281,7 +295,7 @@
 
         <!-- QR Code Image -->
         <div class="qr-image-wrapper">
-            <img src="{% static 'images/stallcart_qrcode_premium.png' %}" alt="StallCart Permanent QR Code">
+            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAisAAAIrCAIAAAChzE5/AAAKwklEQVR4nO3dsXEcwRFA0YMKvuJAgIpCASIORbCyZcjYKw5/9957NosY7O3x19Do/rqu6wUAf90//v6PBAAFAiDjDgRAQ4EAaCgQAA0FAqChQAA0FAiAhgIB0FAgABoKBEBDgQBoKBAADQUCoKFAADQUCICGAgHQUCAAGgoEQEOBAGgoEAANBQKgoUAANBQIgIYCAdBQIAAaCgRAQ4EAaCgQAA0FAqChQAA0FAiAhgIB0FAgABoKBEBDgQBoKBAADQUCoKFAADQUCICGAgHQUCAAGgoEQEOBAGgoEAANBQKgoUAANBQIgIYCAdBQIAAaCgRAQ4EAaCgQAA0FAqChQAA0FAiAhgIB0FAgABQIgE/y/Vro51//qY+w1e+//znhQzl3jCFnHvI0Nv6Cvt1vG/K1usX/wgHQUCAAGgoEQEOBAGgoEAANBQKgoUAANBQIgIYCAdBQIAAaCgRAQ4EAaCgQAA0FAqCxcjvD4yeW32Ka/dtP49y7MWQfwZBjnOPbvZ07EAANBQKgoUAANBQIgIYCAdBQIAAaCgRAQ4EAaCgQAA0FAqChQAA0FAiAhgIB0FAgABrP385wy5AB9WbOD7Tx3Ti3q2LI07hlyJkf/+2+xR0IgIYCAdBQIAAaCgRAQ4EAaCgQAA0FAqChQAA0FAiAhgIB0FAgABoKBEBDgQBoKBAADdsZ+DPMnP87T2PIwgUfN3+EOxAADQUCoKFAADQUCICGAgHQUCAAGgoEQEOBAGgoEAANBQKgoUAANBQIAAUC4JO4AwHQsJ2BPzOu/xZbAwB3IAAy/hcOgIYCAdBQIAAaCgRAQ4EAaCgQAA0FAqChQAA0FAiAhgIB0FAgABoKBEBDgQBo2M7w/taAxzu3Q+HWH7bK4e2ngUc3nDsQAA0FAqChQAA0FAiAhgIB0FAgABoKBEBDgQBoKBAADQUCoKFAADQUCICGAgHQUCAAGs/fznBrEQADdyg83pDnPORvvsWLtJ07EAANBQKgoUAANBQIgIYCAdBQIAAaCgRAQ4EAaCgQAA0FAqChQAA0FAiAhgIB0FAgABpf13VFP5rphsz2v8UigIGPDv4fdyAAGgoEQEOBAGgoEAANBQKgoUAANBQIgIYCAdBQIAAaCgRAQ4EAUCAAPok7EAANBQKgYTvD/7A14KMM2UdwbgvGuWMMcW4nyJB34/HcgQBoKBAADQUCoKFAADQUCICGAgHQUCAAGgoEQEOBAGgoEAANBQKgoUAANBQIgIYCAdD4jn7uxxmy92HjMYbMyd+4vOCWjXsfHv+h/Cz8ptziDgRAQ4EAaCgQAA0FAqChQAA0FAiAhgIB0FAgABoKBEBDgQBoKBAADQUCoKFAADQUCIDG13Vdr20eP7F849MYsvdhyKPb+DSG2Lhw4fGrSc5xBwKgoUAANBQIgIYCAdBQIAAaCgRAQ4EAaCgQAA0FAqChQAA0FAiAhgIB0FAgABoKBEBj5XaGW4bMQn/8MYb8grc480c9jVs2/oK/M858izsQAA0FAqChQAA0FAiAhgIB0FAgABoKBEBDgQBoKBAADQUCQIEA+CTuQAA0FAiAhgIB0Fi5neHcSPZzhixcOOfcKochNo6+f/xahCHLC4a8z78LX1F3IAAaCgRAQ4EAaCgQAA0FAqChQAA0FAiAhgIB0FAgABoKBEBDgQBoKBAADQUCoKFAADS+XwttHEJ+zpBp9hsH1A858y1Dzvz4TQcb109s5A4EQEOBAGgoEAANBQKgoUAANBQIgIYCAdBQIAAaCgRAQ4EAaCgQAA0FAqChQAA0FAiAxtd1Xa9tzq0YcIyBz/mcjRP4h7zPt2w888aFC78Lv4PuQAA0FAiAhgIB0FAgABoKBEBDgQBoKBAADQUCoKFAADQUCICGAgHQUCAAGgoEQEOBAGis3M5wy7nR9xunrA9ZBLBxAv85Qz7uW4a8Gxufxsbv4DnuQAA0FAiAhgIB0FAgABoKBEBDgQBoKBAADQUCoKFAACgQAJ/EHQiAhgIB0FAgABoKBEDj+/V0Gwenbxwj/3hD5uR7Rd9+Ghv9zPgX6Rx3IAAaCgRAQ4EAaCgQAA0FAqChQAA0FAiAhgIB0FAgABoKBEBDgQBoKBAADQUCoKFAADS+ruuKfvR6QybDD1k/MeRpDDHk0W08xhCPX4swhDsQAA0FAqChQAA0FAiAhgIB0FAgABoKBEBDgQBoKBAADQUCoKFAADQUCICGAgHQUCAAGt+vhTauGDg3v33IGPmNz3nIo9to4/tsgchA7kAANBQIgIYCAdBQIAAaCgRAQ4EAaCgQAA0FAqChQAA0FAiAhgIB0FAgABoKBEBDgQBorNzOMGTFwC1D9hE83sbZ/kOOcc6QM597ztZ8vM0dCICGAgHQUCAAGgoEQEOBAGgoEAANBQKgoUAAKBAAn8QdCICGAgHQUCAAGgoEQEOBAGh8Xdf1ejRD9T9q/cSQRQBDfsGNH/cQG9+634WLWtyBAGgoEAANBQKgoUAANBQIgIYCAdBQIAAaCgRAQ4EAaCgQAA0FAqChQAA0FAiAhgIB0Hj+dgbetnERwOM3HQw5xsatAUN+wSHHGMIdCICGAgHQUCAAGgoEQEOBAGgoEAANBQKgoUAANBQIgIYCAdBQIAAaCgRAQ4EAaCgQAI3v10Lnxps/3pD57UMWLmw0ZJXD43/BIW/d78JP8BZ3IAAaCgRAQ4EAaCgQAA0FAqChQAA0FAiAhgIB0FAgABoKBEBDgQBoKBAADQUCoKFAADRWbme45fHjzTdOht/4Nz9+/cTGYwxx7sw/M3ZVnOMOBEBDgQBoKBAADQUCoKFAADQUCICGAgGgQAB8EncgABoKBEBDgQBoKBAADQUCoKFAADSev53hlnMz52/ZOGV94z6CW0zgf9uQT/AW6yf+DncgABoKBEBDgQBoKBAADQUCoKFAADQUCICGAgHQUCAAGgoEQEOBAGgoEAANBQKgoUAANGxnYPpQ/SG7KjaO69945scvEDl3jI3cgQBoKBAADQUCoKFAADQUCICGAgHQUCAAGgoEQEOBAGgoEAANBQKgoUAANBQIgIYCAdCwnQHicf23DJnt//hjDFls8TPjOZ/jDgRAQ4EAaCgQAA0FAqChQAA0FAiAhgIB0FAgABoKBEBDgQBoKBAADQUCoKFAADQUCICG7Qzrx5ufM2So/i1DJvAPcW62/5B3Y8jHbeHC29yBAGgoEAANBQKgoUAANBQIgIYCAaBAAHwSdyAAGgoEQEOBAGgoEAANBQKgoUAANBQIgMbztzM8fgL/EI8fqn/Oxlf03Mc95BgbP5SN3IEAaCgQAA0FAqChQAA0FAiAhgIB0FAgABoKBEBDgQBoKBAADQUCoKFAADQUCICGAgHQ+LquK/rRAHw0dyAAGgoEQEOBAGgoEAANBQKgoUAANBQIgIYCAdBQIAAaCgRAQ4EAaCgQAA0FAqChQAA0FAiAhgIB0FAgABoKBEBDgQBoKBAADQUCoKFAADQUCICGAgHQUCAAGgoEQEOBAGgoEAANBQKgoUAANBQIgIYCAdBQIAAaCgRAQ4EAUCAAPok7EAANBQKgoUAANBQIgIYCAdBQIAAaCgRAQ4EAaCgQAA0FAqChQAA0FAiAhgIB0FAgABoKBEBDgQBoKBAADQUCoKFAADQUCICGAgHQUCAAGgoEwCvxX15AM/oc6/H2AAAAAElFTkSuQmCC" alt="StallCart Permanent QR Code">
         </div>
 
         <section>
@@ -292,7 +306,7 @@
         <!-- Dynamic Action Buttons -->
         <div class="action-buttons">
             <!-- Downloader link -->
-            <a href="{% static 'images/stallcart_qrcode_premium.png' %}" download="stallcart_qrcode.png" class="btn-download" id="downloadQRBtn">
+            <a href="data:image/png;base64,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" download="stallcart_qrcode.png" class="btn-download" id="downloadQRBtn">
                 <i class="fa fa-download"></i> Download QR Code
             </a>
             
