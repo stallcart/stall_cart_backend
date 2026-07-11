@@ -345,3 +345,17 @@ class CheckoutSecurityTests(TestCase):
         self.assertIn("Invalid item quantity", response.json()['message'])
 
 
+class QRSharePageTests(TestCase):
+    def setUp(self):
+        from common.models import _thread_locals
+        _thread_locals.user = None
+
+    def test_qr_share_page_renders_successfully(self):
+        response = self.client.get(reverse('shop:qr_share_page'))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'shop/qr.html')
+        self.assertContains(response, 'StallCart')
+        self.assertContains(response, 'Scan to Shop Online')
+
+
+

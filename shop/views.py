@@ -1218,3 +1218,10 @@ def check_pincode(request):
         'status': 'success',
         'message': html
     })
+
+def qr_share_page(request):
+    """
+    Renders the public QR code sharing page for StallCart.
+    """
+    return render(request, 'shop/qr.html')
+
