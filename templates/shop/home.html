@@ -1504,22 +1504,22 @@
         <div class="chatbot-messages" id="chatbotMessages">
             <div class="message bot-message">
                 <div class="message-bubble">
-                    Hi there! 👋 Welcome to StallCart. How can we help you today?
+                    Hi there! 👋 Welcome to StallCart. Please share your phone number to start.
                 </div>
             </div>
         </div>
         <div class="chatbot-input-area" id="chatbotInputArea">
             <form id="chatbotForm" onsubmit="event.preventDefault();">
-                <div class="input-group-custom" id="stepMessageGroup">
-                    <textarea id="chatInputMessage" placeholder="Type your query/enquiry here..." required></textarea>
+                <div class="input-group-custom" id="stepPhoneGroup">
+                    <input type="tel" id="chatInputPhone" placeholder="Phone Number (10 digits)" required pattern="[0-9]{10}">
                     <button type="button" id="chatNextToNameBtn" class="btn-chat-action btn-chat-submit" style="color: white;">Next <i class="fa fa-arrow-right"></i></button>
                 </div>
                 <div class="input-group-custom d-none" id="stepNameGroup">
                     <input type="text" id="chatInputName" placeholder="Your Name (Optional)">
-                    <button type="button" id="chatNextToPhoneBtn" class="btn-chat-action btn-chat-submit" style="color: white;">Next <i class="fa fa-arrow-right"></i></button>
+                    <button type="button" id="chatNextToMessageBtn" class="btn-chat-action btn-chat-submit" style="color: white;">Next <i class="fa fa-arrow-right"></i></button>
                 </div>
-                <div class="input-group-custom d-none" id="stepPhoneGroup">
-                    <input type="tel" id="chatInputPhone" placeholder="Phone Number (10 digits)" required pattern="[0-9]{10}">
+                <div class="input-group-custom d-none" id="stepMessageGroup">
+                    <textarea id="chatInputMessage" placeholder="Type your query/enquiry here..." required></textarea>
                     <button type="button" id="chatSubmitBtn" class="btn-chat-action btn-chat-submit" style="color: white;">Submit Enquiry <i class="fa fa-paper-plane"></i></button>
                 </div>
             </form>
@@ -1767,7 +1767,7 @@ document.querySelectorAll('.btn-share').forEach(btn => {
     const inputPhoneGroup = document.getElementById('stepPhoneGroup');
     
     const nextToNameBtn = document.getElementById('chatNextToNameBtn');
-    const nextToPhoneBtn = document.getElementById('chatNextToPhoneBtn');
+    const nextToMessageBtn = document.getElementById('chatNextToMessageBtn');
     const submitBtn = document.getElementById('chatSubmitBtn');
     
     const inputMessage = document.getElementById('chatInputMessage');
@@ -1817,47 +1817,8 @@ document.querySelectorAll('.btn-share').forEach(btn => {
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
 
-    // Step 1: User types message, clicks Next
+    // Step 1: User enters phone number, clicks Next
     nextToNameBtn.addEventListener('click', () => {
-        const val = inputMessage.value.trim();
-        if (!val) {
-            inputMessage.focus();
-            return;
-        }
-        enquiryData.message = val;
-        addMessage(val, false);
-        
-        // Show typing indicator, wait 800ms, then ask for name
-        inputMessageGroup.classList.add('d-none');
-        const indicator = addTypingIndicator();
-        
-        setTimeout(() => {
-            indicator.remove();
-            addMessage("Got it. May I have your name, please? (Or click Next to remain anonymous)");
-            inputNameGroup.classList.remove('d-none');
-            inputName.focus();
-        }, 800);
-    });
-
-    // Step 2: User types name, clicks Next
-    nextToPhoneBtn.addEventListener('click', () => {
-        const val = inputName.value.trim();
-        enquiryData.name = val || 'Guest';
-        addMessage(val || 'Remain Anonymous', false);
-        
-        inputNameGroup.classList.add('d-none');
-        const indicator = addTypingIndicator();
-        
-        setTimeout(() => {
-            indicator.remove();
-            addMessage(`Thanks, ${enquiryData.name}! Lastly, please share your phone number so our support team can reach back to you.`);
-            inputPhoneGroup.classList.remove('d-none');
-            inputPhone.focus();
-        }, 800);
-    });
-
-    // Step 3: User enters phone number, clicks Submit
-    submitBtn.addEventListener('click', async () => {
         const phoneVal = inputPhone.value.trim();
         const phoneDigits = phoneVal.replace(/\D/g, '');
         if (phoneDigits.length < 10 || phoneDigits.length > 15) {
@@ -1869,6 +1830,44 @@ document.querySelectorAll('.btn-share').forEach(btn => {
         addMessage(phoneVal, false);
         
         inputPhoneGroup.classList.add('d-none');
+        const indicator = addTypingIndicator();
+        
+        setTimeout(() => {
+            indicator.remove();
+            addMessage("Thank you! May I have your name, please? (Or click Next to remain anonymous)");
+            inputNameGroup.classList.remove('d-none');
+            inputName.focus();
+        }, 800);
+    });
+
+    // Step 2: User enters name, clicks Next
+    nextToMessageBtn.addEventListener('click', () => {
+        const val = inputName.value.trim();
+        enquiryData.name = val || 'Guest';
+        addMessage(val || 'Remain Anonymous', false);
+        
+        inputNameGroup.classList.add('d-none');
+        const indicator = addTypingIndicator();
+        
+        setTimeout(() => {
+            indicator.remove();
+            addMessage(`Nice to meet you, ${enquiryData.name}! How can we help you today? Please type your query/enquiry below.`);
+            inputMessageGroup.classList.remove('d-none');
+            inputMessage.focus();
+        }, 800);
+    });
+
+    // Step 3: User enters message, clicks Submit
+    submitBtn.addEventListener('click', async () => {
+        const messageVal = inputMessage.value.trim();
+        if (!messageVal) {
+            inputMessage.focus();
+            return;
+        }
+        enquiryData.message = messageVal;
+        addMessage(messageVal, false);
+        
+        inputMessageGroup.classList.add('d-none');
         const indicator = addTypingIndicator();
         
         try {
@@ -1888,8 +1887,7 @@ document.querySelectorAll('.btn-share').forEach(btn => {
                     addMessage(data.message || 'Thank you! Your enquiry has been registered.');
                 } else {
                     addMessage(`⚠️ ${data.error || 'Something went wrong.'}`);
-                    // Reset to phone input
-                    inputPhoneGroup.classList.remove('d-none');
+                    inputMessageGroup.classList.remove('d-none');
                 }
             }, 1000);
             
@@ -1897,7 +1895,7 @@ document.querySelectorAll('.btn-share').forEach(btn => {
             setTimeout(() => {
                 indicator.remove();
                 addMessage('⚠️ Network error. Please try again.');
-                inputPhoneGroup.classList.remove('d-none');
+                inputMessageGroup.classList.remove('d-none');
             }, 1000);
         }
     });
