@@ -510,6 +510,10 @@
                 <i class="fa fa-truck-ramp-box"></i>
                 <span>Order Management</span>
             </a>
+            <a href="{% url 'accounts:admin_support_enquiries' %}" class="quick-action-btn">
+                <i class="fa fa-comments"></i>
+                <span>Support Enquiries</span>
+            </a>
             <a href="/admin/common/sitesettings/1/change/" class="quick-action-btn">
                 <i class="fa fa-palette"></i>
                 <span>Configure Branding</span>
@@ -666,8 +670,8 @@
     <!-- 5. User Support Enquiries Section -->
     <div class="section-card" style="margin-top: 30px; margin-bottom: 30px;">
         <div class="section-card-header">
-            <h3><i class="fa fa-comments"></i> User Support Enquiries</h3>
-            <a href="/admin/common/supportenquiry/" style="font-size:0.85rem; font-weight:600; text-decoration:none; color:var(--blue-500);">Manage in Admin</a>
+            <h3><i class="fa fa-comments"></i> Recent Support Enquiries</h3>
+            <a href="{% url 'accounts:admin_support_enquiries' %}" style="font-size:0.85rem; font-weight:600; text-decoration:none; color:var(--blue-500);">View All Enquiries</a>
         </div>
 
         <div class="mini-table-wrapper" style="overflow:auto;">

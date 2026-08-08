@@ -848,6 +848,49 @@ class AdminBusinessDashboardTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.context['is_superuser'])
 
+    def test_enquiries_portal_view(self):
+        url = reverse('accounts:admin_support_enquiries')
+        
+        # 1. Anonymous -> redirect
+        self.client.logout()
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 302)
+        
+        # 2. Customer -> redirect
+        self.client.login(phone="9999999993", password="pass")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 302)
+        
+        # 3. Staff -> 200 OK
+        self.client.login(phone="9999999992", password="pass")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'accounts/admin_support_enquiries.html')
+        
+        # Create enquiries to test filters/searches
+        from common.models import SupportEnquiry
+        SupportEnquiry.objects.create(name="EnqOne", phone="1111111111", message="Broken button", is_resolved=False)
+        SupportEnquiry.objects.create(name="EnqTwo", phone="2222222222", message="Shipping delay", is_resolved=True)
+        
+        # All filter
+        response = self.client.get(f"{url}?status=all")
+        self.assertEqual(len(response.context['enquiries']), 2)
+        
+        # Pending filter
+        response = self.client.get(f"{url}?status=pending")
+        self.assertEqual(len(response.context['enquiries']), 1)
+        self.assertEqual(response.context['enquiries'][0].name, "EnqOne")
+        
+        # Resolved filter
+        response = self.client.get(f"{url}?status=resolved")
+        self.assertEqual(len(response.context['enquiries']), 1)
+        self.assertEqual(response.context['enquiries'][0].name, "EnqTwo")
+        
+        # Search query filter
+        response = self.client.get(f"{url}?search=delay")
+        self.assertEqual(len(response.context['enquiries']), 1)
+        self.assertEqual(response.context['enquiries'][0].name, "EnqTwo")
+
 
 class SellerPANVerificationTests(TestCase):
     def setUp(self):

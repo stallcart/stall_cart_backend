@@ -1652,7 +1652,7 @@ def admin_business_dashboard(request):
     # Support Enquiries Stats & List
     total_support_enquiries = SupportEnquiry.objects.count()
     pending_support_enquiries = SupportEnquiry.objects.filter(is_resolved=False).count()
-    recent_support_enquiries = SupportEnquiry.objects.all().order_by('-created_at')[:8]
+    recent_support_enquiries = SupportEnquiry.objects.all().order_by('-created_at')[:5]
 
     # 8. Business Trends (Last 7 Days Sales)
     today = timezone.now().date()
@@ -1722,3 +1722,57 @@ def admin_trigger_backup(request):
             return JsonResponse({'status': 'error', 'message': f'Backup script error: {result.stderr or result.stdout}'}, status=500)
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': f'Failed to execute backup script: {e}'}, status=500)
+
+
+@login_required
+def admin_support_enquiries(request):
+    """
+    Custom dashboard panel to view, filter, search, and manage all support enquiries.
+    Accessible to superadmins and staff members.
+    """
+    from django.core.paginator import Paginator
+    from django.db.models import Q
+    from common.models import SupportEnquiry, SiteSettings
+    from django.contrib import messages
+    from django.shortcuts import redirect, render
+    from django.urls import reverse
+    
+    if not request.user.is_superuser and getattr(request.user, 'role', None) not in ['admin', 'staff'] and not request.user.is_staff:
+        messages.error(request, "🔐 Access Denied: Admin or Staff privileges required.")
+        return redirect('shop:home')
+        
+    status_filter = request.GET.get('status', 'all')
+    search_query = request.GET.get('search', '').strip()
+    
+    qs = SupportEnquiry.objects.all().order_by('-created_at')
+    
+    # 1. Filter by status
+    if status_filter == 'pending':
+        qs = qs.filter(is_resolved=False)
+    elif status_filter == 'resolved':
+        qs = qs.filter(is_resolved=True)
+        
+    # 2. Search
+    if search_query:
+        qs = qs.filter(
+            Q(name__icontains=search_query) |
+            Q(phone__icontains=search_query) |
+            Q(message__icontains=search_query)
+        )
+        
+    # 3. Pagination
+    paginator = Paginator(qs, 15)
+    page_number = request.GET.get('page', 1)
+    enquiries = paginator.get_page(page_number)
+    
+    site_settings = SiteSettings.get_singleton()
+    
+    context = {
+        'enquiries': enquiries,
+        'status_filter': status_filter,
+        'search_query': search_query,
+        'site_settings': site_settings,
+        'total_count': qs.count(),
+    }
+    
+    return render(request, 'accounts/admin_support_enquiries.html', context)

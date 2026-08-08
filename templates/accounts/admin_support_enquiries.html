@@ -1,0 +1,453 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}User Support Enquiries | {{ site_settings.site_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .enquiries-container {
+        max-width: 1280px;
+        margin: 40px auto;
+        padding: 0 24px;
+        font-family: 'DM Sans', sans-serif;
+    }
+
+    .header-section {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 35px;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+
+    .title-area h2 {
+        font-family: 'Syne', sans-serif;
+        font-size: clamp(1.2rem, 3vw, 1.45rem);
+        font-weight: 800;
+        margin: 0;
+        color: var(--gray-900);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .title-area p {
+        color: var(--gray-500);
+        margin: 5px 0 0 0;
+        font-size: 1rem;
+    }
+
+    /* Filters and Search Bar Section */
+    .filter-search-bar {
+        background: white;
+        border: 1.5px solid var(--gray-100);
+        border-radius: var(--r-xl, 16px);
+        padding: 20px;
+        margin-bottom: 30px;
+        box-shadow: var(--sh-sm, 0 1px 3px rgba(0,0,0,0.05));
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 20px;
+    }
+
+    .filters-group {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .filter-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 16px;
+        border-radius: 30px;
+        font-size: 0.88rem;
+        font-weight: 600;
+        text-decoration: none;
+        color: var(--gray-600);
+        background: var(--gray-50);
+        border: 1px solid var(--gray-200);
+        transition: all 0.2s ease;
+    }
+
+    .filter-pill:hover {
+        background: var(--gray-100);
+        color: var(--gray-950);
+    }
+
+    .filter-pill.active {
+        background: var(--blue-600, #2874f0);
+        color: white;
+        border-color: var(--blue-600, #2874f0);
+    }
+
+    .search-form {
+        display: flex;
+        gap: 8px;
+        width: 100%;
+        max-width: 400px;
+    }
+
+    .search-input {
+        flex: 1;
+        padding: 10px 16px;
+        border-radius: var(--r-md, 8px);
+        border: 1.5px solid var(--gray-200);
+        font-size: 0.88rem;
+        outline: none;
+        transition: border-color 0.2s;
+    }
+
+    .search-input:focus {
+        border-color: var(--blue-500, #2874f0);
+    }
+
+    .search-btn {
+        padding: 10px 20px;
+        background: var(--gray-900, #0f172a);
+        color: white;
+        border: none;
+        border-radius: var(--r-md, 8px);
+        font-weight: 600;
+        font-size: 0.88rem;
+        cursor: pointer;
+        transition: opacity 0.2s;
+    }
+
+    .search-btn:hover {
+        opacity: 0.9;
+    }
+
+    .section-card {
+        background: white;
+        border: 1.5px solid var(--gray-100);
+        border-radius: var(--r-xl, 16px);
+        padding: 25px;
+        box-shadow: var(--sh-sm, 0 1px 3px rgba(0,0,0,0.05));
+    }
+
+    /* Table styles */
+    .mini-table-wrapper {
+        overflow-x: auto;
+        border: 1px solid var(--gray-100);
+        border-radius: var(--r-lg, 10px);
+        margin-bottom: 20px;
+    }
+
+    .mini-table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+        font-size: 0.9rem;
+    }
+
+    .mini-table th {
+        background: var(--gray-50);
+        padding: 12px 15px;
+        font-weight: 600;
+        color: var(--gray-700);
+        border-bottom: 1.5px solid var(--gray-200);
+    }
+
+    .mini-table td {
+        padding: 16px 15px;
+        border-bottom: 1px solid var(--gray-100);
+        color: var(--gray-800);
+        vertical-align: middle;
+    }
+
+    .mini-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .status-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 0.74rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .status-pill.verified {
+        background: var(--green-light, rgba(16,185,129,0.1));
+        color: var(--green, #10b981);
+    }
+
+    .status-pill.unverified {
+        background: var(--red-light, rgba(239,68,68,0.1));
+        color: var(--red, #ef4444);
+    }
+
+    .btn-outline {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: var(--r-sm, 6px);
+        border: 1.5px solid var(--gray-200);
+        background: white;
+        color: var(--gray-700);
+        font-weight: 600;
+        font-size: 0.82rem;
+        text-decoration: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .btn-outline:hover {
+        border-color: var(--blue-500, #2874f0);
+        color: var(--blue-500, #2874f0);
+        background: var(--blue-50, #f8fafc);
+    }
+
+    /* Pagination CSS */
+    .pagination-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 25px;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+
+    .pagination-info {
+        font-size: 0.88rem;
+        color: var(--gray-500);
+    }
+
+    .pagination-nav {
+        display: flex;
+        gap: 5px;
+    }
+
+    .pagination-btn {
+        padding: 8px 14px;
+        border-radius: 8px;
+        border: 1px solid var(--gray-200);
+        background: white;
+        color: var(--gray-700);
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.85rem;
+        transition: all 0.2s;
+    }
+
+    .pagination-btn:hover:not(.disabled) {
+        border-color: var(--blue-500);
+        color: var(--blue-500);
+    }
+
+    .pagination-btn.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="enquiries-container">
+
+    <!-- Header Section -->
+    <div class="header-section">
+        <div class="title-area">
+            <h2>
+                <i class="fa fa-comments text-primary" style="margin-right: 8px;"></i>
+                Support Enquiries Portal
+            </h2>
+            <p>Manage, search, and resolve enquiries logged by visitors via the homepage support chatbot.</p>
+        </div>
+        <a href="{% url 'accounts:admin_business_dashboard' %}" class="btn-outline">
+            <i class="fa fa-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+
+    <!-- Filter & Search Panel -->
+    <div class="filter-search-bar">
+        <!-- Status Filters -->
+        <div class="filters-group">
+            <a href="?status=all{% if search_query %}&search={{ search_query }}{% endif %}" 
+               class="filter-pill {% if status_filter == 'all' %}active{% endif %}">
+                All Enquiries
+            </a>
+            <a href="?status=pending{% if search_query %}&search={{ search_query }}{% endif %}" 
+               class="filter-pill {% if status_filter == 'pending' %}active{% endif %}">
+                🔴 Pending ({{ site_settings.pending_enquiries_count|default:"-" }})
+            </a>
+            <a href="?status=resolved{% if search_query %}&search={{ search_query }}{% endif %}" 
+               class="filter-pill {% if status_filter == 'resolved' %}active{% endif %}">
+                🟢 Resolved
+            </a>
+        </div>
+
+        <!-- Search Box -->
+        <form method="GET" class="search-form">
+            <input type="hidden" name="status" value="{{ status_filter }}">
+            <input type="text" name="search" value="{{ search_query }}" placeholder="Search by name, phone or query..." class="search-input">
+            <button type="submit" class="search-btn">
+                <i class="fa fa-search"></i> Search
+            </button>
+        </form>
+    </div>
+
+    <!-- Enquiries Data Card -->
+    <div class="section-card">
+        <div class="mini-table-wrapper">
+            <table class="mini-table">
+                <thead>
+                    <tr>
+                        <th>User Name</th>
+                        <th>Phone Number</th>
+                        <th>Message Enquiry</th>
+                        <th>Status</th>
+                        <th>Received At</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if enquiries %}
+                        {% for enq in enquiries %}
+                        <tr id="enquiry-row-{{ enq.id }}">
+                            <td><strong>{{ enq.name }}</strong></td>
+                            <td>
+                                <a href="tel:{{ enq.phone }}" style="color: var(--blue-500); text-decoration: none; font-weight: bold;">
+                                    {{ enq.phone }}
+                                </a>
+                            </td>
+                            <td>
+                                <div style="max-width: 450px; word-wrap: break-word; white-space: normal; line-height: 1.45;">
+                                    {{ enq.message }}
+                                </div>
+                            </td>
+                            <td>
+                                <span id="enquiry-status-{{ enq.id }}" class="status-pill {% if enq.is_resolved %}verified{% else %}unverified{% endif %}">
+                                    {% if enq.is_resolved %}RESOLVED{% else %}PENDING{% endif %}
+                                </span>
+                            </td>
+                            <td>{{ enq.created_at|date:"M d, Y H:i" }}</td>
+                            <td>
+                                {% if not enq.is_resolved %}
+                                <button onclick="resolveEnquiry({{ enq.id }})" id="resolve-btn-{{ enq.id }}" class="btn-outline" style="padding:5px 10px; font-size:0.8rem;">
+                                    Mark Resolved <i class="fa fa-check text-success"></i>
+                                </button>
+                                {% else %}
+                                <span class="text-muted" style="font-size: 0.85rem;">
+                                    <i class="fa fa-check-double text-success"></i> Resolved
+                                </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="6" class="text-muted" style="text-align:center; padding: 60px 0; font-size: 1rem;">
+                                <i class="fa fa-folder-open" style="font-size: 2rem; display: block; margin-bottom: 10px; opacity: 0.5;"></i>
+                                No support enquiries matched your filters.
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination Controls -->
+        {% if enquiries.has_other_pages %}
+        <div class="pagination-bar">
+            <div class="pagination-info">
+                Showing entries {{ enquiries.start_index }}–{{ enquiries.end_index }} of {{ total_count }}
+            </div>
+            <div class="pagination-nav">
+                {% if enquiries.has_previous %}
+                    <a href="?page={{ enquiries.previous_page_number }}&status={{ status_filter }}{% if search_query %}&search={{ search_query }}{% endif %}" class="pagination-btn">
+                        &laquo; Previous
+                    </a>
+                {% else %}
+                    <a href="#" class="pagination-btn disabled">&laquo; Previous</a>
+                {% endif %}
+
+                {% for num in enquiries.paginator.page_range %}
+                    {% if enquiries.number == num %}
+                        <a href="#" class="pagination-btn active" style="background:var(--blue-500); color:white; border-color:var(--blue-500);">{{ num }}</a>
+                    {% elif num > enquiries.number|add:'-3' and num < enquiries.number|add:'3' %}
+                        <a href="?page={{ num }}&status={{ status_filter }}{% if search_query %}&search={{ search_query }}{% endif %}" class="pagination-btn">{{ num }}</a>
+                    {% endif %}
+                {% endfor %}
+
+                {% if enquiries.has_next %}
+                    <a href="?page={{ enquiries.next_page_number }}&status={{ status_filter }}{% if search_query %}&search={{ search_query }}{% endif %}" class="pagination-btn">
+                        Next &raquo;
+                    </a>
+                {% else %}
+                    <a href="#" class="pagination-btn disabled">Next &raquo;</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // AJAX to Resolve Support Enquiry
+    function resolveEnquiry(enquiryId) {
+        if (!confirm('Are you sure you want to mark this support enquiry as resolved?')) {
+            return;
+        }
+        
+        const csrfToken = "{{ csrf_token }}";
+        const btn = document.getElementById('resolve-btn-' + enquiryId);
+        
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = 'Resolving... <i class="fa fa-spinner fa-spin"></i>';
+        }
+        
+        fetch('/common/resolve-enquiry/' + enquiryId + '/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ notes: 'Resolved from Portal' })
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => { throw err; });
+            }
+            return response.json();
+        })
+        .then(data => {
+            showToast('Enquiry successfully resolved!', 'success');
+            
+            // Update UI status badge
+            const statusSpan = document.getElementById('enquiry-status-' + enquiryId);
+            if (statusSpan) {
+                statusSpan.className = 'status-pill verified';
+                statusSpan.textContent = 'RESOLVED';
+            }
+            
+            // Replace action button with text
+            if (btn && btn.parentNode) {
+                btn.parentNode.innerHTML = '<span class="text-muted" style="font-size: 0.85rem;"><i class="fa fa-check-double text-success"></i> Resolved</span>';
+            }
+        })
+        .catch(err => {
+            console.error('Error resolving enquiry:', err);
+            showToast(err.error || 'Failed to resolve enquiry. Please try again.', 'error');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = 'Mark Resolved <i class="fa fa-check"></i>';
+            }
+        });
+    }
+</script>
+{% endblock %}

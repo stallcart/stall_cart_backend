@@ -22,4 +22,5 @@ urlpatterns = [
     path('admin/users/', views.admin_user_management, name='admin_user_management'),
     path('admin/dashboard/', views.admin_business_dashboard, name='admin_business_dashboard'),
     path('admin/trigger-backup/', views.admin_trigger_backup, name='admin_trigger_backup'),
+    path('admin/enquiries/', views.admin_support_enquiries, name='admin_support_enquiries'),
 ]
