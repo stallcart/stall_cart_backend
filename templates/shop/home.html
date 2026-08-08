@@ -1489,9 +1489,9 @@
     </button>
     <div class="chatbot-container" id="chatbotContainer">
         <div class="chatbot-header">
-            <div class="chatbot-avatar">
-                <img src="{% if site_settings.logo_primary %}{{ site_settings.logo_primary.url }}{% else %}/static/images/logo-fallback.png{% endif %}" alt="StallCart Bot" onerror="this.src='https://ui-avatars.com/api/?name=StallCart&background=2874f0&color=fff'">
-                <span class="status-indicator"></span>
+            <div class="chatbot-avatar" style="background: linear-gradient(135deg, #2874f0 0%, #1e5cc8 100%); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(40, 116, 240, 0.3); flex-shrink: 0; margin-right: 12px;">
+                <i class="fa fa-robot" style="color: white; font-size: 1.25rem;"></i>
+                <span class="status-indicator" style="bottom: 0; right: 0; position: absolute;"></span>
             </div>
             <div class="chatbot-title-area">
                 <h4>StallCart Assistant</h4>
