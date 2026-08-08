@@ -380,4 +380,22 @@ class EmailTemplate(BaseModel):
     def __str__(self):
         return f"{self.name} - {self.subject}"
 
+
+class SupportEnquiry(models.Model):
+    name = models.CharField(max_length=100, blank=True, null=True, verbose_name="User Name")
+    phone = models.CharField(max_length=15, verbose_name="Phone Number")
+    message = models.TextField(verbose_name="Enquiry Message")
+    is_resolved = models.BooleanField(default=False, verbose_name="Is Resolved")
+    resolved_notes = models.TextField(blank=True, null=True, verbose_name="Resolution Notes")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Received At")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Updated At")
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Support Enquiry'
+        verbose_name_plural = 'Support Enquiries'
+
+    def __str__(self):
+        return f"Enquiry from {self.name or 'Guest'} ({self.phone}) at {self.created_at.strftime('%Y-%m-%d %H:%M')}"
+
     

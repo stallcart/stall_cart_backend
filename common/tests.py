@@ -185,3 +185,74 @@ class SiteSettingsAdminPermissionsTests(TestCase):
             mock_success.assert_called_once()
             self.settings.refresh_from_db()
             self.assertFalse(self.settings.enable_background_jobs)  # toggled from True to False
+
+
+class SupportEnquiryTests(TestCase):
+    def setUp(self):
+        self.submit_url = reverse('common:submit_support_enquiry')
+
+    def test_model_creation(self):
+        """Verify that SupportEnquiry is correctly created in DB"""
+        from common.models import SupportEnquiry
+        enquiry = SupportEnquiry.objects.create(
+            name="Alice",
+            phone="9876543210",
+            message="Need help with returns"
+        )
+        self.assertEqual(enquiry.name, "Alice")
+        self.assertEqual(enquiry.phone, "9876543210")
+        self.assertEqual(enquiry.message, "Need help with returns")
+        self.assertFalse(enquiry.is_resolved)
+
+    def test_ajax_submission_success(self):
+        """Verify AJAX view saves and returns success with valid data"""
+        from common.models import SupportEnquiry
+        payload = {
+            'name': 'Bob',
+            'phone': '9876543210',
+            'message': 'Where is my order?'
+        }
+        response = self.client.post(
+            self.submit_url,
+            data=payload,
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data.get('ok'))
+        
+        # Verify db insert
+        enquiry = SupportEnquiry.objects.latest('id')
+        self.assertEqual(enquiry.name, 'Bob')
+        self.assertEqual(enquiry.phone, '9876543210')
+        self.assertEqual(enquiry.message, 'Where is my order?')
+
+    def test_ajax_submission_missing_phone(self):
+        """Verify request fails when phone is missing"""
+        payload = {
+            'name': 'Bob',
+            'message': 'No phone number'
+        }
+        response = self.client.post(
+            self.submit_url,
+            data=payload,
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('required', response.json().get('error', ''))
+
+    def test_ajax_submission_invalid_phone(self):
+        """Verify request fails when phone digits are too short or long"""
+        payload = {
+            'name': 'Bob',
+            'phone': '123',
+            'message': 'Short phone'
+        }
+        response = self.client.post(
+            self.submit_url,
+            data=payload,
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('valid', response.json().get('error', ''))
+

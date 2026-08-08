@@ -4,7 +4,7 @@ from django.utils import timezone
 from django.urls import path, reverse
 from django.http import HttpResponseRedirect
 from django.contrib import messages
-from .models import SiteSettings, EmailTemplate
+from .models import SiteSettings, EmailTemplate, SupportEnquiry
 
 class BaseModelAdmin(admin.ModelAdmin):
     """Reusable admin config for all models inheriting BaseModel"""
@@ -232,3 +232,19 @@ class EmailTemplateAdmin(admin.ModelAdmin):
     list_display = ('name', 'subject', 'updated_at')
     search_fields = ('name', 'subject', 'body')
     readonly_fields = ('created_at', 'updated_at', 'created_by', 'updated_by')
+
+
+@admin.register(SupportEnquiry)
+class SupportEnquiryAdmin(admin.ModelAdmin):
+    list_display = ('name', 'phone', 'is_resolved', 'created_at')
+    list_filter = ('is_resolved', 'created_at')
+    search_fields = ('name', 'phone', 'message', 'resolved_notes')
+    readonly_fields = ('created_at', 'updated_at')
+    fieldsets = (
+        ('📞 Contact & Enquiry Info', {
+            'fields': ('name', 'phone', 'message', 'created_at')
+        }),
+        ('⚙️ Resolution Status', {
+            'fields': ('is_resolved', 'resolved_notes', 'updated_at')
+        }),
+    )

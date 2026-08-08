@@ -184,3 +184,44 @@ def firebase_sw(request):
         content_type='application/javascript',
         headers={'Service-Worker-Allowed': '/'}  # ✅ Critical for root scope
     )
+
+
+@require_POST
+def submit_support_enquiry(request):
+    """
+    AJAX view to process support enquiries from the chatbot widget.
+    Stores name, phone, and inquiry in the database.
+    """
+    import re
+    from common.models import SupportEnquiry
+    
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({'error': 'Invalid JSON request.'}, status=400)
+        
+    name = data.get('name', '').strip()
+    phone = data.get('phone', '').strip()
+    message = data.get('message', '').strip()
+    
+    if not phone:
+        return JsonResponse({'error': 'Phone number is required.'}, status=400)
+    if not message:
+        return JsonResponse({'error': 'Please enter your query or message.'}, status=400)
+        
+    # Validate phone format (10 to 15 digits)
+    phone_digits = re.sub(r'\D', '', phone)
+    if len(phone_digits) < 10 or len(phone_digits) > 15:
+        return JsonResponse({'error': 'Please enter a valid 10-15 digit phone number.'}, status=400)
+        
+    # Save the support enquiry
+    enquiry = SupportEnquiry.objects.create(
+        name=name or 'Guest',
+        phone=phone,
+        message=message
+    )
+    
+    return JsonResponse({
+        'ok': True,
+        'message': f'Thank you, {enquiry.name or "Guest"}! Your query has been registered. Our support team will call you back at {enquiry.phone} shortly.'
+    })
