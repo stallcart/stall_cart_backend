@@ -79,3 +79,17 @@ class BrevoAPIBackend(BaseEmailBackend):
                     raise
                     
         return num_sent
+
+
+from django.core.mail.backends.smtp import EmailBackend as SmtpEmailBackend
+
+class StallCartEmailBackend(SmtpEmailBackend):
+    def send_messages(self, email_messages):
+        """
+        Intercepts all outgoing EmailMessage objects, ensures the Reply-To header
+        is set to stallcart.in@gmail.com, and sends them via standard SMTP.
+        """
+        for message in email_messages:
+            if not message.reply_to:
+                message.reply_to = ['stallcart.in@gmail.com']
+        return super().send_messages(email_messages)

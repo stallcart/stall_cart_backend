@@ -318,4 +318,48 @@ class SupportEnquiryTests(TestCase):
         self.assertTrue(enquiry.is_resolved)
         self.assertEqual(enquiry.resolved_notes, 'Done')
 
+    def test_custom_email_backend_reply_to(self):
+        """Verify that StallCartEmailBackend automatically adds Reply-To header if absent"""
+        from django.core.mail import EmailMessage
+        from common.email_backend import StallCartEmailBackend
+        
+        # Test the list modification logic directly
+        backend = StallCartEmailBackend(fail_silently=True)
+        msg1 = EmailMessage('Subject 1', 'Body 1', 'from@test.com', ['to@test.com'])
+        msg2 = EmailMessage('Subject 2', 'Body 2', 'from@test.com', ['to@test.com'], reply_to=['custom@test.com'])
+        
+        try:
+            backend.send_messages([msg1, msg2])
+        except Exception:
+            # We catch connection errors since there is no running SMTP server during test,
+            # but we verify that the headers were modified successfully before connection.
+            pass
+            
+        self.assertEqual(msg1.reply_to, ['stallcart.in@gmail.com'])
+        self.assertEqual(msg2.reply_to, ['custom@test.com'])
+
+    def test_send_dynamic_email_includes_support_info(self):
+        """Verify that send_dynamic_email appends the support contact footer to the email body"""
+        from django.core import mail
+        from common.email_service import send_dynamic_email
+        from common.models import SiteSettings
+        
+        # Ensure SiteSettings exists
+        settings_obj = SiteSettings.get_singleton()
+        settings_obj.contact_phone = "+91 9999999999"
+        settings_obj.contact_email = "customsupport@stallcart.in"
+        settings_obj.save()
+        
+        # Send dynamic email
+        send_dynamic_email('registration_email_otp', ['testuser@example.com'], {'otp': '998877'})
+        
+        # Check outbox
+        self.assertEqual(len(mail.outbox), 1)
+        sent_email = mail.outbox[0]
+        self.assertIn("+91 9999999999", sent_email.body)
+        self.assertIn("customsupport@stallcart.in", sent_email.body)
+        self.assertIn("Need Support?", sent_email.body)
+
+
+
 

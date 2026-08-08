@@ -140,6 +140,19 @@ def send_dynamic_email(template_name: str, recipient_list: list, context_data: d
         rendered_subject = subject_tpl.render(context).strip().replace("\n", " ").replace("\r", "")
         rendered_body = body_tpl.render(context)
         
+        # Append support contact footer dynamically
+        try:
+            from .models import SiteSettings
+            site_settings = SiteSettings.get_singleton()
+            phone = site_settings.contact_phone or "+91 8004096954"
+            email = site_settings.contact_email or "stallcart.in@gmail.com"
+        except Exception:
+            phone = "+91 8004096954"
+            email = "stallcart.in@gmail.com"
+            
+        footer_text = f"\n\n---\n📞 Need Support? Contact us at {phone} or email us at {email}\n✨ Thank you for choosing StallCart!"
+        rendered_body = rendered_body + footer_text
+        
         from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'StallCart <ad4b11001@smtp-brevo.com>')
         
         send_mail(

@@ -165,3 +165,6 @@ firebase_service_account.json
 *.pem
 .env
 !.env.example
+
+# Scratch files (credentials)
+scratch/
