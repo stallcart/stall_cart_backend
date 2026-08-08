@@ -1504,12 +1504,22 @@
         <div class="chatbot-messages" id="chatbotMessages">
             <div class="message bot-message">
                 <div class="message-bubble">
+                    {% if request.user.is_authenticated %}
+                    Hi {{ request.user.full_name|default:request.user.phone }}! 👋 Welcome to StallCart Support. How can we help you today?
+                    {% else %}
                     Hi there! 👋 Welcome to StallCart. Please share your phone number to start.
+                    {% endif %}
                 </div>
             </div>
         </div>
         <div class="chatbot-input-area" id="chatbotInputArea">
             <form id="chatbotForm" onsubmit="event.preventDefault();">
+                {% if request.user.is_authenticated %}
+                <div class="input-group-custom" id="stepMessageGroup">
+                    <textarea id="chatInputMessage" placeholder="Type your query/enquiry here..." required></textarea>
+                    <button type="button" id="chatSubmitBtn" class="btn-chat-action btn-chat-submit" style="color: white;">Submit Enquiry <i class="fa fa-paper-plane"></i></button>
+                </div>
+                {% else %}
                 <div class="input-group-custom" id="stepPhoneGroup">
                     <input type="tel" id="chatInputPhone" placeholder="Phone Number (10 digits)" required pattern="[0-9]{10}">
                     <button type="button" id="chatNextToNameBtn" class="btn-chat-action btn-chat-submit" style="color: white;">Next <i class="fa fa-arrow-right"></i></button>
@@ -1522,6 +1532,7 @@
                     <textarea id="chatInputMessage" placeholder="Type your query/enquiry here..." required></textarea>
                     <button type="button" id="chatSubmitBtn" class="btn-chat-action btn-chat-submit" style="color: white;">Submit Enquiry <i class="fa fa-paper-plane"></i></button>
                 </div>
+                {% endif %}
             </form>
         </div>
     </div>
@@ -1817,88 +1828,94 @@ document.querySelectorAll('.btn-share').forEach(btn => {
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
 
-    // Step 1: User enters phone number, clicks Next
-    nextToNameBtn.addEventListener('click', () => {
-        const phoneVal = inputPhone.value.trim();
-        const phoneDigits = phoneVal.replace(/\D/g, '');
-        if (phoneDigits.length < 10 || phoneDigits.length > 15) {
-            alert('Please enter a valid 10-15 digit phone number.');
-            inputPhone.focus();
-            return;
-        }
-        enquiryData.phone = phoneVal;
-        addMessage(phoneVal, false);
-        
-        inputPhoneGroup.classList.add('d-none');
-        const indicator = addTypingIndicator();
-        
-        setTimeout(() => {
-            indicator.remove();
-            addMessage("Thank you! May I have your name, please? (Or click Next to remain anonymous)");
-            inputNameGroup.classList.remove('d-none');
-            inputName.focus();
-        }, 800);
-    });
+    // Step 1: User enters phone number, clicks Next (anonymous users only)
+    if (nextToNameBtn) {
+        nextToNameBtn.addEventListener('click', () => {
+            const phoneVal = inputPhone.value.trim();
+            const phoneDigits = phoneVal.replace(/\D/g, '');
+            if (phoneDigits.length < 10 || phoneDigits.length > 15) {
+                alert('Please enter a valid 10-15 digit phone number.');
+                inputPhone.focus();
+                return;
+            }
+            enquiryData.phone = phoneVal;
+            addMessage(phoneVal, false);
+            
+            inputPhoneGroup.classList.add('d-none');
+            const indicator = addTypingIndicator();
+            
+            setTimeout(() => {
+                indicator.remove();
+                addMessage("Thank you! May I have your name, please? (Or click Next to remain anonymous)");
+                inputNameGroup.classList.remove('d-none');
+                inputName.focus();
+            }, 800);
+        });
+    }
 
-    // Step 2: User enters name, clicks Next
-    nextToMessageBtn.addEventListener('click', () => {
-        const val = inputName.value.trim();
-        enquiryData.name = val || 'Guest';
-        addMessage(val || 'Remain Anonymous', false);
-        
-        inputNameGroup.classList.add('d-none');
-        const indicator = addTypingIndicator();
-        
-        setTimeout(() => {
-            indicator.remove();
-            addMessage(`Nice to meet you, ${enquiryData.name}! How can we help you today? Please type your query/enquiry below.`);
-            inputMessageGroup.classList.remove('d-none');
-            inputMessage.focus();
-        }, 800);
-    });
+    // Step 2: User enters name, clicks Next (anonymous users only)
+    if (nextToMessageBtn) {
+        nextToMessageBtn.addEventListener('click', () => {
+            const val = inputName.value.trim();
+            enquiryData.name = val || 'Guest';
+            addMessage(val || 'Remain Anonymous', false);
+            
+            inputNameGroup.classList.add('d-none');
+            const indicator = addTypingIndicator();
+            
+            setTimeout(() => {
+                indicator.remove();
+                addMessage(`Nice to meet you, ${enquiryData.name}! How can we help you today? Please type your query/enquiry below.`);
+                inputMessageGroup.classList.remove('d-none');
+                inputMessage.focus();
+            }, 800);
+        });
+    }
 
     // Step 3: User enters message, clicks Submit
-    submitBtn.addEventListener('click', async () => {
-        const messageVal = inputMessage.value.trim();
-        if (!messageVal) {
-            inputMessage.focus();
-            return;
-        }
-        enquiryData.message = messageVal;
-        addMessage(messageVal, false);
-        
-        inputMessageGroup.classList.add('d-none');
-        const indicator = addTypingIndicator();
-        
-        try {
-            const response = await fetch('/common/submit-enquiry/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken
-                },
-                body: JSON.stringify(enquiryData)
-            });
-            const data = await response.json();
+    if (submitBtn) {
+        submitBtn.addEventListener('click', async () => {
+            const messageVal = inputMessage.value.trim();
+            if (!messageVal) {
+                inputMessage.focus();
+                return;
+            }
+            enquiryData.message = messageVal;
+            addMessage(messageVal, false);
             
-            setTimeout(() => {
-                indicator.remove();
-                if (response.ok) {
-                    addMessage(data.message || 'Thank you! Your enquiry has been registered.');
-                } else {
-                    addMessage(`⚠️ ${data.error || 'Something went wrong.'}`);
+            inputMessageGroup.classList.add('d-none');
+            const indicator = addTypingIndicator();
+            
+            try {
+                const response = await fetch('/common/submit-enquiry/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify(enquiryData)
+                });
+                const data = await response.json();
+                
+                setTimeout(() => {
+                    indicator.remove();
+                    if (response.ok) {
+                        addMessage(data.message || 'Thank you! Your enquiry has been registered.');
+                    } else {
+                        addMessage(`⚠️ ${data.error || 'Something went wrong.'}`);
+                        inputMessageGroup.classList.remove('d-none');
+                    }
+                }, 1000);
+                
+            } catch (err) {
+                setTimeout(() => {
+                    indicator.remove();
+                    addMessage('⚠️ Network error. Please try again.');
                     inputMessageGroup.classList.remove('d-none');
-                }
-            }, 1000);
-            
-        } catch (err) {
-            setTimeout(() => {
-                indicator.remove();
-                addMessage('⚠️ Network error. Please try again.');
-                inputMessageGroup.classList.remove('d-none');
-            }, 1000);
-        }
-    });
+                }, 1000);
+            }
+        });
+    }
 })();
 </script>
 {% endblock %}

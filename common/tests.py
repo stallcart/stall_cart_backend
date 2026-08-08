@@ -256,3 +256,66 @@ class SupportEnquiryTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn('valid', response.json().get('error', ''))
 
+    def test_ajax_submission_logged_in_prefill(self):
+        """Verify that when a user is logged in, name/phone are prefilled from user object"""
+        from django.contrib.auth import get_user_model
+        from common.models import SupportEnquiry
+        User = get_user_model()
+        user = User.objects.create_user(
+            phone="9998887776",
+            password="testpassword123",
+            full_name="LoggedIn Bob"
+        )
+        self.client.login(phone="9998887776", password="testpassword123")
+        
+        payload = {
+            'message': 'Enquiry from logged in user'
+        }
+        response = self.client.post(
+            self.submit_url,
+            data=payload,
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 200)
+        
+        # Verify db insert populated with logged in user phone/name
+        enquiry = SupportEnquiry.objects.latest('id')
+        self.assertEqual(enquiry.name, 'LoggedIn Bob')
+        self.assertEqual(enquiry.phone, '9998887776')
+        self.assertEqual(enquiry.message, 'Enquiry from logged in user')
+
+    def test_resolve_enquiry_permissions(self):
+        """Verify resolve endpoint requires staff/superuser permissions"""
+        from common.models import SupportEnquiry
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        
+        enquiry = SupportEnquiry.objects.create(
+            name="Alice",
+            phone="9876543210",
+            message="Support needed"
+        )
+        
+        resolve_url = reverse('common:resolve_support_enquiry', kwargs={'enquiry_id': enquiry.id})
+        
+        # 1. Unauthenticated -> 302 redirect
+        response = self.client.post(resolve_url, data='{}', content_type='application/json')
+        self.assertEqual(response.status_code, 302)
+        
+        # 2. Logged in customer -> 403 Forbidden
+        customer = User.objects.create_user(phone="9990001111", password="pass", role="customer")
+        self.client.login(phone="9990001111", password="pass")
+        response = self.client.post(resolve_url, data='{}', content_type='application/json')
+        self.assertEqual(response.status_code, 403)
+        
+        # 3. Logged in staff -> 200 OK
+        staff = User.objects.create_user(phone="9990002222", password="pass", role="staff")
+        self.client.login(phone="9990002222", password="pass")
+        response = self.client.post(resolve_url, data='{"notes": "Done"}', content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        
+        enquiry.refresh_from_db()
+        self.assertTrue(enquiry.is_resolved)
+        self.assertEqual(enquiry.resolved_notes, 'Done')
+
+

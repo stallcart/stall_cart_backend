@@ -204,6 +204,13 @@ def submit_support_enquiry(request):
     phone = data.get('phone', '').strip()
     message = data.get('message', '').strip()
     
+    # Pre-fill from logged-in user if authenticated and data is empty
+    if request.user.is_authenticated:
+        if not name:
+            name = getattr(request.user, 'full_name', '') or getattr(request.user, 'phone', 'Authenticated User')
+        if not phone:
+            phone = getattr(request.user, 'phone', '')
+            
     if not phone:
         return JsonResponse({'error': 'Phone number is required.'}, status=400)
     if not message:
@@ -225,3 +232,32 @@ def submit_support_enquiry(request):
         'ok': True,
         'message': f'Thank you, {enquiry.name or "Guest"}! Your query has been registered. Our support team will call you back at {enquiry.phone} shortly.'
     })
+
+
+@login_required
+@require_POST
+def resolve_support_enquiry(request, enquiry_id):
+    """
+    AJAX view to mark a support enquiry as resolved.
+    Accessible to superadmins and staff users.
+    """
+    from django.shortcuts import get_object_or_404
+    from common.models import SupportEnquiry
+    
+    if not request.user.is_superuser and getattr(request.user, 'role', None) not in ['admin', 'staff'] and not request.user.is_staff:
+        return JsonResponse({'error': '⛔ Access Denied: Unauthorized action.'}, status=403)
+        
+    enquiry = get_object_or_404(SupportEnquiry, id=enquiry_id)
+    enquiry.is_resolved = True
+    
+    # Try to load notes if sent in request
+    try:
+        data = json.loads(request.body)
+        notes = data.get('notes', '').strip()
+        if notes:
+            enquiry.resolved_notes = notes
+    except Exception:
+        pass
+        
+    enquiry.save()
+    return JsonResponse({'ok': True, 'message': 'Enquiry successfully marked as resolved.'})

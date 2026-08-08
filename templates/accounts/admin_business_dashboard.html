@@ -679,26 +679,36 @@
                         <th>Message Enquiry</th>
                         <th>Status</th>
                         <th>Received At</th>
+                        <th>Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% if recent_support_enquiries %}
                         {% for enq in recent_support_enquiries %}
-                        <tr>
+                        <tr id="enquiry-row-{{ enq.id }}">
                             <td><strong>{{ enq.name }}</strong></td>
                             <td><a href="tel:{{ enq.phone }}" style="color: var(--blue-500); text-decoration: none; font-weight: bold;">{{ enq.phone }}</a></td>
-                            <td style="max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ enq.message }}">{{ enq.message }}</td>
+                            <td style="max-width: 350px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ enq.message }}">{{ enq.message }}</td>
                             <td>
-                                <span class="status-pill {% if enq.is_resolved %}verified{% else %}unverified{% endif %}">
+                                <span id="enquiry-status-{{ enq.id }}" class="status-pill {% if enq.is_resolved %}verified{% else %}unverified{% endif %}">
                                     {% if enq.is_resolved %}RESOLVED{% else %}PENDING{% endif %}
                                 </span>
                             </td>
                             <td>{{ enq.created_at|date:"M d, Y H:i" }}</td>
+                            <td>
+                                {% if not enq.is_resolved %}
+                                <button onclick="resolveEnquiry({{ enq.id }})" id="resolve-btn-{{ enq.id }}" class="btn-outline btn-sm" style="padding:4px 8px; font-size:0.78rem; font-weight:600; cursor:pointer;">
+                                    Mark Resolved <i class="fa fa-check text-success"></i>
+                                </button>
+                                {% else %}
+                                <span class="text-muted" style="font-size: 0.8rem;"><i class="fa fa-check-double text-success"></i> Resolved</span>
+                                {% endif %}
+                            </td>
                         </tr>
                         {% endfor %}
                     {% else %}
                         <tr>
-                            <td colspan="5" class="text-muted" style="text-align:center; padding: 40px 0;">No support enquiries logged yet.</td>
+                            <td colspan="6" class="text-muted" style="text-align:center; padding: 40px 0;">No support enquiries logged yet.</td>
                         </tr>
                     {% endif %}
                 </tbody>
@@ -875,5 +885,59 @@
             });
         }
     });
+
+    // Resolve Support Enquiry via AJAX
+    function resolveEnquiry(enquiryId) {
+        if (!confirm('Are you sure you want to mark this support enquiry as resolved?')) {
+            return;
+        }
+        
+        const csrfToken = "{{ csrf_token }}";
+        const btn = document.getElementById('resolve-btn-' + enquiryId);
+        
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = 'Resolving... <i class="fa fa-spinner fa-spin"></i>';
+        }
+        
+        fetch('/common/resolve-enquiry/' + enquiryId + '/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ notes: 'Resolved from Business Dashboard' })
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => { throw err; });
+            }
+            return response.json();
+        })
+        .then(data => {
+            showToast('Enquiry successfully resolved!', 'success');
+            
+            // Update UI status pill
+            const statusSpan = document.getElementById('enquiry-status-' + enquiryId);
+            if (statusSpan) {
+                statusSpan.className = 'status-pill verified';
+                statusSpan.textContent = 'RESOLVED';
+            }
+            
+            // Update Action cell
+            if (btn && btn.parentNode) {
+                btn.parentNode.innerHTML = '<span class="text-muted" style="font-size: 0.8rem;"><i class="fa fa-check-double text-success"></i> Resolved</span>';
+            }
+        })
+        .catch(err => {
+            console.error('Error resolving enquiry:', err);
+            showToast(err.error || 'Failed to resolve enquiry. Please try again.', 'error');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = 'Mark Resolved <i class="fa fa-check"></i>';
+            }
+        });
+    }
 </script>
 {% endblock %}
