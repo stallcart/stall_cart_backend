@@ -20,6 +20,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from common.views import custom_404, custom_403, custom_500, custom_400,firebase_sw
 from django.views.static import serve
+from items import views as items_views
 
 handler404 = 'common.views.custom_404'
 handler403 = 'common.views.custom_403'
@@ -37,7 +38,10 @@ urlpatterns = [
     path('common/', include('common.urls')),   
     path('firebase-messaging-sw.js', firebase_sw, name='firebase_sw'),
 
-
+    # Direct mapping to prevent 404 on root-level urls (e.g. from banner/collection links)
+    path('products/', items_views.product_list, name='product_list_direct'),
+    path('product/<slug:slug>/', items_views.product_detail, name='product_detail_direct'),
+    path('wishlist/', items_views.wishlist_page, name='wishlist_direct'),
 ]
 
 
