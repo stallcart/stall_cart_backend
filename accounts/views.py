@@ -1695,3 +1695,21 @@ def admin_business_dashboard(request):
         'daily_sales': daily_sales,
     }
     return render(request, 'accounts/admin_business_dashboard.html', context)
+
+
+@login_required
+@require_POST
+def admin_trigger_backup(request):
+    if not request.user.is_superuser:
+        return JsonResponse({'status': 'error', 'message': '🔐 Access Denied: Only superusers can trigger database backups.'}, status=403)
+        
+    import subprocess
+    try:
+        # Run the backup shell script (dumps DB and sends email backup)
+        result = subprocess.run(['/root/backup_db.sh'], capture_output=True, text=True, timeout=60)
+        if result.returncode == 0:
+            return JsonResponse({'status': 'success', 'message': '🎉 Database backup successfully created and sent to your email!'})
+        else:
+            return JsonResponse({'status': 'error', 'message': f'Backup script error: {result.stderr or result.stdout}'}, status=500)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': f'Failed to execute backup script: {e}'}, status=500)
