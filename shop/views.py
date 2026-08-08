@@ -905,6 +905,16 @@ def verify_payment(request):
             logger.warning(f"Signature mismatch for Razorpay order {razorpay_order_id}")
             return JsonResponse({'status': 'error', 'message': 'Payment verification failed'}, status=400)
         
+        # ✅ Prevent Duplicate Orders: Check if this payment_id has already been processed
+        existing_order = Order.objects.filter(razorpay_payment_id=payment_id).first()
+        if existing_order:
+            logger.warning(f"Order already exists for Razorpay payment {payment_id}. Returning success to prevent duplicates.")
+            return JsonResponse({
+                'status': 'success',
+                'message': 'Payment already processed and order created.',
+                'order_id': existing_order.unique_order_id
+            })
+
         # ✅ Signature valid - Parse cart payload and create order
         payload = json.loads(cart_payload)
         address = payload.get('address', {})
