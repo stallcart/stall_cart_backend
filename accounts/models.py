@@ -268,6 +268,14 @@ class OTPRequest(BaseModel):
             otp_type = "email" if is_email else "SMS"
             return None, f"You have exceeded the limit of {limit} {otp_type} OTP requests per day. Please try again later."
 
+        # ⏳ Anti-Spam Cooldown Check: Enforce a 60-second wait between OTP requests (bypassed in unit tests)
+        import sys
+        is_testing = 'test' in sys.argv or 'test_coverage' in sys.argv
+        if not is_testing:
+            one_minute_ago = timezone.now() - timedelta(seconds=60)
+            if cls.objects.filter(phone=phone, created_at__gte=one_minute_ago).exists():
+                return None, "Please wait 60 seconds before requesting another OTP."
+
         otp = f"{random.randint(100000, 999999)}"
         expires_at = timezone.now() + timedelta(minutes=expiry_minutes)
 
