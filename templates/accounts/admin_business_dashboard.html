@@ -475,6 +475,23 @@
                 </div>
             </div>
         </div>
+
+        <!-- Support Enquiries KPI -->
+        <div class="kpi-card blue">
+            <div class="kpi-header">
+                <span class="kpi-label">Pending Enquiries</span>
+                <div class="kpi-icon-box" style="background: rgba(56, 189, 248, 0.15); color: #0284c7;">
+                    <i class="fa fa-comments"></i>
+                </div>
+            </div>
+            <div>
+                <div class="kpi-value">{{ pending_support_enquiries }}</div>
+                <div class="kpi-footer">
+                    <i class="fa fa-circle-exclamation text-warning"></i>
+                    <span>{{ total_support_enquiries }} total enquiries logged</span>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- 2. Control Centre Quick Actions -->
@@ -643,6 +660,49 @@
                     <div class="text-muted" style="text-align:center; padding: 40px 0;">No email templates registered in database.</div>
                 {% endif %}
             </div>
+        </div>
+    </div>
+
+    <!-- 5. User Support Enquiries Section -->
+    <div class="section-card" style="margin-top: 30px; margin-bottom: 30px;">
+        <div class="section-card-header">
+            <h3><i class="fa fa-comments"></i> User Support Enquiries</h3>
+            <a href="/admin/common/supportenquiry/" style="font-size:0.85rem; font-weight:600; text-decoration:none; color:var(--blue-500);">Manage in Admin</a>
+        </div>
+
+        <div class="mini-table-wrapper" style="overflow:auto;">
+            <table class="mini-table">
+                <thead>
+                    <tr>
+                        <th>User Name</th>
+                        <th>Phone Number</th>
+                        <th>Message Enquiry</th>
+                        <th>Status</th>
+                        <th>Received At</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if recent_support_enquiries %}
+                        {% for enq in recent_support_enquiries %}
+                        <tr>
+                            <td><strong>{{ enq.name }}</strong></td>
+                            <td><a href="tel:{{ enq.phone }}" style="color: var(--blue-500); text-decoration: none; font-weight: bold;">{{ enq.phone }}</a></td>
+                            <td style="max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ enq.message }}">{{ enq.message }}</td>
+                            <td>
+                                <span class="status-pill {% if enq.is_resolved %}verified{% else %}unverified{% endif %}">
+                                    {% if enq.is_resolved %}RESOLVED{% else %}PENDING{% endif %}
+                                </span>
+                            </td>
+                            <td>{{ enq.created_at|date:"M d, Y H:i" }}</td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="5" class="text-muted" style="text-align:center; padding: 40px 0;">No support enquiries logged yet.</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
         </div>
     </div>
 

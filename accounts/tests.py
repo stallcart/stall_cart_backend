@@ -769,10 +769,10 @@ class AdminBusinessDashboardTests(TestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 302)
         
-        # 3. Staff -> redirect to storefront home
+        # 3. Staff -> 200 OK
         self.client.login(phone="9999999992", password="pass")
         response = self.client.get(url)
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 200)
         
         # 4. Admin user -> 200 OK
         self.client.login(phone="9999999991", password="pass")

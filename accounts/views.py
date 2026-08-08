@@ -1598,8 +1598,8 @@ def admin_user_management(request):
 
 @login_required
 def admin_business_dashboard(request):
-    if not request.user.is_superuser and getattr(request.user, 'role', None) != 'admin':
-        messages.error(request, "🔐 Access Denied: Admin privileges required.")
+    if not request.user.is_superuser and getattr(request.user, 'role', None) not in ['admin', 'staff'] and not request.user.is_staff:
+        messages.error(request, "🔐 Access Denied: Admin or Staff privileges required.")
         return redirect('shop:home')
 
     # Fetch models
@@ -1609,7 +1609,7 @@ def admin_business_dashboard(request):
     from datetime import timedelta
     from orders.models import Order, OrderItem
     from accounts.models import User, OTPRequest
-    from common.models import SiteSettings, EmailTemplate
+    from common.models import SiteSettings, EmailTemplate, SupportEnquiry
 
     # 1. Financial / Revenue Stats
     total_sales = Order.objects.filter(status='delivered').aggregate(Sum('total_amount'))['total_amount__sum'] or Decimal('0.00')
@@ -1648,6 +1648,11 @@ def admin_business_dashboard(request):
 
     # 7. Recent OTP Requests for Developers/Admins
     recent_otps = OTPRequest.objects.all().order_by('-created_at')[:8]
+
+    # Support Enquiries Stats & List
+    total_support_enquiries = SupportEnquiry.objects.count()
+    pending_support_enquiries = SupportEnquiry.objects.filter(is_resolved=False).count()
+    recent_support_enquiries = SupportEnquiry.objects.all().order_by('-created_at')[:8]
 
     # 8. Business Trends (Last 7 Days Sales)
     today = timezone.now().date()
@@ -1693,6 +1698,10 @@ def admin_business_dashboard(request):
         'recent_orders': recent_orders,
         'recent_otps': recent_otps,
         'daily_sales': daily_sales,
+
+        'total_support_enquiries': total_support_enquiries,
+        'pending_support_enquiries': pending_support_enquiries,
+        'recent_support_enquiries': recent_support_enquiries,
     }
     return render(request, 'accounts/admin_business_dashboard.html', context)
 
