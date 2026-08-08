@@ -124,6 +124,7 @@ class SiteSettingsAdmin(admin.ModelAdmin):
         custom_urls = [
             path('toggle-jobs/', self.admin_site.admin_view(self.toggle_jobs_view), name='common_sitesettings_toggle_jobs'),
             path('toggle-email-backup/', self.admin_site.admin_view(self.toggle_email_backup_view), name='common_sitesettings_toggle_email_backup'),
+            path('trigger-backup/', self.admin_site.admin_view(self.trigger_backup_view), name='common_sitesettings_trigger_backup'),
             path('reconcile-refunds/', self.admin_site.admin_view(self.reconcile_refunds_view), name='common_sitesettings_reconcile_refunds'),
         ]
         return custom_urls + urls
@@ -148,6 +149,24 @@ class SiteSettingsAdmin(admin.ModelAdmin):
         obj.save(update_fields=['enable_email_backup'])
         status = "ENABLED" if obj.enable_email_backup else "DISABLED"
         messages.success(request, f"Daily Database Email Backups have been successfully {status}!")
+        return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('admin:common_sitesettings_changelist')))
+
+    def trigger_backup_view(self, request):
+        if not request.user.is_superuser and getattr(request.user, 'role', None) != 'admin':
+            messages.error(request, "🔐 Permission Denied: Staff/regular users cannot trigger database backups.")
+            return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('admin:common_sitesettings_changelist')))
+        
+        import subprocess
+        try:
+            # Execute the backup shell script (it runs mysqldump and triggers send_backup_email.py)
+            result = subprocess.run(['/root/backup_db.sh'], capture_output=True, text=True, timeout=60)
+            if result.returncode == 0:
+                messages.success(request, "🎉 Database backup successfully created and sent to your email!")
+            else:
+                messages.error(request, f"❌ Backup script completed with error: {result.stderr or result.stdout}")
+        except Exception as e:
+            messages.error(request, f"❌ Failed to execute backup script: {e}")
+            
         return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('admin:common_sitesettings_changelist')))
 
     def reconcile_refunds_view(self, request):
@@ -193,15 +212,17 @@ class SiteSettingsAdmin(admin.ModelAdmin):
         btn_text = "Disable Email Backups" if obj.enable_email_backup else "Enable Email Backups"
         btn_color = "#dc2626" if obj.enable_email_backup else "#16a34a"
         url = reverse('admin:common_sitesettings_toggle_email_backup')
+        backup_url = reverse('admin:common_sitesettings_trigger_backup')
         
         return format_html(
             '<div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; max-width: 450px;">'
             '  <div style="font-size: 14px; margin-bottom: 12px; color: #1e293b;">Email Backup Status: <strong style="font-size: 15px;">{}</strong></div>'
             '  <div style="display: flex; gap: 10px;">'
             '    <a href="{}" class="button" style="background: {}; color: white; padding: 8px 16px; border-radius: 4px; text-decoration: none; font-weight: bold; display: inline-block;">{}</a>'
+            '    <a href="{}" class="button" style="background: #2563eb; color: white; padding: 8px 16px; border-radius: 4px; text-decoration: none; font-weight: bold; display: inline-block;">📧 Backup & Email Now</a>'
             '  </div>'
             '</div>',
-            status_label, url, btn_color, btn_text
+            status_label, url, btn_color, btn_text, backup_url
         )
     email_backup_status_control.short_description = "Daily Email Backup Toggle Dashboard"
 
