@@ -33,10 +33,10 @@ class SiteSettingsAdmin(admin.ModelAdmin):
         return False
     
     # Display in admin list view
-    list_display = ('site_name', 'logo_preview', 'primary_color', 'is_maintenance_mode', 'enable_background_jobs', 'updated_at')
-    list_filter = ('is_maintenance_mode', 'enable_background_jobs', 'updated_at')
+    list_display = ('site_name', 'logo_preview', 'primary_color', 'is_maintenance_mode', 'enable_background_jobs', 'enable_email_backup', 'updated_at')
+    list_filter = ('is_maintenance_mode', 'enable_background_jobs', 'enable_email_backup', 'updated_at')
     search_fields = ('site_name', 'site_tagline')
-    readonly_fields = ('created_at', 'updated_at', 'logo_preview', 'favicon_preview', 'jobs_status_control')
+    readonly_fields = ('created_at', 'updated_at', 'logo_preview', 'favicon_preview', 'jobs_status_control', 'email_backup_status_control')
     
     # Organize fields into logical sections
     fieldsets = (
@@ -69,7 +69,7 @@ class SiteSettingsAdmin(admin.ModelAdmin):
             'description': 'Manage site-wide legal policies. Content supports rich text and HTML.'
         }),
         ('⚙️ Site Status & System Settings', {
-            'fields': ('is_maintenance_mode', 'enable_background_jobs', 'jobs_status_control', 'daily_email_otp_limit', 'daily_sms_otp_limit', 'otp_expiry_minutes', 'slider_autoplay_seconds'),
+            'fields': ('is_maintenance_mode', 'enable_background_jobs', 'jobs_status_control', 'enable_email_backup', 'email_backup_status_control', 'daily_email_otp_limit', 'daily_sms_otp_limit', 'otp_expiry_minutes', 'slider_autoplay_seconds'),
         }),
         ('📅 Audit', {
             'fields': ('created_at', 'updated_at'),
@@ -107,7 +107,7 @@ class SiteSettingsAdmin(admin.ModelAdmin):
             for name, opts in fieldsets:
                 opts = opts.copy()
                 fields = list(opts.get('fields', []))
-                fields = [f for f in fields if f not in ('enable_background_jobs', 'jobs_status_control')]
+                fields = [f for f in fields if f not in ('enable_background_jobs', 'jobs_status_control', 'enable_email_backup', 'email_backup_status_control')]
                 opts['fields'] = tuple(fields)
                 new_fieldsets.append((name, opts))
             return tuple(new_fieldsets)
@@ -116,13 +116,14 @@ class SiteSettingsAdmin(admin.ModelAdmin):
     def get_list_display(self, request):
         list_display = super().get_list_display(request)
         if not request.user.is_superuser and getattr(request.user, 'role', None) != 'admin':
-            return [f for f in list_display if f != 'enable_background_jobs']
+            return [f for f in list_display if f not in ('enable_background_jobs', 'enable_email_backup')]
         return list_display
 
     def get_urls(self):
         urls = super().get_urls()
         custom_urls = [
             path('toggle-jobs/', self.admin_site.admin_view(self.toggle_jobs_view), name='common_sitesettings_toggle_jobs'),
+            path('toggle-email-backup/', self.admin_site.admin_view(self.toggle_email_backup_view), name='common_sitesettings_toggle_email_backup'),
             path('reconcile-refunds/', self.admin_site.admin_view(self.reconcile_refunds_view), name='common_sitesettings_reconcile_refunds'),
         ]
         return custom_urls + urls
@@ -136,6 +137,17 @@ class SiteSettingsAdmin(admin.ModelAdmin):
         obj.save(update_fields=['enable_background_jobs'])
         status = "ENABLED" if obj.enable_background_jobs else "DISABLED"
         messages.success(request, f"Background jobs have been successfully {status}!")
+        return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('admin:common_sitesettings_changelist')))
+
+    def toggle_email_backup_view(self, request):
+        if not request.user.is_superuser and getattr(request.user, 'role', None) != 'admin':
+            messages.error(request, "🔐 Permission Denied: Staff/regular users cannot toggle email backups.")
+            return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('admin:common_sitesettings_changelist')))
+        obj = SiteSettings.get_singleton()
+        obj.enable_email_backup = not obj.enable_email_backup
+        obj.save(update_fields=['enable_email_backup'])
+        status = "ENABLED" if obj.enable_email_backup else "DISABLED"
+        messages.success(request, f"Daily Database Email Backups have been successfully {status}!")
         return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('admin:common_sitesettings_changelist')))
 
     def reconcile_refunds_view(self, request):
@@ -176,9 +188,26 @@ class SiteSettingsAdmin(admin.ModelAdmin):
         )
     jobs_status_control.short_description = "Background Jobs Control Dashboard"
 
+    def email_backup_status_control(self, obj):
+        status_label = "🟢 Enabled" if obj.enable_email_backup else "🔴 Disabled"
+        btn_text = "Disable Email Backups" if obj.enable_email_backup else "Enable Email Backups"
+        btn_color = "#dc2626" if obj.enable_email_backup else "#16a34a"
+        url = reverse('admin:common_sitesettings_toggle_email_backup')
+        
+        return format_html(
+            '<div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; max-width: 450px;">'
+            '  <div style="font-size: 14px; margin-bottom: 12px; color: #1e293b;">Email Backup Status: <strong style="font-size: 15px;">{}</strong></div>'
+            '  <div style="display: flex; gap: 10px;">'
+            '    <a href="{}" class="button" style="background: {}; color: white; padding: 8px 16px; border-radius: 4px; text-decoration: none; font-weight: bold; display: inline-block;">{}</a>'
+            '  </div>'
+            '</div>',
+            status_label, url, btn_color, btn_text
+        )
+    email_backup_status_control.short_description = "Daily Email Backup Toggle Dashboard"
+
 
 @admin.register(EmailTemplate)
 class EmailTemplateAdmin(admin.ModelAdmin):
     list_display = ('name', 'subject', 'updated_at')
     search_fields = ('name', 'subject', 'body')
-    readonly_fields = ('created_at', 'updated_at', 'created_by', 'updated_by')        
+    readonly_fields = ('created_at', 'updated_at', 'created_by', 'updated_by')
