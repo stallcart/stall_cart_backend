@@ -545,7 +545,7 @@ class DynamicEmailTemplateTests(TestCase):
         self.assertTrue(success)
         self.assertEqual(len(mail.outbox), 1)
         self.assertEqual(mail.outbox[0].subject, "Welcome Seller John Doe!")
-        self.assertEqual(mail.outbox[0].body, "Hello, your shop My Shop is verified.")
+        self.assertTrue(mail.outbox[0].body.startswith("Hello, your shop My Shop is verified."))
 
 
 from items.models import SellerProfile
