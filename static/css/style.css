@@ -1877,7 +1877,8 @@ h4 { font-size: 1rem; font-weight: 600; }
 .footer-col ul { list-style: none; }
 .footer-col li { margin-bottom: 8px; }
 .footer-col a { color: var(--gray-400); font-size: 0.875rem; transition: color var(--tr); }
-.footer-col a:hover { color: var(--white); }
+.contact-link-hover { transition: color var(--tr); }
+.contact-link-hover:hover { color: var(--white) !important; text-decoration: underline !important; }
 
 .contact-list { list-style: none; }
 .contact-list li {
