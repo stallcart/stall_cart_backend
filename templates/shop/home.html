@@ -700,6 +700,47 @@
         gap: 6px;
     }
     .chatbot-label {
+        display: none; /* Hide wide label pill on mobile */
+    }
+}
+.chatbot-bubble {
+    position: absolute;
+    bottom: 75px;
+    right: 5px;
+    background: linear-gradient(135deg, #1e5cc8 0%, #2874f0 100%);
+    color: #fff;
+    padding: 8px 14px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    white-space: nowrap;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+    z-index: 9999;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+.chatbot-bubble::after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    right: 22px;
+    border-width: 6px 6px 0;
+    border-style: solid;
+    border-color: #2874f0 transparent;
+    display: block;
+    width: 0;
+}
+.chatbot-bubble.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+@media (max-width: 768px) {
+    .chatbot-bubble {
+        bottom: 70px;
+        right: 0;
         font-size: 0.75rem;
         padding: 6px 12px;
     }
@@ -1577,6 +1618,7 @@
 
 <!-- Floating Support Chatbot -->
 <div class="chatbot-wrapper">
+    <div class="chatbot-bubble" id="chatbotBubble">Need Help? Enquiry here! 💬</div>
     <span class="chatbot-label" id="chatbotLabel"><i class="fa fa-question-circle"></i> Support / Enquiry</span>
     <button class="chatbot-trigger" id="chatbotTrigger" aria-label="Open support chat">
         <i class="fa fa-comments"></i>
@@ -1897,6 +1939,30 @@ document.querySelectorAll('.btn-share').forEach(btn => {
     trigger.addEventListener('click', toggleContainer);
     if (label) {
         label.addEventListener('click', toggleContainer);
+    }
+
+    // Auto show/hide enquiry chat bubble logic
+    const bubble = document.getElementById('chatbotBubble');
+    if (bubble) {
+        // Show after 1.5 seconds if chat is not open
+        setTimeout(() => {
+            if (!container.classList.contains('active')) {
+                bubble.classList.add('show');
+            }
+        }, 1500);
+        // Hide after 8.5 seconds
+        setTimeout(() => {
+            bubble.classList.remove('show');
+        }, 8500);
+        // Click on bubble also opens chat
+        bubble.style.pointerEvents = 'auto';
+        bubble.style.cursor = 'pointer';
+        bubble.addEventListener('click', toggleContainer);
+        // Hide bubble immediately when chat is opened
+        trigger.addEventListener('click', () => bubble.classList.remove('show'));
+        if (label) {
+            label.addEventListener('click', () => bubble.classList.remove('show'));
+        }
     }
 
     closeBtn.addEventListener('click', () => {
