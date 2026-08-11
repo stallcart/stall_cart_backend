@@ -581,6 +581,7 @@ document.addEventListener('DOMContentLoaded', () => {
         overlay?.classList.add('show');
         mobileBtn?.setAttribute('aria-expanded', 'true');
         document.body.style.overflow = 'hidden';
+        document.getElementById('chatbotContainer')?.classList.remove('active');
     }
     function closeMobileNav() {
         mobileNav?.classList.remove('open');

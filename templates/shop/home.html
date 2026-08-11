@@ -754,6 +754,13 @@
         font-size: 0.75rem;
         padding: 6px 12px;
     }
+    .chatbot-container {
+        width: 320px;
+        height: 400px;
+        bottom: 75px;
+        right: 0;
+        border-radius: 16px;
+    }
 }
 .chatbot-trigger {
     width: 60px;
@@ -1962,6 +1969,13 @@ document.querySelectorAll('.btn-share').forEach(btn => {
     if (!launchBanner) return;
 
     const closeBtn = document.getElementById('closeLaunchBanner');
+    const bannerId = launchBanner.dataset.bannerId;
+    const localStorageKey = `stallcart_announcement_banner_dismissed_${bannerId}`;
+
+    if (localStorage.getItem(localStorageKey) === 'true') {
+        launchBanner.style.display = 'none';
+        return;
+    }
     
     if (closeBtn) {
         closeBtn.addEventListener('click', function () {
@@ -1972,6 +1986,7 @@ document.querySelectorAll('.btn-share').forEach(btn => {
             setTimeout(() => {
                 launchBanner.style.display = 'none';
             }, 400);
+            localStorage.setItem(localStorageKey, 'true');
         });
     }
 
