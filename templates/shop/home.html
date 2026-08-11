@@ -1068,6 +1068,29 @@
     box-shadow: 0 8px 20px rgba(40, 116, 240, 0.2);
     transform: scale(1.06);
 }
+
+@media (max-width: 768px) {
+    .category-scroller-section {
+        padding: 10px 0;
+    }
+    .category-scroller-track {
+        gap: 16px;
+        padding: 4px 12px;
+    }
+    .category-scroller-circle {
+        width: 58px;
+        height: 58px;
+    }
+    .category-scroller-item span {
+        font-size: 0.72rem;
+        font-weight: 600;
+    }
+}
+@media (min-width: 769px) {
+    .category-scroller-track {
+        justify-content: center;
+    }
+}
 </style>
 {% endblock %}
 
