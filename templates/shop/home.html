@@ -1154,7 +1154,7 @@
      HORIZONTAL CATEGORY SCROLLER (Nykaa Style)
 ══════════════════════════════════════ -->
 <section class="category-scroller-section">
-    <div class="container" style="max-width: 1400px; margin: 0 auto;">
+    <div class="container">
         <div class="category-scroller-track">
             {% for cat in categories %}
             <a href="{% url 'items:product_list' %}?category={{ cat.slug }}" class="category-scroller-item">
@@ -1185,48 +1185,50 @@
 <!-- ══════════════════════════════════════
      TOP BANNER CAROUSEL SLIDER
 ══════════════════════════════════════ -->
-<section class="slider-section">
-    <div class="slider-container" id="homeSlider" data-autoplay-speed="{{ site_settings.slider_autoplay_seconds|default:'5.0' }}">
-        <div class="slider-wrapper">
-            {% for banner in slider_banners %}
-            <div class="slide {% if forloop.first %}active{% endif %}" data-index="{{ forloop.counter0 }}">
-                <a href="{{ banner.link_url }}">
-                    <picture>
-                        {% if banner.mobile_image %}
-                            <source media="(max-width: 768px)" srcset="{{ banner.mobile_image.url }}">
-                        {% endif %}
-                        <img src="{{ banner.image.url }}" alt="{{ banner.title }}" class="slide-img">
-                    </picture>
-                    <div class="slide-brand-watermark">
-                        <span class="brand-logo-text">StallCart</span>
-                        <span class="brand-sub-tag">{% if "Elegance" in banner.title or "Summer" in banner.title %}FASHION{% elif "Festive" in banner.title %}FESTIVE{% elif "Denim" in banner.title or "Streetwear" in banner.title %}STREET{% elif "Active" in banner.title or "Activewear" in banner.title %}ACTIVE{% elif "Accessories" in banner.title or "Luxe" in banner.title %}LUXE{% elif "Electronics" in banner.title or "Tech" in banner.title %}TECH{% elif "Furniture" in banner.title or "Home" in banner.title %}HOME{% else %}STORE{% endif %}</span>
-                    </div>
-                    {% if banner.title or banner.subtitle %}
-                    <div class="slide-content">
-                        <div class="slide-card">
-                            <h2>{{ banner.title }}</h2>
-                            {% if banner.subtitle %}
-                            <p>{{ banner.subtitle }}</p>
+<section class="slider-section" style="padding: 16px 0 0;">
+    <div class="container">
+        <div class="slider-container" id="homeSlider" data-autoplay-speed="{{ site_settings.slider_autoplay_seconds|default:'5.0' }}" style="border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
+            <div class="slider-wrapper">
+                {% for banner in slider_banners %}
+                <div class="slide {% if forloop.first %}active{% endif %}" data-index="{{ forloop.counter0 }}">
+                    <a href="{{ banner.link_url }}">
+                        <picture>
+                            {% if banner.mobile_image %}
+                                <source media="(max-width: 768px)" srcset="{{ banner.mobile_image.url }}">
                             {% endif %}
-                            <span class="slide-btn">Shop Collection <i class="fa fa-arrow-right"></i></span>
+                            <img src="{{ banner.image.url }}" alt="{{ banner.title }}" class="slide-img">
+                        </picture>
+                        <div class="slide-brand-watermark">
+                            <span class="brand-logo-text">StallCart</span>
+                            <span class="brand-sub-tag">{% if "Elegance" in banner.title or "Summer" in banner.title %}FASHION{% elif "Festive" in banner.title %}FESTIVE{% elif "Denim" in banner.title or "Streetwear" in banner.title %}STREET{% elif "Active" in banner.title or "Activewear" in banner.title %}ACTIVE{% elif "Accessories" in banner.title or "Luxe" in banner.title %}LUXE{% elif "Electronics" in banner.title or "Tech" in banner.title %}TECH{% elif "Furniture" in banner.title or "Home" in banner.title %}HOME{% else %}STORE{% endif %}</span>
                         </div>
-                    </div>
-                    {% endif %}
-                </a>
+                        {% if banner.title or banner.subtitle %}
+                        <div class="slide-content">
+                            <div class="slide-card">
+                                <h2>{{ banner.title }}</h2>
+                                {% if banner.subtitle %}
+                                <p>{{ banner.subtitle }}</p>
+                                {% endif %}
+                                <span class="slide-btn">Shop Collection <i class="fa fa-arrow-right"></i></span>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </a>
+                </div>
+                {% endfor %}
             </div>
-            {% endfor %}
+            
+            <!-- Controls -->
+            {% if slider_banners|length > 1 %}
+            <button class="slider-arrow prev" id="sliderPrev">&lt;</button>
+            <button class="slider-arrow next" id="sliderNext">&gt;</button>
+            <div class="slider-dots">
+                {% for banner in slider_banners %}
+                <span class="dot {% if forloop.first %}active{% endif %}" data-slide="{{ forloop.counter0 }}"></span>
+                {% endfor %}
+            </div>
+            {% endif %}
         </div>
-        
-        <!-- Controls -->
-        {% if slider_banners|length > 1 %}
-        <button class="slider-arrow prev" id="sliderPrev">&lt;</button>
-        <button class="slider-arrow next" id="sliderNext">&gt;</button>
-        <div class="slider-dots">
-            {% for banner in slider_banners %}
-            <span class="dot {% if forloop.first %}active{% endif %}" data-slide="{{ forloop.counter0 }}"></span>
-            {% endfor %}
-        </div>
-        {% endif %}
     </div>
 </section>
 {% else %}
