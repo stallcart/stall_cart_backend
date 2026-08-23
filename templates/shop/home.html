@@ -1105,7 +1105,7 @@
         <div class="launch-banner-glow"></div>
         <div class="launch-banner-content">
             <div class="launch-banner-left">
-                <span class="sale-badge"><span class="pulse-dot"></span> 🇮🇳 FREEDOM SALE LIVE</span>
+                <span class="sale-badge"><span class="pulse-dot"></span> {{ announcement_banner.badge_text|default:"LIVE NOW"|safe }}</span>
                 <h2 class="sale-title">{{ announcement_banner.title|safe }}</h2>
                 <p class="sale-subtitle">{{ announcement_banner.subtitle }}</p>
                 <div class="sale-features-strip">

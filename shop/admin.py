@@ -104,7 +104,7 @@ class HomepageBannerAdmin(admin.ModelAdmin):
 
 @admin.register(AnnouncementBanner)
 class AnnouncementBannerAdmin(admin.ModelAdmin):
-    list_display = ('title', 'coupon_code', 'end_datetime', 'is_active', 'created_at')
+    list_display = ('badge_text', 'title', 'coupon_code', 'end_datetime', 'is_active', 'created_at')
     list_editable = ('is_active',)
     list_filter = ('is_active', 'created_at')
     search_fields = ('title', 'subtitle', 'coupon_code')

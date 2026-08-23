@@ -119,6 +119,11 @@ class HomepageBanner(BaseModel):
 
 
 class AnnouncementBanner(BaseModel):
+    badge_text = models.CharField(
+        max_length=100,
+        default="LIVE NOW",
+        help_text="Small badge text above title (e.g. 🇮🇳 FREEDOM SALE LIVE)"
+    )
     title = models.CharField(
         max_length=200, 
         default="Newly Launched Sale is LIVE!", 

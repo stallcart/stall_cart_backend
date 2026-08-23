@@ -16,6 +16,7 @@ class AnnouncementBannerTest(TestCase):
         
     def test_announcement_banner_creation(self):
         banner = AnnouncementBanner.objects.create(
+            badge_text="🇮🇳 FREEDOM SALE LIVE",
             title="Independence Day Sale!",
             subtitle="Great Indian Festival is here.",
             coupon_code="IND50",
@@ -24,6 +25,7 @@ class AnnouncementBannerTest(TestCase):
             end_datetime=self.target_time,
             is_active=True
         )
+        self.assertEqual(banner.badge_text, "🇮🇳 FREEDOM SALE LIVE")
         self.assertEqual(banner.title, "Independence Day Sale!")
         self.assertEqual(banner.coupon_code, "IND50")
         self.assertTrue(banner.is_active)
@@ -31,6 +33,7 @@ class AnnouncementBannerTest(TestCase):
 
     def test_homepage_context_with_active_banner(self):
         banner = AnnouncementBanner.objects.create(
+            badge_text="🔥 LIMITED RUN",
             title="Independence Day Sale!",
             subtitle="Great Indian Festival is here.",
             coupon_code="IND50",
@@ -44,6 +47,7 @@ class AnnouncementBannerTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn('announcement_banner', response.context)
         self.assertEqual(response.context['announcement_banner'].id, banner.id)
+        self.assertContains(response, "🔥 LIMITED RUN")
         self.assertContains(response, "Independence Day Sale!")
         self.assertContains(response, "IND50")
         self.assertContains(response, "Grab Deal")
