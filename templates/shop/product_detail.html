@@ -112,27 +112,17 @@
 
             <!-- Price Box -->
             <div class="price-box">
-                {% if product.discount_percent > 0 %}
-                    <div class="price-row">
-                        <span class="price-mrp">MRP: <del id="displayMrp">₹{{ product.mrp|default:product.price }}</del></span>
-                        <span class="price-off">{{ product.discount_percent }}% OFF</span>
-                    </div>
-                    <div class="price-current-wrapper">
-                        <span class="price-current" id="displayPrice">₹{{ product.final_price|floatformat:2 }}</span>
-                    </div>
-                {% else %}
-                    <span class="price-current" id="displayPrice">₹{{ product.price }}</span>
-                {% endif %}
+                <div class="price-row" id="mrpRow" {% if product.discount_percent == 0 and not product.mrp %}style="display:none;"{% endif %}>
+                    <span class="price-mrp">MRP: <del id="displayMrp">₹{{ product.mrp|default:product.price|floatformat:2 }}</del></span>
+                    <span class="price-off" id="displayOff" {% if product.discount_percent == 0 %}style="display:none;"{% endif %}>{{ product.discount_percent }}% OFF</span>
+                </div>
+                <div class="price-current-wrapper">
+                    <span class="price-current" id="displayPrice">₹{{ product.final_price|floatformat:2 }}</span>
+                </div>
                 
-                {% if product.discount_percent > 0 and product.mrp %}
-                    <span class="savings-text" id="displaySavings">
-                        You save: <strong>₹{{ product.savings_per_unit|floatformat:2 }}</strong>
-                    </span>
-                {% elif product.discount_percent > 0 %}
-                    <span class="savings-text" id="displaySavings">
-                        You save: <strong>₹{{ product.savings|floatformat:2 }}</strong>
-                    </span>
-                {% endif %}
+                <span class="savings-text" id="displaySavings" {% if product.savings_per_unit <= 0 %}style="display:none;"{% endif %}>
+                    You save: <strong>₹{{ product.savings_per_unit|floatformat:2 }}</strong>
+                </span>
             </div>
             
             {% if reorder_context %}
@@ -174,7 +164,9 @@
                             data-size="{{ variant.size_value }}"
                             data-color="{{ variant.color }}"
                             data-price="{{ variant.final_price }}"
-                            data-mrp="{% if product.mrp and product.mrp > variant.effective_price %}{{ product.mrp }}{% else %}{{ variant.effective_price }}{% endif %}"
+                            data-mrp="{{ variant.mrp }}"
+                            data-discount="{{ variant.discount_percent }}"
+                            data-savings="{{ variant.savings_per_unit }}"
                             data-stock="{{ variant.stock }}"
                             {% if not variant.is_in_stock %}disabled title="Out of stock"{% endif %}>
                         {{ variant.size_value }}
@@ -1028,11 +1020,13 @@ function setupVariantSelection() {
             selectedVariantId = this.dataset.variantId;
             const price = parseFloat(this.dataset.price);
             const mrp   = parseFloat(this.dataset.mrp) || baseMrp;
+            const discount = parseInt(this.dataset.discount, 10) || 0;
+            const savings  = parseFloat(this.dataset.savings) || 0;
             const stock = parseInt(this.dataset.stock, 10);
             const size  = this.dataset.size  || '';
             const color = this.dataset.color || '';
 
-            updatePriceDisplay(price, mrp);
+            updatePriceDisplay(price, mrp, discount, savings);
 
             document.getElementById('selectedSize').textContent  = size + (color ? ' • ' + color : '');
             document.getElementById('variantPrice').textContent  = '₹' + price.toFixed(2);
@@ -1075,20 +1069,34 @@ function setupVariantSelection() {
     });
 }
 
-function updatePriceDisplay(price, mrp) {
-    const displayPrice  = document.getElementById('displayPrice');
+function updatePriceDisplay(price, mrp, discount, savings) {
+    const displayPrice   = document.getElementById('displayPrice');
     const displaySavings = document.getElementById('displaySavings');
-    const displayMrp = document.getElementById('displayMrp');
+    const displayMrp     = document.getElementById('displayMrp');
+    const displayOff     = document.getElementById('displayOff');
+    const mrpRow         = document.getElementById('mrpRow');
+    
     if (displayPrice) displayPrice.textContent = '₹' + price.toFixed(2);
+    
     const currentMrp = mrp || baseMrp;
     if (displayMrp) displayMrp.textContent = '₹' + currentMrp.toFixed(2);
-    if (displaySavings) {
-        if (currentMrp > price) {
-            displaySavings.innerHTML = 'You save: <strong>₹' + (currentMrp - price).toFixed(2) + '</strong>';
-            displaySavings.style.display = 'inline';
-        } else {
-            displaySavings.style.display = 'none';
+    
+    const effectiveDiscount = (discount !== undefined && discount !== null) ? discount : (currentMrp > price ? Math.round(((currentMrp - price) / currentMrp) * 100) : 0);
+    const effectiveSavings  = (savings !== undefined && savings !== null && savings > 0) ? savings : (currentMrp > price ? (currentMrp - price) : 0);
+    
+    if (effectiveDiscount > 0 || currentMrp > price) {
+        if (mrpRow) mrpRow.style.display = 'flex';
+        if (displayOff) {
+            displayOff.textContent = `${effectiveDiscount}% OFF`;
+            displayOff.style.display = effectiveDiscount > 0 ? 'inline-block' : 'none';
         }
+        if (displaySavings && effectiveSavings > 0) {
+            displaySavings.innerHTML = 'You save: <strong>₹' + effectiveSavings.toFixed(2) + '</strong>';
+            displaySavings.style.display = 'inline-block';
+        }
+    } else {
+        if (mrpRow) mrpRow.style.display = 'none';
+        if (displaySavings) displaySavings.style.display = 'none';
     }
 }
 

@@ -67,23 +67,24 @@
             
             <div class="form-row three-col">
                 <div class="form-group">
-                    <label for="{{ form.price.id_for_label }}">Selling Price (₹) *</label>
+                    <label for="{{ form.price.id_for_label }}">Base / MRP Price (₹) *</label>
                     {{ form.price }}
                     {% if form.price.errors %}<div class="field-error">{{ form.price.errors.0 }}</div>{% endif %}
-                </div>
-                
-                <div class="form-group">
-                    <label for="{{ form.mrp.id_for_label }}">MRP (₹)</label>
-                    {{ form.mrp }}
-                    {% if form.mrp.errors %}<div class="field-error">{{ form.mrp.errors.0 }}</div>{% endif %}
-                    <small class="form-help">Original price for discount display</small>
+                    <small class="form-help">Regular listing price before discount</small>
                 </div>
                 
                 <div class="form-group">
                     <label for="{{ form.discount_percent.id_for_label }}">Discount (%)</label>
                     {{ form.discount_percent }}
                     {% if form.discount_percent.errors %}<div class="field-error">{{ form.discount_percent.errors.0 }}</div>{% endif %}
-                    <small class="form-help">0-100. Auto-calculates discounted price.</small>
+                    <small class="form-help">0-100% (e.g. 50 for 50% OFF)</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="{{ form.mrp.id_for_label }}">Printed MRP (₹)</label>
+                    {{ form.mrp }}
+                    {% if form.mrp.errors %}<div class="field-error">{{ form.mrp.errors.0 }}</div>{% endif %}
+                    <small class="form-help">Optional printed MRP if higher than base price</small>
                 </div>
             </div>
             
@@ -96,11 +97,12 @@
                 </div>
                 
                 <div class="form-group">
-                    <label>&nbsp;</label>
-                    <div class="price-preview" id="pricePreview">
-                        <strong>Preview:</strong> 
-                        <span id="previewPrice">₹0.00</span>
-                        <span id="previewDiscount" style="display:none; color:#2e7d32; margin-left:8px;"></span>
+                    <label>Calculated Customer Price Preview</label>
+                    <div class="price-preview" id="pricePreview" style="background:#f8fafc; border: 1.5px solid #e2e8f0; border-radius:10px; padding: 10px 14px; min-height:44px; display:flex; align-items:center; flex-wrap:wrap; gap:8px;">
+                        <span style="color:#64748b; font-size:0.85rem; font-weight:600;">Customer Pays:</span>
+                        <strong id="previewPrice" style="color:#0f172a; font-size:1.15rem; font-weight:800;">₹0.00</strong>
+                        <span id="previewDiscount" style="display:none; color:#16a34a; font-size:0.82rem; font-weight:700; background:#dcfce7; padding:2px 8px; border-radius:6px;"></span>
+                        <span id="previewSavings" style="display:none; color:#2563eb; font-size:0.82rem; font-weight:600;"></span>
                     </div>
                 </div>
             </div>
@@ -338,7 +340,7 @@
                                 <label>Price Override (₹)</label>
                                 {{ fs.price_override }}
                                 {% if fs.price_override.errors %}<div class="field-error">{{ fs.price_override.errors.0 }}</div>{% endif %}
-                                <small class="form-help">Leave blank to use product price</small>
+                                <small class="form-help variant-price-preview" style="color:#2563eb; font-weight:600; display:block; margin-top:4px;">Leave blank to use base price</small>
                             </div>
                             <div class="form-group">
                                 <label>Stock *</label>
@@ -423,6 +425,7 @@
                             <label>Price Override (₹)</label>
                             <input type="number" name="variants-__prefix__-price_override" 
                                 class="form-input" step="0.01" placeholder="Leave blank for base price">
+                            <small class="form-help variant-price-preview" style="color:#2563eb; font-weight:600; display:block; margin-top:4px;">Leave blank to use base price</small>
                         </div>
                         <div class="form-group">
                             <label>Stock *</label>
@@ -606,6 +609,48 @@ document.addEventListener('DOMContentLoaded', function() {
     const discountInput = document.getElementById('{{ form.discount_percent.id_for_label }}');
     const previewPrice = document.getElementById('previewPrice');
     const previewDiscount = document.getElementById('previewDiscount');
+    const previewSavings = document.getElementById('previewSavings');
+
+    function updateVariantPricePreviews() {
+        const basePrice = parseFloat(priceInput?.value) || 0;
+        const discount = parseInt(discountInput?.value) || 0;
+        
+        document.querySelectorAll('.variant-row').forEach(row => {
+            const priceField = row.querySelector('[name$="-price_override"]');
+            const helper = row.querySelector('.variant-price-preview');
+            if (!helper) return;
+            
+            const overrideVal = parseFloat(priceField?.value);
+            const hasOverride = !isNaN(overrideVal) && overrideVal > 0;
+            const effectivePrice = hasOverride ? overrideVal : basePrice;
+            
+            if (effectivePrice > 0) {
+                let finalPrice = effectivePrice;
+                if (discount > 0) {
+                    finalPrice = effectivePrice * (1 - discount / 100);
+                    if (hasOverride) {
+                        helper.innerHTML = `Custom: ₹${overrideVal.toFixed(2)} → <strong>Final: ₹${finalPrice.toFixed(2)}</strong> (${discount}% OFF)`;
+                        helper.style.color = '#16a34a';
+                    } else {
+                        helper.innerHTML = `Base: ₹${basePrice.toFixed(2)} → <strong>Final: ₹${finalPrice.toFixed(2)}</strong> (${discount}% OFF)`;
+                        helper.style.color = '#2563eb';
+                    }
+                } else {
+                    if (hasOverride) {
+                        helper.innerHTML = `Custom Price: <strong>₹${overrideVal.toFixed(2)}</strong>`;
+                        helper.style.color = '#16a34a';
+                    } else {
+                        helper.innerHTML = `Uses Base Price: <strong>₹${basePrice.toFixed(2)}</strong>`;
+                        helper.style.color = '#64748b';
+                    }
+                }
+            } else {
+                helper.textContent = 'Leave blank to use base price';
+                helper.style.color = '#64748b';
+            }
+        });
+    }
+    window.updateVariantPricePreviews = updateVariantPricePreviews;
     
     function updatePricePreview() {
         if (!priceInput || !previewPrice) return;
@@ -615,24 +660,31 @@ document.addEventListener('DOMContentLoaded', function() {
         const discount = parseInt(discountInput?.value) || 0;
         
         let finalPrice = price;
-        let discountText = '';
         
         if (discount > 0 && price > 0) {
             finalPrice = price * (1 - discount / 100);
-            discountText = `(-₹${(price - finalPrice).toFixed(2)})`;
         }
         
         previewPrice.textContent = `₹${finalPrice.toFixed(2)}`;
         
-        if (discountText && mrp > price) {
-            previewDiscount.style.display = 'inline';
-            previewDiscount.textContent = `${discountText} • Save ₹${(mrp - price).toFixed(2)} vs MRP`;
-        } else if (discountText) {
-            previewDiscount.style.display = 'inline';
-            previewDiscount.textContent = discountText;
+        const effectiveMrp = mrp > price ? mrp : price;
+        const totalSavings = effectiveMrp - finalPrice;
+        
+        if (discount > 0 && price > 0) {
+            if (previewDiscount) {
+                previewDiscount.style.display = 'inline-block';
+                previewDiscount.textContent = `${discount}% OFF`;
+            }
+            if (previewSavings && totalSavings > 0) {
+                previewSavings.style.display = 'inline-block';
+                previewSavings.textContent = `• Save ₹${totalSavings.toFixed(2)}`;
+            }
         } else {
-            previewDiscount.style.display = 'none';
+            if (previewDiscount) previewDiscount.style.display = 'none';
+            if (previewSavings) previewSavings.style.display = 'none';
         }
+
+        updateVariantPricePreviews();
     }
     
     [priceInput, mrpInput, discountInput].forEach(input => {
@@ -1174,6 +1226,9 @@ document.addEventListener('DOMContentLoaded', function() {
             
             sizeField?.addEventListener('input', updateTitle);
             colorField?.addEventListener('input', updateTitle);
+            
+            const priceField = row.querySelector('[name$="-price_override"]');
+            priceField?.addEventListener('input', updateVariantPricePreviews);
             
             // Listen to variant stock changes to update the base stock sum in real-time
             stockField?.addEventListener('input', updateBaseStockFromVariants);

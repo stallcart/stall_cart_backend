@@ -143,6 +143,54 @@ class ProductCalculationAndStockTests(TestCase):
         # Stock should remain 15, not be reset to 0 or manual value
         self.assertEqual(product.stock, 15)
 
+    def test_variant_pricing_and_discount_calculations(self):
+        """Verify variant pricing, mrp, discount percentage, and savings calculations."""
+        product = Product.objects.create(
+            seller=self.seller_profile,
+            category=self.category,
+            name="Cotton T-Shirt",
+            price=Decimal("100.00"),
+            mrp=Decimal("100.00"),
+            discount_percent=55,
+            cost_price=Decimal("43.00"),
+            stock=0,
+            status="published"
+        )
+        
+        # Base product pricing assertions
+        self.assertEqual(product.price, Decimal("100.00"))
+        self.assertEqual(product.mrp, Decimal("100.00"))
+        self.assertEqual(product.discount_percent, 55)
+        self.assertEqual(product.final_price, Decimal("45.00"))
+        self.assertEqual(product.savings_per_unit, Decimal("55.00"))
+        
+        # Variant 1: Inherits base price (no override)
+        v1 = ProductVariant.objects.create(
+            product=product,
+            size_value="80 cm",
+            stock=10,
+            is_active=True
+        )
+        self.assertEqual(v1.effective_price, Decimal("100.00"))
+        self.assertEqual(v1.mrp, Decimal("100.00"))
+        self.assertEqual(v1.discount_percent, 55)
+        self.assertEqual(v1.final_price, Decimal("45.00"))
+        self.assertEqual(v1.savings_per_unit, Decimal("55.00"))
+        
+        # Variant 2: Custom price override (e.g., larger size costs 120 base)
+        v2 = ProductVariant.objects.create(
+            product=product,
+            size_value="95 cm",
+            price_override=Decimal("120.00"),
+            stock=10,
+            is_active=True
+        )
+        self.assertEqual(v2.effective_price, Decimal("120.00"))
+        self.assertEqual(v2.mrp, Decimal("120.00"))
+        self.assertEqual(v2.discount_percent, 55)
+        self.assertEqual(v2.final_price, Decimal("54.00"))
+        self.assertEqual(v2.savings_per_unit, Decimal("66.00"))
+
     def test_product_variant_deletion_via_formset(self):
         """Verify that a variant can be marked for deletion and saved successfully via product edit/formset."""
         product = Product.objects.create(

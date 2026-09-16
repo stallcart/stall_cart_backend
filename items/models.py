@@ -593,25 +593,37 @@ class ProductVariant(BaseModel):
         return f"{self.product.name} - {self.size_value} {self.color}".strip()
 
     def get_effective_price(self):
-        return self.price_override if self.price_override else self.product.price
+        return self.price_override if self.price_override is not None else self.product.price
     
     @property
     def effective_price(self):
-        """Returns variant price or falls back to product price"""
+        """Returns variant base price (override or product base price)"""
         return self.get_effective_price()
 
     @property
+    def mrp(self):
+        """Returns the MRP for this variant: parent MRP if higher than effective price, else effective price"""
+        if self.product.mrp and self.product.mrp > self.effective_price:
+            return self.product.mrp
+        return self.effective_price
+
+    @property
+    def discount_percent(self):
+        """Returns effective discount percentage from parent product"""
+        return self.product.discount_percent or 0
+
+    @property
     def final_price(self):
-        """Get discounted price of variant if parent product has discount (always returns Decimal)"""
+        """Get discounted selling price of variant (always returns Decimal)"""
         effective = self.effective_price
         if self.product.discount_percent and self.product.discount_percent > 0:
-            return round(effective * (Decimal('1') - Decimal(self.product.discount_percent) / Decimal('100')), 2)
+            return round(effective * (Decimal('1') - Decimal(str(self.product.discount_percent)) / Decimal('100')), 2)
         return effective
 
     @property
     def savings_per_unit(self):
-        """Return savings per unit: original/mrp base price - final price (never negative)"""
-        base_price = self.product.mrp if (self.product.mrp and self.product.mrp > self.effective_price) else self.effective_price
+        """Return savings per unit: MRP - final selling price (never negative)"""
+        base_price = self.mrp
         return max(Decimal('0'), base_price - self.final_price)
 
     @property
