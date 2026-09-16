@@ -480,7 +480,7 @@ def create_order(request):
                 ))
                 # Create Razorpay order (NOT a DB order)
                 razorpay_order = client.order.create({
-                    'amount': int(total_amount * 100),
+                    'amount': int((Decimal(str(total_amount)) * Decimal('100')).quantize(Decimal('1'))),
                     'currency': 'INR',
                     'payment_capture': 1,
                     'notes': {
@@ -501,7 +501,7 @@ def create_order(request):
                     'payment_method': 'razorpay',
                     'razorpay_order_id': razorpay_order['id'],  # Razorpay's ID, not ours
                     'key': settings.RAZORPAY_KEY_ID,
-                    'amount': int(total_amount * 100),
+                    'amount': int((Decimal(str(total_amount)) * Decimal('100')).quantize(Decimal('1'))),
                     'currency': 'INR',
                     'name': getattr(settings, 'SITE_NAME', 'StallCart'),
                     'description': f'Purchase at {getattr(settings, "SITE_NAME", "StallCart")}',
@@ -945,12 +945,10 @@ def verify_payment(request):
                     is_active=True
                 )
                 unit_price = variant.final_price
-                mrp_price = product.mrp if (product.mrp and product.mrp > variant.effective_price) else variant.effective_price
-                savings_per_unit = max(Decimal('0'), mrp_price - unit_price)
+                savings_per_unit = variant.savings_per_unit
             else:
                 unit_price = product.final_price
-                mrp_price = product.mrp if product.mrp and product.mrp > 0 else product.price
-                savings_per_unit = max(Decimal('0'), mrp_price - unit_price)
+                savings_per_unit = product.savings_per_unit
                 
             calculated_subtotal += unit_price * qty
             calculated_discount_amount += savings_per_unit * qty
@@ -978,7 +976,7 @@ def verify_payment(request):
                 return JsonResponse({'status': 'error', 'message': 'Invalid payment order'}, status=400)
                 
             paid_amount_paise = payment.get('amount')
-            expected_amount_paise = int(calculated_total_amount * 100)
+            expected_amount_paise = int((calculated_total_amount * Decimal('100')).quantize(Decimal('1')))
             
             if paid_amount_paise != expected_amount_paise:
                 logger.warning(f"Payment amount mismatch. Expected: {expected_amount_paise} paise, Paid: {paid_amount_paise} paise")

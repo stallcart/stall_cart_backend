@@ -250,7 +250,7 @@ class CartService:
             
             # Calculate pricing
             unit_price = CartService._get_unit_price(product, variant)
-            original_price = (product.mrp if (product.mrp and (not variant or product.mrp > variant.final_price)) else (variant.effective_price if variant else product.price))
+            original_price = variant.mrp if variant else (product.mrp if product.mrp and product.mrp > product.price else product.price)
             savings = CartService._calculate_savings(product, cart_item.quantity, variant)
             
             # Stock availability for this specific variant/product
