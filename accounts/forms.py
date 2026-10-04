@@ -20,6 +20,14 @@ class UserRegistrationForm(UserCreationForm):
     )
     
     # Customer fields (always shown)
+    full_name = forms.CharField(
+        widget=forms.TextInput(attrs={
+            'placeholder': 'Full Name *',
+            'class': 'form-input',
+            'autofocus': 'autofocus'
+        }),
+        label='Full Name'
+    )
     phone = forms.CharField(
         widget=forms.TextInput(attrs={
             'placeholder': 'Mobile Number *',
@@ -29,13 +37,6 @@ class UserRegistrationForm(UserCreationForm):
             'inputmode': 'numeric'
         }),
         label='Mobile Number'
-    )
-    full_name = forms.CharField(
-        widget=forms.TextInput(attrs={
-            'placeholder': 'Full Name *',
-            'class': 'form-input'
-        }),
-        label='Full Name'
     )
     email = forms.EmailField(
         required=True,
@@ -109,7 +110,7 @@ class UserRegistrationForm(UserCreationForm):
 
     class Meta:
         model = User
-        fields = ('phone', 'full_name', 'email', 'user_role', 
+        fields = ('full_name', 'phone', 'email', 'user_role', 
                   'shop_name', 'shop_description', 'gst_number',
                   'pan_number', 'pan_card_file',
                   'password1', 'password2')

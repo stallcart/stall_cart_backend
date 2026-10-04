@@ -220,6 +220,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize on load
     toggleSellerFields();
     
+    // Auto-focus on Full Name field on page load
+    const fullNameInput = document.querySelector('input[name="full_name"]');
+    if (fullNameInput) {
+        fullNameInput.focus();
+    }
+    
     // Mobile number formatting
     const phoneInput = document.querySelector('input[name="phone"]');
     if (phoneInput) {
