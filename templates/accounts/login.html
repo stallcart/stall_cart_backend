@@ -3,13 +3,13 @@
 
 {% block content %}
 <div class="auth-container">
-    <div style="max-width: 420px; margin: 60px auto; padding: 30px; background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
-        <div style="margin-bottom: 20px;">
-            <a href="{% url 'shop:home' %}" style="display: inline-flex; align-items: center; gap: 8px; color: var(--gray-600); text-decoration: none; font-weight: 600; font-size: 0.9rem; transition: color 0.2s;" onmouseover="this.style.color='var(--blue-500)'" onmouseout="this.style.color='var(--gray-600)'">
+    <div class="auth-card">
+        <div class="auth-header">
+            <a href="{% url 'shop:home' %}" class="back-link">
                 <i class="fa fa-arrow-left"></i> Back to Store
             </a>
+            <h2 class="auth-title">Login to Your Account</h2>
         </div>
-        <h2 style="text-align: center; margin-bottom: 25px; color: #212121;">Login to Your Account</h2>
         
         <form method="post" id="authForm">
             {% csrf_token %}
@@ -33,11 +33,16 @@
                 <small class="form-hint">Enter your 10-digit registered mobile number</small>
             </div>
 
-            <!-- 🔐 Password Field with Eye Toggle -->
+            <!-- 🔐 Password Field with Eye Toggle & Forgot Link -->
             <div class="form-group password-group">
-                <label for="{{ form.password.id_for_label }}" class="form-label">
-                    <i class="fa fa-lock" style="color:var(--blue-400);margin-right:6px;"></i> Password
-                </label>
+                <div class="form-label-row">
+                    <label for="{{ form.password.id_for_label }}" class="form-label">
+                        <i class="fa fa-lock" style="color:var(--blue-400);margin-right:6px;"></i> Password
+                    </label>
+                    <a href="{% url 'accounts:forgot_password' %}" class="forgot-link">
+                        Forgot Password?
+                    </a>
+                </div>
                 <div class="password-wrapper">
                     {{ form.password }}
                     <button type="button" 
@@ -53,20 +58,18 @@
             </div>
 
             <!-- Submit Button -->
-            <button type="submit" class="btn-primary" id="loginBtn" style="margin-top: 20px;">
+            <button type="submit" class="btn-primary" id="loginBtn">
                 <i class="fa fa-sign-in-alt"></i> LOGIN
             </button>
 
-            <!-- Links -->
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 25px; font-size: 0.9rem; flex-wrap: wrap; gap: 12px;">
-                <a href="{% url 'accounts:forgot_password' %}" style="color: var(--blue-500);">
-                    <i class="fa fa-key"></i> Forgot Password?
-                </a>
-                <span>
-                    New here? 
-                    <a href="{% url 'accounts:register' %}" style="color: var(--blue-500);">Create Account</a>
-                </span>
+            <!-- Prominent Create Account Section -->
+            <div class="auth-divider">
+                <span>New to StallCart?</span>
             </div>
+
+            <a href="{% url 'accounts:register' %}" class="btn-create-account">
+                <i class="fa fa-user-plus"></i> Create New Account
+            </a>
         </form>
     </div>
 </div>
@@ -137,11 +140,85 @@ window.togglePassword = function(inputId, btn) {
 {% block extra_css %}
 <style>
 .auth-container {
-    min-height: calc(100vh - 200px);
+    min-height: calc(100vh - 180px);
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 20px;
+    padding: 24px 16px 80px 16px;
+    background: #f8fafc;
+}
+
+.auth-card {
+    max-width: 420px;
+    width: 100%;
+    margin: 20px auto;
+    padding: 28px 24px;
+    background: white;
+    border-radius: 14px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
+    border: 1px solid var(--gray-100, #f1f5f9);
+}
+
+.auth-header {
+    margin-bottom: 20px;
+}
+
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--gray-600, #64748b);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.85rem;
+    margin-bottom: 12px;
+    transition: color 0.2s;
+}
+
+.back-link:hover {
+    color: var(--blue-500, #2874f0);
+}
+
+.auth-title {
+    text-align: center;
+    margin: 0;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-label {
+    display: block;
+    font-weight: 500;
+    font-size: 0.9rem;
+    color: #334155;
+    margin-bottom: 6px;
+}
+
+.form-label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.form-label-row .form-label {
+    margin-bottom: 0;
+}
+
+.forgot-link {
+    font-size: 0.82rem;
+    color: var(--blue-500, #2874f0);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.forgot-link:hover {
+    text-decoration: underline;
 }
 
 .form-group input {
@@ -152,12 +229,36 @@ window.togglePassword = function(inputId, btn) {
     font-size: 1rem; 
     transition: all 0.2s;
     font-family: inherit;
+    box-sizing: border-box;
 }
 
 .form-group input:focus {
     border-color: var(--blue-400); 
     outline: none; 
     box-shadow: 0 0 0 3px rgba(40,116,240,0.12);
+}
+
+.form-hint {
+    display: block;
+    color: var(--gray-500, #888);
+    font-size: 0.8rem;
+    margin-top: 4px;
+}
+
+.error-text {
+    color: #dc2626;
+    font-size: 0.85rem;
+    margin-top: 4px;
+}
+
+.alert-error {
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fee2e2;
+    padding: 10px 14px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 0.9rem;
 }
 
 .password-wrapper {
@@ -194,11 +295,116 @@ window.togglePassword = function(inputId, btn) {
     background: rgba(40, 116, 240, 0.08);
 }
 
+.btn-primary {
+    width: 100%;
+    padding: 12px 16px;
+    background: var(--blue-500, #2874f0);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: background 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.btn-primary:hover {
+    background: #1a56c4;
+}
+
+.auth-divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin: 18px 0 12px 0;
+    color: var(--gray-400, #94a3b8);
+    font-size: 0.82rem;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid var(--gray-200, #e2e8f0);
+}
+
+.auth-divider span {
+    padding: 0 10px;
+}
+
+.btn-create-account {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 11px 16px;
+    background: #f0f7ff;
+    color: var(--blue-500, #2874f0);
+    border: 1.5px solid #bfdbfe;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.92rem;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+
+.btn-create-account:hover {
+    background: #dbeafe;
+    border-color: #93c5fd;
+    color: #1d4ed8;
+}
+
 /* Responsive */
 @media (max-width: 480px) {
-    .auth-container > div { 
-        margin: 20px auto; 
-        padding: 25px 20px; 
+    .auth-container { 
+        min-height: auto;
+        padding: 10px 12px 75px 12px;
+        align-items: flex-start;
+    }
+    .auth-card {
+        margin: 6px auto;
+        padding: 18px 16px;
+        border-radius: 12px;
+    }
+    .auth-header {
+        margin-bottom: 14px;
+    }
+    .back-link {
+        margin-bottom: 8px;
+        font-size: 0.8rem;
+    }
+    .auth-title {
+        font-size: 1.25rem;
+    }
+    .form-group {
+        margin-bottom: 12px;
+    }
+    .form-group input {
+        padding: 10px 12px;
+        font-size: 0.95rem;
+    }
+    .form-hint {
+        font-size: 0.75rem;
+        margin-top: 2px;
+    }
+    .btn-primary {
+        padding: 11px 14px;
+        margin-top: 10px;
+        font-size: 0.9rem;
+    }
+    .auth-divider {
+        margin: 14px 0 10px 0;
+    }
+    .btn-create-account {
+        padding: 10px 14px;
+        font-size: 0.88rem;
     }
 }
 </style>
