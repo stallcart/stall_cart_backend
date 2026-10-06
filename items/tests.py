@@ -1021,8 +1021,8 @@ class ProductListPaginationTests(TestCase):
             commision_percentage=10.0
         )
         
-        # Create 15 published, in-stock products
-        for i in range(15):
+        # Create 20 published, in-stock products
+        for i in range(20):
             Product.objects.create(
                 seller=self.seller_profile,
                 category=self.category,
@@ -1041,28 +1041,28 @@ class ProductListPaginationTests(TestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.context['products']), 10)
-        self.assertEqual(response.context['products'].paginator.count, 15)
+        self.assertEqual(response.context['products'].paginator.count, 20)
         
         # Request page 2
         response = self.client.get(f"{url}?page=2")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.context['products']), 5)
+        self.assertEqual(len(response.context['products']), 10)
         
     def test_public_product_list_pagination(self):
         from django.urls import reverse
         url = reverse('items:product_list')
         
-        # Default page size is 12 for public product_list
+        # Default page size is 15 for public product_list
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.context['products']), 12)
-        self.assertEqual(response.context['page_obj'].paginator.count, 15)
+        self.assertEqual(len(response.context['products']), 15)
+        self.assertEqual(response.context['page_obj'].paginator.count, 20)
         self.assertTrue(response.context['is_paginated'])
         
         # Request page 2
         response = self.client.get(f"{url}?page=2")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.context['products']), 3)
+        self.assertEqual(len(response.context['products']), 5)
 
 
 class ProductSlugLengthAndUniquenessTests(TestCase):

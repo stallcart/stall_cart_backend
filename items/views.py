@@ -1022,7 +1022,7 @@ def product_list(request):
     # Pagination
     from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
     page = request.GET.get('page', 1)
-    paginator = Paginator(products, 12)  # Let's say 12 items per page
+    paginator = Paginator(products, 15)  # 15 items per page for clean grid alignment
     try:
         page_obj = paginator.page(page)
     except PageNotAnInteger:

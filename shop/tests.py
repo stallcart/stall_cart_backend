@@ -145,8 +145,8 @@ class HomepageProductSlicingTests(TestCase):
             slug="clothing-2"
         )
         
-        # Create 15 published, in-stock products
-        for i in range(15):
+        # Create 20 published, in-stock products
+        for i in range(20):
             Product.objects.create(
                 seller=self.seller_profile,
                 category=self.category,
@@ -160,11 +160,11 @@ class HomepageProductSlicingTests(TestCase):
         response = self.client.get(reverse('shop:home'))
         self.assertEqual(response.status_code, 200)
         
-        # Context products should contain exactly 12 products
-        self.assertEqual(len(response.context['products']), 12)
+        # Context products should contain exactly 15 products
+        self.assertEqual(len(response.context['products']), 15)
         
-        # Context product_count should be 15
-        self.assertEqual(response.context['product_count'], 15)
+        # Context product_count should be 20
+        self.assertEqual(response.context['product_count'], 20)
 
 
 from unittest.mock import patch, MagicMock
