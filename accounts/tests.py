@@ -90,6 +90,44 @@ class OTPRequestTests(TestCase):
         # The difference should be around 25 minutes (e.g. between 24 and 26 minutes)
         self.assertTrue(timedelta(minutes=24) <= diff <= timedelta(minutes=26))
 
+    def test_otp_remaining_and_cooldown_methods(self):
+        otp_req, _ = OTPRequest.check_and_create_otp(self.phone, 'forgot_password', expiry_minutes=10)
+        # Immediately after creation
+        self.assertGreater(otp_req.get_remaining_seconds(), 500)
+        self.assertLessEqual(otp_req.get_remaining_seconds(), 600)
+        self.assertGreater(otp_req.get_resend_cooldown_seconds(60), 50)
+        self.assertLessEqual(otp_req.get_resend_cooldown_seconds(60), 60)
+
+        # Simulate 40 seconds elapsed
+        otp_req.created_at = timezone.now() - timedelta(seconds=40)
+        otp_req.expires_at = timezone.now() + timedelta(seconds=560)
+        otp_req.save()
+        self.assertAlmostEqual(otp_req.get_resend_cooldown_seconds(60), 20, delta=2)
+        self.assertAlmostEqual(otp_req.get_remaining_seconds(), 560, delta=2)
+
+        # Simulate 70 seconds elapsed (cooldown over)
+        otp_req.created_at = timezone.now() - timedelta(seconds=70)
+        otp_req.expires_at = timezone.now() + timedelta(seconds=530)
+        otp_req.save()
+        self.assertEqual(otp_req.get_resend_cooldown_seconds(60), 0)
+        self.assertAlmostEqual(otp_req.get_remaining_seconds(), 530, delta=2)
+
+    def test_forgot_password_verify_view_context_from_db(self):
+        otp_req, _ = OTPRequest.check_and_create_otp(self.phone, 'forgot_password', expiry_minutes=10)
+        # Simulate 2 minutes passed since OTP was created
+        otp_req.created_at = timezone.now() - timedelta(seconds=120)
+        otp_req.expires_at = timezone.now() + timedelta(seconds=480)
+        otp_req.save()
+
+        session = self.client.session
+        session['forgot_phone'] = self.phone
+        session.save()
+
+        response = self.client.get(reverse('accounts:forgot_password_verify'))
+        self.assertEqual(response.status_code, 200)
+        self.assertAlmostEqual(response.context['expires_in_seconds'], 480, delta=2)
+        self.assertEqual(response.context['resend_cooldown_seconds'], 0)
+
 
 
 from django.urls import reverse

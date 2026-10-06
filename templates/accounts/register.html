@@ -440,12 +440,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 toast(data.message, 'success');
                 emailOtpInput.value = '';
                 emailOtpInput.focus();
-                startEmailCountdown(60);
+                const cooldownSecs = data.resend_cooldown_seconds || 60;
+                startEmailCountdown(cooldownSecs);
                 const expirySecs = data.expires_in_seconds || (data.expiry_minutes ? data.expiry_minutes * 60 : 600);
                 startEmailExpiryCountdown(expirySecs);
             } else {
                 toast(data.message || 'Failed to resend email OTP.', 'error');
-                startEmailCountdown(30);
+                const match = data.message && data.message.match(/wait (\d+) seconds/i);
+                const waitSecs = match ? parseInt(match[1], 10) : 30;
+                startEmailCountdown(waitSecs);
             }
         } catch (err) {
             console.error('Resend email OTP error:', err);
@@ -482,12 +485,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 toast(data.message, 'success');
                 phoneOtpInput.value = '';
                 phoneOtpInput.focus();
-                startPhoneCountdown(60);
+                const cooldownSecs = data.resend_cooldown_seconds || 60;
+                startPhoneCountdown(cooldownSecs);
                 const expirySecs = data.expires_in_seconds || (data.expiry_minutes ? data.expiry_minutes * 60 : 600);
                 startPhoneExpiryCountdown(expirySecs);
             } else {
                 toast(data.message || 'Failed to resend mobile OTP.', 'error');
-                startPhoneCountdown(30);
+                const match = data.message && data.message.match(/wait (\d+) seconds/i);
+                const waitSecs = match ? parseInt(match[1], 10) : 30;
+                startPhoneCountdown(waitSecs);
             }
         } catch (err) {
             console.error('Resend mobile OTP error:', err);

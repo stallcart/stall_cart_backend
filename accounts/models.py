@@ -240,6 +240,19 @@ class OTPRequest(BaseModel):
         from django.utils import timezone
         return timezone.now() > self.expires_at
 
+    def get_remaining_seconds(self):
+        from django.utils import timezone
+        if not self.expires_at:
+            return 0
+        return max(0, int((self.expires_at - timezone.now()).total_seconds()))
+
+    def get_resend_cooldown_seconds(self, cooldown_seconds=60):
+        from django.utils import timezone
+        if not self.created_at:
+            return 0
+        elapsed = int((timezone.now() - self.created_at).total_seconds())
+        return max(0, cooldown_seconds - elapsed)
+
     @classmethod
     def check_and_create_otp(cls, phone, purpose, expiry_minutes=None):
         from django.utils import timezone
@@ -273,8 +286,10 @@ class OTPRequest(BaseModel):
         is_testing = 'test' in sys.argv or 'test_coverage' in sys.argv
         if not is_testing:
             one_minute_ago = timezone.now() - timedelta(seconds=60)
-            if cls.objects.filter(phone=phone, created_at__gte=one_minute_ago).exists():
-                return None, "Please wait 60 seconds before requesting another OTP."
+            recent_otp = cls.objects.filter(phone=phone, created_at__gte=one_minute_ago).order_by('-created_at').first()
+            if recent_otp:
+                cooldown_left = recent_otp.get_resend_cooldown_seconds(60) or 1
+                return None, f"Please wait {cooldown_left} seconds before requesting another OTP."
 
         otp = f"{random.randint(100000, 999999)}"
         expires_at = timezone.now() + timedelta(minutes=expiry_minutes)

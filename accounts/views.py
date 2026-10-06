@@ -136,13 +136,15 @@ def register_view(request):
                 from django.utils import timezone
                 from common.models import SiteSettings
                 expiry_minutes = getattr(SiteSettings.get_singleton(), 'otp_expiry_minutes', 10)
-                expires_in_seconds = max(0, int((otp_email_req.expires_at - timezone.now()).total_seconds())) if otp_email_req.expires_at else expiry_minutes * 60
+                expires_in_seconds = otp_email_req.get_remaining_seconds() if otp_email_req else expiry_minutes * 60
+                resend_cooldown_seconds = otp_email_req.get_resend_cooldown_seconds(60) if otp_email_req else 60
                 
                 return JsonResponse({
                     'status': 'success',
                     'message': f'Verification OTP sent to email: {email}.',
                     'expiry_minutes': expiry_minutes,
                     'expires_in_seconds': expires_in_seconds,
+                    'resend_cooldown_seconds': resend_cooldown_seconds,
                 })
             
             # Action 1.1: Resend Email OTP for registration
@@ -151,7 +153,7 @@ def register_view(request):
                 if not email or '@' not in email:
                     return JsonResponse({'status': 'error', 'message': 'A valid email address is required.'}, status=400)
                 
-                if User.objects.filter(email=email).exists():
+                if User.objects.filter(email__iexact=email).exists():
                     return JsonResponse({'status': 'error', 'message': 'Email address already registered by another user.'}, status=400)
                 
                 # Generate and send new email OTP
@@ -170,13 +172,15 @@ def register_view(request):
                 from django.utils import timezone
                 from common.models import SiteSettings
                 expiry_minutes = getattr(SiteSettings.get_singleton(), 'otp_expiry_minutes', 10)
-                expires_in_seconds = max(0, int((otp_email_req.expires_at - timezone.now()).total_seconds())) if otp_email_req.expires_at else expiry_minutes * 60
+                expires_in_seconds = otp_email_req.get_remaining_seconds() if otp_email_req else expiry_minutes * 60
+                resend_cooldown_seconds = otp_email_req.get_resend_cooldown_seconds(60) if otp_email_req else 60
                 
                 return JsonResponse({
                     'status': 'success',
                     'message': f'New verification OTP sent to email: {email}.',
                     'expiry_minutes': expiry_minutes,
                     'expires_in_seconds': expires_in_seconds,
+                    'resend_cooldown_seconds': resend_cooldown_seconds,
                 })
             
             # Action 1.5: Verify Email OTP and Send Mobile OTP
@@ -227,13 +231,15 @@ def register_view(request):
                 
                 from common.models import SiteSettings
                 expiry_minutes = getattr(SiteSettings.get_singleton(), 'otp_expiry_minutes', 10)
-                expires_in_seconds = max(0, int((otp_phone_req.expires_at - timezone.now()).total_seconds())) if otp_phone_req.expires_at else expiry_minutes * 60
+                expires_in_seconds = otp_phone_req.get_remaining_seconds() if otp_phone_req else expiry_minutes * 60
+                resend_cooldown_seconds = otp_phone_req.get_resend_cooldown_seconds(60) if otp_phone_req else 60
                 
                 return JsonResponse({
                     'status': 'success',
                     'message': f'Email verified successfully. Verification OTP sent to mobile: {phone}.',
                     'expiry_minutes': expiry_minutes,
                     'expires_in_seconds': expires_in_seconds,
+                    'resend_cooldown_seconds': resend_cooldown_seconds,
                 })
             
             # Action 1.6: Resend Mobile OTP for registration
@@ -275,13 +281,15 @@ def register_view(request):
                 
                 from common.models import SiteSettings
                 expiry_minutes = getattr(SiteSettings.get_singleton(), 'otp_expiry_minutes', 10)
-                expires_in_seconds = max(0, int((otp_phone_req.expires_at - timezone.now()).total_seconds())) if otp_phone_req.expires_at else expiry_minutes * 60
+                expires_in_seconds = otp_phone_req.get_remaining_seconds() if otp_phone_req else expiry_minutes * 60
+                resend_cooldown_seconds = otp_phone_req.get_resend_cooldown_seconds(60) if otp_phone_req else 60
                 
                 return JsonResponse({
                     'status': 'success',
                     'message': f'New verification OTP sent to mobile: {phone}.',
                     'expiry_minutes': expiry_minutes,
                     'expires_in_seconds': expires_in_seconds,
+                    'resend_cooldown_seconds': resend_cooldown_seconds,
                 })
             
             # Action 2: Verify Phone OTP and complete registration
@@ -429,19 +437,40 @@ def send_change_password_otp(request):
     from common.models import SiteSettings
     from django.utils import timezone
     expiry_minutes = getattr(SiteSettings.get_singleton(), 'otp_expiry_minutes', 10)
-    expires_in_seconds = max(0, int((otp_req.expires_at - timezone.now()).total_seconds())) if otp_req.expires_at else expiry_minutes * 60
+    expires_in_seconds = otp_req.get_remaining_seconds() if otp_req else expiry_minutes * 60
+    resend_cooldown_seconds = otp_req.get_resend_cooldown_seconds(60) if otp_req else 60
     
     return JsonResponse({
         'status': 'success',
         'message': f'OTP sent successfully to your registered mobile: {recipient}.',
         'expiry_minutes': expiry_minutes,
         'expires_in_seconds': expires_in_seconds,
+        'resend_cooldown_seconds': resend_cooldown_seconds,
     })
 
 
 @login_required
 def change_password_view(request):
     from django.contrib.auth.forms import PasswordChangeForm
+    from django.utils import timezone
+
+    recipient = request.user.phone
+    latest_otp = OTPRequest.objects.filter(
+        phone=recipient,
+        purpose='change_password',
+        is_verified=False
+    ).order_by('-created_at').first()
+
+    expires_in_seconds = latest_otp.get_remaining_seconds() if latest_otp else 0
+    resend_cooldown_seconds = latest_otp.get_resend_cooldown_seconds(60) if latest_otp else 0
+    has_active_otp = latest_otp is not None and not latest_otp.is_expired()
+
+    context = {
+        'expires_in_seconds': expires_in_seconds,
+        'resend_cooldown_seconds': resend_cooldown_seconds,
+        'has_active_otp': has_active_otp,
+    }
+
     if request.method == 'POST':
         form = PasswordChangeForm(request.user, request.POST)
         otp_code = request.POST.get('otp')
@@ -451,8 +480,6 @@ def change_password_view(request):
             form.add_error(None, "Verification OTP is required.")
         else:
             # Check latest unexpired unverified OTP
-            recipient = request.user.phone
-            from django.utils import timezone
             otp_req = OTPRequest.objects.filter(
                 phone=recipient,
                 purpose='change_password',
@@ -476,9 +503,12 @@ def change_password_view(request):
             return redirect('accounts:profile')
         else:
             messages.error(request, "Please correct the errors below.")
+            context['form'] = form
+            return render(request, 'accounts/change_password.html', context)
     else:
         form = PasswordChangeForm(request.user)
-    return render(request, 'accounts/change_password.html', {'form': form})
+        context['form'] = form
+        return render(request, 'accounts/change_password.html', context)
 
 
 def forgot_password_view(request):
@@ -541,13 +571,30 @@ def forgot_password_verify_view(request):
         messages.error(request, "Session expired. Please enter your mobile number again.")
         return redirect('accounts:forgot_password')
         
+    from django.utils import timezone
+    latest_otp = OTPRequest.objects.filter(
+        phone=phone,
+        purpose='forgot_password',
+        is_verified=False
+    ).order_by('-created_at').first()
+
+    expires_in_seconds = latest_otp.get_remaining_seconds() if latest_otp else 0
+    resend_cooldown_seconds = latest_otp.get_resend_cooldown_seconds(60) if latest_otp else 0
+    is_otp_expired = (latest_otp is None or latest_otp.is_expired())
+
+    context = {
+        'phone': phone,
+        'expires_in_seconds': expires_in_seconds,
+        'resend_cooldown_seconds': resend_cooldown_seconds,
+        'is_otp_expired': is_otp_expired,
+    }
+
     if request.method == 'POST':
         otp_code = request.POST.get('otp', '').strip()
         if not otp_code:
             messages.error(request, "OTP is required.")
-            return render(request, 'accounts/forgot_password_verify.html', {'phone': phone})
+            return render(request, 'accounts/forgot_password_verify.html', context)
             
-        from django.utils import timezone
         otp_req = OTPRequest.objects.filter(
             phone=phone,
             purpose='forgot_password',
@@ -558,7 +605,7 @@ def forgot_password_verify_view(request):
         
         if not otp_req:
             messages.error(request, "Invalid or expired OTP.")
-            return render(request, 'accounts/forgot_password_verify.html', {'phone': phone})
+            return render(request, 'accounts/forgot_password_verify.html', context)
             
         # Mark as verified
         otp_req.is_verified = True
@@ -568,7 +615,7 @@ def forgot_password_verify_view(request):
         messages.success(request, "OTP verified successfully. Please choose a new password.")
         return redirect('accounts:forgot_password_reset')
         
-    return render(request, 'accounts/forgot_password_verify.html', {'phone': phone})
+    return render(request, 'accounts/forgot_password_verify.html', context)
 
 
 def resend_forgot_password_otp(request):
@@ -615,13 +662,15 @@ def resend_forgot_password_otp(request):
     from common.models import SiteSettings
     from django.utils import timezone
     expiry_minutes = getattr(SiteSettings.get_singleton(), 'otp_expiry_minutes', 10)
-    expires_in_seconds = max(0, int((otp_req.expires_at - timezone.now()).total_seconds())) if otp_req.expires_at else expiry_minutes * 60
+    expires_in_seconds = otp_req.get_remaining_seconds() if otp_req else expiry_minutes * 60
+    resend_cooldown_seconds = otp_req.get_resend_cooldown_seconds(60) if otp_req else 60
     
     return JsonResponse({
         'status': 'success',
         'message': msg,
         'expiry_minutes': expiry_minutes,
         'expires_in_seconds': expires_in_seconds,
+        'resend_cooldown_seconds': resend_cooldown_seconds,
     })
 
 

@@ -1397,12 +1397,15 @@ resendProfileEmailOtpBtn?.addEventListener('click', async () => {
             showToast(data.message, 'success');
             document.getElementById('emailOtp').value = '';
             document.getElementById('emailOtp').focus();
-            startProfileEmailCountdown(60);
+            const cooldownSecs = data.resend_cooldown_seconds || 60;
+            startProfileEmailCountdown(cooldownSecs);
             const expirySecs = data.expires_in_seconds || (data.expiry_minutes ? data.expiry_minutes * 60 : 600);
             startProfileEmailExpiryCountdown(expirySecs);
         } else {
             showToast(data.message || 'Failed to resend email OTP', 'error');
-            startProfileEmailCountdown(30);
+            const match = data.message && data.message.match(/wait (\d+) seconds/i);
+            const waitSecs = match ? parseInt(match[1], 10) : 30;
+            startProfileEmailCountdown(waitSecs);
         }
     } catch (err) {
         console.error('Error resending email OTP:', err);
@@ -1438,12 +1441,15 @@ resendProfilePhoneOtpBtn?.addEventListener('click', async () => {
             showToast(data.message, 'success');
             document.getElementById('phoneOtp').value = '';
             document.getElementById('phoneOtp').focus();
-            startProfilePhoneCountdown(60);
+            const cooldownSecs = data.resend_cooldown_seconds || 60;
+            startProfilePhoneCountdown(cooldownSecs);
             const expirySecs = data.expires_in_seconds || (data.expiry_minutes ? data.expiry_minutes * 60 : 600);
             startProfilePhoneExpiryCountdown(expirySecs);
         } else {
             showToast(data.message || 'Failed to resend mobile OTP', 'error');
-            startProfilePhoneCountdown(30);
+            const match = data.message && data.message.match(/wait (\d+) seconds/i);
+            const waitSecs = match ? parseInt(match[1], 10) : 30;
+            startProfilePhoneCountdown(waitSecs);
         }
     } catch (err) {
         console.error('Error resending mobile OTP:', err);
