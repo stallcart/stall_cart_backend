@@ -1255,4 +1255,59 @@ class ResendOTPTests(TestCase):
         self.assertFalse(data['phone_sent'])
         self.assertTrue(OTPRequest.objects.filter(phone='brandnew@example.com', purpose='update_email').exists())
 
+    def test_resend_email_otp_respects_settings_daily_limit(self):
+        from common.models import SiteSettings
+        site_settings = SiteSettings.get_singleton()
+        site_settings.daily_email_otp_limit = 2
+        site_settings.save()
+
+        url = reverse('accounts:register')
+        payload = {
+            'action': 'resend_register_email_otp',
+            'email': 'ratelimit_email@example.com'
+        }
+        
+        # 1st attempt - Success
+        res1 = self.client.post(url, json.dumps(payload), content_type='application/json', HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(res1.status_code, 200)
+
+        # 2nd attempt - Success
+        res2 = self.client.post(url, json.dumps(payload), content_type='application/json', HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(res2.status_code, 200)
+
+        # 3rd attempt - Must fail due to exceeding daily limit
+        res3 = self.client.post(url, json.dumps(payload), content_type='application/json', HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(res3.status_code, 400)
+        data = res3.json()
+        self.assertEqual(data['status'], 'error')
+        self.assertIn("exceeded the limit of 2 email OTP requests per day", data['message'])
+
+    def test_resend_sms_otp_respects_settings_daily_limit(self):
+        from common.models import SiteSettings
+        site_settings = SiteSettings.get_singleton()
+        site_settings.daily_sms_otp_limit = 2
+        site_settings.save()
+
+        session = self.client.session
+        session['forgot_phone'] = self.user.phone
+        session.save()
+
+        url = reverse('accounts:resend_forgot_password_otp')
+
+        # 1st attempt - Success
+        res1 = self.client.post(url, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(res1.status_code, 200)
+
+        # 2nd attempt - Success
+        res2 = self.client.post(url, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(res2.status_code, 200)
+
+        # 3rd attempt - Must fail due to exceeding daily limit
+        res3 = self.client.post(url, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(res3.status_code, 400)
+        data = res3.json()
+        self.assertEqual(data['status'], 'error')
+        self.assertIn("exceeded the limit of 2 SMS OTP requests per day", data['message'])
+
+
 

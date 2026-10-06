@@ -251,9 +251,9 @@ class OTPRequest(BaseModel):
         try:
             site_settings = SiteSettings.get_singleton()
             if is_email:
-                limit = getattr(site_settings, 'daily_email_otp_limit', 5)
+                limit = getattr(site_settings, 'daily_email_otp_limit', None) or getattr(site_settings, 'daily_otp_limit', 5)
             else:
-                limit = getattr(site_settings, 'daily_sms_otp_limit', 5)
+                limit = getattr(site_settings, 'daily_sms_otp_limit', None) or getattr(site_settings, 'daily_otp_limit', 5)
 
             if expiry_minutes is None:
                 expiry_minutes = getattr(site_settings, 'otp_expiry_minutes', 10)
