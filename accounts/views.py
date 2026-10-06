@@ -133,9 +133,16 @@ def register_view(request):
                 
                 print(f"📧 [EMAIL OTP DEMO] Sent OTP to {email} for registration: {otp_email_req.otp}")
                 
+                from django.utils import timezone
+                from common.models import SiteSettings
+                expiry_minutes = getattr(SiteSettings.get_singleton(), 'otp_expiry_minutes', 10)
+                expires_in_seconds = max(0, int((otp_email_req.expires_at - timezone.now()).total_seconds())) if otp_email_req.expires_at else expiry_minutes * 60
+                
                 return JsonResponse({
                     'status': 'success',
-                    'message': f'Verification OTP sent to email: {email}.'
+                    'message': f'Verification OTP sent to email: {email}.',
+                    'expiry_minutes': expiry_minutes,
+                    'expires_in_seconds': expires_in_seconds,
                 })
             
             # Action 1.1: Resend Email OTP for registration
@@ -160,9 +167,16 @@ def register_view(request):
                 
                 print(f"📧 [EMAIL OTP DEMO] Resent OTP to {email} for registration: {otp_email_req.otp}")
                 
+                from django.utils import timezone
+                from common.models import SiteSettings
+                expiry_minutes = getattr(SiteSettings.get_singleton(), 'otp_expiry_minutes', 10)
+                expires_in_seconds = max(0, int((otp_email_req.expires_at - timezone.now()).total_seconds())) if otp_email_req.expires_at else expiry_minutes * 60
+                
                 return JsonResponse({
                     'status': 'success',
-                    'message': f'New verification OTP sent to email: {email}.'
+                    'message': f'New verification OTP sent to email: {email}.',
+                    'expiry_minutes': expiry_minutes,
+                    'expires_in_seconds': expires_in_seconds,
                 })
             
             # Action 1.5: Verify Email OTP and Send Mobile OTP
@@ -211,9 +225,15 @@ def register_view(request):
                     
                 print(f"📱 [PHONE OTP DEMO] Sent OTP to {phone} for registration: {otp_phone_req.otp}")
                 
+                from common.models import SiteSettings
+                expiry_minutes = getattr(SiteSettings.get_singleton(), 'otp_expiry_minutes', 10)
+                expires_in_seconds = max(0, int((otp_phone_req.expires_at - timezone.now()).total_seconds())) if otp_phone_req.expires_at else expiry_minutes * 60
+                
                 return JsonResponse({
                     'status': 'success',
-                    'message': f'Email verified successfully. Verification OTP sent to mobile: {phone}.'
+                    'message': f'Email verified successfully. Verification OTP sent to mobile: {phone}.',
+                    'expiry_minutes': expiry_minutes,
+                    'expires_in_seconds': expires_in_seconds,
                 })
             
             # Action 1.6: Resend Mobile OTP for registration
@@ -253,9 +273,15 @@ def register_view(request):
                     
                 print(f"📱 [PHONE OTP DEMO] Resent OTP to {phone} for registration: {otp_phone_req.otp}")
                 
+                from common.models import SiteSettings
+                expiry_minutes = getattr(SiteSettings.get_singleton(), 'otp_expiry_minutes', 10)
+                expires_in_seconds = max(0, int((otp_phone_req.expires_at - timezone.now()).total_seconds())) if otp_phone_req.expires_at else expiry_minutes * 60
+                
                 return JsonResponse({
                     'status': 'success',
-                    'message': f'New verification OTP sent to mobile: {phone}.'
+                    'message': f'New verification OTP sent to mobile: {phone}.',
+                    'expiry_minutes': expiry_minutes,
+                    'expires_in_seconds': expires_in_seconds,
                 })
             
             # Action 2: Verify Phone OTP and complete registration
@@ -400,9 +426,16 @@ def send_change_password_otp(request):
         
     print(f"📱 [PHONE OTP DEMO] Sent OTP to {recipient} for password change: {otp_req.otp}")
     
+    from common.models import SiteSettings
+    from django.utils import timezone
+    expiry_minutes = getattr(SiteSettings.get_singleton(), 'otp_expiry_minutes', 10)
+    expires_in_seconds = max(0, int((otp_req.expires_at - timezone.now()).total_seconds())) if otp_req.expires_at else expiry_minutes * 60
+    
     return JsonResponse({
         'status': 'success',
-        'message': f'OTP sent successfully to your registered mobile: {recipient}.'
+        'message': f'OTP sent successfully to your registered mobile: {recipient}.',
+        'expiry_minutes': expiry_minutes,
+        'expires_in_seconds': expires_in_seconds,
     })
 
 
@@ -579,9 +612,16 @@ def resend_forgot_password_otp(request):
     else:
         msg = f"New OTP sent successfully via SMS to {phone}."
         
+    from common.models import SiteSettings
+    from django.utils import timezone
+    expiry_minutes = getattr(SiteSettings.get_singleton(), 'otp_expiry_minutes', 10)
+    expires_in_seconds = max(0, int((otp_req.expires_at - timezone.now()).total_seconds())) if otp_req.expires_at else expiry_minutes * 60
+    
     return JsonResponse({
         'status': 'success',
-        'message': msg
+        'message': msg,
+        'expiry_minutes': expiry_minutes,
+        'expires_in_seconds': expires_in_seconds,
     })
 
 
@@ -1113,11 +1153,19 @@ def profile_view(request):
                 if phone_sent:
                     msg_parts.append(f"OTP sent to new mobile: {new_phone}")
                 
+                from common.models import SiteSettings
+                from django.utils import timezone
+                expiry_minutes = getattr(SiteSettings.get_singleton(), 'otp_expiry_minutes', 10)
+                ref_req = email_otp_req or phone_otp_req
+                expires_in_seconds = max(0, int((ref_req.expires_at - timezone.now()).total_seconds())) if ref_req and ref_req.expires_at else expiry_minutes * 60
+                
                 return JsonResponse({
                     'status': 'success',
                     'message': " & ".join(msg_parts) + ".",
                     'email_sent': email_sent,
-                    'phone_sent': phone_sent
+                    'phone_sent': phone_sent,
+                    'expiry_minutes': expiry_minutes,
+                    'expires_in_seconds': expires_in_seconds,
                 })
 
             # ===== UPDATE PERSONAL PROFILE =====

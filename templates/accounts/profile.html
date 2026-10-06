@@ -1097,8 +1097,17 @@
             
             <!-- Email OTP Input -->
             <div class="form-group" id="emailOtpGroup" style="display:none; margin-bottom:15px;">
-                <label for="emailOtp" style="font-weight:500; font-size:0.9rem; display:block; margin-bottom:5px;">Email OTP (sent to new email)</label>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                    <label for="emailOtp" style="font-weight:500; font-size:0.9rem; margin:0;">Email OTP (sent to new email)</label>
+                    <div id="profileEmailOtpExpiryWrap" style="font-size:0.8rem; color:#666; display:flex; align-items:center; gap:4px;">
+                        <i class="fa fa-clock" style="color:var(--primary-color, #2874f0);"></i>
+                        <span>Expires in: <strong id="profileEmailExpiryTimer" style="color:#e53935; font-variant-numeric: tabular-nums;">{{ site_settings.otp_expiry_minutes|default:10 }}:00</strong></span>
+                    </div>
+                </div>
                 <input type="text" id="emailOtp" class="form-input" placeholder="6-digit Email OTP" maxlength="6" style="text-align:center; letter-spacing:2px; width:100%; box-sizing:border-box; padding:10px;">
+                <div id="profileEmailOtpExpiredMsg" style="display:none; color:#c62828; font-size:0.82rem; text-align:center; margin-top:6px; font-weight:500;">
+                    <i class="fa fa-exclamation-circle"></i> Email OTP has expired. Please click Resend OTP below.
+                </div>
                 <div id="profileEmailResendWrap" style="text-align:center; margin-top:6px; font-size:0.85rem; color:#666;">
                     Didn't receive email code? 
                     <button type="button" id="resendProfileEmailOtpBtn" class="btn-resend-link" disabled style="background:none; border:none; color:var(--primary-color, #2874f0); font-weight:600; cursor:pointer; padding:0 4px; text-decoration:underline; font-size:0.85rem;">
@@ -1109,8 +1118,17 @@
             
             <!-- Phone OTP Input -->
             <div class="form-group" id="phoneOtpGroup" style="display:none; margin-bottom:20px;">
-                <label for="phoneOtp" style="font-weight:500; font-size:0.9rem; display:block; margin-bottom:5px;">Mobile OTP (sent to new mobile)</label>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                    <label for="phoneOtp" style="font-weight:500; font-size:0.9rem; margin:0;">Mobile OTP (sent to new mobile)</label>
+                    <div id="profilePhoneOtpExpiryWrap" style="font-size:0.8rem; color:#666; display:flex; align-items:center; gap:4px;">
+                        <i class="fa fa-clock" style="color:var(--primary-color, #2874f0);"></i>
+                        <span>Expires in: <strong id="profilePhoneExpiryTimer" style="color:#e53935; font-variant-numeric: tabular-nums;">{{ site_settings.otp_expiry_minutes|default:10 }}:00</strong></span>
+                    </div>
+                </div>
                 <input type="text" id="phoneOtp" class="form-input" placeholder="6-digit Mobile OTP" maxlength="6" style="text-align:center; letter-spacing:2px; width:100%; box-sizing:border-box; padding:10px;">
+                <div id="profilePhoneOtpExpiredMsg" style="display:none; color:#c62828; font-size:0.82rem; text-align:center; margin-top:6px; font-weight:500;">
+                    <i class="fa fa-exclamation-circle"></i> Mobile OTP has expired. Please click Resend OTP below.
+                </div>
                 <div id="profilePhoneResendWrap" style="text-align:center; margin-top:6px; font-size:0.85rem; color:#666;">
                     Didn't receive mobile code? 
                     <button type="button" id="resendProfilePhoneOtpBtn" class="btn-resend-link" disabled style="background:none; border:none; color:var(--primary-color, #2874f0); font-weight:600; cursor:pointer; padding:0 4px; text-decoration:underline; font-size:0.85rem;">
@@ -1238,6 +1256,64 @@ const verifyModalSubtitle = document.getElementById('verifyModalSubtitle');
 // ── Profile OTP Countdown & Resend Handlers ──
 let profileEmailTimer = null;
 let profilePhoneTimer = null;
+let profileEmailExpiryTimer = null;
+let profilePhoneExpiryTimer = null;
+
+function formatProfileTimer(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+}
+
+function startProfileEmailExpiryCountdown(seconds = 600) {
+    const timerEl = document.getElementById('profileEmailExpiryTimer');
+    const expiredMsg = document.getElementById('profileEmailOtpExpiredMsg');
+    if (!timerEl) return;
+
+    if (profileEmailExpiryTimer) clearInterval(profileEmailExpiryTimer);
+    if (expiredMsg) expiredMsg.style.display = 'none';
+
+    let remaining = seconds;
+    timerEl.textContent = formatProfileTimer(remaining);
+    timerEl.style.color = '#e53935';
+
+    profileEmailExpiryTimer = setInterval(() => {
+        remaining--;
+        if (remaining <= 0) {
+            clearInterval(profileEmailExpiryTimer);
+            profileEmailExpiryTimer = null;
+            timerEl.textContent = '0:00 (Expired)';
+            if (expiredMsg) expiredMsg.style.display = 'block';
+        } else {
+            timerEl.textContent = formatProfileTimer(remaining);
+        }
+    }, 1000);
+}
+
+function startProfilePhoneExpiryCountdown(seconds = 600) {
+    const timerEl = document.getElementById('profilePhoneExpiryTimer');
+    const expiredMsg = document.getElementById('profilePhoneOtpExpiredMsg');
+    if (!timerEl) return;
+
+    if (profilePhoneExpiryTimer) clearInterval(profilePhoneExpiryTimer);
+    if (expiredMsg) expiredMsg.style.display = 'none';
+
+    let remaining = seconds;
+    timerEl.textContent = formatProfileTimer(remaining);
+    timerEl.style.color = '#e53935';
+
+    profilePhoneExpiryTimer = setInterval(() => {
+        remaining--;
+        if (remaining <= 0) {
+            clearInterval(profilePhoneExpiryTimer);
+            profilePhoneExpiryTimer = null;
+            timerEl.textContent = '0:00 (Expired)';
+            if (expiredMsg) expiredMsg.style.display = 'block';
+        } else {
+            timerEl.textContent = formatProfileTimer(remaining);
+        }
+    }, 1000);
+}
 
 function startProfileEmailCountdown(seconds = 60) {
     const resendBtn = document.getElementById('resendProfileEmailOtpBtn');
@@ -1322,6 +1398,8 @@ resendProfileEmailOtpBtn?.addEventListener('click', async () => {
             document.getElementById('emailOtp').value = '';
             document.getElementById('emailOtp').focus();
             startProfileEmailCountdown(60);
+            const expirySecs = data.expires_in_seconds || (data.expiry_minutes ? data.expiry_minutes * 60 : 600);
+            startProfileEmailExpiryCountdown(expirySecs);
         } else {
             showToast(data.message || 'Failed to resend email OTP', 'error');
             startProfileEmailCountdown(30);
@@ -1361,6 +1439,8 @@ resendProfilePhoneOtpBtn?.addEventListener('click', async () => {
             document.getElementById('phoneOtp').value = '';
             document.getElementById('phoneOtp').focus();
             startProfilePhoneCountdown(60);
+            const expirySecs = data.expires_in_seconds || (data.expiry_minutes ? data.expiry_minutes * 60 : 600);
+            startProfilePhoneExpiryCountdown(expirySecs);
         } else {
             showToast(data.message || 'Failed to resend mobile OTP', 'error');
             startProfilePhoneCountdown(30);
@@ -1377,6 +1457,8 @@ const hideVerifyModal = () => {
     document.body.style.overflow = '';
     if (profileEmailTimer) clearInterval(profileEmailTimer);
     if (profilePhoneTimer) clearInterval(profilePhoneTimer);
+    if (profileEmailExpiryTimer) clearInterval(profileEmailExpiryTimer);
+    if (profilePhoneExpiryTimer) clearInterval(profilePhoneExpiryTimer);
 };
 
 closeVerifyProfileBtn?.addEventListener('click', hideVerifyModal);
@@ -1510,12 +1592,15 @@ profileForm?.addEventListener('submit', async (e) => {
                 // Display the modal
                 verifyProfileModal.classList.add('show');
                 document.body.style.overflow = 'hidden';
+                const profileExpSecs = data.expires_in_seconds || (data.expiry_minutes ? data.expiry_minutes * 60 : 600);
                 if (emailChanged) {
                     document.getElementById('emailOtp').focus();
                     startProfileEmailCountdown(60);
+                    startProfileEmailExpiryCountdown(profileExpSecs);
                 } else if (phoneChanged) {
                     document.getElementById('phoneOtp').focus();
                     startProfilePhoneCountdown(60);
+                    startProfilePhoneExpiryCountdown(profileExpSecs);
                 }
                 
                 // Setup verify trigger

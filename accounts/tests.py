@@ -1309,5 +1309,34 @@ class ResendOTPTests(TestCase):
         self.assertEqual(data['status'], 'error')
         self.assertIn("exceeded the limit of 2 SMS OTP requests per day", data['message'])
 
+    def test_otp_responses_include_dynamic_expiry_data(self):
+        from common.models import SiteSettings
+        site_settings = SiteSettings.get_singleton()
+        site_settings.otp_expiry_minutes = 15
+        site_settings.save()
+
+        # 1. Register Email OTP resend response
+        res = self.client.post(
+            reverse('accounts:register'),
+            json.dumps({'action': 'resend_register_email_otp', 'email': 'expirytest@example.com'}),
+            content_type='application/json',
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+        )
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertEqual(data['expiry_minutes'], 15)
+        self.assertGreater(data['expires_in_seconds'], 800)
+
+        # 2. Forgot Password resend response
+        session = self.client.session
+        session['forgot_phone'] = self.user.phone
+        session.save()
+        res_forgot = self.client.post(reverse('accounts:resend_forgot_password_otp'), HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(res_forgot.status_code, 200)
+        data_forgot = res_forgot.json()
+        self.assertEqual(data_forgot['expiry_minutes'], 15)
+        self.assertGreater(data_forgot['expires_in_seconds'], 800)
+
+
 
 
