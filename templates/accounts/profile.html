@@ -1099,12 +1099,24 @@
             <div class="form-group" id="emailOtpGroup" style="display:none; margin-bottom:15px;">
                 <label for="emailOtp" style="font-weight:500; font-size:0.9rem; display:block; margin-bottom:5px;">Email OTP (sent to new email)</label>
                 <input type="text" id="emailOtp" class="form-input" placeholder="6-digit Email OTP" maxlength="6" style="text-align:center; letter-spacing:2px; width:100%; box-sizing:border-box; padding:10px;">
+                <div id="profileEmailResendWrap" style="text-align:center; margin-top:6px; font-size:0.85rem; color:#666;">
+                    Didn't receive email code? 
+                    <button type="button" id="resendProfileEmailOtpBtn" class="btn-resend-link" disabled style="background:none; border:none; color:var(--primary-color, #2874f0); font-weight:600; cursor:pointer; padding:0 4px; text-decoration:underline; font-size:0.85rem;">
+                        Resend in <span id="profileEmailCountdown">60</span>s
+                    </button>
+                </div>
             </div>
             
             <!-- Phone OTP Input -->
             <div class="form-group" id="phoneOtpGroup" style="display:none; margin-bottom:20px;">
                 <label for="phoneOtp" style="font-weight:500; font-size:0.9rem; display:block; margin-bottom:5px;">Mobile OTP (sent to new mobile)</label>
                 <input type="text" id="phoneOtp" class="form-input" placeholder="6-digit Mobile OTP" maxlength="6" style="text-align:center; letter-spacing:2px; width:100%; box-sizing:border-box; padding:10px;">
+                <div id="profilePhoneResendWrap" style="text-align:center; margin-top:6px; font-size:0.85rem; color:#666;">
+                    Didn't receive mobile code? 
+                    <button type="button" id="resendProfilePhoneOtpBtn" class="btn-resend-link" disabled style="background:none; border:none; color:var(--primary-color, #2874f0); font-weight:600; cursor:pointer; padding:0 4px; text-decoration:underline; font-size:0.85rem;">
+                        Resend in <span id="profilePhoneCountdown">60</span>s
+                    </button>
+                </div>
             </div>
             
             <div class="form-actions" style="margin-top:20px;">
@@ -1223,9 +1235,148 @@ const emailOtpGroup = document.getElementById('emailOtpGroup');
 const phoneOtpGroup = document.getElementById('phoneOtpGroup');
 const verifyModalSubtitle = document.getElementById('verifyModalSubtitle');
 
+// ── Profile OTP Countdown & Resend Handlers ──
+let profileEmailTimer = null;
+let profilePhoneTimer = null;
+
+function startProfileEmailCountdown(seconds = 60) {
+    const resendBtn = document.getElementById('resendProfileEmailOtpBtn');
+    if (!resendBtn) return;
+    if (profileEmailTimer) clearInterval(profileEmailTimer);
+    
+    resendBtn.disabled = true;
+    resendBtn.style.opacity = '0.6';
+    resendBtn.style.cursor = 'not-allowed';
+    resendBtn.innerHTML = `Resend in <span id="profileEmailCountdown">${seconds}</span>s`;
+    
+    let remaining = seconds;
+    profileEmailTimer = setInterval(() => {
+        remaining--;
+        const span = document.getElementById('profileEmailCountdown');
+        if (span) span.textContent = remaining;
+        if (remaining <= 0) {
+            clearInterval(profileEmailTimer);
+            profileEmailTimer = null;
+            resendBtn.disabled = false;
+            resendBtn.style.opacity = '1';
+            resendBtn.style.cursor = 'pointer';
+            resendBtn.innerHTML = '<i class="fa fa-redo" style="font-size:0.8rem; margin-right:3px;"></i> Resend OTP';
+        }
+    }, 1000);
+}
+
+function startProfilePhoneCountdown(seconds = 60) {
+    const resendBtn = document.getElementById('resendProfilePhoneOtpBtn');
+    if (!resendBtn) return;
+    if (profilePhoneTimer) clearInterval(profilePhoneTimer);
+    
+    resendBtn.disabled = true;
+    resendBtn.style.opacity = '0.6';
+    resendBtn.style.cursor = 'not-allowed';
+    resendBtn.innerHTML = `Resend in <span id="profilePhoneCountdown">${seconds}</span>s`;
+    
+    let remaining = seconds;
+    profilePhoneTimer = setInterval(() => {
+        remaining--;
+        const span = document.getElementById('profilePhoneCountdown');
+        if (span) span.textContent = remaining;
+        if (remaining <= 0) {
+            clearInterval(profilePhoneTimer);
+            profilePhoneTimer = null;
+            resendBtn.disabled = false;
+            resendBtn.style.opacity = '1';
+            resendBtn.style.cursor = 'pointer';
+            resendBtn.innerHTML = '<i class="fa fa-redo" style="font-size:0.8rem; margin-right:3px;"></i> Resend OTP';
+        }
+    }, 1000);
+}
+
+const resendProfileEmailOtpBtn = document.getElementById('resendProfileEmailOtpBtn');
+const resendProfilePhoneOtpBtn = document.getElementById('resendProfilePhoneOtpBtn');
+
+resendProfileEmailOtpBtn?.addEventListener('click', async () => {
+    if (resendProfileEmailOtpBtn.disabled) return;
+    const email = document.getElementById('email')?.value.trim();
+    if (!email) return;
+    
+    resendProfileEmailOtpBtn.disabled = true;
+    resendProfileEmailOtpBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Resending...';
+    
+    try {
+        const res = await fetch("{% url 'accounts:profile' %}", {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json', 
+                'X-CSRFToken': csrfToken, 
+                'X-Requested-With': 'XMLHttpRequest' 
+            },
+            body: JSON.stringify({
+                action: 'send_profile_update_otps',
+                target: 'email',
+                email: email
+            })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            showToast(data.message, 'success');
+            document.getElementById('emailOtp').value = '';
+            document.getElementById('emailOtp').focus();
+            startProfileEmailCountdown(60);
+        } else {
+            showToast(data.message || 'Failed to resend email OTP', 'error');
+            startProfileEmailCountdown(30);
+        }
+    } catch (err) {
+        console.error('Error resending email OTP:', err);
+        showToast('Network error while requesting new OTP', 'error');
+        startProfileEmailCountdown(15);
+    }
+});
+
+resendProfilePhoneOtpBtn?.addEventListener('click', async () => {
+    if (resendProfilePhoneOtpBtn.disabled) return;
+    const phone = document.getElementById('phone')?.value.trim();
+    if (!phone) return;
+    
+    resendProfilePhoneOtpBtn.disabled = true;
+    resendProfilePhoneOtpBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Resending...';
+    
+    try {
+        const res = await fetch("{% url 'accounts:profile' %}", {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json', 
+                'X-CSRFToken': csrfToken, 
+                'X-Requested-With': 'XMLHttpRequest' 
+            },
+            body: JSON.stringify({
+                action: 'send_profile_update_otps',
+                target: 'phone',
+                phone: phone
+            })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            showToast(data.message, 'success');
+            document.getElementById('phoneOtp').value = '';
+            document.getElementById('phoneOtp').focus();
+            startProfilePhoneCountdown(60);
+        } else {
+            showToast(data.message || 'Failed to resend mobile OTP', 'error');
+            startProfilePhoneCountdown(30);
+        }
+    } catch (err) {
+        console.error('Error resending mobile OTP:', err);
+        showToast('Network error while requesting new OTP', 'error');
+        startProfilePhoneCountdown(15);
+    }
+});
+
 const hideVerifyModal = () => {
     verifyProfileModal.classList.remove('show');
     document.body.style.overflow = '';
+    if (profileEmailTimer) clearInterval(profileEmailTimer);
+    if (profilePhoneTimer) clearInterval(profilePhoneTimer);
 };
 
 closeVerifyProfileBtn?.addEventListener('click', hideVerifyModal);
@@ -1359,6 +1510,13 @@ profileForm?.addEventListener('submit', async (e) => {
                 // Display the modal
                 verifyProfileModal.classList.add('show');
                 document.body.style.overflow = 'hidden';
+                if (emailChanged) {
+                    document.getElementById('emailOtp').focus();
+                    startProfileEmailCountdown(60);
+                } else if (phoneChanged) {
+                    document.getElementById('phoneOtp').focus();
+                    startProfilePhoneCountdown(60);
+                }
                 
                 // Setup verify trigger
                 confirmVerifyProfileBtn.onclick = () => {

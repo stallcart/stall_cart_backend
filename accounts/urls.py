@@ -16,6 +16,7 @@ urlpatterns = [
     # Forgot/Reset Password Flow with OTP
     path('forgot-password/', views.forgot_password_view, name='forgot_password'),
     path('forgot-password/verify/', views.forgot_password_verify_view, name='forgot_password_verify'),
+    path('forgot-password/resend-otp/', views.resend_forgot_password_otp, name='resend_forgot_password_otp'),
     path('forgot-password/reset/', views.forgot_password_reset_view, name='forgot_password_reset'),
     path('api/send-change-password-otp/', views.send_change_password_otp, name='send_change_password_otp'),
     path('api/address/<int:address_id>/', views.api_address_detail, name='api_address_detail'),

@@ -138,6 +138,33 @@ def register_view(request):
                     'message': f'Verification OTP sent to email: {email}.'
                 })
             
+            # Action 1.1: Resend Email OTP for registration
+            elif action == 'resend_register_email_otp':
+                email = data.get('email', '').strip().lower()
+                if not email or '@' not in email:
+                    return JsonResponse({'status': 'error', 'message': 'A valid email address is required.'}, status=400)
+                
+                if User.objects.filter(email=email).exists():
+                    return JsonResponse({'status': 'error', 'message': 'Email address already registered by another user.'}, status=400)
+                
+                # Generate and send new email OTP
+                otp_email_req, err = OTPRequest.check_and_create_otp(email, 'register_email')
+                if err:
+                    return JsonResponse({'status': 'error', 'message': err}, status=400)
+                
+                try:
+                    from common.email_service import send_dynamic_email
+                    send_dynamic_email('registration_email_otp', [email], {'otp': otp_email_req.otp})
+                except Exception as e:
+                    logger.error(f"Failed to resend registration email OTP: {e}")
+                
+                print(f"📧 [EMAIL OTP DEMO] Resent OTP to {email} for registration: {otp_email_req.otp}")
+                
+                return JsonResponse({
+                    'status': 'success',
+                    'message': f'New verification OTP sent to email: {email}.'
+                })
+            
             # Action 1.5: Verify Email OTP and Send Mobile OTP
             elif action == 'verify_email_otp':
                 phone = data.get('phone', '').strip()
@@ -187,6 +214,48 @@ def register_view(request):
                 return JsonResponse({
                     'status': 'success',
                     'message': f'Email verified successfully. Verification OTP sent to mobile: {phone}.'
+                })
+            
+            # Action 1.6: Resend Mobile OTP for registration
+            elif action == 'resend_register_phone_otp':
+                phone = data.get('phone', '').strip()
+                email = data.get('email', '').strip().lower()
+                
+                if not phone or len(phone) != 10 or not phone.isdigit():
+                    return JsonResponse({'status': 'error', 'message': 'A valid 10-digit mobile number is required.'}, status=400)
+                
+                if User.objects.filter(phone=phone).exists():
+                    return JsonResponse({'status': 'error', 'message': 'Mobile number already registered by another user.'}, status=400)
+                
+                # Verify that Email OTP was verified before allowing phone OTP resend
+                from django.utils import timezone
+                from datetime import timedelta
+                otp_email_verified = OTPRequest.objects.filter(
+                    phone=email,
+                    purpose='register_email',
+                    is_verified=True,
+                    updated_at__gt=timezone.now() - timedelta(minutes=30)
+                ).exists()
+                
+                if not otp_email_verified:
+                    return JsonResponse({'status': 'error', 'message': 'Email address must be verified first.'}, status=400)
+                
+                # Generate and send phone OTP
+                otp_phone_req, err = OTPRequest.check_and_create_otp(phone, 'register_phone')
+                if err:
+                    return JsonResponse({'status': 'error', 'message': err}, status=400)
+                
+                try:
+                    from common.sms_service import send_sms_via_2factor
+                    send_sms_via_2factor(phone, otp_phone_req.otp)
+                except Exception as e:
+                    logger.error(f"Failed to resend registration SMS OTP: {e}")
+                    
+                print(f"📱 [PHONE OTP DEMO] Resent OTP to {phone} for registration: {otp_phone_req.otp}")
+                
+                return JsonResponse({
+                    'status': 'success',
+                    'message': f'New verification OTP sent to mobile: {phone}.'
                 })
             
             # Action 2: Verify Phone OTP and complete registration
@@ -467,6 +536,53 @@ def forgot_password_verify_view(request):
         return redirect('accounts:forgot_password_reset')
         
     return render(request, 'accounts/forgot_password_verify.html', {'phone': phone})
+
+
+def resend_forgot_password_otp(request):
+    """AJAX endpoint to resend OTP for forgot password"""
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=405)
+    
+    phone = request.session.get('forgot_phone')
+    if not phone:
+        return JsonResponse({'status': 'error', 'message': 'Session expired. Please enter your mobile number again.'}, status=400)
+    
+    user = User.objects.filter(phone=phone).first()
+    if not user:
+        return JsonResponse({'status': 'error', 'message': 'Registered mobile number not found.'}, status=404)
+    
+    otp_req, err = OTPRequest.check_and_create_otp(phone, 'forgot_password')
+    if err:
+        return JsonResponse({'status': 'error', 'message': err}, status=400)
+    
+    sms_sent = False
+    try:
+        from common.sms_service import send_sms_via_2factor
+        sms_sent = send_sms_via_2factor(phone, otp_req.otp)
+    except Exception as e:
+        logger.error(f"Failed to resend forgot password SMS OTP: {e}")
+        
+    print(f"📱 [PHONE OTP DEMO] Resent OTP to {phone} for password reset: {otp_req.otp}")
+    
+    email_sent = False
+    recipient = user.email
+    if recipient:
+        try:
+            from common.email_service import send_dynamic_email
+            email_sent = send_dynamic_email('forgot_password_otp', [recipient], {'otp': otp_req.otp, 'user': user})
+        except Exception as e:
+            logger.error(f"Dynamic email OTP resend failed: {e}")
+        print(f"🔑 [EMAIL OTP DEMO] Resent OTP to {recipient} for password reset: {otp_req.otp}")
+        
+    if email_sent:
+        msg = f"New OTP sent successfully via SMS to {phone} and email to {recipient}."
+    else:
+        msg = f"New OTP sent successfully via SMS to {phone}."
+        
+    return JsonResponse({
+        'status': 'success',
+        'message': msg
+    })
 
 
 def forgot_password_reset_view(request):
@@ -922,16 +1038,17 @@ def profile_view(request):
                 data = request.POST
             action = data.get('action')
             
-            # ===== SEND OTPs FOR PROFILE UPDATE =====
-            if action == 'send_profile_update_otps':
+            # ===== SEND / RESEND OTPs FOR PROFILE UPDATE =====
+            if action in ['send_profile_update_otps', 'resend_profile_otp']:
                 new_email = data.get('email', '').strip().lower()
                 new_phone = data.get('phone', '').strip()
+                target = data.get('target', 'all')  # 'all', 'email', or 'phone'
                 
-                email_changed = (new_email and new_email != request.user.email)
-                phone_changed = (new_phone and new_phone != request.user.phone)
+                email_changed = (new_email and new_email != request.user.email) and (target in ['all', 'email'])
+                phone_changed = (new_phone and new_phone != request.user.phone) and (target in ['all', 'phone'])
                 
                 if not email_changed and not phone_changed:
-                    return JsonResponse({'status': 'error', 'message': 'No changes detected'}, status=400)
+                    return JsonResponse({'status': 'error', 'message': 'No changes detected or invalid target'}, status=400)
                     
                 email_sent = False
                 phone_sent = False

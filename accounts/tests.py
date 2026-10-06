@@ -1138,3 +1138,121 @@ class AdminUserManagementPaginationTests(TestCase):
         self.assertEqual(len(response.context['seller_list']), 5)
         self.assertEqual(len(response.context['customer_list']), 5)
 
+
+from unittest.mock import patch
+
+class ResendOTPTests(TestCase):
+    def setUp(self):
+        from django.test import Client
+        self.client = Client()
+        self.email_patcher = patch('common.email_service.send_dynamic_email')
+        self.sms_patcher = patch('common.sms_service.send_sms_via_2factor')
+        self.mock_email = self.email_patcher.start()
+        self.mock_sms = self.sms_patcher.start()
+        
+        self.user = User.objects.create_user(
+            phone="9876543210",
+            email="existing@example.com",
+            password="Password123!",
+            full_name="Existing User"
+        )
+
+    def tearDown(self):
+        self.email_patcher.stop()
+        self.sms_patcher.stop()
+
+    def test_resend_register_email_otp_success(self):
+        url = reverse('accounts:register')
+        payload = {
+            'action': 'resend_register_email_otp',
+            'email': 'newuser@example.com'
+        }
+        response = self.client.post(url, json.dumps(payload), content_type='application/json', HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['status'], 'success')
+        self.assertTrue(OTPRequest.objects.filter(phone='newuser@example.com', purpose='register_email').exists())
+
+    def test_resend_register_email_otp_existing_email_fails(self):
+        url = reverse('accounts:register')
+        payload = {
+            'action': 'resend_register_email_otp',
+            'email': 'existing@example.com'
+        }
+        response = self.client.post(url, json.dumps(payload), content_type='application/json', HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(response.status_code, 400)
+        data = response.json()
+        self.assertEqual(data['status'], 'error')
+        self.assertIn("already registered", data['message'])
+
+    def test_resend_register_phone_otp_requires_verified_email(self):
+        url = reverse('accounts:register')
+        payload = {
+            'action': 'resend_register_phone_otp',
+            'phone': '9988776655',
+            'email': 'unverified@example.com'
+        }
+        response = self.client.post(url, json.dumps(payload), content_type='application/json', HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(response.status_code, 400)
+        data = response.json()
+        self.assertEqual(data['status'], 'error')
+        self.assertIn("Email address must be verified first", data['message'])
+
+    def test_resend_register_phone_otp_success_when_email_verified(self):
+        # Mark email as verified
+        email_otp, _ = OTPRequest.check_and_create_otp('verified@example.com', 'register_email')
+        email_otp.is_verified = True
+        email_otp.save()
+
+        url = reverse('accounts:register')
+        payload = {
+            'action': 'resend_register_phone_otp',
+            'phone': '9988776655',
+            'email': 'verified@example.com'
+        }
+        response = self.client.post(url, json.dumps(payload), content_type='application/json', HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['status'], 'success')
+        self.assertTrue(OTPRequest.objects.filter(phone='9988776655', purpose='register_phone').exists())
+
+    def test_resend_forgot_password_otp_success(self):
+        session = self.client.session
+        session['forgot_phone'] = self.user.phone
+        session.save()
+
+        url = reverse('accounts:resend_forgot_password_otp')
+        response = self.client.post(url, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['status'], 'success')
+        self.assertTrue(OTPRequest.objects.filter(phone=self.user.phone, purpose='forgot_password').exists())
+
+    def test_resend_forgot_password_otp_expired_session(self):
+        url = reverse('accounts:resend_forgot_password_otp')
+        response = self.client.post(url, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(response.status_code, 400)
+        data = response.json()
+        self.assertEqual(data['status'], 'error')
+        self.assertIn("Session expired", data['message'])
+
+    def test_resend_profile_otp_selective_target(self):
+        self.client.login(phone="9876543210", password="Password123!")
+        url = reverse('accounts:profile')
+        
+        # Resend only email OTP
+        payload = {
+            'action': 'resend_profile_otp',
+            'target': 'email',
+            'email': 'brandnew@example.com',
+            'phone': self.user.phone
+        }
+        response = self.client.post(url, json.dumps(payload), content_type='application/json', HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['status'], 'success')
+        self.assertTrue(data['email_sent'])
+        self.assertFalse(data['phone_sent'])
+        self.assertTrue(OTPRequest.objects.filter(phone='brandnew@example.com', purpose='update_email').exists())
+
+

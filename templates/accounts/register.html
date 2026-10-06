@@ -162,18 +162,30 @@
         <p id="verifyModalSubtitle" style="font-size:0.9rem; color:#555; margin-bottom:20px; text-align:center; line-height:1.5; height: 45px; display: flex; align-items: center; justify-content: center;"></p>
         
         <!-- Email OTP Input Group -->
-        <div class="form-group" id="emailOtpGroup" style="margin-bottom:20px;">
+        <div class="form-group" id="emailOtpGroup" style="margin-bottom:15px;">
             <label for="emailOtp" style="font-weight:600; font-size:0.85rem; color:#444; display:block; margin-bottom:8px;">Enter 6-Digit Email OTP</label>
             <input type="text" id="emailOtp" class="form-input" placeholder="••••••" maxlength="6" style="text-align:center; letter-spacing:8px; font-size: 1.4rem; font-weight: 600; width:100%; box-sizing:border-box; padding:12px; border-radius: 8px; border: 1.5px solid #ddd;">
+            <div id="emailResendWrap" style="text-align:center; margin-top:10px; font-size:0.85rem; color:#666;">
+                Didn't receive email code? 
+                <button type="button" id="resendEmailOtpBtn" class="btn-resend-link" disabled style="background:none; border:none; color:var(--primary-color, #2874f0); font-weight:600; cursor:pointer; padding:0 4px; text-decoration:underline; font-size:0.85rem;">
+                    Resend in <span id="emailCountdown">60</span>s
+                </button>
+            </div>
         </div>
         
         <!-- Phone OTP Input Group (Initially Hidden) -->
-        <div class="form-group" id="phoneOtpGroup" style="margin-bottom:20px; display: none;">
+        <div class="form-group" id="phoneOtpGroup" style="margin-bottom:15px; display: none;">
             <label for="phoneOtp" style="font-weight:600; font-size:0.85rem; color:#444; display:block; margin-bottom:8px;">Enter 6-Digit Mobile OTP</label>
             <input type="text" id="phoneOtp" class="form-input" placeholder="••••••" maxlength="6" style="text-align:center; letter-spacing:8px; font-size: 1.4rem; font-weight: 600; width:100%; box-sizing:border-box; padding:12px; border-radius: 8px; border: 1.5px solid #ddd;">
+            <div id="phoneResendWrap" style="text-align:center; margin-top:10px; font-size:0.85rem; color:#666;">
+                Didn't receive mobile code? 
+                <button type="button" id="resendPhoneOtpBtn" class="btn-resend-link" disabled style="background:none; border:none; color:var(--primary-color, #2874f0); font-weight:600; cursor:pointer; padding:0 4px; text-decoration:underline; font-size:0.85rem;">
+                    Resend in <span id="phoneCountdown">60</span>s
+                </button>
+            </div>
         </div>
         
-        <div style="display:flex; gap:12px; margin-top:25px;">
+        <div style="display:flex; gap:12px; margin-top:20px;">
             <button type="button" id="confirmVerifyRegisterBtn" class="btn-primary" style="flex:1; margin:0; padding:12px 14px; font-size:0.95rem;">Verify Email</button>
             <button type="button" id="closeVerifyRegisterBtn" class="btn-outline" style="flex:1; margin:0; padding:12px 14px; font-size:0.95rem; border: 1.5px solid #ccc; background: transparent; color: #666; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s;">Cancel</button>
         </div>
@@ -266,6 +278,144 @@ document.addEventListener('DOMContentLoaded', () => {
     restrictNumeric(emailOtpInput);
     restrictNumeric(phoneOtpInput);
     
+    // Countdown Timer Helpers
+    let emailTimerInterval = null;
+    let phoneTimerInterval = null;
+
+    function startEmailCountdown(seconds = 60) {
+        const resendBtn = document.getElementById('resendEmailOtpBtn');
+        if (!resendBtn) return;
+        
+        if (emailTimerInterval) clearInterval(emailTimerInterval);
+        resendBtn.disabled = true;
+        resendBtn.style.opacity = '0.6';
+        resendBtn.style.cursor = 'not-allowed';
+        resendBtn.innerHTML = `Resend in <span id="emailCountdown">${seconds}</span>s`;
+        
+        let remaining = seconds;
+        emailTimerInterval = setInterval(() => {
+            remaining--;
+            const span = document.getElementById('emailCountdown');
+            if (span) span.textContent = remaining;
+            if (remaining <= 0) {
+                clearInterval(emailTimerInterval);
+                emailTimerInterval = null;
+                resendBtn.disabled = false;
+                resendBtn.style.opacity = '1';
+                resendBtn.style.cursor = 'pointer';
+                resendBtn.innerHTML = '<i class="fa fa-redo" style="font-size:0.8rem; margin-right:3px;"></i> Resend OTP';
+            }
+        }, 1000);
+    }
+
+    function startPhoneCountdown(seconds = 60) {
+        const resendBtn = document.getElementById('resendPhoneOtpBtn');
+        if (!resendBtn) return;
+        
+        if (phoneTimerInterval) clearInterval(phoneTimerInterval);
+        resendBtn.disabled = true;
+        resendBtn.style.opacity = '0.6';
+        resendBtn.style.cursor = 'not-allowed';
+        resendBtn.innerHTML = `Resend in <span id="phoneCountdown">${seconds}</span>s`;
+        
+        let remaining = seconds;
+        phoneTimerInterval = setInterval(() => {
+            remaining--;
+            const span = document.getElementById('phoneCountdown');
+            if (span) span.textContent = remaining;
+            if (remaining <= 0) {
+                clearInterval(phoneTimerInterval);
+                phoneTimerInterval = null;
+                resendBtn.disabled = false;
+                resendBtn.style.opacity = '1';
+                resendBtn.style.cursor = 'pointer';
+                resendBtn.innerHTML = '<i class="fa fa-redo" style="font-size:0.8rem; margin-right:3px;"></i> Resend OTP';
+            }
+        }, 1000);
+    }
+
+    // Resend button event listeners
+    const resendEmailOtpBtn = document.getElementById('resendEmailOtpBtn');
+    const resendPhoneOtpBtn = document.getElementById('resendPhoneOtpBtn');
+
+    resendEmailOtpBtn?.addEventListener('click', async () => {
+        if (resendEmailOtpBtn.disabled) return;
+        const email = document.querySelector('input[name="email"]').value.trim();
+        if (!email) return;
+        
+        resendEmailOtpBtn.disabled = true;
+        resendEmailOtpBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Resending...';
+        
+        const resendData = new FormData();
+        resendData.append('action', 'resend_register_email_otp');
+        resendData.append('email', email);
+        
+        try {
+            const res = await fetch("{% url 'accounts:register' %}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: resendData
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                toast(data.message, 'success');
+                emailOtpInput.value = '';
+                emailOtpInput.focus();
+                startEmailCountdown(60);
+            } else {
+                toast(data.message || 'Failed to resend email OTP.', 'error');
+                startEmailCountdown(30);
+            }
+        } catch (err) {
+            console.error('Resend email OTP error:', err);
+            toast('Network error while resending OTP.', 'error');
+            startEmailCountdown(15);
+        }
+    });
+
+    resendPhoneOtpBtn?.addEventListener('click', async () => {
+        if (resendPhoneOtpBtn.disabled) return;
+        const phone = document.querySelector('input[name="phone"]').value.trim();
+        const email = document.querySelector('input[name="email"]').value.trim();
+        if (!phone) return;
+        
+        resendPhoneOtpBtn.disabled = true;
+        resendPhoneOtpBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Resending...';
+        
+        const resendData = new FormData();
+        resendData.append('action', 'resend_register_phone_otp');
+        resendData.append('phone', phone);
+        resendData.append('email', email);
+        
+        try {
+            const res = await fetch("{% url 'accounts:register' %}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: resendData
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                toast(data.message, 'success');
+                phoneOtpInput.value = '';
+                phoneOtpInput.focus();
+                startPhoneCountdown(60);
+            } else {
+                toast(data.message || 'Failed to resend mobile OTP.', 'error');
+                startPhoneCountdown(30);
+            }
+        } catch (err) {
+            console.error('Resend mobile OTP error:', err);
+            toast('Network error while resending OTP.', 'error');
+            startPhoneCountdown(15);
+        }
+    });
+
     // Custom button style hover behaviors
     if (closeVerifyRegisterBtn) {
         closeVerifyRegisterBtn.addEventListener('mouseenter', () => {
@@ -280,6 +430,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     closeVerifyRegisterBtn?.addEventListener('click', () => {
         verifyRegisterModal.style.display = 'none';
+        if (emailTimerInterval) clearInterval(emailTimerInterval);
+        if (phoneTimerInterval) clearInterval(phoneTimerInterval);
     });
     
     authForm?.addEventListener('submit', async (e) => {
@@ -404,6 +556,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // Show verification modal
                 verifyRegisterModal.style.display = 'flex';
+                emailOtpInput.focus();
+                startEmailCountdown(60);
                 
                 // Set click event handler for verify button
                 confirmVerifyRegisterBtn.onclick = async () => {
@@ -457,6 +611,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                 
                                 emailOtpGroup.style.display = 'none';
                                 phoneOtpGroup.style.display = 'block';
+                                phoneOtpInput.focus();
+                                startPhoneCountdown(60);
                                 
                                 confirmVerifyRegisterBtn.textContent = 'Verify Mobile & Register';
                             } else {
