@@ -1638,10 +1638,10 @@
                         </div>
                     {% endif %}
                     {% if product.gender %}
-                        <span class="badge-gender" style="top:6px;left:6px;font-size:0.62rem;">{{ product.get_gender_display }}</span>
+                        <span class="badge-gender">{{ product.get_gender_display }}</span>
                     {% endif %}
                     {% if product.discount_percent > 0 %}
-                        <span class="badge-discount" style="top:6px;right:6px;font-size:0.62rem;">-{{ product.discount_percent }}%</span>
+                        <span class="badge-discount">-{{ product.discount_percent }}%</span>
                     {% endif %}
                     {% if product.stock == 0 %}
                         <div class="out-of-stock-overlay" style="font-size:0.75rem;">Out of Stock</div>

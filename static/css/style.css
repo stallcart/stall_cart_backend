@@ -1175,32 +1175,60 @@ h4 { font-size: 1rem; font-weight: 600; }
 /* Product badges */
 .badge-gender, .badge-discount, .badge-hot {
     position: absolute;
-    font-size: 0.64rem;
+    font-size: 0.65rem;
     font-weight: 700;
-    padding: 4px 10px;
+    padding: 3px 8px;
     border-radius: 6px;
-    line-height: 1;
-    z-index: 1;
+    line-height: 1.2;
+    z-index: 2;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
-}
-.badge-gender {
-    bottom: 12px; left: 12px;
-    background: rgba(15, 23, 42, 0.75);
-    color: #fff;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-}
-.badge-discount {
-    bottom: 12px; right: 12px;
-    background: var(--red);
-    color: #fff;
+    letter-spacing: 0.04em;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    pointer-events: none;
+    max-width: calc(100% - 20px);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 .badge-hot {
-    bottom: 12px; right: 12px;
-    background: var(--amber);
-    color: var(--gray-900);
+    top: 10px;
+    left: 10px;
+    bottom: auto;
+    right: auto;
+    background: linear-gradient(135deg, #f59e0b, #ef4444);
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.35);
+}
+.badge-gender {
+    bottom: 10px;
+    left: 10px;
+    top: auto;
+    right: auto;
+    background: rgba(15, 23, 42, 0.82);
+    color: #ffffff;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+}
+.badge-discount {
+    bottom: 10px;
+    right: 10px;
+    top: auto;
+    left: auto;
+    background: #ef4444;
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
+.image-badges .badge, .related-badges .badge {
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
 }
 
 .out-of-stock-overlay {
@@ -5574,13 +5602,27 @@ input[id$="-DELETE"] {
     }
     
     .badge-gender, .badge-discount, .badge-hot {
-        font-size: 0.6rem !important;
-        padding: 3px 6px !important;
-        border-radius: 4px !important;
+        font-size: 0.58rem !important;
+        padding: 2px 6px !important;
+        border-radius: 5px !important;
+    }
+    .badge-hot {
         top: 8px !important;
         left: 8px !important;
         bottom: auto !important;
         right: auto !important;
+    }
+    .badge-gender {
+        bottom: 8px !important;
+        left: 8px !important;
+        top: auto !important;
+        right: auto !important;
+    }
+    .badge-discount {
+        bottom: 8px !important;
+        right: 8px !important;
+        top: auto !important;
+        left: auto !important;
     }
     
     .product-info {
@@ -5663,13 +5705,28 @@ input[id$="-DELETE"] {
     }
     
     .badge-gender, .badge-discount, .badge-hot {
-        font-size: 0.55rem !important;
+        font-size: 0.52rem !important;
         padding: 2px 5px !important;
         border-radius: 4px !important;
+        line-height: 1.1 !important;
+    }
+    .badge-hot {
         top: 6px !important;
         left: 6px !important;
         bottom: auto !important;
         right: auto !important;
+    }
+    .badge-gender {
+        bottom: 6px !important;
+        left: 6px !important;
+        top: auto !important;
+        right: auto !important;
+    }
+    .badge-discount {
+        bottom: 6px !important;
+        right: 6px !important;
+        top: auto !important;
+        left: auto !important;
     }
     
     .product-info {
