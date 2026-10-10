@@ -4,7 +4,9 @@ from django.utils import timezone
 from django.urls import path, reverse
 from django.http import HttpResponseRedirect
 from django.contrib import messages
-from .models import SiteSettings, EmailTemplate, SupportEnquiry
+from .models import SiteSettings, EmailTemplate, SupportEnquiry, Campaign, CampaignPrize, CampaignParticipant, CampaignWinner
+import secrets
+from django.shortcuts import get_object_or_404, render, redirect
 
 class BaseModelAdmin(admin.ModelAdmin):
     """Reusable admin config for all models inheriting BaseModel"""
@@ -248,3 +250,240 @@ class SupportEnquiryAdmin(admin.ModelAdmin):
             'fields': ('is_resolved', 'resolved_notes', 'updated_at')
         }),
     )
+
+
+# ==========================================
+# 🎁 FESTIVE CAMPAIGN & LUCKY DRAW ADMIN
+# ==========================================
+class CampaignPrizeInline(admin.TabularInline):
+    model = CampaignPrize
+    extra = 3
+    fields = ('rank', 'title', 'subtitle', 'approx_value', 'image', 'display_order')
+    ordering = ('rank', 'display_order')
+
+
+@admin.register(Campaign)
+class CampaignAdmin(admin.ModelAdmin):
+    list_display = (
+        'title', 'status_badge', 'is_active_toggle', 'date_window_display', 
+        'progress_meter', 'prizes_count', 'lucky_draw_btn'
+    )
+    list_filter = ('is_active', 'status', 'start_datetime', 'end_datetime')
+    search_fields = ('title', 'slug', 'tagline', 'description')
+    prepopulated_fields = {'slug': ('title',)}
+    inlines = [CampaignPrizeInline]
+    actions = ['activate_selected_campaigns', 'deactivate_selected_campaigns', 'run_lucky_draw_action']
+    
+    fieldsets = (
+        ('🎉 Campaign Details', {
+            'fields': ('title', 'slug', 'badge_text', 'tagline', 'description', 'theme_color')
+        }),
+        ('🖼️ Promotional Banners', {
+            'fields': ('banner_image', 'mobile_banner'),
+            'description': 'Upload celebratory banners shown on home & campaign landing pages.'
+        }),
+        ('⏰ Schedule & Target', {
+            'fields': ('start_datetime', 'end_datetime', 'target_registrations', 'winner_announcement_date'),
+            'description': 'Set the live contest period (e.g. 17 Oct 00:00 to 18 Oct 23:59) and target account goal.'
+        }),
+        ('⚙️ Display & Activation Controls', {
+            'fields': ('is_active', 'status', 'show_on_homepage', 'show_on_register_page'),
+            'description': 'Uncheck "Is Active" to immediately hide the campaign everywhere across the site.'
+        }),
+    )
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path('<int:campaign_id>/run-lucky-draw/', self.admin_site.admin_view(self.run_lucky_draw_view), name='common_campaign_run_lucky_draw'),
+        ]
+        return custom_urls + urls
+
+    def status_badge(self, obj):
+        colors = {
+            'active': '#16a34a',
+            'upcoming': '#2563eb',
+            'draft': '#64748b',
+            'paused': '#d97706',
+            'ended': '#dc2626',
+            'winners_declared': '#9333ea',
+        }
+        color = colors.get(obj.status, '#64748b')
+        live_dot = '🟢 Live Now' if obj.is_live else obj.get_status_display()
+        return format_html(
+            '<span style="background: {}; color: white; padding: 4px 8px; border-radius: 6px; font-weight: 700; font-size: 0.78rem;">{}</span>',
+            color, live_dot
+        )
+    status_badge.short_description = "Status"
+
+    def is_active_toggle(self, obj):
+        if obj.is_active:
+            return format_html('<span style="color: #16a34a; font-weight: 800;">✔ Active</span>')
+        return format_html('<span style="color: #dc2626; font-weight: 800;">✖ Off (Disabled)</span>')
+    is_active_toggle.short_description = "On/Off Switch"
+
+    def date_window_display(self, obj):
+        s = obj.start_datetime.strftime('%d %b %H:%M')
+        e = obj.end_datetime.strftime('%d %b %H:%M')
+        return f"{s} → {e}"
+    date_window_display.short_description = "Contest Dates"
+
+    def progress_meter(self, obj):
+        count = obj.participants_count
+        target = obj.target_registrations
+        pct = obj.progress_percentage
+        bar_color = '#16a34a' if count >= target else '#2563eb'
+        return format_html(
+            '<div style="min-width: 140px;">'
+            '  <div style="font-size: 0.8rem; font-weight: 700; margin-bottom: 2px;">{}/{} ({:.1f}%)</div>'
+            '  <div style="background: #e2e8f0; height: 8px; border-radius: 4px; overflow: hidden;">'
+            '    <div style="background: {}; width: {}%; height: 100%;"></div>'
+            '  </div>'
+            '</div>',
+            count, target, pct, bar_color, min(pct, 100)
+        )
+    progress_meter.short_description = "Registrations"
+
+    def prizes_count(self, obj):
+        return obj.prizes.count()
+    prizes_count.short_description = "Prizes"
+
+    def lucky_draw_btn(self, obj):
+        url = reverse('admin:common_campaign_run_lucky_draw', args=[obj.pk])
+        if obj.status == 'winners_declared':
+            return format_html(
+                '<a href="{}" class="button" style="background: #9333ea; color: white; padding: 4px 10px; border-radius: 4px; text-decoration: none; font-size: 0.75rem; font-weight: 700;">🏆 View Winners</a>',
+                url
+            )
+        return format_html(
+            '<a href="{}" class="button" style="background: #e11d48; color: white; padding: 4px 10px; border-radius: 4px; text-decoration: none; font-size: 0.75rem; font-weight: 700;">🎲 Lucky Draw</a>',
+            url
+        )
+    lucky_draw_btn.short_description = "Lucky Draw"
+
+    def run_lucky_draw_view(self, request, campaign_id):
+        campaign = get_object_or_404(Campaign, pk=campaign_id)
+        prizes = campaign.prizes.all().order_by('rank', 'display_order')
+        existing_winners = campaign.winners.select_related('prize', 'user', 'participant').all()
+
+        if request.method == 'POST' and 'execute_draw' in request.POST:
+            if not prizes.exists():
+                messages.error(request, "Cannot run Lucky Draw: No prizes configured for this campaign. Please add prizes first.")
+                return redirect('admin:common_campaign_change', campaign_id)
+
+            # Candidate pool: eligible active users who haven't won a prize in this campaign yet
+            eligible_participants = list(
+                campaign.participants.filter(
+                    is_eligible=True,
+                    is_deleted=False,
+                    user__is_active=True
+                ).exclude(
+                    user__in=existing_winners.values_list('user_id', flat=True)
+                ).select_related('user')
+            )
+
+            if len(eligible_participants) < prizes.count():
+                messages.error(
+                    request, 
+                    f"Not enough eligible participants ({len(eligible_participants)}) for {prizes.count()} configured prizes."
+                )
+                return HttpResponseRedirect(request.path)
+
+            # Use cryptographically secure shuffle
+            rng = secrets.SystemRandom()
+            rng.shuffle(eligible_participants)
+
+            created_winners = []
+            for idx, prize in enumerate(prizes):
+                if idx < len(eligible_participants):
+                    participant = eligible_participants[idx]
+                    winner = CampaignWinner.objects.create(
+                        campaign=campaign,
+                        prize=prize,
+                        participant=participant,
+                        user=participant.user,
+                        ticket_number=participant.ticket_number,
+                        is_published=True,
+                        created_by=request.user
+                    )
+                    participant.is_winner = True
+                    participant.save()
+                    created_winners.append(winner)
+
+            campaign.status = 'winners_declared'
+            campaign.save()
+
+            messages.success(
+                request, 
+                f"🎉 Lucky Draw successfully executed! Selected {len(created_winners)} winners for '{campaign.title}'."
+            )
+            return HttpResponseRedirect(request.path)
+
+        context = {
+            **self.admin_site.each_context(request),
+            'campaign': campaign,
+            'prizes': prizes,
+            'existing_winners': existing_winners,
+            'eligible_count': campaign.participants.filter(is_eligible=True, is_deleted=False, user__is_active=True).count(),
+            'title': f"Lucky Draw Engine: {campaign.title}",
+        }
+        return render(request, 'admin/common/campaign_lucky_draw.html', context)
+
+    def activate_selected_campaigns(self, request, queryset):
+        count = queryset.update(is_active=True, status='active')
+        messages.success(request, f"Activated {count} campaign(s).")
+    activate_selected_campaigns.short_description = "🟢 Activate Selected Campaigns"
+
+    def deactivate_selected_campaigns(self, request, queryset):
+        count = queryset.update(is_active=False)
+        messages.success(request, f"Deactivated {count} campaign(s). They are now completely hidden on the site.")
+    deactivate_selected_campaigns.short_description = "🛑 Deactivate (Turn Off) Selected Campaigns"
+
+
+@admin.register(CampaignParticipant)
+class CampaignParticipantAdmin(admin.ModelAdmin):
+    list_display = ('ticket_number', 'user_info', 'campaign', 'is_eligible', 'is_winner', 'created_at')
+    list_filter = ('campaign', 'is_eligible', 'is_winner', 'created_at')
+    search_fields = ('ticket_number', 'user__phone', 'user__email', 'user__full_name')
+    readonly_fields = ('created_at', 'updated_at', 'ticket_number')
+
+    def user_info(self, obj):
+        name = obj.user.full_name or "Anonymous"
+        return f"{name} ({obj.user.phone or obj.user.email})"
+    user_info.short_description = "Participant User"
+
+
+@admin.register(CampaignWinner)
+class CampaignWinnerAdmin(admin.ModelAdmin):
+    list_display = ('rank_badge', 'prize_title', 'winner_info', 'ticket_number', 'campaign', 'is_published', 'created_at')
+    list_filter = ('campaign', 'prize__rank', 'is_published', 'created_at')
+    search_fields = ('ticket_number', 'user__phone', 'user__email', 'user__full_name', 'prize__title')
+    actions = ['publish_winners', 'unpublish_winners']
+
+    def rank_badge(self, obj):
+        ranks = {1: ('🥇 1st Prize', '#f59e0b'), 2: ('🥈 2nd Prize', '#94a3b8'), 3: ('🥉 3rd Prize', '#b45309')}
+        label, color = ranks.get(obj.prize.rank, (f"Rank #{obj.prize.rank}", '#64748b'))
+        return format_html(
+            '<span style="background: {}; color: white; padding: 3px 8px; border-radius: 4px; font-weight: 700;">{}</span>',
+            color, label
+        )
+    rank_badge.short_description = "Rank"
+
+    def prize_title(self, obj):
+        return obj.prize.title
+    prize_title.short_description = "Prize Won"
+
+    def winner_info(self, obj):
+        name = obj.user.full_name or "Anonymous"
+        return f"{name} ({obj.user.phone or obj.user.email})"
+    winner_info.short_description = "Winner"
+
+    def publish_winners(self, request, queryset):
+        queryset.update(is_published=True)
+        messages.success(request, "Selected winners are now published publicly on the website.")
+    publish_winners.short_description = "📢 Publish Selected Winners"
+
+    def unpublish_winners(self, request, queryset):
+        queryset.update(is_published=False)
+        messages.success(request, "Selected winners are now hidden from the public website.")
+    unpublish_winners.short_description = "🔒 Hide Selected Winners"

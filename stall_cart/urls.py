@@ -19,6 +19,7 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from common.views import custom_404, custom_403, custom_500, custom_400,firebase_sw
+from common import views as common_views
 from django.views.static import serve
 from items import views as items_views
 
@@ -42,6 +43,7 @@ urlpatterns = [
     path('products/', items_views.product_list, name='product_list_direct'),
     path('product/<slug:slug>/', items_views.product_detail, name='product_detail_direct'),
     path('wishlist/', items_views.wishlist_page, name='wishlist_direct'),
+    path('campaign/<slug:slug>/', common_views.campaign_detail_view, name='campaign_detail_direct'),
 ]
 
 

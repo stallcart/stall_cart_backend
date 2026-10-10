@@ -398,4 +398,175 @@ class SupportEnquiry(models.Model):
     def __str__(self):
         return f"Enquiry from {self.name or 'Guest'} ({self.phone}) at {self.created_at.strftime('%Y-%m-%d %H:%M')}"
 
+
+# ==========================================
+# 🎁 DYNAMIC FESTIVE CAMPAIGNS & LUCKY DRAW
+# ==========================================
+class Campaign(BaseModel):
+    """
+    Dynamic Festival / Promotional Campaign Model (e.g. Dandiya 17-18 Oct, Diwali, New Year).
+    Allows running lucky draws, setting targets (e.g. 500 accounts), and configuring 1st, 2nd, 3rd prizes from Admin.
+    """
+    STATUS_CHOICES = [
+        ('draft', 'Draft / Upcoming'),
+        ('active', 'Active (Live)'),
+        ('paused', 'Paused'),
+        ('ended', 'Ended'),
+        ('winners_declared', 'Winners Declared'),
+    ]
+
+    title = models.CharField(max_length=200, help_text="e.g. Dandiya Mahotsav Lucky Draw 2026")
+    slug = models.SlugField(max_length=220, unique=True, help_text="Unique URL identifier e.g. dandiya-2026")
+    badge_text = models.CharField(max_length=100, default="🔥 Festive Contest", blank=True, help_text="Badge pill shown on banners")
+    tagline = models.CharField(max_length=255, blank=True, help_text="Short highlight, e.g. Register & Win 1st, 2nd, 3rd Prizes!")
+    description = models.TextField(blank=True, help_text="Detailed rules, terms, and contest info")
     
+    banner_image = models.ImageField(upload_to='campaigns/banners/', blank=True, null=True, help_text="Desktop banner image")
+    mobile_banner = models.ImageField(upload_to='campaigns/banners/mobile/', blank=True, null=True, help_text="Mobile responsive banner")
+    theme_color = models.CharField(max_length=50, default="#e11d48", help_text="Brand hex color for banners and badges (e.g. #e11d48, #d97706)")
+    
+    start_datetime = models.DateTimeField(help_text="Contest start datetime")
+    end_datetime = models.DateTimeField(help_text="Contest end datetime")
+    target_registrations = models.PositiveIntegerField(default=500, help_text="Target newly created accounts (e.g. 500)")
+    
+    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='draft')
+    is_active = models.BooleanField(default=True, help_text="Master on/off switch. If False, campaign is completely hidden everywhere.")
+    
+    show_on_homepage = models.BooleanField(default=True, help_text="Display promotional strip/card on Homepage when live")
+    show_on_register_page = models.BooleanField(default=True, help_text="Display contest highlight on Sign-up page when live")
+    winner_announcement_date = models.DateTimeField(blank=True, null=True, help_text="Optional date when winners will be announced")
+
+    class Meta:
+        ordering = ['-start_datetime']
+        verbose_name = 'Campaign / Lucky Draw'
+        verbose_name_plural = 'Campaigns & Lucky Draws'
+
+    def __str__(self):
+        return f"{self.title} ({self.get_status_display()})"
+
+    @property
+    def is_live(self):
+        """Returns True only if active, not deleted, status is active, and current time is within [start, end]."""
+        from django.utils import timezone
+        now = timezone.now()
+        return bool(
+            self.is_active and
+            not self.is_deleted and
+            self.status == 'active' and
+            self.start_datetime <= now <= self.end_datetime
+        )
+
+    @property
+    def participants_count(self):
+        return self.participants.filter(is_deleted=False).count()
+
+    @property
+    def progress_percentage(self):
+        if not self.target_registrations:
+            return 100.0
+        count = self.participants_count
+        return min(100.0, round((count / self.target_registrations) * 100, 1))
+
+    @classmethod
+    def get_active_campaign(cls):
+        """Retrieves the single currently active live campaign, or None if turned off."""
+        from django.utils import timezone
+        now = timezone.now()
+        return cls.objects.filter(
+            is_active=True,
+            is_deleted=False,
+            status='active',
+            start_datetime__lte=now,
+            end_datetime__gte=now
+        ).order_by('-start_datetime').first()
+
+    @classmethod
+    def auto_enroll_user(cls, user):
+        """
+        Auto-enrolls newly created user in the current active campaign.
+        Generates a unique lucky draw ticket number.
+        """
+        active_campaign = cls.get_active_campaign()
+        if not active_campaign:
+            return None
+
+        # Check if user already enrolled
+        existing = CampaignParticipant.objects.filter(campaign=active_campaign, user=user).first()
+        if existing:
+            return existing
+
+        import re
+        import random
+        prefix = re.sub(r'[^A-Z0-9]', '', active_campaign.slug.upper())[:6] or 'DRAW'
+        count = active_campaign.participants.count() + 1
+        ticket = f"{prefix}-{count:04d}"
+
+        # Guarantee unique ticket number
+        while CampaignParticipant.objects.filter(campaign=active_campaign, ticket_number=ticket).exists():
+            ticket = f"{prefix}-{random.randint(1000, 99999)}"
+
+        participant = CampaignParticipant.objects.create(
+            campaign=active_campaign,
+            user=user,
+            ticket_number=ticket,
+            is_eligible=True,
+            created_by=user
+        )
+        return participant
+
+
+class CampaignPrize(BaseModel):
+    """Configurable prizes for a campaign (1st Prize, 2nd Prize, 3rd Prize, etc.)."""
+    campaign = models.ForeignKey(Campaign, on_delete=models.CASCADE, related_name='prizes')
+    rank = models.PositiveSmallIntegerField(default=1, help_text="1 for 1st Prize, 2 for 2nd Prize, 3 for 3rd Prize, etc.")
+    title = models.CharField(max_length=200, help_text="e.g. 1st Prize: 43-inch Smart 4K TV")
+    subtitle = models.CharField(max_length=255, blank=True, help_text="e.g. Brand New Smart TV with 1-Year Warranty")
+    image = models.ImageField(upload_to='campaigns/prizes/', blank=True, null=True)
+    approx_value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="Approx value in INR")
+    display_order = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        ordering = ['rank', 'display_order']
+        verbose_name = 'Campaign Prize'
+        verbose_name_plural = 'Campaign Prizes'
+
+    def __str__(self):
+        return f"Rank #{self.rank}: {self.title} ({self.campaign.title})"
+
+
+class CampaignParticipant(BaseModel):
+    """Tracks users participating in a lucky draw campaign."""
+    campaign = models.ForeignKey(Campaign, on_delete=models.CASCADE, related_name='participants')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='campaign_participations')
+    ticket_number = models.CharField(max_length=50, default='', blank=True, db_index=True)
+    is_eligible = models.BooleanField(default=True, help_text="Whether this user is eligible for lucky draw")
+    is_winner = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['-created_at']
+        unique_together = [('campaign', 'user'), ('campaign', 'ticket_number')]
+        verbose_name = 'Campaign Participant'
+        verbose_name_plural = 'Campaign Participants'
+
+    def __str__(self):
+        return f"{self.ticket_number} - {self.user.phone or self.user.email} ({self.campaign.title})"
+
+
+class CampaignWinner(BaseModel):
+    """Stores official winners selected during the Lucky Draw."""
+    campaign = models.ForeignKey(Campaign, on_delete=models.CASCADE, related_name='winners')
+    prize = models.ForeignKey(CampaignPrize, on_delete=models.CASCADE, related_name='winners')
+    participant = models.ForeignKey(CampaignParticipant, on_delete=models.CASCADE, related_name='won_record')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='campaign_wins')
+    ticket_number = models.CharField(max_length=50, default='', blank=True)
+    is_published = models.BooleanField(default=True, help_text="Display publicly on the website")
+    notes = models.TextField(blank=True, help_text="Admin notes, verification remarks, dispatch status, etc.")
+
+    class Meta:
+        ordering = ['prize__rank', '-created_at']
+        unique_together = [('campaign', 'prize'), ('campaign', 'user')]
+        verbose_name = 'Campaign Winner'
+        verbose_name_plural = 'Campaign Winners'
+
+    def __str__(self):
+        return f"Winner: {self.user.full_name or self.user.phone} for {self.prize.title} (Ticket: {self.ticket_number})"

@@ -9,4 +9,5 @@ urlpatterns = [
     path('api/fcm/unregister/', views.unregister_fcm_token, name='fcm_unregister'),
     path('submit-enquiry/', views.submit_support_enquiry, name='submit_support_enquiry'),
     path('resolve-enquiry/<int:enquiry_id>/', views.resolve_support_enquiry, name='resolve_support_enquiry'),
+    path('campaign/<slug:slug>/', views.campaign_detail_view, name='campaign_detail'),
 ]

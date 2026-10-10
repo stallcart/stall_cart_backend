@@ -1,0 +1,273 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+    .draw-container {
+        max-width: 1100px;
+        margin: 20px auto;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    .draw-card {
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+        border: 1px solid #e2e8f0;
+        padding: 24px;
+        margin-bottom: 24px;
+    }
+    .draw-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 15px;
+        border-bottom: 2px solid #f1f5f9;
+        padding-bottom: 18px;
+        margin-bottom: 20px;
+    }
+    .badge-live {
+        background: #16a34a;
+        color: #fff;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-weight: 700;
+        font-size: 0.8rem;
+    }
+    .badge-ended {
+        background: #64748b;
+        color: #fff;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-weight: 700;
+        font-size: 0.8rem;
+    }
+    .prizes-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 16px;
+        margin: 16px 0;
+    }
+    .prize-item {
+        border: 2px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 16px;
+        background: #f8fafc;
+        position: relative;
+    }
+    .rank-pill {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-weight: 800;
+        font-size: 0.85rem;
+        color: #fff;
+        margin-bottom: 10px;
+    }
+    .rank-1 { background: linear-gradient(135deg, #f59e0b, #d97706); }
+    .rank-2 { background: linear-gradient(135deg, #64748b, #475569); }
+    .rank-3 { background: linear-gradient(135deg, #b45309, #78350f); }
+    .rank-other { background: #3b82f6; }
+    
+    .stats-row {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+        margin-bottom: 20px;
+    }
+    .stat-box {
+        flex: 1;
+        min-width: 180px;
+        padding: 16px;
+        border-radius: 8px;
+        background: #f1f5f9;
+        text-align: center;
+    }
+    .stat-val {
+        font-size: 1.6rem;
+        font-weight: 800;
+        color: #0f172a;
+    }
+    .stat-label {
+        font-size: 0.85rem;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-top: 4px;
+    }
+    .btn-draw {
+        background: linear-gradient(135deg, #e11d48, #be123c);
+        color: #fff !important;
+        padding: 14px 28px;
+        font-size: 1.1rem;
+        font-weight: 800;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: 0 4px 12px rgba(225, 29, 72, 0.35);
+        transition: all 0.2s;
+    }
+    .btn-draw:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(225, 29, 72, 0.45);
+    }
+    .winner-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+    }
+    .winner-table th {
+        background: #f8fafc;
+        text-align: left;
+        padding: 12px;
+        font-size: 0.85rem;
+        color: #475569;
+        border-bottom: 2px solid #e2e8f0;
+    }
+    .winner-table td {
+        padding: 14px 12px;
+        border-bottom: 1px solid #f1f5f9;
+        font-size: 0.95rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="draw-container">
+    <div style="margin-bottom: 15px;">
+        <a href="{% url 'admin:common_campaign_changelist' %}" style="text-decoration: none; color: #2563eb; font-weight: 600;">
+            ← Back to Campaigns List
+        </a>
+    </div>
+
+    <!-- Campaign Overview Card -->
+    <div class="draw-card">
+        <div class="draw-header">
+            <div>
+                <h1 style="margin: 0 0 6px 0; font-size: 1.6rem; color: #0f172a;">{{ campaign.title }}</h1>
+                <div style="color: #64748b; font-size: 0.9rem;">
+                    <strong>Contest Period:</strong> {{ campaign.start_datetime|date:"d M Y H:i" }} &rarr; {{ campaign.end_datetime|date:"d M Y H:i" }}
+                    &nbsp;|&nbsp; <strong>Slug:</strong> <code>{{ campaign.slug }}</code>
+                </div>
+            </div>
+            <div>
+                {% if campaign.is_live %}
+                    <span class="badge-live">🟢 LIVE CONTEST</span>
+                {% else %}
+                    <span class="badge-ended">{{ campaign.get_status_display }}</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Stats Counter -->
+        <div class="stats-row">
+            <div class="stat-box">
+                <div class="stat-val">{{ campaign.participants_count }}</div>
+                <div class="stat-label">Total Registrations</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-val">{{ campaign.target_registrations }}</div>
+                <div class="stat-label">Target Accounts</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-val">{{ campaign.progress_percentage }}%</div>
+                <div class="stat-label">Target Achieved</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-val">{{ eligible_count }}</div>
+                <div class="stat-label">Eligible Candidates</div>
+            </div>
+        </div>
+
+        <!-- Configured Prizes -->
+        <h3 style="margin: 20px 0 10px 0; color: #1e293b;">🎁 Configured Prizes ({{ prizes.count }})</h3>
+        {% if prizes %}
+        <div class="prizes-grid">
+            {% for p in prizes %}
+            <div class="prize-item">
+                <span class="rank-pill {% if p.rank == 1 %}rank-1{% elif p.rank == 2 %}rank-2{% elif p.rank == 3 %}rank-3{% else %}rank-other{% endif %}">
+                    {% if p.rank == 1 %}🥇 1st Prize{% elif p.rank == 2 %}🥈 2nd Prize{% elif p.rank == 3 %}🥉 3rd Prize{% else %}Rank #{{ p.rank }}{% endif %}
+                </span>
+                <h4 style="margin: 0 0 6px 0; color: #0f172a;">{{ p.title }}</h4>
+                {% if p.subtitle %}<p style="margin: 0 0 6px 0; color: #64748b; font-size: 0.85rem;">{{ p.subtitle }}</p>{% endif %}
+                {% if p.approx_value %}<div style="font-weight: 700; color: #16a34a; font-size: 0.95rem;">Approx Value: ₹{{ p.approx_value }}</div>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div style="background: #fffbeb; border: 1px solid #fef3c7; color: #92400e; padding: 15px; border-radius: 8px;">
+            ⚠️ No prizes configured for this campaign. Please edit the campaign in Admin and add 1st, 2nd, and 3rd prizes before running the draw.
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Declared Winners Section -->
+    {% if existing_winners %}
+    <div class="draw-card" style="border-left: 6px solid #9333ea;">
+        <h2 style="margin: 0 0 10px 0; color: #9333ea;">🏆 Declared Lucky Draw Winners</h2>
+        <p style="color: #64748b; margin-bottom: 15px;">The following winners were randomly selected for this campaign:</p>
+
+        <table class="winner-table">
+            <thead>
+                <tr>
+                    <th>Rank / Prize</th>
+                    <th>Ticket #</th>
+                    <th>Winner Name</th>
+                    <th>Phone / Email</th>
+                    <th>Selected At</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for w in existing_winners %}
+                <tr>
+                    <td>
+                        <span class="rank-pill {% if w.prize.rank == 1 %}rank-1{% elif w.prize.rank == 2 %}rank-2{% elif w.prize.rank == 3 %}rank-3{% else %}rank-other{% endif %}" style="margin-bottom: 0;">
+                            {% if w.prize.rank == 1 %}🥇 1st Prize{% elif w.prize.rank == 2 %}🥈 2nd Prize{% elif w.prize.rank == 3 %}🥉 3rd Prize{% else %}Rank #{{ w.prize.rank }}{% endif %}
+                        </span>
+                        <div style="font-weight: 600; margin-top: 4px;">{{ w.prize.title }}</div>
+                    </td>
+                    <td><strong style="color: #2563eb; font-size: 1.05rem;">{{ w.ticket_number }}</strong></td>
+                    <td><strong>{{ w.user.full_name|default:"-" }}</strong></td>
+                    <td>{{ w.user.phone|default:w.user.email }}</td>
+                    <td>{{ w.selected_at|date:"d M Y H:i" }}</td>
+                    <td>
+                        {% if w.is_published %}
+                            <span style="color: #16a34a; font-weight: 700;">📢 Published</span>
+                        {% else %}
+                            <span style="color: #64748b; font-weight: 700;">🔒 Hidden</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- Run Lucky Draw Action Card -->
+    <div class="draw-card" style="text-align: center; padding: 40px 20px; background: linear-gradient(180deg, #ffffff 0%, #fff1f2 100%);">
+        <h2 style="margin: 0 0 10px 0; color: #be123c;">🎲 Random Lucky Draw Generator</h2>
+        <p style="color: #475569; max-width: 600px; margin: 0 auto 24px auto;">
+            Clicking the button below will randomly pick <strong>{{ prizes.count }} verified winner(s)</strong> using Python's cryptographically secure randomizer (<code>secrets.SystemRandom</code>) from the pool of <strong>{{ eligible_count }} eligible participants</strong>.
+        </p>
+
+        {% if prizes and eligible_count >= prizes.count %}
+        <form method="POST" onsubmit="return confirm('Are you sure you want to execute the Lucky Draw for {{ campaign.title }}? This will select winners for each configured prize rank.');">
+            {% csrf_token %}
+            <button type="submit" name="execute_draw" value="1" class="btn-draw">
+                <span>🎲 Run Lucky Draw & Pick Winners Now</span>
+            </button>
+        </form>
+        {% elif not prizes %}
+        <div style="color: #dc2626; font-weight: 700;">Please add at least 1 prize to run the Lucky Draw.</div>
+        {% else %}
+        <div style="color: #dc2626; font-weight: 700;">Need at least {{ prizes.count }} eligible participants to run the Lucky Draw (current: {{ eligible_count }}).</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

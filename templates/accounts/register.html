@@ -6,6 +6,26 @@
     <h2>Join StallCart</h2>
     <p class="text-center text-muted">Choose your account type to get started</p>
     
+    {% if active_campaign and active_campaign.show_on_register_page %}
+    <!-- Active Festival Campaign Contest Card -->
+    <div class="campaign-register-badge" style="background: linear-gradient(135deg, {{ active_campaign.theme_color|default:'#e11d48' }}, #1e1b4b); color: #fff; padding: 14px 18px; border-radius: 12px; margin-bottom: 24px; text-align: center; box-shadow: 0 4px 16px rgba(0,0,0,0.12);">
+        <div style="font-size: 0.74rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; background: rgba(255,255,255,0.22); display: inline-block; padding: 2px 10px; border-radius: 12px; margin-bottom: 6px;">
+            {{ active_campaign.badge_text|default:"🎉 Festive Lucky Draw" }}
+        </div>
+        <div style="font-weight: 800; font-size: 1.05rem;">
+            {{ active_campaign.title }}
+        </div>
+        <div style="font-size: 0.84rem; opacity: 0.94; margin-top: 4px;">
+            Register today to receive your <strong>Lucky Draw Ticket</strong> & stand a chance to win 1st, 2nd, or 3rd Prize!
+        </div>
+        <div style="margin-top: 8px;">
+            <a href="{% url 'common:campaign_detail' active_campaign.slug %}" target="_blank" style="color: #fff; text-decoration: underline; font-size: 0.8rem; font-weight: 600;">
+                View Prizes & Contest Details →
+            </a>
+        </div>
+    </div>
+    {% endif %}
+    
     <form method="post" id="authForm">
         {% csrf_token %}
         

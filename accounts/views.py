@@ -345,6 +345,14 @@ def register_view(request):
                     user.role = form.cleaned_data['user_role']
                     user.save()
                     
+                    # Auto-enroll into active festive campaign (if live)
+                    participant = None
+                    try:
+                        from common.models import Campaign
+                        participant = Campaign.auto_enroll_user(user)
+                    except Exception as e:
+                        logger.warning(f"Campaign enrollment failed: {e}")
+
                     # If seller, create SellerProfile
                     if user.role == 'seller':
                         profile = SellerProfile.objects.create(
@@ -375,17 +383,28 @@ def register_view(request):
                         except Exception as e:
                             logger.error(f"Failed to notify admins of new seller: {e}")
 
-                        messages.success(request, f"🎉 Seller account created! Your shop '{form.cleaned_data['shop_name']}' is pending verification.")
+                        if participant:
+                            messages.success(request, f"🎉 Seller account created! You are entered in '{participant.campaign.title}' (Ticket #{participant.ticket_number}). Shop pending verification.")
+                        else:
+                            messages.success(request, f"🎉 Seller account created! Your shop '{form.cleaned_data['shop_name']}' is pending verification.")
                     else:
-                        messages.success(request, "✅ Account created successfully! Welcome to StallCart.")
+                        if participant:
+                            messages.success(request, f"✅ Account created! 🎉 You are enrolled in '{participant.campaign.title}' with Lucky Draw Ticket #{participant.ticket_number}!")
+                        else:
+                            messages.success(request, "✅ Account created successfully! Welcome to StallCart.")
                     
                     # Auto-login
                     login(request, user)
                     
-                    return JsonResponse({
+                    response_data = {
                         'status': 'success', 
                         'redirect': '/'
-                    })
+                    }
+                    if participant:
+                        response_data['campaign_ticket'] = participant.ticket_number
+                        response_data['campaign_title'] = participant.campaign.title
+                        
+                    return JsonResponse(response_data)
             
             return JsonResponse({'status': 'error', 'message': 'Invalid AJAX action'}, status=400)
             

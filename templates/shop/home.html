@@ -1365,6 +1365,30 @@
 </section>
 {% endif %}
 
+{% if active_campaign and active_campaign.show_on_homepage %}
+<!-- ══════════════════════════════════════
+     FESTIVE CAMPAIGN STRIP (AUTO-OFF WHEN INACTIVE)
+══════════════════════════════════════ -->
+<section class="campaign-home-strip" style="background: linear-gradient(135deg, {{ active_campaign.theme_color|default:'#e11d48' }}, #1e1b4b); color: #fff; padding: 14px 0; box-shadow: 0 4px 14px rgba(0,0,0,0.12);">
+    <div class="container" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <span style="background: rgba(255,255,255,0.22); color: #fff; font-weight: 800; font-size: 0.75rem; padding: 3px 10px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.05em; backdrop-filter: blur(4px);">
+                {{ active_campaign.badge_text|default:"🎉 Festive Contest" }}
+            </span>
+            <span style="font-weight: 700; font-size: 0.95rem;">
+                {{ active_campaign.title }}: 
+                <span style="font-weight: 400; opacity: 0.92;">{{ active_campaign.tagline|default:"Register now & win 1st, 2nd, 3rd Prizes in our Lucky Draw!" }}</span>
+            </span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <a href="{% url 'common:campaign_detail' active_campaign.slug %}" style="background: #ffffff; color: {{ active_campaign.theme_color|default:'#e11d48' }}; padding: 6px 16px; border-radius: 20px; font-weight: 800; font-size: 0.82rem; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
+                <span>Explore & Enter</span> <i class="fa fa-arrow-right" style="font-size: 0.75rem;"></i>
+            </a>
+        </div>
+    </div>
+</section>
+{% endif %}
+
 <!-- Feature strip -->
 <div class="feature-strip">
     <div class="container">

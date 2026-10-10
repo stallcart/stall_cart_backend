@@ -261,3 +261,48 @@ def resolve_support_enquiry(request, enquiry_id):
         
     enquiry.save()
     return JsonResponse({'ok': True, 'message': 'Enquiry successfully marked as resolved.'})
+
+
+def campaign_detail_view(request, slug):
+    """
+    Public contest page showing:
+    - Festive banner & live countdown
+    - Configured prizes (1st, 2nd, 3rd)
+    - Target registration meter (e.g. 500 accounts)
+    - Declared winners (if announced)
+    - User's lucky draw ticket (if user is registered and enrolled)
+    """
+    from common.models import Campaign, CampaignWinner, CampaignParticipant
+    from django.shortcuts import get_object_or_404, render
+    from django.utils import timezone
+
+    campaign = get_object_or_404(Campaign, slug=slug, is_deleted=False)
+    
+    # If campaign is deactivated and user is not staff, redirect to home with friendly message
+    if not campaign.is_active and not (request.user.is_authenticated and (request.user.is_staff or request.user.is_superuser)):
+        messages.info(request, "This festive campaign is currently inactive or concluded.")
+        return redirect('shop:home')
+
+    prizes = campaign.prizes.filter(is_deleted=False).order_by('rank', 'display_order')
+    winners = campaign.winners.filter(is_published=True, is_deleted=False).select_related('prize', 'user', 'participant')
+    
+    user_participation = None
+    if request.user.is_authenticated:
+        user_participation = CampaignParticipant.objects.filter(
+            campaign=campaign, user=request.user, is_deleted=False
+        ).first()
+
+    now = timezone.now()
+    seconds_remaining = 0
+    if campaign.is_live and campaign.end_datetime > now:
+        seconds_remaining = max(0, int((campaign.end_datetime - now).total_seconds()))
+
+    context = {
+        'campaign': campaign,
+        'prizes': prizes,
+        'winners': winners,
+        'user_participation': user_participation,
+        'seconds_remaining': seconds_remaining,
+        'is_live': campaign.is_live,
+    }
+    return render(request, 'common/campaign_detail.html', context)

@@ -1,4 +1,4 @@
-from .models import SiteSettings
+from .models import SiteSettings, Campaign
 from django.core.cache import cache
 from items.models import Category,SellerProfile
 from shop.models import Cart 
@@ -14,6 +14,12 @@ def site_settings(request):
     except Exception:
         og_logo = logo_url  # Fallback to relative URL if get_host() raises DisallowedHost
     
+    # Check for live active campaign
+    try:
+        active_campaign = Campaign.get_active_campaign()
+    except Exception:
+        active_campaign = None
+
     return {
         'site_settings': settings,
         'SITE_NAME': settings.site_name,
@@ -23,6 +29,7 @@ def site_settings(request):
         'WHATSAPP_LINK': settings.whatsapp_link,
         'IS_MAINTENANCE': settings.is_maintenance_mode,
         'OG_LOGO_URL': og_logo,  # ✅ Absolute URL for social sharing
+        'active_campaign': active_campaign,
     }
 
 # context_processors.py

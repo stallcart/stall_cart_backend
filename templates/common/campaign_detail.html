@@ -1,0 +1,521 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ campaign.title }} - Lucky Draw | {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="campaign-page-wrapper">
+    <!-- Hero Banner / Header -->
+    <div class="campaign-hero" style="background: linear-gradient(135deg, {{ campaign.theme_color|default:'#e11d48' }}, #1e1b4b);">
+        <div class="container campaign-hero-content">
+            {% if campaign.badge_text %}
+                <span class="campaign-pill">{{ campaign.badge_text }}</span>
+            {% endif %}
+            <h1 class="campaign-title">{{ campaign.title }}</h1>
+            {% if campaign.tagline %}
+                <p class="campaign-tagline">{{ campaign.tagline }}</p>
+            {% endif %}
+            
+            <div class="campaign-meta-row">
+                <div class="meta-item">
+                    <i class="fa fa-calendar-alt"></i>
+                    <span>{{ campaign.start_datetime|date:"d M" }} &ndash; {{ campaign.end_datetime|date:"d M Y" }}</span>
+                </div>
+                <div class="meta-item">
+                    <i class="fa fa-users"></i>
+                    <span>Target: {{ campaign.target_registrations }} New Accounts</span>
+                </div>
+            </div>
+
+            <!-- Live Countdown Timer -->
+            {% if is_live and seconds_remaining > 0 %}
+            <div class="countdown-card">
+                <div class="countdown-label"><i class="fa fa-clock"></i> Contest Ends In:</div>
+                <div class="countdown-timer" id="campaignCountdown">
+                    <div class="time-box"><span id="cdDays">00</span><small>Days</small></div>
+                    <div class="time-box"><span id="cdHours">00</span><small>Hours</small></div>
+                    <div class="time-box"><span id="cdMins">00</span><small>Mins</small></div>
+                    <div class="time-box"><span id="cdSecs">00</span><small>Secs</small></div>
+                </div>
+            </div>
+            {% elif campaign.status == 'winners_declared' %}
+            <div class="declared-badge">
+                <i class="fa fa-trophy"></i> Winners Declared! See Results Below
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="container campaign-body">
+        <!-- User Ticket Status (if logged in) -->
+        {% if user.is_authenticated %}
+            {% if user_participation %}
+            <div class="user-ticket-card">
+                <div class="ticket-icon"><i class="fa fa-ticket-alt"></i></div>
+                <div class="ticket-info">
+                    <div class="ticket-label">Your Lucky Draw Entry</div>
+                    <div class="ticket-number">Ticket #{{ user_participation.ticket_number }}</div>
+                    <p class="ticket-sub">Enrolled on {{ user_participation.created_at|date:"d M Y H:i" }}. Stay tuned for the lucky draw results!</p>
+                </div>
+                {% if user_participation.is_winner %}
+                <div class="ticket-winner-badge">
+                    <i class="fa fa-crown"></i> Congratulations! You Won A Prize!
+                </div>
+                {% endif %}
+            </div>
+            {% else %}
+            <div class="user-ticket-card" style="border-left-color: #f59e0b;">
+                <div class="ticket-icon" style="background: #fef3c7; color: #d97706;"><i class="fa fa-info-circle"></i></div>
+                <div class="ticket-info">
+                    <div class="ticket-label">Contest Eligibility</div>
+                    <p class="ticket-sub" style="margin: 0;">This contest is active for newly registered accounts during {{ campaign.start_datetime|date:"d M" }} &ndash; {{ campaign.end_datetime|date:"d M" }}. Keep shopping on {{ SITE_NAME }}!</p>
+                </div>
+            </div>
+            {% endif %}
+        {% else %}
+            <!-- Guest Call to Action -->
+            <div class="guest-cta-banner">
+                <div class="cta-text">
+                    <h3>Want to win 1st, 2nd, or 3rd Prize?</h3>
+                    <p>Create a free account today to automatically get your Lucky Draw Ticket!</p>
+                </div>
+                <a href="{% url 'accounts:register' %}" class="btn-cta-register">
+                    <i class="fa fa-user-plus"></i> Register & Enter Lucky Draw
+                </a>
+            </div>
+        {% endif %}
+
+        <!-- Registration Target Progress Meter -->
+        <div class="campaign-progress-card">
+            <div class="progress-header">
+                <div>
+                    <h4>Target Progress Meter</h4>
+                    <span class="sub">{{ campaign.participants_count }} of {{ campaign.target_registrations }} registrations achieved</span>
+                </div>
+                <div class="progress-percent">{{ campaign.progress_percentage }}%</div>
+            </div>
+            <div class="progress-bar-bg">
+                <div class="progress-bar-fill" style="width: {{ campaign.progress_percentage }}%; background: {{ campaign.theme_color|default:'#e11d48' }};"></div>
+            </div>
+        </div>
+
+        <!-- Declared Winners Section (if announced) -->
+        {% if winners %}
+        <div class="winners-section" id="winners">
+            <div class="section-title-wrap">
+                <span class="section-pill">🏆 Official Results</span>
+                <h2>Lucky Draw Winners Announced!</h2>
+                <p>Congratulations to all our lucky winners chosen via random draw!</p>
+            </div>
+
+            <div class="winners-grid">
+                {% for w in winners %}
+                <div class="winner-card rank-{{ w.prize.rank }}">
+                    <div class="winner-crown">
+                        {% if w.prize.rank == 1 %}🥇 1st Prize{% elif w.prize.rank == 2 %}🥈 2nd Prize{% elif w.prize.rank == 3 %}🥉 3rd Prize{% else %}Winner{% endif %}
+                    </div>
+                    {% if w.prize.image %}
+                    <div class="winner-prize-img">
+                        <img src="{{ w.prize.image.url }}" alt="{{ w.prize.title }}">
+                    </div>
+                    {% endif %}
+                    <h3 class="winner-prize-title">{{ w.prize.title }}</h3>
+                    <div class="winner-ticket">Ticket #{{ w.ticket_number }}</div>
+                    <div class="winner-name">{{ w.user.full_name|default:"Verified Customer" }}</div>
+                    {% if w.notes %}<div class="winner-notes">{{ w.notes }}</div>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Prizes Showcase -->
+        <div class="prizes-section">
+            <div class="section-title-wrap">
+                <span class="section-pill">🎁 Grand Prizes</span>
+                <h2>What You Can Win</h2>
+                <p>Exciting prizes up for grabs in our festive random lucky draw!</p>
+            </div>
+
+            <div class="prizes-grid-display">
+                {% for p in prizes %}
+                <div class="prize-card rank-border-{{ p.rank }}">
+                    <div class="prize-badge-rank">
+                        {% if p.rank == 1 %}🥇 1st Prize{% elif p.rank == 2 %}🥈 2nd Prize{% elif p.rank == 3 %}🥉 3rd Prize{% else %}Rank #{{ p.rank }}{% endif %}
+                    </div>
+                    {% if p.image %}
+                    <div class="prize-img-wrap">
+                        <img src="{{ p.image.url }}" alt="{{ p.title }}">
+                    </div>
+                    {% else %}
+                    <div class="prize-img-placeholder">
+                        <i class="fa fa-gift"></i>
+                    </div>
+                    {% endif %}
+                    <div class="prize-info">
+                        <h3 class="prize-name">{{ p.title }}</h3>
+                        {% if p.subtitle %}
+                            <p class="prize-desc">{{ p.subtitle }}</p>
+                        {% endif %}
+                        {% if p.approx_value %}
+                            <div class="prize-value">Worth ₹{{ p.approx_value|floatformat:0 }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Rules and Terms -->
+        {% if campaign.description %}
+        <div class="rules-card">
+            <h3><i class="fa fa-clipboard-list"></i> Contest Rules & Terms</h3>
+            <div class="rules-content">
+                {{ campaign.description|linebreaks }}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.campaign-page-wrapper {
+    background: #f8fafc;
+    min-height: 80vh;
+    padding-bottom: 60px;
+}
+.campaign-hero {
+    color: #ffffff;
+    padding: 60px 0 50px 0;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+.campaign-hero-content {
+    max-width: 800px;
+    margin: 0 auto;
+}
+.campaign-pill {
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(8px);
+    color: #fff;
+    padding: 6px 16px;
+    border-radius: 30px;
+    font-size: 0.85rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    display: inline-block;
+    margin-bottom: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+.campaign-title {
+    font-size: clamp(1.8rem, 4vw, 2.8rem);
+    font-weight: 800;
+    margin-bottom: 12px;
+    line-height: 1.2;
+}
+.campaign-tagline {
+    font-size: clamp(1rem, 2vw, 1.25rem);
+    opacity: 0.92;
+    margin-bottom: 24px;
+    font-weight: 400;
+}
+.campaign-meta-row {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: wrap;
+    font-size: 0.95rem;
+    margin-bottom: 30px;
+}
+.meta-item {
+    background: rgba(0, 0, 0, 0.2);
+    padding: 8px 16px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.countdown-card {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 16px;
+    padding: 20px;
+    display: inline-block;
+}
+.countdown-label {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 10px;
+    font-weight: 700;
+}
+.countdown-timer {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+.time-box {
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 10px;
+    padding: 8px 14px;
+    min-width: 65px;
+}
+.time-box span {
+    font-size: 1.6rem;
+    font-weight: 800;
+    display: block;
+    line-height: 1.1;
+}
+.time-box small {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    opacity: 0.8;
+}
+.declared-badge {
+    background: #16a34a;
+    color: #fff;
+    padding: 12px 24px;
+    border-radius: 30px;
+    font-size: 1.1rem;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 14px rgba(22, 163, 74, 0.4);
+}
+
+.campaign-body {
+    max-width: 1000px;
+    margin-top: -25px;
+    position: relative;
+    z-index: 2;
+}
+
+.user-ticket-card {
+    background: #fff;
+    border-radius: 14px;
+    border-left: 6px solid #2563eb;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.06);
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 25px;
+    flex-wrap: wrap;
+}
+.ticket-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 12px;
+    background: #eff6ff;
+    color: #2563eb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+.ticket-info { flex: 1; min-width: 200px; }
+.ticket-label { font-size: 0.8rem; text-transform: uppercase; color: #64748b; font-weight: 700; }
+.ticket-number { font-size: 1.5rem; font-weight: 900; color: #0f172a; letter-spacing: 0.04em; }
+.ticket-sub { font-size: 0.85rem; color: #64748b; margin-top: 4px; }
+.ticket-winner-badge {
+    background: #9333ea;
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: 700;
+    font-size: 0.9rem;
+}
+
+.guest-cta-banner {
+    background: linear-gradient(135deg, #0f172a, #1e293b);
+    color: #fff;
+    border-radius: 14px;
+    padding: 24px 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-bottom: 25px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.15);
+}
+.cta-text h3 { margin: 0 0 6px 0; font-size: 1.3rem; font-weight: 800; }
+.cta-text p { margin: 0; opacity: 0.85; font-size: 0.92rem; }
+.btn-cta-register {
+    background: #e11d48;
+    color: #fff !important;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 800;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+}
+.btn-cta-register:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(225,29,72,0.4); }
+
+.campaign-progress-card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 20px 24px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+    margin-bottom: 35px;
+}
+.progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+.progress-header h4 { margin: 0 0 4px 0; font-size: 1.1rem; color: #0f172a; }
+.progress-header .sub { font-size: 0.85rem; color: #64748b; }
+.progress-percent { font-size: 1.3rem; font-weight: 800; color: #0f172a; }
+.progress-bar-bg {
+    height: 12px;
+    background: #e2e8f0;
+    border-radius: 6px;
+    overflow: hidden;
+}
+.progress-bar-fill {
+    height: 100%;
+    border-radius: 6px;
+    transition: width 0.5s ease-out;
+}
+
+.section-title-wrap {
+    text-align: center;
+    margin-bottom: 30px;
+}
+.section-pill {
+    background: #fee2e2;
+    color: #be123c;
+    font-weight: 800;
+    font-size: 0.8rem;
+    padding: 4px 12px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    display: inline-block;
+    margin-bottom: 8px;
+}
+.section-title-wrap h2 { font-size: 1.8rem; font-weight: 800; color: #0f172a; margin-bottom: 6px; }
+.section-title-wrap p { color: #64748b; font-size: 0.95rem; }
+
+.prizes-grid-display {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+    margin-bottom: 40px;
+}
+.prize-card {
+    background: #fff;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.05);
+    border: 2px solid #f1f5f9;
+    position: relative;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.prize-card:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+.rank-border-1 { border-color: #f59e0b; }
+.rank-border-2 { border-color: #94a3b8; }
+.rank-border-3 { border-color: #b45309; }
+
+.prize-badge-rank {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(6px);
+    color: #fff;
+    font-weight: 800;
+    font-size: 0.78rem;
+    padding: 4px 10px;
+    border-radius: 6px;
+    z-index: 2;
+    text-transform: uppercase;
+}
+.prize-img-wrap {
+    aspect-ratio: 16/10;
+    overflow: hidden;
+    background: #f8fafc;
+}
+.prize-img-wrap img { width: 100%; height: 100%; object-fit: cover; }
+.prize-img-placeholder {
+    aspect-ratio: 16/10;
+    background: #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+    color: #cbd5e1;
+}
+.prize-info { padding: 18px; }
+.prize-name { font-size: 1.15rem; font-weight: 800; color: #0f172a; margin-bottom: 6px; }
+.prize-desc { font-size: 0.85rem; color: #64748b; margin-bottom: 10px; }
+.prize-value { font-weight: 800; color: #16a34a; font-size: 1.05rem; }
+
+.winners-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 20px;
+    margin-bottom: 40px;
+}
+.winner-card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 24px 20px;
+    text-align: center;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.06);
+    border: 2px solid #e2e8f0;
+}
+.winner-card.rank-1 { border-color: #f59e0b; background: linear-gradient(180deg, #fffbeb 0%, #ffffff 100%); }
+.winner-crown { font-weight: 800; font-size: 1rem; color: #d97706; margin-bottom: 12px; }
+.winner-prize-title { font-size: 1.1rem; font-weight: 700; color: #0f172a; margin-bottom: 8px; }
+.winner-ticket { font-size: 1.3rem; font-weight: 900; color: #2563eb; margin-bottom: 6px; }
+.winner-name { font-weight: 600; color: #334155; font-size: 1rem; }
+
+.rules-card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 24px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+}
+.rules-card h3 { margin: 0 0 16px 0; font-size: 1.2rem; color: #0f172a; }
+.rules-content { color: #475569; font-size: 0.92rem; line-height: 1.6; }
+</style>
+
+{% if is_live and seconds_remaining > 0 %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    let remaining = parseInt("{{ seconds_remaining }}", 10);
+    const dEl = document.getElementById('cdDays');
+    const hEl = document.getElementById('cdHours');
+    const mEl = document.getElementById('cdMins');
+    const sEl = document.getElementById('cdSecs');
+
+    function update() {
+        if (remaining <= 0) return;
+        remaining--;
+        const days = Math.floor(remaining / 86400);
+        const hours = Math.floor((remaining % 86400) / 3600);
+        const mins = Math.floor((remaining % 3600) / 60);
+        const secs = remaining % 60;
+
+        if (dEl) dEl.textContent = String(days).padStart(2, '0');
+        if (hEl) hEl.textContent = String(hours).padStart(2, '0');
+        if (mEl) mEl.textContent = String(mins).padStart(2, '0');
+        if (sEl) sEl.textContent = String(secs).padStart(2, '0');
+    }
+    update();
+    setInterval(update, 1000);
+});
+</script>
+{% endif %}
+{% endblock %}

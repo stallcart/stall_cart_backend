@@ -361,5 +361,144 @@ class SupportEnquiryTests(TestCase):
         self.assertIn("Need Support?", sent_email.body)
 
 
+from common.models import Campaign, CampaignPrize, CampaignParticipant, CampaignWinner
+from django.utils import timezone
+from datetime import timedelta
+
+class CampaignAndLuckyDrawTests(TestCase):
+    def setUp(self):
+        self.now = timezone.now()
+        self.campaign = Campaign.objects.create(
+            title="Dandiya Mahotsav Lucky Draw 2026",
+            slug="dandiya-2026",
+            badge_text="🔥 Dandiya Special",
+            start_datetime=self.now - timedelta(hours=1),
+            end_datetime=self.now + timedelta(days=2),
+            target_registrations=500,
+            status='active',
+            is_active=True,
+            show_on_homepage=True,
+            show_on_register_page=True,
+        )
+        self.prize1 = CampaignPrize.objects.create(
+            campaign=self.campaign,
+            rank=1,
+            title="1st Prize: Smart 4K TV",
+            approx_value=25000,
+            display_order=1
+        )
+        self.prize2 = CampaignPrize.objects.create(
+            campaign=self.campaign,
+            rank=2,
+            title="2nd Prize: 5G Smartphone",
+            approx_value=15000,
+            display_order=2
+        )
+        self.prize3 = CampaignPrize.objects.create(
+            campaign=self.campaign,
+            rank=3,
+            title="3rd Prize: Smartwatch",
+            approx_value=5000,
+            display_order=3
+        )
+
+        self.users = []
+        for i in range(5):
+            u = User.objects.create_user(
+                phone=f"987650000{i}",
+                email=f"contestuser{i}@example.com",
+                password="password123",
+                full_name=f"Contest User {i}"
+            )
+            self.users.append(u)
+
+    def test_campaign_is_live_and_active(self):
+        """Verify active campaign is detected as live"""
+        self.assertTrue(self.campaign.is_live)
+        self.assertEqual(Campaign.get_active_campaign(), self.campaign)
+
+    def test_campaign_deactivation_switches_off_completely(self):
+        """Verify that setting is_active=False disables campaign everywhere"""
+        self.campaign.is_active = False
+        self.campaign.save()
+
+        self.assertFalse(self.campaign.is_live)
+        self.assertIsNone(Campaign.get_active_campaign())
+
+        # Public detail view should redirect
+        response = self.client.get(reverse('common:campaign_detail', args=[self.campaign.slug]))
+        self.assertEqual(response.status_code, 302)
+
+    def test_campaign_auto_enroll_user(self):
+        """Verify new users are automatically enrolled with unique tickets"""
+        p1 = Campaign.auto_enroll_user(self.users[0])
+        self.assertIsNotNone(p1)
+        self.assertTrue(p1.ticket_number.startswith('DANDIY'))
+        self.assertEqual(p1.campaign, self.campaign)
+        self.assertEqual(p1.user, self.users[0])
+
+        # Enrolling same user again returns existing participant
+        p1_again = Campaign.auto_enroll_user(self.users[0])
+        self.assertEqual(p1.id, p1_again.id)
+
+        # Enrolling next user creates distinct ticket
+        p2 = Campaign.auto_enroll_user(self.users[1])
+        self.assertNotEqual(p1.ticket_number, p2.ticket_number)
+
+    def test_auto_enroll_disabled_when_campaign_inactive(self):
+        """When campaign is inactive, auto_enroll_user returns None"""
+        self.campaign.is_active = False
+        self.campaign.save()
+
+        p = Campaign.auto_enroll_user(self.users[0])
+        self.assertIsNone(p)
+
+    def test_lucky_draw_winner_selection(self):
+        """Verify admin lucky draw picks distinct winners for 1st, 2nd, 3rd prizes"""
+        # Enroll all 5 users
+        for u in self.users:
+            Campaign.auto_enroll_user(u)
+
+        self.assertEqual(self.campaign.participants_count, 5)
+
+        # Log in as superuser
+        admin_user = User.objects.create_superuser(
+            phone="9999999999", email="admin@test.com", password="adminpassword"
+        )
+        self.client.login(phone="9999999999", password="adminpassword")
+
+        draw_url = reverse('admin:common_campaign_run_lucky_draw', args=[self.campaign.pk])
+        
+        # GET draw page
+        get_res = self.client.get(draw_url)
+        self.assertEqual(get_res.status_code, 200)
+
+        # POST execute draw
+        post_res = self.client.post(draw_url, {'execute_draw': '1'}, follow=True)
+        self.assertEqual(post_res.status_code, 200)
+
+        self.campaign.refresh_from_db()
+        self.assertEqual(self.campaign.status, 'winners_declared')
+
+        # Check winners
+        winners = list(self.campaign.winners.all().order_by('prize__rank'))
+        self.assertEqual(len(winners), 3)
+
+        winner_user_ids = [w.user_id for w in winners]
+        # Ensure all 3 winners are distinct
+        self.assertEqual(len(set(winner_user_ids)), 3)
+
+        # Check rank mapping
+        self.assertEqual(winners[0].prize.rank, 1)
+        self.assertEqual(winners[1].prize.rank, 2)
+        self.assertEqual(winners[2].prize.rank, 3)
+
+        # Public campaign page now shows winners
+        public_res = self.client.get(reverse('common:campaign_detail', args=[self.campaign.slug]))
+        self.assertEqual(public_res.status_code, 200)
+        self.assertIn("Lucky Draw Winners Announced!", public_res.content.decode('utf-8'))
+
+
+
 
 
