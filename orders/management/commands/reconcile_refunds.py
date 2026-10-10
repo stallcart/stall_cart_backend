@@ -18,9 +18,10 @@ class Command(BaseCommand):
         self.stdout.write("Starting StallCart Refund Reconciliation & Settlement...")
         self.stdout.write("=" * 60)
 
-        # Fetch prepaid orders
+        # Fetch prepaid orders in cancelled or terminal return states only
         eligible_orders = Order.objects.filter(
-            payment_status__in=['paid', 'refunded', 'failed']
+            payment_status__in=['paid', 'refunded', 'failed'],
+            status__in=['cancelled', 'seller_unresponsive', 'courier_failed_pickup', 'refund_initiated', 'refunded', 'returned']
         ).distinct()
 
         self.stdout.write(f"Scanning {eligible_orders.count()} order(s) for refund discrepancies...")
@@ -35,7 +36,7 @@ class Command(BaseCommand):
                 continue
 
             cancelled_or_refunded_items = order.items.filter(
-                status__in=['cancelled', 'returned', 'returned_to_source', 'refund_initiated', 'refunded', 'courier_failed_pickup', 'seller_unresponsive']
+                status__in=['cancelled', 'returned', 'refund_initiated', 'refunded', 'courier_failed_pickup', 'seller_unresponsive']
             ).count()
 
             if total_items == cancelled_or_refunded_items:
