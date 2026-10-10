@@ -266,7 +266,7 @@ class CampaignPrizeInline(admin.TabularInline):
 class CampaignAdmin(admin.ModelAdmin):
     list_display = (
         'title', 'status_badge', 'is_active_toggle', 'date_window_display', 
-        'progress_meter', 'prizes_count', 'lucky_draw_btn'
+        'progress_meter', 'prizes_count', 'quick_actions'
     )
     list_filter = ('is_active', 'status', 'start_datetime', 'end_datetime')
     search_fields = ('title', 'slug', 'tagline', 'description')
@@ -296,6 +296,9 @@ class CampaignAdmin(admin.ModelAdmin):
         urls = super().get_urls()
         custom_urls = [
             path('<int:campaign_id>/run-lucky-draw/', self.admin_site.admin_view(self.run_lucky_draw_view), name='common_campaign_run_lucky_draw'),
+            path('<int:campaign_id>/toggle-active/', self.admin_site.admin_view(self.toggle_active_view), name='common_campaign_toggle_active'),
+            path('<int:campaign_id>/reset-draw/', self.admin_site.admin_view(self.reset_draw_view), name='common_campaign_reset_draw'),
+            path('<int:campaign_id>/quick-delete/', self.admin_site.admin_view(self.quick_delete_view), name='common_campaign_quick_delete'),
         ]
         return custom_urls + urls
 
@@ -317,9 +320,16 @@ class CampaignAdmin(admin.ModelAdmin):
     status_badge.short_description = "Status"
 
     def is_active_toggle(self, obj):
+        toggle_url = reverse('admin:common_campaign_toggle_active', args=[obj.pk])
         if obj.is_active:
-            return format_html('<span style="color: #16a34a; font-weight: 800;">✔ Active</span>')
-        return format_html('<span style="color: #dc2626; font-weight: 800;">✖ Off (Disabled)</span>')
+            return format_html(
+                '<a href="{}" class="button" style="background: #16a34a; color: white; padding: 3px 8px; border-radius: 4px; text-decoration: none; font-size: 0.75rem; font-weight: 700;" title="Click to Deactivate">✔ Active (Click to Turn Off)</a>',
+                toggle_url
+            )
+        return format_html(
+            '<a href="{}" class="button" style="background: #dc2626; color: white; padding: 3px 8px; border-radius: 4px; text-decoration: none; font-size: 0.75rem; font-weight: 700;" title="Click to Activate">✖ Inactive (Click to Turn On)</a>',
+            toggle_url
+        )
     is_active_toggle.short_description = "On/Off Switch"
 
     def date_window_display(self, obj):
@@ -348,18 +358,65 @@ class CampaignAdmin(admin.ModelAdmin):
         return obj.prizes.count()
     prizes_count.short_description = "Prizes"
 
-    def lucky_draw_btn(self, obj):
-        url = reverse('admin:common_campaign_run_lucky_draw', args=[obj.pk])
-        if obj.status == 'winners_declared':
-            return format_html(
-                '<a href="{}" class="button" style="background: #9333ea; color: white; padding: 4px 10px; border-radius: 4px; text-decoration: none; font-size: 0.75rem; font-weight: 700;">🏆 View Winners</a>',
-                url
-            )
-        return format_html(
-            '<a href="{}" class="button" style="background: #e11d48; color: white; padding: 4px 10px; border-radius: 4px; text-decoration: none; font-size: 0.75rem; font-weight: 700;">🎲 Lucky Draw</a>',
-            url
+    def quick_actions(self, obj):
+        draw_url = reverse('admin:common_campaign_run_lucky_draw', args=[obj.pk])
+        toggle_url = reverse('admin:common_campaign_toggle_active', args=[obj.pk])
+        del_url = reverse('admin:common_campaign_quick_delete', args=[obj.pk])
+        
+        draw_btn = format_html(
+            '<a href="{}" class="button" style="background: {}; color: white; padding: 3px 8px; border-radius: 4px; text-decoration: none; font-size: 0.74rem; font-weight: 700; margin-right: 4px;">{}</a>',
+            draw_url,
+            '#9333ea' if obj.status == 'winners_declared' else '#e11d48',
+            '🏆 Winners' if obj.status == 'winners_declared' else '🎲 Lucky Draw'
         )
-    lucky_draw_btn.short_description = "Lucky Draw"
+
+        toggle_btn = format_html(
+            '<a href="{}" class="button" style="background: {}; color: white; padding: 3px 8px; border-radius: 4px; text-decoration: none; font-size: 0.74rem; font-weight: 700; margin-right: 4px;">{}</a>',
+            toggle_url,
+            '#d97706' if obj.is_active else '#16a34a',
+            '🛑 Deactivate' if obj.is_active else '🟢 Activate'
+        )
+
+        del_btn = format_html(
+            '<a href="{}" onclick="return confirm(\'Are you sure you want to delete campaign \\\'{}\\\'?\');" class="button" style="background: #dc2626; color: white; padding: 3px 7px; border-radius: 4px; text-decoration: none; font-size: 0.74rem; font-weight: 700;" title="Delete Campaign">🗑️</a>',
+            del_url,
+            obj.title
+        )
+
+        return format_html('<div style="display: flex; align-items: center; white-space: nowrap;">{}{}{}</div>', draw_btn, toggle_btn, del_btn)
+    quick_actions.short_description = "Quick Actions"
+
+    def toggle_active_view(self, request, campaign_id):
+        campaign = get_object_or_404(Campaign, pk=campaign_id)
+        if campaign.is_active:
+            campaign.is_active = False
+            campaign.save()
+            messages.warning(request, f"🛑 Campaign '{campaign.title}' has been DEACTIVATED and is now completely hidden across the website.")
+        else:
+            campaign.is_active = True
+            if campaign.status in ['draft', 'paused', 'ended']:
+                campaign.status = 'active'
+            campaign.save()
+            messages.success(request, f"🟢 Campaign '{campaign.title}' is now ACTIVE & live on the website.")
+        return HttpResponseRedirect(reverse('admin:common_campaign_changelist'))
+
+    def reset_draw_view(self, request, campaign_id):
+        campaign = get_object_or_404(Campaign, pk=campaign_id)
+        # Remove declared winners and reset participant winner flag
+        winners_count = campaign.winners.count()
+        campaign.winners.all().delete()
+        campaign.participants.update(is_winner=False)
+        campaign.status = 'active'
+        campaign.save()
+        messages.info(request, f"🔄 Lucky Draw reset for '{campaign.title}'. Cleared {winners_count} winner(s). You can now run the draw again.")
+        return HttpResponseRedirect(reverse('admin:common_campaign_run_lucky_draw', args=[campaign.pk]))
+
+    def quick_delete_view(self, request, campaign_id):
+        campaign = get_object_or_404(Campaign, pk=campaign_id)
+        title = campaign.title
+        campaign.delete()
+        messages.success(request, f"🗑️ Campaign '{title}' and all its participants have been successfully deleted.")
+        return HttpResponseRedirect(reverse('admin:common_campaign_changelist'))
 
     def run_lucky_draw_view(self, request, campaign_id):
         campaign = get_object_or_404(Campaign, pk=campaign_id)

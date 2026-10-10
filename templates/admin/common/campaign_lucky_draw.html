@@ -154,12 +154,26 @@
                     &nbsp;|&nbsp; <strong>Slug:</strong> <code>{{ campaign.slug }}</code>
                 </div>
             </div>
-            <div>
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                 {% if campaign.is_live %}
                     <span class="badge-live">🟢 LIVE CONTEST</span>
                 {% else %}
                     <span class="badge-ended">{{ campaign.get_status_display }}</span>
                 {% endif %}
+
+                <a href="{% url 'admin:common_campaign_toggle_active' campaign.id %}" class="button" style="background: {% if campaign.is_active %}#d97706{% else %}#16a34a{% endif %}; color: white; padding: 6px 12px; border-radius: 6px; font-weight: 700; text-decoration: none; font-size: 0.82rem;">
+                    {% if campaign.is_active %}🛑 Deactivate Campaign{% else %}🟢 Activate Campaign{% endif %}
+                </a>
+
+                {% if existing_winners %}
+                <a href="{% url 'admin:common_campaign_reset_draw' campaign.id %}" onclick="return confirm('Resetting will clear all declared winners for this campaign and allow running the draw again. Are you sure?');" class="button" style="background: #64748b; color: white; padding: 6px 12px; border-radius: 6px; font-weight: 700; text-decoration: none; font-size: 0.82rem;">
+                    🔄 Reset Winners
+                </a>
+                {% endif %}
+
+                <a href="{% url 'admin:common_campaign_change' campaign.id %}" class="button" style="background: #2563eb; color: white; padding: 6px 12px; border-radius: 6px; font-weight: 700; text-decoration: none; font-size: 0.82rem;">
+                    ✏️ Edit Prizes & Settings
+                </a>
             </div>
         </div>
 
