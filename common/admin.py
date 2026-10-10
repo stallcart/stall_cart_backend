@@ -461,10 +461,12 @@ class CampaignAdmin(admin.ModelAdmin):
 
 @admin.register(CampaignParticipant)
 class CampaignParticipantAdmin(admin.ModelAdmin):
-    list_display = ('user_info', 'user_phone', 'campaign', 'is_eligible', 'is_winner', 'created_at')
+    list_display = ('ticket_number', 'user_info', 'user_phone', 'campaign', 'registration_type', 'is_eligible', 'is_winner', 'created_at')
     list_filter = ('campaign', 'is_eligible', 'is_winner', 'created_at')
     search_fields = ('user__phone', 'user__email', 'user__full_name', 'ticket_number')
     readonly_fields = ('created_at', 'updated_at')
+    list_editable = ('is_eligible',)
+    actions = ['mark_as_eligible', 'mark_as_ineligible']
 
     def user_info(self, obj):
         return obj.user.full_name or "Registered User"
@@ -473,6 +475,23 @@ class CampaignParticipantAdmin(admin.ModelAdmin):
     def user_phone(self, obj):
         return obj.user.phone
     user_phone.short_description = "Mobile Number"
+
+    def registration_type(self, obj):
+        if obj.user and obj.campaign and obj.campaign.start_datetime:
+            if obj.user.created_at >= obj.campaign.start_datetime:
+                return format_html('<span style="background: #10b981; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 0.75rem;">🟢 Newly Registered</span>')
+        return format_html('<span style="background: #94a3b8; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 0.75rem;">⚪ Pre-Existing</span>')
+    registration_type.short_description = "Registration Type"
+
+    def mark_as_eligible(self, request, queryset):
+        queryset.update(is_eligible=True)
+        messages.success(request, "Selected participants marked as ELIGIBLE for Lucky Draw.")
+    mark_as_eligible.short_description = "✅ Mark as Eligible for Lucky Draw"
+
+    def mark_as_ineligible(self, request, queryset):
+        queryset.update(is_eligible=False)
+        messages.success(request, "Selected participants marked as INELIGIBLE.")
+    mark_as_ineligible.short_description = "❌ Mark as Ineligible"
 
 
 @admin.register(CampaignWinner)
