@@ -24,7 +24,7 @@ def notify_campaign_winner(winner) -> dict:
             rank_display = rank_map.get(prize.rank, f'Rank #{prize.rank}')
             
             context = {
-                'customer_name': user.full_name or 'Valued Shopper',
+                'customer_name': user.full_name or 'Valued Customer',
                 'campaign_title': campaign.title,
                 'prize_title': prize.title,
                 'prize_subtitle': prize.subtitle or '',

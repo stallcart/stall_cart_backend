@@ -54,7 +54,7 @@
                 <div class="ticket-icon" style="background: #eff6ff; color: #2563eb;"><i class="fa fa-store"></i></div>
                 <div class="ticket-info">
                     <div class="ticket-label">{% if request.user.role == 'seller' %}Seller Account Notice{% else %}Staff Notice{% endif %}</div>
-                    <p class="ticket-sub" style="margin: 0; color: #334155;">Festive Lucky Draws are exclusively reserved for StallCart shoppers & customer accounts. Thank you for partnering with {{ SITE_NAME }}!</p>
+                    <p class="ticket-sub" style="margin: 0; color: #334155;">Festive Lucky Draws are exclusively reserved for StallCart customer accounts. Thank you for partnering with {{ SITE_NAME }}!</p>
                 </div>
             </div>
             {% elif user_participation %}
@@ -85,10 +85,10 @@
             <div class="guest-cta-banner">
                 <div class="cta-text">
                     <h3>Want to win 1st, 2nd, or 3rd Prize?</h3>
-                    <p>Create a free shopper account today to automatically enter the {{ campaign.title }} Lucky Draw!</p>
+                    <p>Create a free customer account today to automatically enter the {{ campaign.title }} Lucky Draw!</p>
                 </div>
                 <a href="{% url 'accounts:register' %}?role=customer" class="btn-cta-register">
-                    <i class="fa fa-user-plus"></i> Register as Shopper & Enter
+                    <i class="fa fa-user-plus"></i> Register as Customer & Enter
                 </a>
             </div>
         {% endif %}
@@ -203,7 +203,7 @@
         <div class="mobile-cta-content">
             <div class="mobile-cta-text">
                 <strong>Win Dandiya 2026 Prizes!</strong>
-                <span>Free entry for shoppers</span>
+                <span>Free entry for customers</span>
             </div>
             <a href="{% url 'accounts:register' %}?role=customer" class="btn-mobile-register">
                 Register Free <i class="fa fa-arrow-right"></i>
