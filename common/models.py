@@ -486,7 +486,7 @@ class Campaign(BaseModel):
         Auto-enrolls newly created customer in the current active campaign.
         Strictly targets customer accounts (role='customer') and excludes sellers and staff.
         """
-        if not user or not getattr(user, 'is_active', True):
+        if not user or not getattr(user, 'pk', None) or not getattr(user, 'is_active', True):
             return None
 
         # Exclude sellers, staff, and superusers
