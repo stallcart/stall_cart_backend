@@ -107,6 +107,11 @@ DEFAULT_TEMPLATES = {
         'subject': "StallCart Seller - Settlement {{ settlement_id }} Processed Successfully",
         'body': "Hello {{ seller_name }},\n\nWe are pleased to inform you that your settlement #{{ settlement_id }} has been processed successfully.\n\nYour net earnings of ₹{{ settlement_amount }} have been transferred to your registered bank account.\n\n--- Settlement Details ---\n{% for item in items_details %}\n- Product: {{ item.product_name }}\n  Order ID: {{ item.order_id }}\n  Item Total: ₹{{ item.total_amount }}\n  Platform Commission ({{ item.commission_rate }}%): -₹{{ item.commission_amount }}\n  Your Profit / Net Earnings: ₹{{ item.seller_earnings }}\n{% endfor %}\n\nTotal Transferred Amount: ₹{{ settlement_amount }}\nCommission Deducted (Admin Account): ₹{{ total_commission }}\n\nReference / Payout ID: {{ payment_reference }}\n\nBest Regards,\nStallCart Team",
         'description': "Email notification sent to seller when a settlement and payout are successfully processed"
+    },
+    'campaign_winner_notification': {
+        'subject': "🎉 Congratulations! You won {{ prize_title }} in StallCart {{ campaign_title }}!",
+        'body': "Hello {{ customer_name }},\n\n🎉 Heartiest Congratulations! 🎉\n\nYou have been selected as a winner in the StallCart '{{ campaign_title }}' Lucky Draw!\n\n🏆 Prize Won: {{ prize_title }}\n{% if prize_subtitle %}{{ prize_subtitle }}\n{% endif %}\n{% if approx_value %}Approx Value: ₹{{ approx_value }}\n{% endif %}\n\nOur team will contact you shortly on your registered mobile number ({{ phone }}) to coordinate your prize handover.\n\nYou can also log in to StallCart anytime to view your won prize in your Profile.\n\nBest Regards,\nStallCart Team",
+        'description': "Notification sent to user when they win a lucky draw campaign prize"
     }
 }
 

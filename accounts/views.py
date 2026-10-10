@@ -1548,9 +1548,12 @@ def profile_view(request):
         except SellerShopAddress.DoesNotExist:
             shop_address = None
             
-        from orders.models import SellerSettlement
-        seller_settlements = SellerSettlement.objects.filter(seller=seller).order_by('-created_at')
-    
+    # Fetch any campaign prizes / lucky draw rewards won by the user
+    user_campaign_wins = request.user.campaign_wins.filter(
+        is_published=True, 
+        is_deleted=False
+    ).select_related('campaign', 'prize').order_by('-created_at')
+
     context = {
         'user': request.user, 'is_customer': is_customer, 'is_seller': is_seller, 'is_admin': is_admin,
         'user_orders': user_orders, 'wishlist_count': wishlist_count, 'customer_addresses': customer_addresses,
@@ -1558,6 +1561,7 @@ def profile_view(request):
         'seller_orders': seller_orders, 'shop_address': shop_address,
         'wallet': wallet, 'wallet_transactions': wallet_transactions,
         'seller_settlements': seller_settlements if is_seller else None,
+        'user_campaign_wins': user_campaign_wins,
     }
     return render(request, 'accounts/profile.html', context)
 def redirect_by_role(user):

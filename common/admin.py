@@ -410,12 +410,19 @@ class CampaignAdmin(admin.ModelAdmin):
                     participant.save()
                     created_winners.append(winner)
 
+                    # Send Email and Push Notification to the winner
+                    try:
+                        from common.campaign_service import notify_campaign_winner
+                        notify_campaign_winner(winner)
+                    except Exception as e:
+                        logger.error(f"Failed to dispatch winner notification: {e}")
+
             campaign.status = 'winners_declared'
             campaign.save()
 
             messages.success(
                 request, 
-                f"🎉 Lucky Draw successfully executed! Selected {len(created_winners)} winners for '{campaign.title}'."
+                f"🎉 Lucky Draw successfully executed! Selected and notified {len(created_winners)} winner(s) for '{campaign.title}'."
             )
             return HttpResponseRedirect(request.path)
 
