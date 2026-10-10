@@ -384,12 +384,12 @@ def register_view(request):
                             logger.error(f"Failed to notify admins of new seller: {e}")
 
                         if participant:
-                            messages.success(request, f"🎉 Seller account created! You are entered in '{participant.campaign.title}' (Ticket #{participant.ticket_number}). Shop pending verification.")
+                            messages.success(request, f"🎉 Seller account created! You are entered in '{participant.campaign.title}' Lucky Draw. Shop pending verification.")
                         else:
                             messages.success(request, f"🎉 Seller account created! Your shop '{form.cleaned_data['shop_name']}' is pending verification.")
                     else:
                         if participant:
-                            messages.success(request, f"✅ Account created! 🎉 You are enrolled in '{participant.campaign.title}' with Lucky Draw Ticket #{participant.ticket_number}!")
+                            messages.success(request, f"✅ Account created successfully! 🎉 You are automatically entered into the '{participant.campaign.title}' Lucky Draw!")
                         else:
                             messages.success(request, "✅ Account created successfully! Welcome to StallCart.")
                     
@@ -401,7 +401,7 @@ def register_view(request):
                         'redirect': '/'
                     }
                     if participant:
-                        response_data['campaign_ticket'] = participant.ticket_number
+                        response_data['campaign_enrolled'] = True
                         response_data['campaign_title'] = participant.campaign.title
                         
                     return JsonResponse(response_data)

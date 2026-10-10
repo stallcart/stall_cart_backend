@@ -442,22 +442,25 @@ class CampaignAdmin(admin.ModelAdmin):
 
 @admin.register(CampaignParticipant)
 class CampaignParticipantAdmin(admin.ModelAdmin):
-    list_display = ('ticket_number', 'user_info', 'campaign', 'is_eligible', 'is_winner', 'created_at')
+    list_display = ('user_info', 'user_phone', 'campaign', 'is_eligible', 'is_winner', 'created_at')
     list_filter = ('campaign', 'is_eligible', 'is_winner', 'created_at')
-    search_fields = ('ticket_number', 'user__phone', 'user__email', 'user__full_name')
-    readonly_fields = ('created_at', 'updated_at', 'ticket_number')
+    search_fields = ('user__phone', 'user__email', 'user__full_name', 'ticket_number')
+    readonly_fields = ('created_at', 'updated_at')
 
     def user_info(self, obj):
-        name = obj.user.full_name or "Anonymous"
-        return f"{name} ({obj.user.phone or obj.user.email})"
-    user_info.short_description = "Participant User"
+        return obj.user.full_name or "Registered User"
+    user_info.short_description = "User Name"
+
+    def user_phone(self, obj):
+        return obj.user.phone
+    user_phone.short_description = "Mobile Number"
 
 
 @admin.register(CampaignWinner)
 class CampaignWinnerAdmin(admin.ModelAdmin):
-    list_display = ('rank_badge', 'prize_title', 'winner_info', 'ticket_number', 'campaign', 'is_published', 'created_at')
+    list_display = ('rank_badge', 'prize_title', 'winner_name', 'winner_phone', 'campaign', 'is_published', 'created_at')
     list_filter = ('campaign', 'prize__rank', 'is_published', 'created_at')
-    search_fields = ('ticket_number', 'user__phone', 'user__email', 'user__full_name', 'prize__title')
+    search_fields = ('user__phone', 'user__email', 'user__full_name', 'prize__title')
     actions = ['publish_winners', 'unpublish_winners']
 
     def rank_badge(self, obj):
@@ -473,10 +476,13 @@ class CampaignWinnerAdmin(admin.ModelAdmin):
         return obj.prize.title
     prize_title.short_description = "Prize Won"
 
-    def winner_info(self, obj):
-        name = obj.user.full_name or "Anonymous"
-        return f"{name} ({obj.user.phone or obj.user.email})"
-    winner_info.short_description = "Winner"
+    def winner_name(self, obj):
+        return obj.user.full_name or "Registered User"
+    winner_name.short_description = "Winner Name"
+
+    def winner_phone(self, obj):
+        return obj.user.phone
+    winner_phone.short_description = "Winner Phone"
 
     def publish_winners(self, request, queryset):
         queryset.update(is_published=True)

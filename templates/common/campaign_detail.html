@@ -47,19 +47,19 @@
     </div>
 
     <div class="container campaign-body">
-        <!-- User Ticket Status (if logged in) -->
+        <!-- User Enrollment Status (if logged in) -->
         {% if user.is_authenticated %}
             {% if user_participation %}
             <div class="user-ticket-card">
-                <div class="ticket-icon"><i class="fa fa-ticket-alt"></i></div>
+                <div class="ticket-icon"><i class="fa fa-check-circle"></i></div>
                 <div class="ticket-info">
-                    <div class="ticket-label">Your Lucky Draw Entry</div>
-                    <div class="ticket-number">Ticket #{{ user_participation.ticket_number }}</div>
-                    <p class="ticket-sub">Enrolled on {{ user_participation.created_at|date:"d M Y H:i" }}. Stay tuned for the lucky draw results!</p>
+                    <div class="ticket-label">Your Contest Entry Status</div>
+                    <div class="ticket-number" style="font-size: 1.15rem; color: #16a34a; font-family: inherit;">✅ Enrolled with Registered Mobile: <strong>{{ request.user.phone }}</strong></div>
+                    <p class="ticket-sub">Account registered on {{ user_participation.created_at|date:"d M Y H:i" }}. You are automatically entered into the {{ campaign.title }} Lucky Draw!</p>
                 </div>
                 {% if user_participation.is_winner %}
                 <div class="ticket-winner-badge">
-                    <i class="fa fa-crown"></i> Congratulations! You Won A Prize!
+                    <i class="fa fa-crown"></i> Congratulations! You Won A Prize in this Lucky Draw!
                 </div>
                 {% endif %}
             </div>
@@ -68,7 +68,7 @@
                 <div class="ticket-icon" style="background: #fef3c7; color: #d97706;"><i class="fa fa-info-circle"></i></div>
                 <div class="ticket-info">
                     <div class="ticket-label">Contest Eligibility</div>
-                    <p class="ticket-sub" style="margin: 0;">This contest is active for newly registered accounts during {{ campaign.start_datetime|date:"d M" }} &ndash; {{ campaign.end_datetime|date:"d M" }}. Keep shopping on {{ SITE_NAME }}!</p>
+                    <p class="ticket-sub" style="margin: 0;">This contest is active for accounts registered during {{ campaign.start_datetime|date:"d M" }} &ndash; {{ campaign.end_datetime|date:"d M" }}. Keep shopping on {{ SITE_NAME }}!</p>
                 </div>
             </div>
             {% endif %}
@@ -77,10 +77,10 @@
             <div class="guest-cta-banner">
                 <div class="cta-text">
                     <h3>Want to win 1st, 2nd, or 3rd Prize?</h3>
-                    <p>Create a free account today to automatically get your Lucky Draw Ticket!</p>
+                    <p>Create a free account today to automatically enter the {{ campaign.title }} Lucky Draw!</p>
                 </div>
                 <a href="{% url 'accounts:register' %}" class="btn-cta-register">
-                    <i class="fa fa-user-plus"></i> Register & Enter Lucky Draw
+                    <i class="fa fa-user-plus"></i> Register & Enter Contest
                 </a>
             </div>
         {% endif %}
@@ -120,8 +120,12 @@
                     </div>
                     {% endif %}
                     <h3 class="winner-prize-title">{{ w.prize.title }}</h3>
-                    <div class="winner-ticket">Ticket #{{ w.ticket_number }}</div>
-                    <div class="winner-name">{{ w.user.full_name|default:"Verified Customer" }}</div>
+                    <div class="winner-name" style="font-size: 1.15rem; font-weight: 800; color: #0f172a; margin-top: 8px;">{{ w.user.full_name|default:"Registered Winner" }}</div>
+                    {% if w.user.phone %}
+                    <div class="winner-phone" style="font-size: 0.92rem; color: #475569; font-weight: 700; margin-top: 4px;">
+                        <i class="fa fa-phone"></i> {{ w.user.phone|slice:":4" }}****{{ w.user.phone|slice:"-4:" }}
+                    </div>
+                    {% endif %}
                     {% if w.notes %}<div class="winner-notes">{{ w.notes }}</div>{% endif %}
                 </div>
                 {% endfor %}

@@ -215,9 +215,9 @@
             <thead>
                 <tr>
                     <th>Rank / Prize</th>
-                    <th>Ticket #</th>
                     <th>Winner Name</th>
-                    <th>Phone / Email</th>
+                    <th>Mobile Number</th>
+                    <th>Email Address</th>
                     <th>Selected At</th>
                     <th>Status</th>
                 </tr>
@@ -231,9 +231,9 @@
                         </span>
                         <div style="font-weight: 600; margin-top: 4px;">{{ w.prize.title }}</div>
                     </td>
-                    <td><strong style="color: #2563eb; font-size: 1.05rem;">{{ w.ticket_number }}</strong></td>
-                    <td><strong>{{ w.user.full_name|default:"-" }}</strong></td>
-                    <td>{{ w.user.phone|default:w.user.email }}</td>
+                    <td><strong style="color: #0f172a; font-size: 1.05rem;">{{ w.user.full_name|default:"-" }}</strong></td>
+                    <td><strong style="color: #16a34a; font-size: 1.05rem; font-family: monospace;">{{ w.user.phone }}</strong></td>
+                    <td><span style="color: #475569;">{{ w.user.email|default:"-" }}</span></td>
                     <td>{{ w.selected_at|date:"d M Y H:i" }}</td>
                     <td>
                         {% if w.is_published %}
