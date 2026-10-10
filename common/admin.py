@@ -438,12 +438,23 @@ class CampaignAdmin(admin.ModelAdmin):
             )
             return HttpResponseRedirect(request.path)
 
+        eligible_filter = {
+            'is_eligible': True,
+            'is_deleted': False,
+            'user__is_active': True,
+            'user__role': 'customer',
+            'user__is_staff': False,
+            'user__is_superuser': False,
+        }
+        if campaign.start_datetime:
+            eligible_filter['user__created_at__gte'] = campaign.start_datetime
+
         context = {
             **self.admin_site.each_context(request),
             'campaign': campaign,
             'prizes': prizes,
             'existing_winners': existing_winners,
-            'eligible_count': campaign.participants.filter(is_eligible=True, is_deleted=False, user__is_active=True, user__role='customer', user__is_staff=False, user__is_superuser=False).values('user_id').distinct().count(),
+            'eligible_count': campaign.participants.filter(**eligible_filter).values('user_id').distinct().count(),
             'title': f"Lucky Draw Engine: {campaign.title}",
         }
         return render(request, 'admin/common/campaign_lucky_draw.html', context)
