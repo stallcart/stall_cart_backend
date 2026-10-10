@@ -503,14 +503,23 @@ class Campaign(BaseModel):
             return existing
 
         import re
-        import random
-        prefix = re.sub(r'[^A-Z0-9]', '', active_campaign.slug.upper())[:6] or 'DRAW'
-        count = active_campaign.participants.count() + 1
+        # Generate clean, identifiable ticket number tagged with campaign slug (e.g. DANDIYA-2026-0001)
+        slug_clean = re.sub(r'[^A-Z0-9\-]', '', active_campaign.slug.upper()).strip('-')
+        parts = [p for p in slug_clean.split('-') if p]
+        if len(parts) >= 2 and parts[-1].isdigit():
+            prefix = f"{parts[0]}-{parts[-1]}"
+        elif parts:
+            prefix = parts[0]
+        else:
+            prefix = 'DRAW'
+
+        count = active_campaign.participants.filter(is_deleted=False).count() + 1
         ticket = f"{prefix}-{count:04d}"
 
         # Guarantee unique ticket number
         while CampaignParticipant.objects.filter(campaign=active_campaign, ticket_number=ticket).exists():
-            ticket = f"{prefix}-{random.randint(1000, 99999)}"
+            count += 1
+            ticket = f"{prefix}-{count:04d}"
 
         participant = CampaignParticipant.objects.create(
             campaign=active_campaign,
