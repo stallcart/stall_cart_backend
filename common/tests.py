@@ -585,6 +585,16 @@ class CampaignAndLuckyDrawTests(TestCase):
         self.assertIn("All configured prizes for this campaign have already been awarded", err2)
         self.assertEqual(self.campaign.winners.count(), 3)
 
+    def test_campaign_admin_changelist_view_renders_cleanly(self):
+        """Verify Django Admin Campaign changelist renders without 500 error"""
+        admin_user = User.objects.create_superuser(
+            phone="9999990001", email="superadmin@test.com", password="adminpassword"
+        )
+        self.client.login(phone="9999990001", password="adminpassword")
+        response = self.client.get(reverse('admin:common_campaign_changelist'))
+        self.assertEqual(response.status_code, 200)
+
+
 
 
 

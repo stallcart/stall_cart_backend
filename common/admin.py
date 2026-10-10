@@ -342,15 +342,17 @@ class CampaignAdmin(admin.ModelAdmin):
         count = obj.participants_count
         target = obj.target_registrations
         pct = obj.progress_percentage
+        pct_display = f"{pct:.1f}"
+        width_val = f"{min(pct, 100):.1f}"
         bar_color = '#16a34a' if count >= target else '#2563eb'
         return format_html(
             '<div style="min-width: 140px;">'
-            '  <div style="font-size: 0.8rem; font-weight: 700; margin-bottom: 2px;">{}/{} ({:.1f}%)</div>'
+            '  <div style="font-size: 0.8rem; font-weight: 700; margin-bottom: 2px;">{}/{} ({}%)</div>'
             '  <div style="background: #e2e8f0; height: 8px; border-radius: 4px; overflow: hidden;">'
             '    <div style="background: {}; width: {}%; height: 100%;"></div>'
             '  </div>'
             '</div>',
-            count, target, pct, bar_color, min(pct, 100)
+            count, target, pct_display, bar_color, width_val
         )
     progress_meter.short_description = "Registrations"
 
