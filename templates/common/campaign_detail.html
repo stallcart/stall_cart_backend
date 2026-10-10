@@ -19,7 +19,7 @@
             <div class="campaign-meta-row">
                 <div class="meta-item">
                     <i class="fa fa-calendar-alt"></i>
-                    <span>{{ campaign.start_datetime|date:"d M" }} &ndash; {{ campaign.end_datetime|date:"d M Y" }}</span>
+                    <span>Event Date: 17 October 2026</span>
                 </div>
                 <div class="meta-item">
                     <i class="fa fa-users"></i>
@@ -76,7 +76,7 @@
                 <div class="ticket-icon" style="background: #fef3c7; color: #d97706;"><i class="fa fa-info-circle"></i></div>
                 <div class="ticket-info">
                     <div class="ticket-label">Contest Eligibility</div>
-                    <p class="ticket-sub" style="margin: 0;">This contest is active for customer accounts registered during {{ campaign.start_datetime|date:"d M" }} &ndash; {{ campaign.end_datetime|date:"d M" }}. Keep shopping on {{ SITE_NAME }}!</p>
+                    <p class="ticket-sub" style="margin: 0;">This contest is active for customer accounts registered for {{ campaign.title }} (Event Date: 17 October 2026). Keep shopping on {{ SITE_NAME }}!</p>
                 </div>
             </div>
             {% endif %}
