@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 from django.utils import timezone
 from django.urls import path, reverse
 from django.http import HttpResponseRedirect
@@ -490,8 +491,8 @@ class CampaignParticipantAdmin(admin.ModelAdmin):
     def registration_type(self, obj):
         if obj.user and obj.campaign and obj.campaign.start_datetime:
             if obj.user.created_at >= obj.campaign.start_datetime:
-                return format_html('<span style="background: #10b981; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 0.75rem;">🟢 Newly Registered</span>')
-        return format_html('<span style="background: #94a3b8; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 0.75rem;">⚪ Pre-Existing</span>')
+                return mark_safe('<span style="background: #10b981; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 0.75rem;">🟢 Newly Registered</span>')
+        return mark_safe('<span style="background: #94a3b8; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 0.75rem;">⚪ Pre-Existing</span>')
     registration_type.short_description = "Registration Type"
 
     def mark_as_eligible(self, request, queryset):

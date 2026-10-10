@@ -1160,6 +1160,167 @@
     .category-scroller-track {
         justify-content: center;
     }
+/* ── Festive Campaign Banner (Container Aligned) ──────── */
+.campaign-home-section {
+    padding: 16px 0 6px 0;
+    background: transparent;
+}
+.campaign-home-card {
+    border-radius: 16px;
+    overflow: hidden;
+    padding: 20px 24px;
+    box-shadow: 0 4px 20px rgba(190, 18, 60, 0.15);
+    position: relative;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+.campaign-home-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(circle at 10% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 90% 80%, rgba(245, 158, 11, 0.12) 0%, transparent 50%);
+    pointer-events: none;
+}
+.campaign-card-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    position: relative;
+    z-index: 1;
+}
+.campaign-card-left {
+    flex: 1;
+    min-width: 0;
+}
+.campaign-card-meta-badges {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+}
+.campaign-card-pill {
+    background: rgba(255, 255, 255, 0.22);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    color: #ffffff;
+    font-weight: 800;
+    font-size: 0.74rem;
+    padding: 3px 10px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.campaign-card-live-dot {
+    background: rgba(34, 197, 94, 0.2);
+    color: #86efac;
+    font-weight: 800;
+    font-size: 0.72rem;
+    padding: 3px 8px;
+    border-radius: 20px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.campaign-card-live-dot i {
+    font-size: 0.5rem;
+    animation: pulseLiveDot 1.5s infinite;
+}
+@keyframes pulseLiveDot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.8); }
+}
+.campaign-card-title {
+    font-size: 1.25rem;
+    font-weight: 900;
+    color: #ffffff;
+    margin: 0 0 4px 0;
+    letter-spacing: -0.01em;
+    line-height: 1.3;
+}
+.campaign-card-desc {
+    font-size: 0.88rem;
+    color: rgba(255, 255, 255, 0.92);
+    margin: 0 0 10px 0;
+    line-height: 1.4;
+}
+.campaign-prizes-preview {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.prize-tag {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(4px);
+    color: #ffffff;
+    font-size: 0.76rem;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.campaign-card-right {
+    flex-shrink: 0;
+}
+.btn-campaign-enter {
+    background: #ffffff;
+    color: #be123c !important;
+    font-weight: 800;
+    font-size: 0.86rem;
+    padding: 10px 22px;
+    border-radius: 30px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+    white-space: nowrap;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.btn-campaign-enter:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+    color: #9f1239 !important;
+}
+
+@media (max-width: 768px) {
+    .campaign-home-section {
+        padding: 10px 0 6px 0;
+    }
+    .campaign-home-card {
+        padding: 14px 14px;
+        border-radius: 12px;
+    }
+    .campaign-card-inner {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+    .campaign-card-title {
+        font-size: 1.05rem;
+    }
+    .campaign-card-desc {
+        font-size: 0.8rem;
+        margin-bottom: 8px;
+    }
+    .prize-tag {
+        font-size: 0.72rem;
+        padding: 2px 7px;
+    }
+    .campaign-card-right {
+        width: 100%;
+    }
+    .btn-campaign-enter {
+        width: 100%;
+        justify-content: center;
+        padding: 9px 16px;
+        font-size: 0.84rem;
+    }
 }
 </style>
 {% endblock %}
@@ -1367,23 +1528,36 @@
 
 {% if active_campaign and active_campaign.show_on_homepage %}
 <!-- ══════════════════════════════════════
-     FESTIVE CAMPAIGN STRIP (AUTO-OFF WHEN INACTIVE)
+     FESTIVE CAMPAIGN BANNER (CONTAINER-ALIGNED)
 ══════════════════════════════════════ -->
-<section class="campaign-home-strip" style="background: linear-gradient(135deg, {{ active_campaign.theme_color|default:'#e11d48' }}, #1e1b4b); color: #fff; padding: 14px 0; box-shadow: 0 4px 14px rgba(0,0,0,0.12);">
-    <div class="container" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
-        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-            <span style="background: rgba(255,255,255,0.22); color: #fff; font-weight: 800; font-size: 0.75rem; padding: 3px 10px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.05em; backdrop-filter: blur(4px);">
-                {{ active_campaign.badge_text|default:"🎉 Festive Contest" }}
-            </span>
-            <span style="font-weight: 700; font-size: 0.95rem;">
-                {{ active_campaign.title }}: 
-                <span style="font-weight: 400; opacity: 0.92;">{{ active_campaign.tagline|default:"Register now & win 1st, 2nd, 3rd Prizes in our Lucky Draw!" }}</span>
-            </span>
-        </div>
-        <div style="display: flex; align-items: center; gap: 10px;">
-            <a href="{% url 'common:campaign_detail' active_campaign.slug %}" style="background: #ffffff; color: {{ active_campaign.theme_color|default:'#e11d48' }}; padding: 6px 16px; border-radius: 20px; font-weight: 800; font-size: 0.82rem; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
-                <span>Explore & Enter</span> <i class="fa fa-arrow-right" style="font-size: 0.75rem;"></i>
-            </a>
+<section class="campaign-home-section">
+    <div class="container">
+        <div class="campaign-home-card" style="background: linear-gradient(135deg, {{ active_campaign.theme_color|default:'#be123c' }} 0%, #881337 50%, #1e1b4b 100%);">
+            <div class="campaign-card-inner">
+                <div class="campaign-card-left">
+                    <div class="campaign-card-meta-badges">
+                        <span class="campaign-card-pill">
+                            {{ active_campaign.badge_text|default:"🎉 Dandiya Night Special • 17 October 2026" }}
+                        </span>
+                        <span class="campaign-card-live-dot"><i class="fa fa-circle"></i> Live Contest</span>
+                    </div>
+                    <h3 class="campaign-card-title">{{ active_campaign.title }}</h3>
+                    <p class="campaign-card-desc">
+                        {{ active_campaign.tagline|default:"Register a free customer account & enter the Lucky Draw to win exciting prizes!" }}
+                    </p>
+                    <div class="campaign-prizes-preview">
+                        <span class="prize-tag"><i class="fa fa-trophy" style="color: #fcd34d;"></i> 1st: Mixer Grinder</span>
+                        <span class="prize-tag"><i class="fa fa-award" style="color: #cbd5e1;"></i> 2nd: Hair Straightener</span>
+                        <span class="prize-tag"><i class="fa fa-medal" style="color: #fb923c;"></i> 3rd: Electric Iron</span>
+                    </div>
+                </div>
+                <div class="campaign-card-right">
+                    <a href="{% url 'common:campaign_detail' active_campaign.slug %}" class="btn-campaign-enter">
+                        <span>Explore & Enter</span>
+                        <i class="fa fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
         </div>
     </div>
 </section>
