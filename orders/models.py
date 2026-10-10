@@ -22,6 +22,14 @@ SHIPROCKET_STATUS_MAP = {
     'pickup_queued': 'processing',
     'pickup registered': 'processing',
     'pickup_registered': 'processing',
+    'pickup rescheduled': 'processing',
+    'pickup_rescheduled': 'processing',
+    # Transient courier pickup delays must stay in processing for next-day courier reschedule
+    'pickup failed': 'processing',
+    'pickup_failed': 'processing',
+    'pickup exception': 'processing',
+    'pickup_exception': 'processing',
+    'pickup error': 'processing',
     'pickup': 'shipped',
     'picked up': 'shipped',
     'picked-up': 'shipped',
@@ -48,25 +56,27 @@ SHIPROCKET_STATUS_MAP = {
     'out_for_delivery': 'out_for_delivery',
     'outfordelivery': 'out_for_delivery',
     'ofd': 'out_for_delivery',
+    # Transient delivery attempt issues (NDR) must stay out_for_delivery for next-day reattempt
+    'undelivered': 'out_for_delivery',
+    'undelivered_attempt': 'out_for_delivery',
+    'undelivered attempt': 'out_for_delivery',
+    'delivery delayed': 'shipped',
+    'ndr': 'out_for_delivery',
+    'delivery failed': 'out_for_delivery',
     'delivered': 'delivered',
     'rto': 'returned_to_source',
     'returned to source': 'returned_to_source',
     'returned_to_source': 'returned_to_source',
     'rto initiated': 'returned_to_source',
     'rto_initiated': 'returned_to_source',
+    'rto in transit': 'returned_to_source',
+    'rto_in_transit': 'returned_to_source',
     'rto delivered': 'returned_to_source',
     'rto_delivered': 'returned_to_source',
     'rto acknowledged': 'returned_to_source',
     'rto_acknowledged': 'returned_to_source',
     'cancelled': 'cancelled',
     'canceled': 'cancelled',
-    'pickup failed': 'courier_failed_pickup',
-    'pickup_failed': 'courier_failed_pickup',
-    'pickup exception': 'courier_failed_pickup',
-    'pickup_exception': 'courier_failed_pickup',
-    'undelivered': 'courier_failed_pickup',
-    'undelivered_attempt': 'courier_failed_pickup',
-    'undelivered attempt': 'courier_failed_pickup',
 }
 
 
@@ -246,10 +256,11 @@ class Order(BaseModel):
                 pass
 
         # === ATOMIC TRANSITION TO REFUND INITIATED PRE-SAVE ===
-        # If status transitions from non-cancelled to a cancelled state, and is eligible, rewrite status to refund_initiated.
+        # Auto-refund on cancellation should only apply to non-shipped / pre-delivery cancellations (cancelled, seller_unresponsive, courier_failed_pickup).
+        # RTO (returned_to_source) and customer returns (returned) require warehouse confirmation before refunding.
         target_cancelled_status = None
-        cancelled_states = ('cancelled', 'returned', 'returned_to_source', 'courier_failed_pickup', 'seller_unresponsive')
-        if status_changed and self.status in cancelled_states and old_status not in cancelled_states:
+        cancelled_states = ('cancelled', 'seller_unresponsive', 'courier_failed_pickup')
+        if status_changed and self.status in cancelled_states and old_status not in cancelled_states and old_status != 'delivered':
             target_cancelled_status = self.status
             if self.can_be_refunded or (self.payment_method == 'wallet' and self.payment_status == 'paid'):
                 self.status = 'refund_initiated'

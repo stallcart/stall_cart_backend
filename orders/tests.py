@@ -1678,12 +1678,17 @@ class CustomAdminCancellationStatusTests(TestCase):
         # Earnings cancelled:
         self.assertEqual(self.item.seller_earnings, Decimal("0.00"))
 
-    def test_shiprocket_webhook_can_mark_courier_failed_pickup(self):
-        """Verify Shiprocket webhook automatically maps 'pickup failed' to courier_failed_pickup status."""
+    def test_shiprocket_webhook_pickup_delayed_does_not_cancel_or_refund(self):
+        """Verify Shiprocket webhook maps 'pickup failed' to processing (delayed retry) without cancelling or refunding."""
         self.order.tracking_number = "AWB-PICKUP-FAIL-123"
+        self.order.status = "processing"
+        self.order.payment_method = "razorpay"
+        self.order.payment_status = "paid"
+        self.order.razorpay_payment_id = "pay_sr_fail_1"
         self.order.save()
         
         self.item.tracking_number = "AWB-PICKUP-FAIL-123"
+        self.item.status = "processing"
         self.item.save()
         
         # Initially stock is 10
@@ -1706,12 +1711,72 @@ class CustomAdminCancellationStatusTests(TestCase):
         self.item.refresh_from_db()
         self.product.refresh_from_db()
         
-        self.assertEqual(self.order.status, "courier_failed_pickup")
-        self.assertEqual(self.item.status, "courier_failed_pickup")
-        # Restocking: 10 + 2 = 12
-        self.assertEqual(self.product.stock, 12)
-        # Earnings cancelled:
-        self.assertEqual(self.item.seller_earnings, Decimal("0.00"))
+        # Order should remain processing and NOT be cancelled or refunded
+        self.assertEqual(self.order.status, "processing")
+        self.assertEqual(self.item.status, "processing")
+        self.assertEqual(self.order.shiprocket_status, "Pickup Failed")
+        self.assertEqual(self.product.stock, 10)
+        self.assertEqual(self.order.payment_status, "paid")
+        self.assertIsNone(self.order.refund_amount)
+
+        # Next day: Shiprocket delivers successfully
+        payload_delivered = {
+            "awb": "AWB-PICKUP-FAIL-123",
+            "current_status": "Delivered"
+        }
+        response_del = self.client.post(
+            url,
+            data=json.dumps(payload_delivered),
+            content_type="application/json"
+        )
+        self.assertEqual(response_del.status_code, 200)
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, "delivered")
+        self.assertEqual(self.order.payment_status, "paid")
+        self.assertIsNone(self.order.refund_amount)
+
+    def test_shiprocket_webhook_undelivered_attempt_does_not_cancel_or_refund(self):
+        """Verify transient delivery attempt failure (NDR / Undelivered) keeps order out_for_delivery and does not trigger refund."""
+        self.order.tracking_number = "AWB-NDR-456"
+        self.order.status = "out_for_delivery"
+        self.order.payment_method = "razorpay"
+        self.order.payment_status = "paid"
+        self.order.razorpay_payment_id = "pay_ndr_1"
+        self.order.save()
+        
+        self.item.tracking_number = "AWB-NDR-456"
+        self.item.status = "out_for_delivery"
+        self.item.save()
+        
+        url = reverse('orders:shiprocket_webhook')
+        payload = {
+            "awb": "AWB-NDR-456",
+            "current_status": "Undelivered Attempt"
+        }
+        response = self.client.post(
+            url,
+            data=json.dumps(payload),
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+        
+        self.order.refresh_from_db()
+        self.item.refresh_from_db()
+        
+        # Order remains out_for_delivery for next-day reattempt
+        self.assertEqual(self.order.status, "out_for_delivery")
+        self.assertEqual(self.order.payment_status, "paid")
+        self.assertIsNone(self.order.refund_amount)
+
+        # Next day delivery
+        payload_delivered = {
+            "awb": "AWB-NDR-456",
+            "current_status": "Delivered"
+        }
+        self.client.post(url, data=json.dumps(payload_delivered), content_type="application/json")
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, "delivered")
+        self.assertEqual(self.order.payment_status, "paid")
 
     @mock.patch('orders.views.get_razorpay_client')
     def test_razorpay_refund_initiated_processed_by_job(self, mock_get_client):

@@ -1687,8 +1687,17 @@ def shiprocket_webhook(request):
             return HttpResponse("Order not found", status=404)
             
         status_map = SHIPROCKET_STATUS_MAP
-        
         new_local_status = status_map.get(sr_status.lower())
+        
+        # Rank forward progression: pending(1) -> confirmed(2) -> processing(3) -> shipped(4) -> out_for_delivery(5) -> delivered(6)
+        status_ranks = {
+            'pending': 1,
+            'confirmed': 2,
+            'processing': 3,
+            'shipped': 4,
+            'out_for_delivery': 5,
+            'delivered': 6,
+        }
         
         with transaction.atomic():
             order.shiprocket_status = sr_status
@@ -1698,7 +1707,20 @@ def shiprocket_webhook(request):
                 if order_item:
                     # Update status of specific order item
                     order_item.shiprocket_status = sr_status
-                    if order_item.status != new_local_status:
+                    
+                    # Prevent downgrading terminal or more advanced statuses
+                    allow_item_transition = True
+                    current_rank = status_ranks.get(order_item.status)
+                    target_rank = status_ranks.get(new_local_status)
+                    
+                    if order_item.status == 'delivered':
+                        allow_item_transition = False
+                    elif current_rank and target_rank and target_rank < current_rank:
+                        allow_item_transition = False
+                    elif order_item.status in ('cancelled', 'refund_initiated', 'refunded', 'returned'):
+                        allow_item_transition = False
+
+                    if allow_item_transition and order_item.status != new_local_status:
                         old_status = order.status
                         order_item.status = new_local_status
                         if new_local_status == 'delivered':
@@ -1720,11 +1742,23 @@ def shiprocket_webhook(request):
                         order.tracking_number = awb
                         tracking_updated = True
 
-                    if (new_local_status and new_local_status != order.status) or tracking_updated:
+                    # Check overall order progression rank
+                    allow_order_transition = True
+                    current_order_rank = status_ranks.get(order.status)
+                    target_order_rank = status_ranks.get(new_local_status)
+                    
+                    if order.status == 'delivered':
+                        allow_order_transition = False
+                    elif current_order_rank and target_order_rank and target_order_rank < current_order_rank:
+                        allow_order_transition = False
+                    elif order.status in ('cancelled', 'refund_initiated', 'refunded', 'returned'):
+                        allow_order_transition = False
+
+                    if (allow_order_transition and new_local_status != order.status) or tracking_updated:
                         old_status = order.status
                         update_fields = ['updated_at', 'shiprocket_status']
                         
-                        if new_local_status and new_local_status != order.status:
+                        if allow_order_transition and new_local_status != order.status:
                             order.status = new_local_status
                             update_fields.append('status')
                             if new_local_status == 'delivered':
@@ -1742,22 +1776,24 @@ def shiprocket_webhook(request):
                         # Sync down to all order items that don't have separate tracking numbers
                         items_to_sync = order.items.filter(tracking_number__isnull=True) | order.items.filter(tracking_number='')
                         for item in items_to_sync:
-                            item.status = new_local_status
+                            item_current_rank = status_ranks.get(item.status)
+                            if item.status != 'delivered' and not (item_current_rank and target_order_rank and target_order_rank < item_current_rank):
+                                item.status = new_local_status
+                                if new_local_status == 'shipped':
+                                    item.shipped_at = timezone.now()
+                                elif new_local_status == 'delivered':
+                                    item.delivered_at = timezone.now()
                             item.shiprocket_status = sr_status
-                            if new_local_status == 'shipped':
-                                item.shipped_at = timezone.now()
-                            elif new_local_status == 'delivered':
-                                item.delivered_at = timezone.now()
                             item.save(update_fields=['status', 'shipped_at', 'delivered_at', 'shiprocket_status', 'updated_at'])
 
-                        # Create status change log
-                        OrderStatusLog.objects.create(
-                            order=order,
-                            old_status=old_status,
-                            new_status=new_local_status,
-                            remarks=f"Automatic update via Shiprocket Webhook (AWB: {awb}, status: {sr_status})"
-                        )
-                        logger.info(f"Shiprocket Webhook: Updated order {order.unique_order_id}. Status: {old_status} -> {order.status}.")
+                        if allow_order_transition and new_local_status != old_status:
+                            OrderStatusLog.objects.create(
+                                order=order,
+                                old_status=old_status,
+                                new_status=new_local_status,
+                                remarks=f"Automatic update via Shiprocket Webhook (AWB: {awb}, status: {sr_status})"
+                            )
+                            logger.info(f"Shiprocket Webhook: Updated order {order.unique_order_id}. Status: {old_status} -> {order.status}.")
             
         return HttpResponse("OK", status=200)
         

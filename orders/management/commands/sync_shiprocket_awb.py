@@ -352,6 +352,15 @@ class Command(BaseCommand):
                 new_local_status = status_map.get(sr_status.lower())
                 self.stdout.write(f"  Shiprocket Status: '{sr_status}' -> Mapped Local Status: '{new_local_status}'")
 
+                status_ranks = {
+                    'pending': 1,
+                    'confirmed': 2,
+                    'processing': 3,
+                    'shipped': 4,
+                    'out_for_delivery': 5,
+                    'delivered': 6,
+                }
+
                 items_to_update = OrderItem.objects.filter(tracking_number=tracking_number)
                 for item in items_to_update:
                     item_updated = False
@@ -365,7 +374,19 @@ class Command(BaseCommand):
                             item.order.shiprocket_status = sr_status
                             item.order.save(update_fields=['shiprocket_status', 'updated_at'])
 
-                    if new_local_status and item.status != new_local_status:
+                    # Check ranking before transitioning
+                    allow_item_transition = True
+                    current_rank = status_ranks.get(item.status)
+                    target_rank = status_ranks.get(new_local_status)
+                    
+                    if item.status == 'delivered':
+                        allow_item_transition = False
+                    elif current_rank and target_rank and target_rank < current_rank:
+                        allow_item_transition = False
+                    elif item.status in ('cancelled', 'refund_initiated', 'refunded', 'returned'):
+                        allow_item_transition = False
+
+                    if new_local_status and allow_item_transition and item.status != new_local_status:
                         old_item_status = item.status
                         item.status = new_local_status
                         if new_local_status == 'delivered':
