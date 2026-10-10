@@ -146,13 +146,13 @@
             <div class="section-title-wrap">
                 <span class="section-pill">🎁 Grand Prizes</span>
                 <h2>What You Can Win</h2>
-                <p>Exciting prizes up for grabs in our festive random lucky draw!</p>
+                <p>Exciting household appliances & styling essentials for Dandiya Nights 2026!</p>
             </div>
 
             <div class="prizes-grid-display">
                 {% for p in prizes %}
                 <div class="prize-card rank-border-{{ p.rank }}">
-                    <div class="prize-badge-rank">
+                    <div class="prize-badge-rank rank-badge-{{ p.rank }}">
                         {% if p.rank == 1 %}🥇 1st Prize{% elif p.rank == 2 %}🥈 2nd Prize{% elif p.rank == 3 %}🥉 3rd Prize{% else %}Rank #{{ p.rank }}{% endif %}
                     </div>
                     {% if p.image %}
@@ -160,8 +160,16 @@
                         <img src="{{ p.image.url }}" alt="{{ p.title }}">
                     </div>
                     {% else %}
-                    <div class="prize-img-placeholder">
-                        <i class="fa fa-gift"></i>
+                    <div class="prize-img-placeholder rank-icon-bg-{{ p.rank }}">
+                        {% if p.rank == 1 %}
+                            <i class="fa fa-blender"></i>
+                        {% elif p.rank == 2 %}
+                            <i class="fa fa-wand-magic-sparkles"></i>
+                        {% elif p.rank == 3 %}
+                            <i class="fa fa-shirt"></i>
+                        {% else %}
+                            <i class="fa fa-gift"></i>
+                        {% endif %}
                     </div>
                     {% endif %}
                     <div class="prize-info">
@@ -181,127 +189,173 @@
         <!-- Rules and Terms -->
         {% if campaign.description %}
         <div class="rules-card">
-            <h3><i class="fa fa-clipboard-list"></i> Contest Rules & Terms</h3>
+            <h3><i class="fa fa-clipboard-list" style="color: #e11d48; margin-right: 6px;"></i> Contest Rules & Event Guidelines</h3>
             <div class="rules-content">
                 {{ campaign.description|linebreaks }}
             </div>
         </div>
         {% endif %}
     </div>
+
+    <!-- Mobile Floating Sticky CTA Bar (for non-enrolled guests) -->
+    {% if not user.is_authenticated %}
+    <div class="mobile-sticky-cta-bar">
+        <div class="mobile-cta-content">
+            <div class="mobile-cta-text">
+                <strong>Win Dandiya 2026 Prizes!</strong>
+                <span>Free entry for shoppers</span>
+            </div>
+            <a href="{% url 'accounts:register' %}?role=customer" class="btn-mobile-register">
+                Register Free <i class="fa fa-arrow-right"></i>
+            </a>
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 <style>
 .campaign-page-wrapper {
     background: #f8fafc;
-    min-height: 80vh;
-    padding-bottom: 60px;
+    min-height: 85vh;
+    padding-bottom: 90px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 .campaign-hero {
     color: #ffffff;
-    padding: 60px 0 50px 0;
+    padding: 50px 16px 45px 16px;
     text-align: center;
     position: relative;
     overflow: hidden;
+    background: linear-gradient(135deg, #be123c 0%, #881337 50%, #1e1b4b 100%) !important;
+}
+.campaign-hero::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.12) 0%, transparent 60%),
+                radial-gradient(circle at 80% 70%, rgba(245, 158, 11, 0.15) 0%, transparent 60%);
+    pointer-events: none;
 }
 .campaign-hero-content {
-    max-width: 800px;
+    max-width: 820px;
     margin: 0 auto;
+    position: relative;
+    z-index: 1;
 }
 .campaign-pill {
-    background: rgba(255, 255, 255, 0.2);
-    backdrop-filter: blur(8px);
+    background: rgba(255, 255, 255, 0.22);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     color: #fff;
     padding: 6px 16px;
     border-radius: 30px;
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     display: inline-block;
-    margin-bottom: 15px;
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    margin-bottom: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 .campaign-title {
-    font-size: clamp(1.8rem, 4vw, 2.8rem);
-    font-weight: 800;
-    margin-bottom: 12px;
-    line-height: 1.2;
+    font-size: clamp(1.6rem, 5vw, 2.7rem);
+    font-weight: 900;
+    margin-bottom: 10px;
+    line-height: 1.22;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.25);
 }
 .campaign-tagline {
-    font-size: clamp(1rem, 2vw, 1.25rem);
-    opacity: 0.92;
-    margin-bottom: 24px;
+    font-size: clamp(0.95rem, 2.5vw, 1.2rem);
+    opacity: 0.95;
+    margin-bottom: 20px;
     font-weight: 400;
+    line-height: 1.5;
+    max-width: 650px;
+    margin-left: auto;
+    margin-right: auto;
 }
 .campaign-meta-row {
     display: flex;
     justify-content: center;
-    gap: 20px;
+    gap: 12px;
     flex-wrap: wrap;
-    font-size: 0.95rem;
-    margin-bottom: 30px;
+    font-size: 0.9rem;
+    margin-bottom: 24px;
 }
 .meta-item {
-    background: rgba(0, 0, 0, 0.2);
-    padding: 8px 16px;
+    background: rgba(0, 0, 0, 0.28);
+    backdrop-filter: blur(8px);
+    padding: 6px 14px;
     border-radius: 20px;
     display: flex;
     align-items: center;
     gap: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
 }
 .countdown-card {
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.16);
     backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.25);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 16px;
-    padding: 20px;
+    padding: 16px 20px;
     display: inline-block;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    max-width: 100%;
 }
 .countdown-label {
-    font-size: 0.85rem;
+    font-size: 0.78rem;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    margin-bottom: 10px;
-    font-weight: 700;
+    margin-bottom: 8px;
+    font-weight: 800;
+    color: #fef08a;
 }
 .countdown-timer {
     display: flex;
-    gap: 12px;
+    gap: 10px;
     justify-content: center;
 }
 .time-box {
-    background: rgba(0, 0, 0, 0.4);
+    background: rgba(15, 23, 42, 0.6);
     border-radius: 10px;
-    padding: 8px 14px;
-    min-width: 65px;
+    padding: 8px 12px;
+    min-width: 60px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
 }
 .time-box span {
-    font-size: 1.6rem;
-    font-weight: 800;
+    font-size: 1.5rem;
+    font-weight: 900;
     display: block;
     line-height: 1.1;
+    color: #fff;
+    font-variant-numeric: tabular-nums;
 }
 .time-box small {
-    font-size: 0.65rem;
+    font-size: 0.62rem;
     text-transform: uppercase;
-    opacity: 0.8;
+    opacity: 0.85;
+    font-weight: 700;
+    letter-spacing: 0.04em;
 }
 .declared-badge {
     background: #16a34a;
     color: #fff;
-    padding: 12px 24px;
+    padding: 10px 20px;
     border-radius: 30px;
-    font-size: 1.1rem;
+    font-size: 1rem;
     font-weight: 800;
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    box-shadow: 0 4px 14px rgba(22, 163, 74, 0.4);
+    box-shadow: 0 4px 16px rgba(22, 163, 74, 0.4);
 }
 
 .campaign-body {
-    max-width: 1000px;
-    margin-top: -25px;
+    max-width: 960px;
+    margin: -20px auto 0 auto;
+    padding: 0 16px;
     position: relative;
     z-index: 2;
 }
@@ -310,149 +364,163 @@
     background: #fff;
     border-radius: 14px;
     border-left: 6px solid #2563eb;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.06);
-    padding: 20px 24px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    padding: 18px 20px;
     display: flex;
     align-items: center;
-    gap: 20px;
-    margin-bottom: 25px;
+    gap: 16px;
+    margin-bottom: 20px;
     flex-wrap: wrap;
 }
 .ticket-icon {
-    width: 50px;
-    height: 50px;
+    width: 46px;
+    height: 46px;
     border-radius: 12px;
     background: #eff6ff;
     color: #2563eb;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.5rem;
+    font-size: 1.4rem;
     flex-shrink: 0;
 }
-.ticket-info { flex: 1; min-width: 200px; }
-.ticket-label { font-size: 0.8rem; text-transform: uppercase; color: #64748b; font-weight: 700; }
-.ticket-number { font-size: 1.5rem; font-weight: 900; color: #0f172a; letter-spacing: 0.04em; }
-.ticket-sub { font-size: 0.85rem; color: #64748b; margin-top: 4px; }
+.ticket-info { flex: 1; min-width: 220px; }
+.ticket-label { font-size: 0.78rem; text-transform: uppercase; color: #64748b; font-weight: 800; letter-spacing: 0.04em; }
+.ticket-number { font-size: 1.05rem; font-weight: 800; color: #0f172a; margin-top: 2px; }
+.ticket-sub { font-size: 0.85rem; color: #64748b; margin-top: 4px; line-height: 1.4; }
 .ticket-winner-badge {
-    background: #9333ea;
+    background: linear-gradient(135deg, #9333ea, #7e22ce);
     color: #fff;
     padding: 8px 16px;
     border-radius: 20px;
-    font-weight: 700;
-    font-size: 0.9rem;
+    font-weight: 800;
+    font-size: 0.88rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .guest-cta-banner {
-    background: linear-gradient(135deg, #0f172a, #1e293b);
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
     color: #fff;
     border-radius: 14px;
-    padding: 24px 30px;
+    padding: 22px 24px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 20px;
+    gap: 16px;
     flex-wrap: wrap;
-    margin-bottom: 25px;
-    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.15);
+    margin-bottom: 24px;
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.08);
 }
-.cta-text h3 { margin: 0 0 6px 0; font-size: 1.3rem; font-weight: 800; }
-.cta-text p { margin: 0; opacity: 0.85; font-size: 0.92rem; }
+.cta-text h3 { margin: 0 0 4px 0; font-size: 1.25rem; font-weight: 900; }
+.cta-text p { margin: 0; opacity: 0.88; font-size: 0.9rem; }
 .btn-cta-register {
-    background: #e11d48;
+    background: linear-gradient(135deg, #e11d48, #be123c);
     color: #fff !important;
-    padding: 12px 24px;
+    padding: 12px 22px;
     border-radius: 8px;
     font-weight: 800;
     text-decoration: none;
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    transition: all 0.2s;
+    font-size: 0.95rem;
+    box-shadow: 0 4px 14px rgba(225, 29, 72, 0.4);
+    transition: transform 0.2s, box-shadow 0.2s;
+    white-space: nowrap;
 }
-.btn-cta-register:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(225,29,72,0.4); }
+.btn-cta-register:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(225,29,72,0.5); }
 
 .campaign-progress-card {
     background: #fff;
     border-radius: 14px;
-    padding: 20px 24px;
+    padding: 18px 20px;
     box-shadow: 0 4px 16px rgba(0,0,0,0.04);
-    margin-bottom: 35px;
+    margin-bottom: 30px;
+    border: 1px solid #f1f5f9;
 }
 .progress-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
 }
-.progress-header h4 { margin: 0 0 4px 0; font-size: 1.1rem; color: #0f172a; }
-.progress-header .sub { font-size: 0.85rem; color: #64748b; }
-.progress-percent { font-size: 1.3rem; font-weight: 800; color: #0f172a; }
+.progress-header h4 { margin: 0 0 2px 0; font-size: 1.05rem; font-weight: 800; color: #0f172a; }
+.progress-header .sub { font-size: 0.82rem; color: #64748b; }
+.progress-percent { font-size: 1.25rem; font-weight: 900; color: #e11d48; }
 .progress-bar-bg {
-    height: 12px;
+    height: 10px;
     background: #e2e8f0;
-    border-radius: 6px;
+    border-radius: 5px;
     overflow: hidden;
 }
 .progress-bar-fill {
     height: 100%;
-    border-radius: 6px;
+    border-radius: 5px;
     transition: width 0.5s ease-out;
 }
 
 .section-title-wrap {
     text-align: center;
-    margin-bottom: 30px;
+    margin-bottom: 24px;
 }
 .section-pill {
-    background: #fee2e2;
+    background: #ffe4e6;
     color: #be123c;
     font-weight: 800;
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     padding: 4px 12px;
     border-radius: 20px;
     text-transform: uppercase;
     letter-spacing: 0.06em;
     display: inline-block;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
 }
-.section-title-wrap h2 { font-size: 1.8rem; font-weight: 800; color: #0f172a; margin-bottom: 6px; }
-.section-title-wrap p { color: #64748b; font-size: 0.95rem; }
+.section-title-wrap h2 { font-size: 1.6rem; font-weight: 900; color: #0f172a; margin-bottom: 4px; }
+.section-title-wrap p { color: #64748b; font-size: 0.92rem; margin: 0; }
 
 .prizes-grid-display {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 20px;
-    margin-bottom: 40px;
+    gap: 18px;
+    margin-bottom: 36px;
 }
 .prize-card {
     background: #fff;
-    border-radius: 14px;
+    border-radius: 16px;
     overflow: hidden;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.05);
+    box-shadow: 0 4px 18px rgba(0,0,0,0.05);
     border: 2px solid #f1f5f9;
     position: relative;
     transition: transform 0.2s, box-shadow 0.2s;
+    display: flex;
+    flex-direction: column;
 }
-.prize-card:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+.prize-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
 .rank-border-1 { border-color: #f59e0b; }
 .rank-border-2 { border-color: #94a3b8; }
-.rank-border-3 { border-color: #b45309; }
+.rank-border-3 { border-color: #d97706; }
 
 .prize-badge-rank {
     position: absolute;
     top: 12px;
     left: 12px;
-    background: rgba(15, 23, 42, 0.85);
-    backdrop-filter: blur(6px);
     color: #fff;
     font-weight: 800;
-    font-size: 0.78rem;
+    font-size: 0.76rem;
     padding: 4px 10px;
     border-radius: 6px;
     z-index: 2;
     text-transform: uppercase;
+    letter-spacing: 0.04em;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
 }
+.rank-badge-1 { background: linear-gradient(135deg, #f59e0b, #d97706); }
+.rank-badge-2 { background: linear-gradient(135deg, #64748b, #475569); }
+.rank-badge-3 { background: linear-gradient(135deg, #b45309, #78350f); }
+
 .prize-img-wrap {
     aspect-ratio: 16/10;
     overflow: hidden;
@@ -461,46 +529,173 @@
 .prize-img-wrap img { width: 100%; height: 100%; object-fit: cover; }
 .prize-img-placeholder {
     aspect-ratio: 16/10;
-    background: #f1f5f9;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 3rem;
-    color: #cbd5e1;
+    font-size: 3.5rem;
 }
-.prize-info { padding: 18px; }
-.prize-name { font-size: 1.15rem; font-weight: 800; color: #0f172a; margin-bottom: 6px; }
-.prize-desc { font-size: 0.85rem; color: #64748b; margin-bottom: 10px; }
-.prize-value { font-weight: 800; color: #16a34a; font-size: 1.05rem; }
+.rank-icon-bg-1 { background: linear-gradient(135deg, #fef3c7, #fde68a); color: #d97706; }
+.rank-icon-bg-2 { background: linear-gradient(135deg, #f1f5f9, #e2e8f0); color: #475569; }
+.rank-icon-bg-3 { background: linear-gradient(135deg, #ffedd5, #fed7aa); color: #c2410c; }
+
+.prize-info { padding: 18px; flex: 1; display: flex; flex-direction: column; }
+.prize-name { font-size: 1.15rem; font-weight: 900; color: #0f172a; margin-bottom: 6px; line-height: 1.3; }
+.prize-desc { font-size: 0.88rem; color: #64748b; line-height: 1.5; margin: 0; }
 
 .winners-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 20px;
-    margin-bottom: 40px;
+    gap: 16px;
+    margin-bottom: 36px;
 }
 .winner-card {
     background: #fff;
     border-radius: 14px;
-    padding: 24px 20px;
+    padding: 22px 18px;
     text-align: center;
     box-shadow: 0 4px 18px rgba(0,0,0,0.06);
     border: 2px solid #e2e8f0;
 }
 .winner-card.rank-1 { border-color: #f59e0b; background: linear-gradient(180deg, #fffbeb 0%, #ffffff 100%); }
-.winner-crown { font-weight: 800; font-size: 1rem; color: #d97706; margin-bottom: 12px; }
-.winner-prize-title { font-size: 1.1rem; font-weight: 700; color: #0f172a; margin-bottom: 8px; }
-.winner-ticket { font-size: 1.3rem; font-weight: 900; color: #2563eb; margin-bottom: 6px; }
-.winner-name { font-weight: 600; color: #334155; font-size: 1rem; }
+.winner-crown { font-weight: 800; font-size: 0.95rem; color: #d97706; margin-bottom: 10px; }
+.winner-prize-title { font-size: 1.05rem; font-weight: 800; color: #0f172a; margin-bottom: 6px; }
 
 .rules-card {
     background: #fff;
     border-radius: 14px;
-    padding: 24px;
+    padding: 22px 24px;
     box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+    border: 1px solid #f1f5f9;
 }
-.rules-card h3 { margin: 0 0 16px 0; font-size: 1.2rem; color: #0f172a; }
-.rules-content { color: #475569; font-size: 0.92rem; line-height: 1.6; }
+.rules-card h3 { margin: 0 0 12px 0; font-size: 1.15rem; font-weight: 800; color: #0f172a; }
+.rules-content { color: #475569; font-size: 0.9rem; line-height: 1.6; }
+
+/* Sticky Mobile Bottom Bar */
+.mobile-sticky-cta-bar {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(15, 23, 42, 0.94);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    padding: 10px 16px;
+    z-index: 999;
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.2);
+    border-top: 1px solid rgba(255,255,255,0.12);
+}
+.mobile-cta-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    max-width: 500px;
+    margin: 0 auto;
+}
+.mobile-cta-text {
+    display: flex;
+    flex-direction: column;
+    color: #fff;
+}
+.mobile-cta-text strong {
+    font-size: 0.9rem;
+    color: #fff;
+}
+.mobile-cta-text span {
+    font-size: 0.75rem;
+    color: #94a3b8;
+}
+.btn-mobile-register {
+    background: #e11d48;
+    color: #fff !important;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 800;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(225,29,72,0.4);
+}
+
+/* ==================================================== */
+/* MOBILE RESPONSIVENESS (< 768px and < 480px)          */
+/* ==================================================== */
+@media (max-width: 768px) {
+    .campaign-hero {
+        padding: 40px 14px 35px 14px;
+    }
+    .campaign-meta-row {
+        gap: 8px;
+    }
+    .meta-item {
+        font-size: 0.8rem;
+        padding: 5px 12px;
+    }
+    .countdown-timer {
+        gap: 6px;
+    }
+    .time-box {
+        min-width: 54px;
+        padding: 6px 8px;
+    }
+    .time-box span {
+        font-size: 1.25rem;
+    }
+    .time-box small {
+        font-size: 0.58rem;
+    }
+    .guest-cta-banner {
+        flex-direction: column;
+        text-align: center;
+        padding: 18px;
+    }
+    .btn-cta-register {
+        width: 100%;
+        justify-content: center;
+    }
+    .user-ticket-card {
+        padding: 16px;
+        gap: 12px;
+    }
+    .ticket-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 1.2rem;
+    }
+    .prizes-grid-display {
+        grid-template-columns: 1fr;
+        gap: 14px;
+    }
+    .mobile-sticky-cta-bar {
+        display: block;
+    }
+}
+
+@media (max-width: 480px) {
+    .campaign-title {
+        font-size: 1.45rem;
+    }
+    .campaign-tagline {
+        font-size: 0.92rem;
+    }
+    .time-box {
+        min-width: 48px;
+        padding: 5px 6px;
+    }
+    .time-box span {
+        font-size: 1.15rem;
+    }
+    .prize-name {
+        font-size: 1.05rem;
+    }
+    .prize-desc {
+        font-size: 0.82rem;
+    }
+}
 </style>
 
 {% if is_live and seconds_remaining > 0 %}
