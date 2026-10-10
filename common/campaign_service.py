@@ -19,21 +19,34 @@ def notify_campaign_winner(winner) -> dict:
     # 1. Send Dynamic Email Notification (if user has email)
     if user.email:
         try:
+            from common.models import EmailTemplate
             rank_map = {1: '1st Prize', 2: '2nd Prize', 3: '3rd Prize'}
             rank_display = rank_map.get(prize.rank, f'Rank #{prize.rank}')
             
             context = {
-                'customer_name': user.full_name or 'Valued Customer',
+                'customer_name': user.full_name or 'Valued Shopper',
                 'campaign_title': campaign.title,
                 'prize_title': prize.title,
-                'prize_subtitle': prize.subtitle,
+                'prize_subtitle': prize.subtitle or '',
                 'prize_rank_display': rank_display,
-                'approx_value': prize.approx_value,
-                'phone': user.phone,
+                'approx_value': prize.approx_value or '',
+                'phone': user.phone or '',
+                'ticket_number': winner.ticket_number or (getattr(winner.participant, 'ticket_number', '') if getattr(winner, 'participant', None) else ''),
+                'event_date': '17 October 2026',
+                'profile_url': 'https://stallcart.in/accounts/profile/',
+                'campaign_url': f"https://stallcart.in/campaign/{campaign.slug}/",
             }
-            results['email_sent'] = send_dynamic_email('campaign_winner_notification', [user.email], context)
+
+            # Check if event-specific template exists (e.g. campaign_winner_dandiya_nights_2026)
+            event_template_name = f"campaign_winner_{campaign.slug.replace('-', '_')}"
+            if EmailTemplate.objects.filter(name=event_template_name, is_active=True, is_deleted=False).exists():
+                chosen_template = event_template_name
+            else:
+                chosen_template = 'campaign_winner_notification'
+
+            results['email_sent'] = send_dynamic_email(chosen_template, [user.email], context)
             if results['email_sent']:
-                logger.info(f"Winner notification email sent to {user.email} for '{campaign.title}'.")
+                logger.info(f"Winner notification email sent to {user.email} using template '{chosen_template}' for '{campaign.title}'.")
         except Exception as e:
             logger.error(f"Failed to send winner notification email to {user.email}: {e}")
 

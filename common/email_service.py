@@ -110,15 +110,93 @@ DEFAULT_TEMPLATES = {
     },
     'campaign_winner_notification': {
         'subject': "🎉 Congratulations! You won {{ prize_title }} in StallCart {{ campaign_title }}!",
-        'body': "Hello {{ customer_name }},\n\n🎉 Heartiest Congratulations! 🎉\n\nYou have been selected as a winner in the StallCart '{{ campaign_title }}' Lucky Draw!\n\n🏆 Prize Won: {{ prize_title }}\n{% if prize_subtitle %}{{ prize_subtitle }}\n{% endif %}\n{% if approx_value %}Approx Value: ₹{{ approx_value }}\n{% endif %}\n\nOur team will contact you shortly on your registered mobile number ({{ phone }}) to coordinate your prize handover.\n\nYou can also log in to StallCart anytime to view your won prize in your Profile.\n\nBest Regards,\nStallCart Team",
-        'description': "Notification sent to user when they win a lucky draw campaign prize"
+        'body': "Hello {{ customer_name }},\n\n🎉 Heartiest Congratulations! 🎉\n\nYou have been selected as a winner in the StallCart '{{ campaign_title }}' Lucky Draw!\n\n🏆 Prize Won: {{ prize_title }}\n{% if prize_subtitle %}{{ prize_subtitle }}\n{% endif %}\n{% if approx_value %}Approx Value: ₹{{ approx_value }}\n{% endif %}\n{% if ticket_number %}Winning Ticket: {{ ticket_number }}\n{% endif %}\nOur team will contact you shortly on your registered mobile number ({{ phone }}) to coordinate your prize handover.\n\nYou can also log in to StallCart anytime to view your won prize in your Profile.\n\nBest Regards,\nStallCart Team",
+        'description': "Default notification sent to user when they win a lucky draw campaign prize"
+    },
+    'campaign_winner_dandiya_nights_2026': {
+        'subject': "🎉 Congratulations {{ customer_name }}! You Won {{ prize_title }} in Dandiya Nights 2026!",
+        'body': """<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎉 You Won in StallCart Dandiya Nights 2026!</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f1f5f9; margin: 0; padding: 20px; color: #1e293b; }
+  .email-container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; }
+  .header { background: linear-gradient(135deg, #be123c 0%, #881337 50%, #1e1b4b 100%); padding: 36px 24px; text-align: center; color: #ffffff; }
+  .header-pill { background: rgba(255,255,255,0.22); color: #fff; font-size: 11px; font-weight: 800; padding: 4px 12px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.08em; display: inline-block; margin-bottom: 12px; }
+  .header h1 { margin: 0; font-size: 24px; font-weight: 900; letter-spacing: -0.01em; color: #ffffff; }
+  .header p { margin: 8px 0 0 0; font-size: 14px; opacity: 0.92; color: #fecdd3; }
+  .content { padding: 32px 28px; }
+  .greeting { font-size: 17px; font-weight: 700; color: #0f172a; margin-bottom: 14px; }
+  .winner-box { background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%); border: 2px solid #f59e0b; border-radius: 14px; padding: 22px; text-align: center; margin: 24px 0; }
+  .winner-badge { font-size: 13px; font-weight: 800; color: #b45309; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+  .prize-title { font-size: 22px; font-weight: 900; color: #0f172a; margin: 0 0 8px 0; }
+  .prize-subtitle { font-size: 13px; color: #78350f; margin: 0 0 14px 0; }
+  .ticket-chip { background: #1e1b4b; color: #f8fafc; display: inline-block; font-family: monospace; font-size: 15px; font-weight: 800; padding: 6px 16px; border-radius: 8px; letter-spacing: 0.05em; }
+  .steps-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin: 24px 0; }
+  .steps-title { font-size: 14px; font-weight: 800; color: #0f172a; margin-bottom: 12px; }
+  .step-item { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; font-size: 13px; color: #475569; line-height: 1.5; }
+  .step-num { background: #be123c; color: #fff; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; flex-shrink: 0; }
+  .btn-dashboard { display: block; background: #e11d48; color: #ffffff !important; text-align: center; font-weight: 800; font-size: 14px; padding: 12px 24px; border-radius: 8px; text-decoration: none; margin: 24px 0 16px 0; box-shadow: 0 2px 10px rgba(225,29,72,0.35); }
+  .footer { background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px; text-align: center; font-size: 12px; color: #64748b; line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="email-container">
+  <div class="header">
+    <span class="header-pill">🎉 Dandiya Nights Mega Lucky Draw 2026</span>
+    <h1>CONGRATULATIONS! YOU WON!</h1>
+    <p>17 October 2026 Festive Celebration Prize</p>
+  </div>
+  <div class="content">
+    <div class="greeting">Dear {{ customer_name }},</div>
+    <p style="font-size: 14px; color: #334155; line-height: 1.6; margin: 0 0 16px 0;">
+      We are overjoyed to announce that you have won a grand prize in the <strong>StallCart {{ campaign_title }}</strong>!
+    </p>
+    <div class="winner-box">
+      <div class="winner-badge">🏆 {{ prize_rank_display }} Winner</div>
+      <div class="prize-title">{{ prize_title }}</div>
+      {% if prize_subtitle %}<div class="prize-subtitle">{{ prize_subtitle }}</div>{% endif %}
+      <div style="font-size: 12px; color: #78350f; margin-bottom: 6px;">Winning Ticket Number:</div>
+      <div class="ticket-chip">{{ ticket_number }}</div>
+    </div>
+    <div class="steps-card">
+      <div class="steps-title">🎁 Next Steps for Prize Handover:</div>
+      <div class="step-item">
+        <span class="step-num">1</span>
+        <span><strong>Verification Call:</strong> Our StallCart representative will contact you on your registered mobile number (<strong>{{ phone }}</strong>) to verify your delivery address.</span>
+      </div>
+      <div class="step-item">
+        <span class="step-num">2</span>
+        <span><strong>Doorstep Delivery / Handover:</strong> Your prize will be securely dispatched to your verified address or handed over at the Dandiya Night celebration on <strong>17 October 2026</strong>.</span>
+      </div>
+      <div class="step-item">
+        <span class="step-num">3</span>
+        <span><strong>Profile Verification:</strong> You can view your winning prize status anytime in your VIP StallCart Dashboard.</span>
+      </div>
+    </div>
+    <a href="{{ profile_url }}" class="btn-dashboard">View Won Prize in Your Dashboard →</a>
+    <p style="font-size: 13px; color: #64748b; line-height: 1.5; text-align: center; margin: 0;">
+      Thank you for shopping and celebrating with <strong>StallCart</strong>!
+    </p>
+  </div>
+  <div class="footer">
+    <div><strong>StallCart</strong> &bull; India's Premier Online Fashion & Lifestyle Marketplace</div>
+    <div style="margin-top: 4px;">Need assistance? Contact our VIP Support: <a href="mailto:support@stallcart.in" style="color: #e11d48; text-decoration: none;">support@stallcart.in</a></div>
+  </div>
+</div>
+</body>
+</html>""",
+        'description': "Event-specific winner notification email for Dandiya Nights 2026 (17 Oct event)"
     }
 }
 
 def send_dynamic_email(template_name: str, recipient_list: list, context_data: dict) -> bool:
     """
     Sends an email using templates stored dynamically in the EmailTemplate model.
-    Auto-populates templates if not found in the DB.
+    Auto-populates templates if not found in the DB. Supports both rich HTML and plain text emails.
     """
     try:
         # Get or create the template in DB
@@ -145,26 +223,34 @@ def send_dynamic_email(template_name: str, recipient_list: list, context_data: d
         rendered_subject = subject_tpl.render(context).strip().replace("\n", " ").replace("\r", "")
         rendered_body = body_tpl.render(context)
         
-        # Append support contact footer dynamically
-        try:
-            from .models import SiteSettings
-            site_settings = SiteSettings.get_singleton()
-            phone = site_settings.contact_phone or "+91 8004096954"
-            email = site_settings.contact_email or "stallcart.in@gmail.com"
-        except Exception:
-            phone = "+91 8004096954"
-            email = "stallcart.in@gmail.com"
-            
-        footer_text = f"\n\n---\n📞 Need Support? Contact us at {phone} or email us at {email}\n✨ Thank you for choosing StallCart!"
-        rendered_body = rendered_body + footer_text
+        is_html = '<html' in rendered_body.lower() or '<div' in rendered_body.lower() or '<table' in rendered_body.lower()
+        
+        if not is_html:
+            # Append support contact footer dynamically for plain text
+            try:
+                from .models import SiteSettings
+                site_settings = SiteSettings.get_singleton()
+                phone = site_settings.contact_phone or "+91 8004096954"
+                email = site_settings.contact_email or "stallcart.in@gmail.com"
+            except Exception:
+                phone = "+91 8004096954"
+                email = "stallcart.in@gmail.com"
+                
+            footer_text = f"\n\n---\n📞 Need Support? Contact us at {phone} or email us at {email}\n✨ Thank you for choosing StallCart!"
+            plain_message = rendered_body + footer_text
+            html_message = None
+        else:
+            plain_message = rendered_body
+            html_message = rendered_body
         
         from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'StallCart <ad4b11001@smtp-brevo.com>')
         
         send_mail(
             subject=rendered_subject,
-            message=rendered_body,
+            message=plain_message,
             from_email=from_email,
             recipient_list=recipient_list,
+            html_message=html_message,
             fail_silently=False,
         )
         logger.info(f"Successfully sent dynamic email '{template_name}' to {recipient_list}")
