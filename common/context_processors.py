@@ -20,6 +20,17 @@ def site_settings(request):
     except Exception:
         active_campaign = None
 
+    # Check if logged in user has won a lucky draw prize in an active or recent campaign
+    active_user_prize = None
+    if getattr(request, 'user', None) and request.user.is_authenticated:
+        try:
+            active_user_prize = request.user.campaign_wins.filter(
+                is_published=True, 
+                is_deleted=False
+            ).select_related('campaign', 'prize').order_by('-created_at').first()
+        except Exception:
+            active_user_prize = None
+
     return {
         'site_settings': settings,
         'SITE_NAME': settings.site_name,
@@ -30,6 +41,7 @@ def site_settings(request):
         'IS_MAINTENANCE': settings.is_maintenance_mode,
         'OG_LOGO_URL': og_logo,  # ✅ Absolute URL for social sharing
         'active_campaign': active_campaign,
+        'active_user_prize': active_user_prize,
     }
 
 # context_processors.py
