@@ -367,62 +367,15 @@ class CampaignAdmin(admin.ModelAdmin):
         existing_winners = campaign.winners.select_related('prize', 'user', 'participant').all()
 
         if request.method == 'POST' and 'execute_draw' in request.POST:
-            if not prizes.exists():
-                messages.error(request, "Cannot run Lucky Draw: No prizes configured for this campaign. Please add prizes first.")
-                return redirect('admin:common_campaign_change', campaign_id)
-
-            # Candidate pool: eligible active users who haven't won a prize in this campaign yet
-            eligible_participants = list(
-                campaign.participants.filter(
-                    is_eligible=True,
-                    is_deleted=False,
-                    user__is_active=True
-                ).exclude(
-                    user__in=existing_winners.values_list('user_id', flat=True)
-                ).select_related('user')
-            )
-
-            if len(eligible_participants) < prizes.count():
-                messages.error(
-                    request, 
-                    f"Not enough eligible participants ({len(eligible_participants)}) for {prizes.count()} configured prizes."
-                )
+            from common.campaign_service import execute_campaign_lucky_draw
+            success, created_winners, err = execute_campaign_lucky_draw(campaign, executed_by=request.user)
+            if not success:
+                messages.error(request, f"❌ {err}")
                 return HttpResponseRedirect(request.path)
-
-            # Use cryptographically secure shuffle
-            rng = secrets.SystemRandom()
-            rng.shuffle(eligible_participants)
-
-            created_winners = []
-            for idx, prize in enumerate(prizes):
-                if idx < len(eligible_participants):
-                    participant = eligible_participants[idx]
-                    winner = CampaignWinner.objects.create(
-                        campaign=campaign,
-                        prize=prize,
-                        participant=participant,
-                        user=participant.user,
-                        ticket_number=participant.ticket_number,
-                        is_published=True,
-                        created_by=request.user
-                    )
-                    participant.is_winner = True
-                    participant.save()
-                    created_winners.append(winner)
-
-                    # Send Email and Push Notification to the winner
-                    try:
-                        from common.campaign_service import notify_campaign_winner
-                        notify_campaign_winner(winner)
-                    except Exception as e:
-                        logger.error(f"Failed to dispatch winner notification: {e}")
-
-            campaign.status = 'winners_declared'
-            campaign.save()
 
             messages.success(
                 request, 
-                f"🎉 Lucky Draw successfully executed! Selected and notified {len(created_winners)} winner(s) for '{campaign.title}'."
+                f"🎉 Lucky Draw successfully executed! Selected and notified exactly {len(created_winners)} winner(s) for '{campaign.title}'."
             )
             return HttpResponseRedirect(request.path)
 

@@ -1530,6 +1530,7 @@ def profile_view(request):
     seller_stats = None
     seller_orders = []
     shop_address = None
+    seller_settlements = []
     
     if is_seller:
         seller = request.user.seller_profile
@@ -1547,6 +1548,9 @@ def profile_view(request):
             shop_address = seller.shop_address
         except SellerShopAddress.DoesNotExist:
             shop_address = None
+            
+        from orders.models import SellerSettlement
+        seller_settlements = SellerSettlement.objects.filter(seller=seller).order_by('-created_at')
             
     # Fetch any campaign prizes / lucky draw rewards won by the user
     user_campaign_wins = request.user.campaign_wins.filter(

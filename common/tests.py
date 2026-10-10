@@ -498,6 +498,93 @@ class CampaignAndLuckyDrawTests(TestCase):
         self.assertEqual(public_res.status_code, 200)
         self.assertIn("Lucky Draw Winners Announced!", public_res.content.decode('utf-8'))
 
+    def test_exact_winner_count_strictly_matches_configured_prizes(self):
+        """Verify winner count is EXACTLY equal to configured prizes (neither more nor less)"""
+        from common.campaign_service import execute_campaign_lucky_draw
+        
+        # Test 1: 3 Prizes with 10 Participants -> EXACTLY 3 winners
+        extra_users = [
+            User.objects.create_user(phone=f"980000000{i}", email=f"extra{i}@test.com", password="pass")
+            for i in range(5)
+        ]
+        all_users = self.users + extra_users
+        for u in all_users:
+            Campaign.auto_enroll_user(u)
+
+        self.assertEqual(self.campaign.participants.count(), 10)
+        self.assertEqual(self.campaign.prizes.count(), 3)
+
+        success, winners, err = execute_campaign_lucky_draw(self.campaign)
+        self.assertTrue(success)
+        self.assertEqual(len(winners), 3)  # EXACTLY 3, NOT MORE, NOT LESS
+        self.assertEqual(self.campaign.winners.count(), 3)
+        
+        # Ensure 3 distinct users
+        winner_user_ids = {w.user_id for w in winners}
+        self.assertEqual(len(winner_user_ids), 3)
+
+    def test_exact_winner_count_for_custom_5_prizes(self):
+        """Verify that when Admin configures 5 prizes, EXACTLY 5 winners are chosen"""
+        from common.campaign_service import execute_campaign_lucky_draw
+        
+        # Add 4th and 5th prizes
+        CampaignPrize.objects.create(campaign=self.campaign, rank=4, title="4th Prize: Bluetooth Speaker", approx_value=2500)
+        CampaignPrize.objects.create(campaign=self.campaign, rank=5, title="5th Prize: StallCart Gift Card", approx_value=1000)
+
+        self.assertEqual(self.campaign.prizes.count(), 5)
+
+        # Enroll 12 users
+        extra_users = [
+            User.objects.create_user(phone=f"970000000{i}", email=f"contestant{i}@test.com", password="pass")
+            for i in range(7)
+        ]
+        for u in (self.users + extra_users):
+            Campaign.auto_enroll_user(u)
+
+        success, winners, err = execute_campaign_lucky_draw(self.campaign)
+        self.assertTrue(success)
+        self.assertEqual(len(winners), 5)  # EXACTLY 5 WINNERS
+        self.assertEqual(self.campaign.winners.count(), 5)
+        
+        # Check all 5 winners are distinct users
+        self.assertEqual(len({w.user_id for w in winners}), 5)
+
+    def test_insufficient_candidates_prevents_draw_execution(self):
+        """If eligible participants < configured prizes, draw must NOT run and 0 winners created"""
+        from common.campaign_service import execute_campaign_lucky_draw
+        
+        # Only 2 users enrolled for 3 prizes
+        Campaign.auto_enroll_user(self.users[0])
+        Campaign.auto_enroll_user(self.users[1])
+
+        self.assertEqual(self.campaign.participants.count(), 2)
+        self.assertEqual(self.campaign.prizes.count(), 3)
+
+        success, winners, err = execute_campaign_lucky_draw(self.campaign)
+        self.assertFalse(success)
+        self.assertEqual(len(winners), 0)
+        self.assertEqual(self.campaign.winners.count(), 0)
+        self.assertIn("Insufficient eligible participants", err)
+
+    def test_prevent_duplicate_draw_runs(self):
+        """Cannot re-run draw once all prizes have been awarded"""
+        from common.campaign_service import execute_campaign_lucky_draw
+        
+        for u in self.users:
+            Campaign.auto_enroll_user(u)
+
+        # First run succeeds
+        success1, winners1, err1 = execute_campaign_lucky_draw(self.campaign)
+        self.assertTrue(success1)
+        self.assertEqual(len(winners1), 3)
+
+        # Second run should refuse to execute
+        success2, winners2, err2 = execute_campaign_lucky_draw(self.campaign)
+        self.assertFalse(success2)
+        self.assertEqual(len(winners2), 0)
+        self.assertIn("All configured prizes for this campaign have already been awarded", err2)
+        self.assertEqual(self.campaign.winners.count(), 3)
+
 
 
 
