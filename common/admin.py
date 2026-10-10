@@ -443,7 +443,7 @@ class CampaignAdmin(admin.ModelAdmin):
             'campaign': campaign,
             'prizes': prizes,
             'existing_winners': existing_winners,
-            'eligible_count': campaign.participants.filter(is_eligible=True, is_deleted=False, user__is_active=True).count(),
+            'eligible_count': campaign.participants.filter(is_eligible=True, is_deleted=False, user__is_active=True, user__role='customer', user__is_staff=False, user__is_superuser=False).values('user_id').distinct().count(),
             'title': f"Lucky Draw Engine: {campaign.title}",
         }
         return render(request, 'admin/common/campaign_lucky_draw.html', context)

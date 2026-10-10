@@ -49,13 +49,21 @@
     <div class="container campaign-body">
         <!-- User Enrollment Status (if logged in) -->
         {% if user.is_authenticated %}
-            {% if user_participation %}
+            {% if request.user.role == 'seller' or request.user.is_staff or request.user.is_superuser %}
+            <div class="user-ticket-card" style="border-left-color: #3b82f6;">
+                <div class="ticket-icon" style="background: #eff6ff; color: #2563eb;"><i class="fa fa-store"></i></div>
+                <div class="ticket-info">
+                    <div class="ticket-label">{% if request.user.role == 'seller' %}Seller Account Notice{% else %}Staff Notice{% endif %}</div>
+                    <p class="ticket-sub" style="margin: 0; color: #334155;">Festive Lucky Draws are exclusively reserved for StallCart shoppers & customer accounts. Thank you for partnering with {{ SITE_NAME }}!</p>
+                </div>
+            </div>
+            {% elif user_participation %}
             <div class="user-ticket-card">
                 <div class="ticket-icon"><i class="fa fa-check-circle"></i></div>
                 <div class="ticket-info">
                     <div class="ticket-label">Your Contest Entry Status</div>
                     <div class="ticket-number" style="font-size: 1.15rem; color: #16a34a; font-family: inherit;">✅ Enrolled with Registered Mobile: <strong>{{ request.user.phone }}</strong></div>
-                    <p class="ticket-sub">Account registered on {{ user_participation.created_at|date:"d M Y H:i" }}. You are automatically entered into the {{ campaign.title }} Lucky Draw!</p>
+                    <p class="ticket-sub">Customer account registered on {{ user_participation.created_at|date:"d M Y H:i" }}. You are automatically entered into the {{ campaign.title }} Lucky Draw!</p>
                 </div>
                 {% if user_participation.is_winner %}
                 <div class="ticket-winner-badge">
@@ -68,7 +76,7 @@
                 <div class="ticket-icon" style="background: #fef3c7; color: #d97706;"><i class="fa fa-info-circle"></i></div>
                 <div class="ticket-info">
                     <div class="ticket-label">Contest Eligibility</div>
-                    <p class="ticket-sub" style="margin: 0;">This contest is active for accounts registered during {{ campaign.start_datetime|date:"d M" }} &ndash; {{ campaign.end_datetime|date:"d M" }}. Keep shopping on {{ SITE_NAME }}!</p>
+                    <p class="ticket-sub" style="margin: 0;">This contest is active for customer accounts registered during {{ campaign.start_datetime|date:"d M" }} &ndash; {{ campaign.end_datetime|date:"d M" }}. Keep shopping on {{ SITE_NAME }}!</p>
                 </div>
             </div>
             {% endif %}
@@ -77,10 +85,10 @@
             <div class="guest-cta-banner">
                 <div class="cta-text">
                     <h3>Want to win 1st, 2nd, or 3rd Prize?</h3>
-                    <p>Create a free account today to automatically enter the {{ campaign.title }} Lucky Draw!</p>
+                    <p>Create a free shopper account today to automatically enter the {{ campaign.title }} Lucky Draw!</p>
                 </div>
-                <a href="{% url 'accounts:register' %}" class="btn-cta-register">
-                    <i class="fa fa-user-plus"></i> Register & Enter Contest
+                <a href="{% url 'accounts:register' %}?role=customer" class="btn-cta-register">
+                    <i class="fa fa-user-plus"></i> Register as Shopper & Enter
                 </a>
             </div>
         {% endif %}

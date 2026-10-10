@@ -345,13 +345,14 @@ def register_view(request):
                     user.role = form.cleaned_data['user_role']
                     user.save()
                     
-                    # Auto-enroll into active festive campaign (if live)
+                    # Auto-enroll into active festive campaign ONLY IF user is a customer
                     participant = None
-                    try:
-                        from common.models import Campaign
-                        participant = Campaign.auto_enroll_user(user)
-                    except Exception as e:
-                        logger.warning(f"Campaign enrollment failed: {e}")
+                    if user.role == 'customer':
+                        try:
+                            from common.models import Campaign
+                            participant = Campaign.auto_enroll_user(user)
+                        except Exception as e:
+                            logger.warning(f"Campaign enrollment failed: {e}")
 
                     # If seller, create SellerProfile
                     if user.role == 'seller':

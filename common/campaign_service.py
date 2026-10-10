@@ -84,12 +84,15 @@ def execute_campaign_lucky_draw(campaign, executed_by=None):
     # Existing winners user IDs to exclude from future wins in this campaign
     existing_winner_user_ids = set(campaign.winners.filter(is_deleted=False).values_list('user_id', flat=True))
 
-    # Eligible candidate pool (distinct users who are active and not deleted)
+    # Eligible candidate pool: strictly active CUSTOMER accounts (exclude sellers, staff, superusers)
     eligible_participants = list(
         campaign.participants.filter(
             is_eligible=True,
             is_deleted=False,
-            user__is_active=True
+            user__is_active=True,
+            user__role='customer',
+            user__is_staff=False,
+            user__is_superuser=False
         ).exclude(
             user_id__in=existing_winner_user_ids
         ).select_related('user')

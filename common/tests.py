@@ -594,6 +594,46 @@ class CampaignAndLuckyDrawTests(TestCase):
         response = self.client.get(reverse('admin:common_campaign_changelist'))
         self.assertEqual(response.status_code, 200)
 
+    def test_sellers_and_staff_cannot_be_enrolled_or_win(self):
+        """Verify sellers, staff, and superusers cannot participate in campaign or win lucky draw"""
+        from common.campaign_service import execute_campaign_lucky_draw
+
+        # 1. Create seller, staff, superuser, and customer
+        seller = User.objects.create_user(phone="9100000001", email="seller@test.com", password="pass", role="seller")
+        staff = User.objects.create_user(phone="9100000002", email="staff@test.com", password="pass", role="admin", is_staff=True)
+        superu = User.objects.create_superuser(phone="9100000003", email="super@test.com", password="pass")
+        customer = User.objects.create_user(phone="9100000004", email="customer@test.com", password="pass", role="customer")
+
+        # 2. Auto enroll should reject non-customers
+        self.assertIsNone(Campaign.auto_enroll_user(seller))
+        self.assertIsNone(Campaign.auto_enroll_user(staff))
+        self.assertIsNone(Campaign.auto_enroll_user(superu))
+        
+        customer_p = Campaign.auto_enroll_user(customer)
+        self.assertIsNotNone(customer_p)
+
+        # 3. Enroll regular customer users
+        for u in self.users:
+            Campaign.auto_enroll_user(u)
+
+        # 4. If an invalid participant record existed for a seller, execute_draw excludes it
+        CampaignParticipant.objects.create(
+            campaign=self.campaign, user=seller, ticket_number="SELLER-001", is_eligible=True
+        )
+
+        success, winners, err = execute_campaign_lucky_draw(self.campaign)
+        self.assertTrue(success)
+        self.assertEqual(len(winners), 3)
+
+        # Ensure none of the winners is a seller or staff
+        for w in winners:
+            self.assertEqual(w.user.role, 'customer')
+            self.assertFalse(w.user.is_staff)
+            self.assertFalse(w.user.is_superuser)
+            self.assertNotEqual(w.user_id, seller.id)
+            self.assertNotEqual(w.user_id, staff.id)
+            self.assertNotEqual(w.user_id, superu.id)
+
 
 
 

@@ -483,9 +483,16 @@ class Campaign(BaseModel):
     @classmethod
     def auto_enroll_user(cls, user):
         """
-        Auto-enrolls newly created user in the current active campaign.
-        Generates a unique lucky draw ticket number.
+        Auto-enrolls newly created customer in the current active campaign.
+        Strictly targets customer accounts (role='customer') and excludes sellers and staff.
         """
+        if not user or not getattr(user, 'is_active', True):
+            return None
+
+        # Exclude sellers, staff, and superusers
+        if getattr(user, 'role', None) != 'customer' or getattr(user, 'is_staff', False) or getattr(user, 'is_superuser', False):
+            return None
+
         active_campaign = cls.get_active_campaign()
         if not active_campaign:
             return None
