@@ -6,111 +6,452 @@ from .models import EmailTemplate
 
 logger = logging.getLogger(__name__)
 
-# Default templates to automatically populate the database if not already created
+def _base_email_wrapper(title, header_pill, header_h1, header_sub, content_html):
+    return f"""<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{title}</title>
+<style>
+  body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 20px; color: #1e293b; }}
+  .email-wrapper {{ max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; }}
+  .email-header {{ background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); padding: 30px 24px; text-align: center; color: #ffffff; }}
+  .header-pill {{ background: rgba(255,255,255,0.18); color: #f8fafc; font-size: 11px; font-weight: 800; padding: 4px 12px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.06em; display: inline-block; margin-bottom: 8px; }}
+  .header-brand {{ margin: 0; font-size: 22px; font-weight: 900; letter-spacing: -0.01em; color: #ffffff; }}
+  .header-tag {{ margin: 4px 0 0 0; font-size: 13px; color: #94a3b8; }}
+  .email-body {{ padding: 30px 24px; }}
+  .greeting {{ font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 12px; }}
+  .info-box {{ background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; margin: 18px 0; }}
+  .highlight-badge {{ background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%); border: 1px solid #bfdbfe; border-radius: 12px; padding: 18px; text-align: center; margin: 20px 0; }}
+  .otp-display {{ font-family: monospace; font-size: 32px; font-weight: 900; letter-spacing: 8px; color: #2563eb; margin: 8px 0; }}
+  .btn-primary {{ display: inline-block; background: #e11d48; color: #ffffff !important; font-weight: 800; font-size: 14px; padding: 11px 24px; border-radius: 8px; text-decoration: none; box-shadow: 0 2px 8px rgba(225,29,72,0.3); margin: 16px 0; }}
+  .email-footer {{ background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px; text-align: center; font-size: 12px; color: #64748b; line-height: 1.6; }}
+  .detail-table {{ width: 100%; border-collapse: collapse; margin: 12px 0; }}
+  .detail-table td {{ padding: 8px 0; border-bottom: 1px solid #f1f5f9; font-size: 13px; }}
+  .detail-table td.lbl {{ color: #64748b; font-weight: 600; width: 40%; }}
+  .detail-table td.val {{ color: #0f172a; font-weight: 700; text-align: right; }}
+</style>
+</head>
+<body>
+<div class="email-wrapper">
+  <div class="email-header">
+    <span class="header-pill">{header_pill}</span>
+    <h1 class="header-brand">{header_h1}</h1>
+    <p class="header-tag">{header_sub}</p>
+  </div>
+  <div class="email-body">
+    {content_html}
+  </div>
+  <div class="email-footer">
+    <div><strong>StallCart</strong> &bull; India's Premier Fashion & Lifestyle Marketplace</div>
+    <div style="margin-top: 4px;">Need help? Call +91 8004096954 or email <a href="mailto:stallcart.in@gmail.com" style="color: #e11d48; text-decoration: none;">stallcart.in@gmail.com</a></div>
+    <div style="margin-top: 4px; font-size: 11px; color: #94a3b8;">&copy; 2026 StallCart. All rights reserved.</div>
+  </div>
+</div>
+</body>
+</html>"""
+
+# Default templates to automatically populate the database
 DEFAULT_TEMPLATES = {
     'registration_email_otp': {
         'subject': "StallCart - Registration Verification OTP",
-        'body': "Welcome to StallCart! Your verification OTP is: {{ otp }}. Valid for 10 minutes.",
+        'body': _base_email_wrapper(
+            "StallCart - Email Verification",
+            "🔐 Account Verification",
+            "Welcome to StallCart",
+            "Verify your email address to get started",
+            """<div class="greeting">Hello,</div>
+            <p style="font-size: 14px; color: #334155; line-height: 1.6; margin: 0 0 14px 0;">
+              Thank you for signing up on <strong>StallCart</strong>! Please use the following One-Time Password (OTP) to verify your account registration.
+            </p>
+            <div class="highlight-badge">
+              <div style="font-size: 12px; color: #64748b; font-weight: 700; text-transform: uppercase;">Your Verification OTP</div>
+              <div class="otp-display">{{ otp }}</div>
+              <div style="font-size: 12px; color: #64748b;">⏱️ Valid for 10 minutes. Do not share this OTP with anyone.</div>
+            </div>
+            <p style="font-size: 13px; color: #64748b; line-height: 1.5; margin: 16px 0 0 0;">
+              If you did not request this registration, please safely ignore this email.
+            </p>"""
+        ),
         'description': "OTP sent to verify customer or seller email address during registration"
     },
     'update_email_otp': {
         'subject': "StallCart - Email Update OTP",
-        'body': "Your verification OTP to update your email is: {{ otp }}. Valid for 10 minutes.",
+        'body': _base_email_wrapper(
+            "StallCart - Email Update",
+            "✉️ Email Change Verification",
+            "Update Your Email",
+            "Confirm your new StallCart email address",
+            """<div class="greeting">Hello,</div>
+            <p style="font-size: 14px; color: #334155; line-height: 1.6; margin: 0 0 14px 0;">
+              We received a request to update your registered email address on <strong>StallCart</strong>. Use the OTP below to confirm this change:
+            </p>
+            <div class="highlight-badge">
+              <div style="font-size: 12px; color: #64748b; font-weight: 700; text-transform: uppercase;">Your Verification OTP</div>
+              <div class="otp-display">{{ otp }}</div>
+              <div style="font-size: 12px; color: #64748b;">⏱️ Valid for 10 minutes. Keep this confidential.</div>
+            </div>
+            <p style="font-size: 13px; color: #64748b; line-height: 1.5; margin: 16px 0 0 0;">
+              If you did not initiate this request, please change your password immediately.
+            </p>"""
+        ),
         'description': "OTP sent to verify user's new email address when updating profile email"
     },
     'change_password_otp': {
         'subject': "StallCart - Password Change OTP",
-        'body': "Your verification OTP to change your password is: {{ otp }}. Valid for 10 minutes.",
+        'body': _base_email_wrapper(
+            "StallCart - Security Verification",
+            "🔒 Security Alert",
+            "Password Change Request",
+            "Verify your identity to update your password",
+            """<div class="greeting">Hello,</div>
+            <p style="font-size: 14px; color: #334155; line-height: 1.6; margin: 0 0 14px 0;">
+              A request was made to change the password for your <strong>StallCart</strong> account. Please use this OTP to proceed:
+            </p>
+            <div class="highlight-badge">
+              <div style="font-size: 12px; color: #64748b; font-weight: 700; text-transform: uppercase;">Password Change OTP</div>
+              <div class="otp-display">{{ otp }}</div>
+              <div style="font-size: 12px; color: #64748b;">⏱️ Valid for 10 minutes. Never share this code.</div>
+            </div>
+            <p style="font-size: 13px; color: #64748b; line-height: 1.5; margin: 16px 0 0 0;">
+              If you didn't request a password change, contact support immediately at stallcart.in@gmail.com.
+            </p>"""
+        ),
         'description': "OTP sent to logged-in user to verify identity before password change"
     },
     'forgot_password_otp': {
         'subject': "StallCart - Password Reset OTP",
-        'body': "Your verification OTP to reset your password is: {{ otp }}. Valid for 10 minutes.",
+        'body': _base_email_wrapper(
+            "StallCart - Reset Password",
+            "🔑 Account Recovery",
+            "Reset Your Password",
+            "Verification code to recover your account",
+            """<div class="greeting">Hello,</div>
+            <p style="font-size: 14px; color: #334155; line-height: 1.6; margin: 0 0 14px 0;">
+              You requested a password reset for your <strong>StallCart</strong> account. Enter the OTP below on the reset page:
+            </p>
+            <div class="highlight-badge">
+              <div style="font-size: 12px; color: #64748b; font-weight: 700; text-transform: uppercase;">Password Reset OTP</div>
+              <div class="otp-display">{{ otp }}</div>
+              <div style="font-size: 12px; color: #64748b;">⏱️ Valid for 10 minutes.</div>
+            </div>
+            <p style="font-size: 13px; color: #64748b; line-height: 1.5; margin: 16px 0 0 0;">
+              If you remembered your password or didn't request this reset, you can safely disregard this email.
+            </p>"""
+        ),
         'description': "OTP sent to retrieve/reset password for forgotten accounts"
     },
     'order_status_update': {
         'subject': "StallCart - Order {{ order_id }} Update: {{ status }}",
-        'body': "Hello {{ customer_name }},\n\nYour order #{{ order_id }} status has been updated to: {{ status }}.\n\n{% if courier_name %}Courier: {{ courier_name }}{% endif %}\n{% if tracking_number %}Tracking AWB: {{ tracking_number }}{% endif %}\n\nThank you for shopping with StallCart!",
+        'body': _base_email_wrapper(
+            "StallCart - Order Status Update",
+            "📦 Order Tracking",
+            "Order Status Update",
+            "Order #{{ order_id }}",
+            """<div class="greeting">Hello {{ customer_name }},</div>
+            <p style="font-size: 14px; color: #334155; line-height: 1.6; margin: 0 0 14px 0;">
+              Your order <strong>#{{ order_id }}</strong> has a new status update:
+            </p>
+            <div class="info-box">
+              <table class="detail-table">
+                <tr><td class="lbl">Order ID</td><td class="val">#{{ order_id }}</td></tr>
+                <tr><td class="lbl">Current Status</td><td class="val"><span style="color: #2563eb; text-transform: uppercase;">{{ status }}</span></td></tr>
+                {% if courier_name %}<tr><td class="lbl">Courier Partner</td><td class="val">{{ courier_name }}</td></tr>{% endif %}
+                {% if tracking_number %}<tr><td class="lbl">Tracking AWB</td><td class="val">{{ tracking_number }}</td></tr>{% endif %}
+              </table>
+            </div>
+            <div style="text-align: center;">
+              <a href="https://stallcart.in/accounts/profile/" class="btn-primary">Track Order in Dashboard &rarr;</a>
+            </div>
+            <p style="font-size: 13px; color: #64748b; line-height: 1.5; margin: 14px 0 0 0;">
+              Thank you for shopping with StallCart!
+            </p>"""
+        ),
         'description': "Status update notification email sent to customer"
-    },
-    'seller_verified': {
-        'subject': "StallCart - Seller Account Verified!",
-        'body': "Congratulations {{ seller_name }}!\n\nYour seller account and shop '{{ shop_name }}' have been verified by our admin team. You can now login and start listing products on StallCart!\n\nBest Regards,\nStallCart Team",
-        'description': "Email sent to seller when their profile is verified by an admin"
-    },
-    'admin_notify_verification': {
-        'subject': "StallCart Admin - New Seller Registration: {{ shop_name }}",
-        'body': "Hello Admin,\n\nA new seller has registered on StallCart and is pending verification:\n\nShop Name: {{ shop_name }}\nSeller Name: {{ seller_name }}\nPhone: {{ phone }}\nEmail: {{ email }}\n\nPlease review and take action from the admin dashboard: {{ dashboard_url }}.",
-        'description': "Email notification sent to admins when a new seller registers"
     },
     'customer_order_placed': {
         'subject': "StallCart - Order {{ order_id }} Placed Successfully",
-        'body': "Hello {{ customer_name }},\n\nYour order #{{ order_id }} has been placed successfully!\n\n--- Items ---\n{{ items_list }}\n\n--- Delivery Address ---\n{{ shipping_address }}\n\nPayment Method: {{ payment_method }}\nGrand Total: ₹{{ total_amount }}\n\nThank you for shopping with StallCart!",
+        'body': _base_email_wrapper(
+            "StallCart - Order Confirmation",
+            "🎉 Order Confirmed",
+            "Thank You for Your Order!",
+            "Order #{{ order_id }} placed successfully",
+            """<div class="greeting">Hello {{ customer_name }},</div>
+            <p style="font-size: 14px; color: #334155; line-height: 1.6; margin: 0 0 14px 0;">
+              We have received your order <strong>#{{ order_id }}</strong>! Our team is preparing your package for dispatch.
+            </p>
+            <div class="info-box">
+              <div style="font-weight: 800; font-size: 14px; color: #0f172a; margin-bottom: 8px;">Order Details</div>
+              <div style="font-size: 13px; color: #334155; line-height: 1.6; white-space: pre-line; margin-bottom: 12px;">{{ items_list }}</div>
+              <table class="detail-table">
+                <tr><td class="lbl">Payment Method</td><td class="val">{{ payment_method }}</td></tr>
+                <tr><td class="lbl">Grand Total</td><td class="val" style="color: #16a34a; font-size: 15px;">₹{{ total_amount }}</td></tr>
+              </table>
+              <div style="margin-top: 10px; font-size: 12px; color: #64748b;">
+                <strong>Shipping Address:</strong><br>{{ shipping_address }}
+              </div>
+            </div>
+            <div style="text-align: center;">
+              <a href="https://stallcart.in/accounts/profile/" class="btn-primary">View Order & Status &rarr;</a>
+            </div>"""
+        ),
         'description': "Email confirmation sent to customer when order is successfully placed"
-    },
-    'seller_new_order': {
-        'subject': "StallCart Seller - New Order {{ order_id }} Received",
-        'body': "Hello {{ seller_name }},\n\nYou have received a new order #{{ order_id }} containing your products.\n\n--- Items to Prepare ---\n{{ items_list }}\n\n--- Shipping Address ---\n{{ shipping_address }}\n\nPlease prepare the items for pickup/shipping.\n\nBest Regards,\nStallCart Team",
-        'description': "Email notification sent to seller when a customer orders their products"
-    },
-    'admin_seller_awb_alert': {
-        'subject': "StallCart Action Required - Update Tracking AWB for Order {{ order_id }}",
-        'body': "Hello,\n\nOrder #{{ order_id }} is currently in '{{ status }}' status but does not have a tracking AWB number assigned in StallCart.\n\nResolved Pickup Location: {{ pickup_location }}\nCustomer Name: {{ customer_name }}\n\nPlease update the tracking/AWB number for this order in the admin portal to keep the customer updated.\n\nLink to Order: {{ admin_order_url }}\n\nBest Regards,\nStallCart Team",
-        'description': "Alert sent to admin or seller when an order is processing/confirmed but has no tracking/AWB assigned"
-    },
-    'awb_assigned_notification': {
-        'subject': "StallCart - Tracking AWB assigned for Order {{ order_id }}",
-        'body': "Hello,\n\nTracking AWB number {{ tracking_number }} ({{ courier_name }}) has been assigned to Order #{{ order_id }}.\n\nLink to Order: {{ admin_order_url }}\n\nBest Regards,\nStallCart Team",
-        'description': "Notification sent to admin/seller when AWB tracking is automatically synced"
     },
     'customer_payment_success': {
         'subject': "StallCart - Payment Received for Order {{ order_id }}",
-        'body': "Hello {{ customer_name }},\n\nWe have successfully received payment of ₹{{ amount }} for your order #{{ order_id }}.\n\nPayment Method: {{ payment_method }}\n{% if payment_id %}Transaction ID: {{ payment_id }}{% endif %}\n\nThank you for shopping with StallCart!",
+        'body': _base_email_wrapper(
+            "StallCart - Payment Confirmation",
+            "💳 Payment Success",
+            "Payment Confirmed",
+            "Payment for Order #{{ order_id }}",
+            """<div class="greeting">Hello {{ customer_name }},</div>
+            <p style="font-size: 14px; color: #334155; line-height: 1.6; margin: 0 0 14px 0;">
+              We have successfully received your payment of <strong>₹{{ amount }}</strong> for order <strong>#{{ order_id }}</strong>.
+            </p>
+            <div class="info-box">
+              <table class="detail-table">
+                <tr><td class="lbl">Order ID</td><td class="val">#{{ order_id }}</td></tr>
+                <tr><td class="lbl">Amount Paid</td><td class="val" style="color: #16a34a;">₹{{ amount }}</td></tr>
+                <tr><td class="lbl">Payment Method</td><td class="val">{{ payment_method }}</td></tr>
+                {% if payment_id %}<tr><td class="lbl">Transaction ID</td><td class="val">{{ payment_id }}</td></tr>{% endif %}
+              </table>
+            </div>
+            <p style="font-size: 13px; color: #64748b; line-height: 1.5; margin: 14px 0 0 0;">
+              Your order is now being processed for shipping. Thank you for choosing StallCart!
+            </p>"""
+        ),
         'description': "Payment success notification sent to customer"
-    },
-    'seller_payment_success': {
-        'subject': "StallCart Seller - Payment Confirmed for Order {{ order_id }}",
-        'body': "Hello {{ seller_name }},\n\nPayment has been successfully received/confirmed for order #{{ order_id }}.\n\n--- Items ---\n{{ items_list }}\n\nPlatform Commission: ₹{{ commission_amount }}\nYour Net Earnings: ₹{{ net_earnings }}\n\nBest Regards,\nStallCart Team",
-        'description': "Payment success notification sent to seller"
     },
     'customer_payment_refunded': {
         'subject': "StallCart - Refund Processed for Order {{ order_id }}",
-        'body': "Hello {{ customer_name }},\n\nA refund of ₹{{ refund_amount }} has been processed for your order #{{ order_id }}.\n\n{% if refund_id %}Refund ID: {{ refund_id }}{% endif %}\n\nIt should reflect in your account within 3-5 business days.\n\nBest Regards,\nStallCart Team",
+        'body': _base_email_wrapper(
+            "StallCart - Refund Notification",
+            "💸 Refund Processed",
+            "Refund Confirmation",
+            "Order #{{ order_id }}",
+            """<div class="greeting">Hello {{ customer_name }},</div>
+            <p style="font-size: 14px; color: #334155; line-height: 1.6; margin: 0 0 14px 0;">
+              A refund of <strong>₹{{ refund_amount }}</strong> has been successfully processed for your order <strong>#{{ order_id }}</strong>.
+            </p>
+            <div class="info-box">
+              <table class="detail-table">
+                <tr><td class="lbl">Order ID</td><td class="val">#{{ order_id }}</td></tr>
+                <tr><td class="lbl">Refund Amount</td><td class="val" style="color: #16a34a;">₹{{ refund_amount }}</td></tr>
+                {% if refund_id %}<tr><td class="lbl">Refund Reference ID</td><td class="val">{{ refund_id }}</td></tr>{% endif %}
+              </table>
+              <div style="font-size: 12px; color: #64748b; margin-top: 8px;">
+                💡 Online refunds typically reflect in your bank account / source payment mode within <strong>3-5 business days</strong>.
+              </div>
+            </div>"""
+        ),
         'description': "Refund confirmation email sent to customer"
     },
-    'seller_payment_refunded': {
-        'subject': "StallCart Seller - Refund Processed for Order {{ order_id }}",
-        'body': "Hello {{ seller_name }},\n\nA refund has been processed for order #{{ order_id }}.\n\n--- Items ---\n{{ items_list }}\n\nRefunded Amount: ₹{{ refund_amount }}\nThe earnings adjustment will be reflected in your next settlement.\n\nBest Regards,\nStallCart Team",
-        'description': "Refund notification email sent to seller"
+    'seller_verified': {
+        'subject': "StallCart - Seller Account Verified!",
+        'body': _base_email_wrapper(
+            "StallCart - Seller Account Verified",
+            "✅ Seller Approval",
+            "Welcome to StallCart Seller Hub",
+            "Your shop '{{ shop_name }}' is now verified",
+            """<div class="greeting">Congratulations {{ seller_name }}!</div>
+            <p style="font-size: 14px; color: #334155; line-height: 1.6; margin: 0 0 14px 0;">
+              Your seller account and shop <strong>'{{ shop_name }}'</strong> have been officially verified by our admin team!
+            </p>
+            <div class="info-box" style="background: #f0fdf4; border-color: #bbf7d0;">
+              <div style="font-weight: 800; color: #166534; font-size: 14px; margin-bottom: 6px;">🚀 You're Ready to Sell Across India</div>
+              <div style="font-size: 13px; color: #15803d; line-height: 1.5;">
+                You can now log in to the Seller Portal, list your catalog items, manage inventory, and receive orders.
+              </div>
+            </div>
+            <div style="text-align: center;">
+              <a href="https://stallcart.in/accounts/profile/" class="btn-primary">Go to Seller Dashboard &rarr;</a>
+            </div>"""
+        ),
+        'description': "Email sent to seller when their profile is verified by an admin"
+    },
+    'seller_new_order': {
+        'subject': "StallCart Seller - New Order {{ order_id }} Received",
+        'body': _base_email_wrapper(
+            "StallCart - New Order Received",
+            "🛍️ New Order Alert",
+            "You Received a New Order!",
+            "Order #{{ order_id }}",
+            """<div class="greeting">Hello {{ seller_name }},</div>
+            <p style="font-size: 14px; color: #334155; line-height: 1.6; margin: 0 0 14px 0;">
+              Great news! A customer has placed a new order containing your products:
+            </p>
+            <div class="info-box">
+              <div style="font-weight: 800; font-size: 14px; color: #0f172a; margin-bottom: 8px;">Items to Prepare</div>
+              <div style="font-size: 13px; color: #334155; line-height: 1.6; white-space: pre-line; margin-bottom: 12px;">{{ items_list }}</div>
+              <div style="font-size: 12px; color: #64748b;">
+                <strong>Shipping Address:</strong><br>{{ shipping_address }}
+              </div>
+            </div>
+            <div style="text-align: center;">
+              <a href="https://stallcart.in/accounts/profile/" class="btn-primary">View & Process Order &rarr;</a>
+            </div>"""
+        ),
+        'description': "Email notification sent to seller when a customer orders their products"
     },
     'seller_order_status_update': {
         'subject': "StallCart Seller - Order {{ order_id }} Update: {{ status }}",
-        'body': "Hello {{ seller_name }},\n\nOrder #{{ order_id }} status has been updated to: {{ status }}.\n\n{% if courier_name %}Courier: {{ courier_name }}{% endif %}\n{% if tracking_number %}Tracking AWB: {{ tracking_number }}{% endif %}\n\nBest Regards,\nStallCart Team",
+        'body': _base_email_wrapper(
+            "StallCart - Order Status",
+            "📦 Shipment Status",
+            "Order Status Update",
+            "Order #{{ order_id }}",
+            """<div class="greeting">Hello {{ seller_name }},</div>
+            <p style="font-size: 14px; color: #334155; line-height: 1.6; margin: 0 0 14px 0;">
+              Order <strong>#{{ order_id }}</strong> status has been updated to: <strong style="color: #2563eb; text-transform: uppercase;">{{ status }}</strong>.
+            </p>
+            <div class="info-box">
+              <table class="detail-table">
+                <tr><td class="lbl">Order ID</td><td class="val">#{{ order_id }}</td></tr>
+                <tr><td class="lbl">Status</td><td class="val">{{ status }}</td></tr>
+                {% if courier_name %}<tr><td class="lbl">Courier Partner</td><td class="val">{{ courier_name }}</td></tr>{% endif %}
+                {% if tracking_number %}<tr><td class="lbl">Tracking AWB</td><td class="val">{{ tracking_number }}</td></tr>{% endif %}
+              </table>
+            </div>"""
+        ),
         'description': "Order status update notification sent to seller"
+    },
+    'admin_notify_verification': {
+        'subject': "StallCart Admin - New Seller Registration: {{ shop_name }}",
+        'body': _base_email_wrapper(
+            "StallCart Admin - New Seller",
+            "🛡️ Admin Alert",
+            "New Seller Registration",
+            "Pending Verification",
+            """<div class="greeting">Hello Admin,</div>
+            <p style="font-size: 14px; color: #334155; line-height: 1.6; margin: 0 0 14px 0;">
+              A new seller has registered on StallCart and is pending verification:
+            </p>
+            <div class="info-box">
+              <table class="detail-table">
+                <tr><td class="lbl">Shop Name</td><td class="val">{{ shop_name }}</td></tr>
+                <tr><td class="lbl">Seller Name</td><td class="val">{{ seller_name }}</td></tr>
+                <tr><td class="lbl">Mobile</td><td class="val">{{ phone }}</td></tr>
+                <tr><td class="lbl">Email</td><td class="val">{{ email }}</td></tr>
+              </table>
+            </div>
+            <div style="text-align: center;">
+              <a href="{{ dashboard_url }}" class="btn-primary">Review Seller in Admin &rarr;</a>
+            </div>"""
+        ),
+        'description': "Email notification sent to admins when a new seller registers"
     },
     'admin_notify_pan_verification': {
         'subject': "StallCart Admin - Seller PAN Submitted for Verification: {{ shop_name }}",
-        'body': "Hello Admin,\n\nSeller '{{ seller_name }}' (Shop: '{{ shop_name }}') has submitted or updated their PAN details for verification:\n\nPAN Number: {{ pan_number }}\n\nPlease review the PAN details and document in the admin dashboard: {{ dashboard_url }}.\n\nBest Regards,\nStallCart Team",
+        'body': _base_email_wrapper(
+            "StallCart Admin - PAN Verification",
+            "🛡️ Compliance Alert",
+            "Seller PAN Verification",
+            "Shop: {{ shop_name }}",
+            """<div class="greeting">Hello Admin,</div>
+            <p style="font-size: 14px; color: #334155; line-height: 1.6; margin: 0 0 14px 0;">
+              Seller <strong>'{{ seller_name }}'</strong> (Shop: <strong>'{{ shop_name }}'</strong>) has submitted PAN details for verification:
+            </p>
+            <div class="info-box">
+              <table class="detail-table">
+                <tr><td class="lbl">Shop Name</td><td class="val">{{ shop_name }}</td></tr>
+                <tr><td class="lbl">Seller Name</td><td class="val">{{ seller_name }}</td></tr>
+                <tr><td class="lbl">PAN Number</td><td class="val">{{ pan_number }}</td></tr>
+              </table>
+            </div>
+            <div style="text-align: center;">
+              <a href="{{ dashboard_url }}" class="btn-primary">Review & Verify PAN in Admin &rarr;</a>
+            </div>"""
+        ),
         'description': "Email notification sent to admins when a seller submits or updates their PAN details for verification"
     },
     'seller_pan_verified': {
         'subject': "StallCart - PAN Verification Successful!",
-        'body': "Hello {{ seller_name }},\n\nYour PAN Card (PAN Number: {{ pan_number }}) for your shop '{{ shop_name }}' has been successfully verified by our admin team!\n\nYour seller profile is now verified, and you can access all seller features.\n\nBest Regards,\nStallCart Team",
+        'body': _base_email_wrapper(
+            "StallCart - PAN Verified",
+            "✅ Document Verified",
+            "PAN Verification Approved",
+            "Shop: {{ shop_name }}",
+            """<div class="greeting">Hello {{ seller_name }},</div>
+            <p style="font-size: 14px; color: #334155; line-height: 1.6; margin: 0 0 14px 0;">
+              Your PAN Card (PAN: <strong>{{ pan_number }}</strong>) for shop <strong>'{{ shop_name }}'</strong> has been successfully verified!
+            </p>
+            <div class="info-box" style="background: #f0fdf4; border-color: #bbf7d0;">
+              <div style="font-weight: 800; color: #166534; font-size: 14px;">✅ Full Selling & Settlement Access Enabled</div>
+              <div style="font-size: 13px; color: #15803d; margin-top: 4px;">
+                Your payouts and settlements will now be processed automatically to your verified bank account.
+              </div>
+            </div>"""
+        ),
         'description': "Email notification sent to the seller when their PAN card is verified"
     },
     'seller_pan_rejected': {
         'subject': "StallCart - PAN Verification Rejected",
-        'body': "Hello {{ seller_name }},\n\nYour PAN Card verification request for your shop '{{ shop_name }}' has been rejected by our admin team.\n\nReason: {{ rejection_reason }}\n\nPlease update your PAN details and upload a valid document in your profile page: {{ profile_url }}.\n\nBest Regards,\nStallCart Team",
+        'body': _base_email_wrapper(
+            "StallCart - PAN Verification Status",
+            "⚠️ Action Required",
+            "PAN Verification Unsuccessful",
+            "Shop: {{ shop_name }}",
+            """<div class="greeting">Hello {{ seller_name }},</div>
+            <p style="font-size: 14px; color: #334155; line-height: 1.6; margin: 0 0 14px 0;">
+              Your PAN Card verification request for <strong>'{{ shop_name }}'</strong> could not be approved.
+            </p>
+            <div class="info-box" style="background: #fef2f2; border-color: #fecaca;">
+              <div style="font-weight: 800; color: #991b1b; font-size: 13px;">Reason for Rejection:</div>
+              <div style="font-size: 13px; color: #b91c1c; margin-top: 4px;">{{ rejection_reason }}</div>
+            </div>
+            <div style="text-align: center;">
+              <a href="{{ profile_url }}" class="btn-primary">Re-upload Valid PAN &rarr;</a>
+            </div>"""
+        ),
         'description': "Email notification sent to the seller when their PAN card is rejected"
     },
     'seller_settlement_processed': {
         'subject': "StallCart Seller - Settlement {{ settlement_id }} Processed Successfully",
-        'body': "Hello {{ seller_name }},\n\nWe are pleased to inform you that your settlement #{{ settlement_id }} has been processed successfully.\n\nYour net earnings of ₹{{ settlement_amount }} have been transferred to your registered bank account.\n\n--- Settlement Details ---\n{% for item in items_details %}\n- Product: {{ item.product_name }}\n  Order ID: {{ item.order_id }}\n  Item Total: ₹{{ item.total_amount }}\n  Platform Commission ({{ item.commission_rate }}%): -₹{{ item.commission_amount }}\n  Your Profit / Net Earnings: ₹{{ item.seller_earnings }}\n{% endfor %}\n\nTotal Transferred Amount: ₹{{ settlement_amount }}\nCommission Deducted (Admin Account): ₹{{ total_commission }}\n\nReference / Payout ID: {{ payment_reference }}\n\nBest Regards,\nStallCart Team",
+        'body': _base_email_wrapper(
+            "StallCart - Seller Settlement",
+            "💰 Payout Dispatched",
+            "Settlement Processed",
+            "Settlement #{{ settlement_id }}",
+            """<div class="greeting">Hello {{ seller_name }},</div>
+            <p style="font-size: 14px; color: #334155; line-height: 1.6; margin: 0 0 14px 0;">
+              We have processed your settlement <strong>#{{ settlement_id }}</strong>. Net earnings of <strong style="color: #16a34a;">₹{{ settlement_amount }}</strong> have been transferred to your registered bank account.
+            </p>
+            <div class="info-box">
+              <table class="detail-table">
+                <tr><td class="lbl">Settlement ID</td><td class="val">#{{ settlement_id }}</td></tr>
+                <tr><td class="lbl">Payout Amount</td><td class="val" style="color: #16a34a; font-size: 15px;">₹{{ settlement_amount }}</td></tr>
+                <tr><td class="lbl">Platform Commission</td><td class="val">₹{{ total_commission }}</td></tr>
+                {% if payment_reference %}<tr><td class="lbl">Payout Ref ID</td><td class="val">{{ payment_reference }}</td></tr>{% endif %}
+              </table>
+            </div>"""
+        ),
         'description': "Email notification sent to seller when a settlement and payout are successfully processed"
     },
     'campaign_winner_notification': {
         'subject': "🎉 Congratulations! You won {{ prize_title }} in StallCart {{ campaign_title }}!",
-        'body': "Hello {{ customer_name }},\n\n🎉 Heartiest Congratulations! 🎉\n\nYou have been selected as a winner in the StallCart '{{ campaign_title }}' Lucky Draw!\n\n🏆 Prize Won: {{ prize_title }}\n{% if prize_subtitle %}{{ prize_subtitle }}\n{% endif %}\n{% if approx_value %}Approx Value: ₹{{ approx_value }}\n{% endif %}\n{% if ticket_number %}Winning Ticket: {{ ticket_number }}\n{% endif %}\nOur team will contact you shortly on your registered mobile number ({{ phone }}) to coordinate your prize handover.\n\nYou can also log in to StallCart anytime to view your won prize in your Profile.\n\nBest Regards,\nStallCart Team",
+        'body': _base_email_wrapper(
+            "🎉 StallCart Lucky Draw Winner",
+            "🏆 Winner Announcement",
+            "Congratulations! You Won!",
+            "{{ campaign_title }}",
+            """<div class="greeting">Dear {{ customer_name }},</div>
+            <p style="font-size: 14px; color: #334155; line-height: 1.6; margin: 0 0 14px 0;">
+              🎉 Heartiest Congratulations! You have been selected as an official winner in the <strong>StallCart {{ campaign_title }}</strong> Lucky Draw!
+            </p>
+            <div class="info-box" style="background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%); border: 2px solid #f59e0b; text-align: center;">
+              <div style="font-size: 13px; font-weight: 800; color: #b45309; text-transform: uppercase;">🏆 {{ prize_rank_display }} Winner</div>
+              <div style="font-size: 20px; font-weight: 900; color: #0f172a; margin: 6px 0;">{{ prize_title }}</div>
+              {% if prize_subtitle %}<div style="font-size: 13px; color: #78350f;">{{ prize_subtitle }}</div>{% endif %}
+              {% if ticket_number %}<div style="margin-top: 10px; font-family: monospace; font-size: 14px; font-weight: 800; background: #1e1b4b; color: #fff; padding: 4px 12px; border-radius: 6px; display: inline-block;">Ticket: {{ ticket_number }}</div>{% endif %}
+            </div>
+            <p style="font-size: 13px; color: #475569; line-height: 1.6;">
+              Our team will reach out to you on <strong>{{ phone }}</strong> to coordinate your prize delivery.
+            </p>
+            <div style="text-align: center;">
+              <a href="{{ profile_url }}" class="btn-primary">View Won Prize in Dashboard &rarr;</a>
+            </div>"""
+        ),
         'description': "Default notification sent to user when they win a lucky draw campaign prize"
     },
     'campaign_winner_dandiya_nights_2026': {
