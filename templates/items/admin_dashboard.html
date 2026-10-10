@@ -186,7 +186,7 @@
                                 <div class="badge-row" style="display: flex; gap: 5px; flex-wrap: wrap; margin-top: 2px;">
                                     {% if product.is_featured %}<span class="mini-badge featured"><i class="fa fa-star text-warning" style="margin-right: 4px;"></i>Featured</span>{% endif %}
                                     {% if product.is_hot_deal %}<span class="mini-badge hot"><i class="fa fa-fire text-danger" style="margin-right: 4px;"></i>Hot</span>{% endif %}
-                                    {% if product.gender %}<span class="mini-badge gender">{{ product.get_gender_display }}</span>{% endif %}
+                                    {% if product.show_gender %}<span class="mini-badge gender">{{ product.get_gender_display }}</span>{% endif %}
                                 </div>
                             </div>
                         </div>

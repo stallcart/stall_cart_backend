@@ -639,3 +639,149 @@ class CampaignAndLuckyDrawTests(TestCase):
 
 
 
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Campaign Service - "Valued Customer" Wording Tests
+# ──────────────────────────────────────────────────────────────────────────────
+
+import inspect
+import common.campaign_service as campaign_service_module
+
+
+class CampaignServiceCustomerWordingTests(TestCase):
+    """
+    Tests to verify that campaign service uses 'Valued Customer' (not 'Valued Shopper')
+    as the fallback name when the user has no full_name set.
+    """
+
+    def test_source_code_uses_valued_customer_not_shopper(self):
+        """
+        The campaign_service.py source code must contain 'Valued Customer',
+        not 'Valued Shopper'. This guards against regression of the shopper→customer rename.
+        """
+        source = inspect.getsource(campaign_service_module)
+        self.assertIn(
+            "Valued Customer", source,
+            msg="campaign_service.py must contain 'Valued Customer' as the fallback name"
+        )
+        self.assertNotIn(
+            "Valued Shopper", source,
+            msg="campaign_service.py must NOT contain 'Valued Shopper' — it was renamed to 'Valued Customer'"
+        )
+
+    def test_notify_winner_builds_customer_name_fallback(self):
+        """
+        Verify the notify_campaign_winner function passes 'Valued Customer' as fallback.
+        We mock the email/notification senders and inspect the context it builds.
+        """
+        from common.models import Campaign, CampaignParticipant, CampaignWinner, CampaignPrize
+        import datetime
+        from unittest import mock
+
+        # Create campaign
+        campaign = Campaign.objects.create(
+            title="Test Draw",
+            slug="test-draw-cust",
+            start_datetime=datetime.datetime(2026, 1, 1, tzinfo=datetime.timezone.utc),
+            end_datetime=datetime.datetime(2026, 12, 31, tzinfo=datetime.timezone.utc),
+            status="active",
+            is_active=True,
+        )
+
+        # Create a prize
+        prize = CampaignPrize.objects.create(
+            campaign=campaign,
+            title="Mixer Grinder",
+            rank=1,
+        )
+
+        # User without a full_name
+        user_no_name = User.objects.create_user(
+            phone="9200000001",
+            email="nofullname@example.com",
+            password="pass",
+            full_name="",
+            role="customer"
+        )
+
+        participant = CampaignParticipant.objects.create(
+            campaign=campaign,
+            user=user_no_name,
+            ticket_number="TEST-001",
+        )
+
+        winner = CampaignWinner.objects.create(
+            campaign=campaign,
+            user=user_no_name,
+            prize=prize,
+            participant=participant,
+            ticket_number="TEST-001",
+        )
+
+        # Capture context passed to send_dynamic_email
+        captured_context = {}
+
+        def fake_send_dynamic_email(template_name, recipients, context):
+            captured_context.update(context)
+            return True
+
+        with mock.patch("common.campaign_service.send_dynamic_email", side_effect=fake_send_dynamic_email), \
+             mock.patch("common.campaign_service.send_to_user", return_value=True):
+            campaign_service_module.notify_campaign_winner(winner)
+
+        # The fallback name must be 'Valued Customer'
+        self.assertEqual(
+            captured_context.get("customer_name"), "Valued Customer",
+            msg="When user has no full_name, email context must use 'Valued Customer' not 'Valued Shopper'"
+        )
+
+    def test_notify_winner_uses_actual_name_when_set(self):
+        """
+        When user has a full_name, it must appear in the email context.
+        """
+        from common.models import Campaign, CampaignParticipant, CampaignWinner, CampaignPrize
+        import datetime
+        from unittest import mock
+
+        campaign = Campaign.objects.create(
+            title="Test Draw 2",
+            slug="test-draw-cust-2",
+            start_datetime=datetime.datetime(2026, 1, 1, tzinfo=datetime.timezone.utc),
+            end_datetime=datetime.datetime(2026, 12, 31, tzinfo=datetime.timezone.utc),
+            status="active",
+            is_active=True,
+        )
+        prize = CampaignPrize.objects.create(campaign=campaign, title="Hair Straightener", rank=2)
+
+        user_named = User.objects.create_user(
+            phone="9200000002",
+            email="manish@example.com",
+            password="pass",
+            full_name="Manish Jaiswal",
+            role="customer"
+        )
+        participant2 = CampaignParticipant.objects.create(
+            campaign=campaign,
+            user=user_named,
+            ticket_number="TEST-002",
+        )
+        winner = CampaignWinner.objects.create(
+            campaign=campaign,
+            user=user_named,
+            prize=prize,
+            participant=participant2,
+            ticket_number="TEST-002",
+        )
+
+        captured_context = {}
+
+        def fake_send(template_name, recipients, context):
+            captured_context.update(context)
+            return True
+
+        with mock.patch("common.campaign_service.send_dynamic_email", side_effect=fake_send), \
+             mock.patch("common.campaign_service.send_to_user", return_value=True):
+            campaign_service_module.notify_campaign_winner(winner)
+
+        self.assertEqual(captured_context.get("customer_name"), "Manish Jaiswal")

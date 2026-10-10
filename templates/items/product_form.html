@@ -144,11 +144,11 @@
                     {% if form.category.errors %}<div class="field-error">{{ form.category.errors.0 }}</div>{% endif %}
                 </div>
                 
-                <div class="form-group">
+                <div class="form-group" id="genderGroup">
                     <label for="{{ form.gender.id_for_label }}">Target Audience</label>
                     {{ form.gender }}
                     {% if form.gender.errors %}<div class="field-error">{{ form.gender.errors.0 }}</div>{% endif %}
-                    <small class="form-help">Who is this product for?</small>
+                    <small class="form-help">Applicable for Clothing, Fashion & Apparel</small>
                 </div>
             </div>
             
@@ -1288,6 +1288,31 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize variant manager
     setupVariantManager();
+
+    // Dynamic Target Audience (Gender) visibility based on selected Category
+    const categorySelect = document.getElementById('{{ form.category.id_for_label }}');
+    const genderGroup = document.getElementById('genderGroup');
+    const genderSelect = document.getElementById('{{ form.gender.id_for_label }}');
+    const genderKeywords = ['cloth', 'clothing', 'apparel', 'fashion', 'wear', 'dress', 'saree', 'footwear', 'shoe', 'jewel', 'accessory', 'accessories', 'beauty', 'cosmetic'];
+
+    function updateGenderVisibility() {
+        if (!categorySelect || !genderGroup) return;
+        const selectedText = categorySelect.options[categorySelect.selectedIndex]?.text.toLowerCase() || '';
+        const isApplicable = genderKeywords.some(keyword => selectedText.includes(keyword));
+        if (isApplicable) {
+            genderGroup.style.display = '';
+        } else {
+            genderGroup.style.display = 'none';
+            if (genderSelect) {
+                genderSelect.value = '';
+            }
+        }
+    }
+
+    if (categorySelect) {
+        categorySelect.addEventListener('change', updateGenderVisibility);
+        updateGenderVisibility();
+    }
 });
 </script>
 {% endblock %}

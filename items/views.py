@@ -993,6 +993,13 @@ def product_list(request):
     search = request.GET.get('search')
     sort = request.GET.get('sort', '-created_at')
 
+    show_gender_filter = True
+    if category_slugs:
+        selected_cats = Category.objects.filter(slug__in=category_slugs)
+        if selected_cats.exists() and not any(c.is_gender_applicable for c in selected_cats):
+            show_gender_filter = False
+            genders = []
+
     if category_slugs:
         products = products.filter(category__slug__in=category_slugs)
     if genders:
@@ -1036,6 +1043,7 @@ def product_list(request):
         'is_paginated': page_obj.has_other_pages(),
         'categories': Category.objects.filter(is_active=True),
         'genders': Product.GENDER_CHOICES,
+        'show_gender_filter': show_gender_filter,
         'filters': request.GET.dict(),
         'selected_categories': category_slugs,
         'selected_genders': genders,
@@ -1183,11 +1191,13 @@ def get_related_products(product, limit=10):
     # Exclude self, and only fetch published, in-stock products
     base_qs = Product.objects.filter(status='published', stock__gt=0).exclude(pk=product.pk)
     
-    # 1. Look for same category + same gender
-    qs_same_cat_gender = base_qs.filter(category=product.category, gender=product.gender)
-    
-    # 2. Look for same category + any other/unisex gender
-    qs_same_cat_other = base_qs.filter(category=product.category).exclude(gender=product.gender)
+    # 1. Look for same category + same gender (if applicable)
+    if product.show_gender:
+        qs_same_cat_gender = base_qs.filter(category=product.category, gender=product.gender)
+        qs_same_cat_other = base_qs.filter(category=product.category).exclude(gender=product.gender)
+    else:
+        qs_same_cat_gender = base_qs.filter(category=product.category)
+        qs_same_cat_other = base_qs.none()
     
     # Combine lists while maintaining order (same cat & gender first)
     candidates = list(qs_same_cat_gender.select_related('seller').prefetch_related('product_image_product')[:limit * 2])

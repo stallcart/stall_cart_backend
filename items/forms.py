@@ -216,6 +216,9 @@ class ProductForm(forms.ModelForm):
         for field_name in ['name', 'price', 'stock', 'category', 'status']:
             self.fields[field_name].required = True
 
+        if 'gender' in self.fields:
+            self.fields['gender'].empty_label = 'Not Applicable / Gender Neutral'
+
         # ✅ Add seller field for superusers only
         if self.is_superuser:
             self.fields['seller'] = forms.ModelChoiceField(
@@ -297,6 +300,12 @@ class ProductForm(forms.ModelForm):
         mrp   = cleaned.get('mrp')
         if price and mrp and mrp < price:
             self.add_error('mrp', 'MRP should be ≥ selling price.')
+        
+        category = cleaned.get('category')
+        if category and not category.is_gender_applicable:
+            cleaned['gender'] = None
+            if hasattr(self, 'instance') and self.instance:
+                self.instance.gender = None
         return cleaned
     
 

@@ -223,9 +223,22 @@ class Category(BaseModel):
             self.slug = slug
         super().save(*args, **kwargs)
     
-    def __str__(self):
-        return self.name
-    
+    @property
+    def is_gender_applicable(self):
+        """
+        Returns True if gender/target audience is relevant for this category
+        (e.g., Cloth, Apparel, Fashion, Footwear, Jewellery, Accessories).
+        Returns False for Furniture, Electronics, Laptops, Mobiles, Food & Beverages, Gifts & Hampers, etc.
+        """
+        gender_keywords = [
+            'cloth', 'clothing', 'apparel', 'fashion', 'wear', 'dress', 'saree',
+            'footwear', 'shoe', 'jewel', 'accessory', 'accessories',
+            'beauty', 'cosmetic'
+        ]
+        slug_lower = (self.slug or '').lower()
+        name_lower = (self.name or '').lower()
+        return any(k in slug_lower or k in name_lower for k in gender_keywords)
+
     class Meta:
         verbose_name_plural = 'Categories'
         ordering = ['name']
@@ -346,6 +359,10 @@ class Product(BaseModel):
     def save(self, *args, **kwargs):
         is_new = self.pk is None
 
+        # Automatically clear gender for non-fashion/apparel categories (e.g. Furniture, Electronics)
+        if self.category and not self.category.is_gender_applicable:
+            self.gender = None
+
         if not self.slug:
             max_len = self._meta.get_field('slug').max_length or 255
             base_slug = slugify(self.name)
@@ -395,8 +412,21 @@ class Product(BaseModel):
                 self.primary_image = primary.image
                 super().save(update_fields=['primary_image'])
     
+    @property
+    def show_gender(self):
+        """
+        Only show gender badge/attribute if:
+        1. A gender is set
+        2. Category is gender-applicable (not Furniture, Electronics, Laptops, Mobiles, Food, etc.)
+        """
+        if not self.gender:
+            return False
+        if self.category and not self.category.is_gender_applicable:
+            return False
+        return True
+
     def __str__(self):
-        gender_label = f" [{self.get_gender_display()}]" if self.gender else ""
+        gender_label = f" [{self.get_gender_display()}]" if self.show_gender else ""
         return f"{self.name}{gender_label} (₹{self.price}) - {self.seller.shop_name}"
     
     @property

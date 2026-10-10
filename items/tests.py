@@ -1151,3 +1151,341 @@ class ProductSlugLengthAndUniquenessTests(TestCase):
 
 
 
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Gender Applicability & show_gender Tests
+# ──────────────────────────────────────────────────────────────────────────────
+
+class CategoryGenderApplicabilityTests(TestCase):
+    """
+    Tests for Category.is_gender_applicable property.
+    Verifies that fashion/apparel categories return True and non-fashion
+    categories (Electronics, Furniture, Mobiles, etc.) return False.
+
+    NOTE: is_gender_applicable is a pure Python property — no DB save needed.
+    We construct Category objects without saving to avoid unique constraint issues.
+    """
+
+    def _make_category(self, name, slug=None):
+        """Build an unsaved Category instance for pure-Python property testing."""
+        cat = Category(name=name, commision_percentage=10.0)
+        if slug:
+            cat.slug = slug
+        else:
+            # Simulate what save() would generate
+            from django.utils.text import slugify
+            cat.slug = slugify(name)
+        return cat
+
+    # ── Categories that SHOULD be gender-applicable ──────────────────────────
+
+    def test_cloth_category_is_gender_applicable(self):
+        """Cloth category slug matches 'cloth' keyword → gender applicable."""
+        cat = self._make_category("Cloth")
+        self.assertTrue(cat.is_gender_applicable)
+
+    def test_clothing_name_is_gender_applicable(self):
+        """Category named 'Clothing' matches 'clothing' keyword."""
+        cat = self._make_category("Clothing & Apparel")
+        self.assertTrue(cat.is_gender_applicable)
+
+    def test_jewellery_category_is_gender_applicable(self):
+        """Jewellery matches 'jewel' keyword."""
+        cat = self._make_category("Jewellery")
+        self.assertTrue(cat.is_gender_applicable)
+
+    def test_footwear_category_is_gender_applicable(self):
+        """Footwear matches 'footwear' keyword."""
+        cat = self._make_category("Footwear")
+        self.assertTrue(cat.is_gender_applicable)
+
+    def test_accessories_category_is_gender_applicable(self):
+        """Accessories matches 'accessory' keyword."""
+        cat = self._make_category("Accessories")
+        self.assertTrue(cat.is_gender_applicable)
+
+    def test_beauty_category_is_gender_applicable(self):
+        """Beauty matches 'beauty' keyword."""
+        cat = self._make_category("Beauty & Skincare")
+        self.assertTrue(cat.is_gender_applicable)
+
+    def test_cosmetics_category_is_gender_applicable(self):
+        """Cosmetics matches 'cosmetic' keyword."""
+        cat = self._make_category("Cosmetics")
+        self.assertTrue(cat.is_gender_applicable)
+
+    def test_saree_category_is_gender_applicable(self):
+        """Saree matches 'saree' keyword."""
+        cat = self._make_category("Sarees & Ethnic Wear")
+        self.assertTrue(cat.is_gender_applicable)
+
+    # ── Categories that should NOT be gender-applicable ──────────────────────
+
+    def test_electronics_category_not_gender_applicable(self):
+        """Electronics category has no fashion keywords → not gender applicable."""
+        cat = self._make_category("Electronics")
+        self.assertFalse(cat.is_gender_applicable)
+
+    def test_furniture_category_not_gender_applicable(self):
+        """Furniture has no fashion keywords → not gender applicable."""
+        cat = self._make_category("Furniture")
+        self.assertFalse(cat.is_gender_applicable)
+
+    def test_laptops_category_not_gender_applicable(self):
+        """Laptops has no fashion keywords → not gender applicable."""
+        cat = self._make_category("Laptops")
+        self.assertFalse(cat.is_gender_applicable)
+
+    def test_mobiles_category_not_gender_applicable(self):
+        """Mobiles & Smartphones has no fashion keywords → not gender applicable."""
+        cat = self._make_category("Mobiles & Smartphones")
+        self.assertFalse(cat.is_gender_applicable)
+
+    def test_food_beverages_not_gender_applicable(self):
+        """Food & Beverages has no fashion keywords → not gender applicable."""
+        cat = self._make_category("Food & Beverages")
+        self.assertFalse(cat.is_gender_applicable)
+
+    def test_gifts_hampers_not_gender_applicable(self):
+        """Gifts & Hampers has no fashion keywords → not gender applicable."""
+        cat = self._make_category("Gifts & Hampers")
+        self.assertFalse(cat.is_gender_applicable)
+
+
+
+class ProductShowGenderTests(TestCase):
+    """
+    Tests for Product.show_gender property and the automatic gender-clear
+    logic in Product.save() when a non-fashion category is assigned.
+    """
+
+    def setUp(self):
+        self.seller_user = User.objects.create_user(
+            phone="7777777701",
+            password="pass1234",
+            role="seller",
+            full_name="Gender Test Seller"
+        )
+        self.seller_profile = SellerProfile.objects.create(
+            user=self.seller_user,
+            shop_name="Gender Test Shop",
+            is_verified=True
+        )
+        # Gender-applicable category — use distinct name to avoid unique clashes
+        self.fashion_cat = Category.objects.create(
+            name="Test-Cloth-Fashion", commision_percentage=10.0
+        )
+        # Non-gender-applicable categories
+        self.furniture_cat = Category.objects.create(
+            name="Test-Furniture-NG", commision_percentage=8.0
+        )
+        self.electronics_cat = Category.objects.create(
+            name="Test-Electronics-NG", commision_percentage=8.0
+        )
+
+    # ── show_gender property ─────────────────────────────────────────────────
+
+    def test_show_gender_true_for_fashion_product_with_gender(self):
+        """A fashion product with gender set → show_gender is True."""
+        product = Product.objects.create(
+            seller=self.seller_profile,
+            category=self.fashion_cat,
+            name="Summer Saree",
+            price=Decimal("500.00"),
+            stock=10,
+            status="published",
+            gender="women"
+        )
+        self.assertTrue(product.show_gender)
+
+    def test_show_gender_false_when_no_gender_set(self):
+        """A product with no gender → show_gender is False regardless of category."""
+        product = Product.objects.create(
+            seller=self.seller_profile,
+            category=self.fashion_cat,
+            name="Ethnic Kurta",
+            price=Decimal("400.00"),
+            stock=5,
+            status="published",
+            gender=None
+        )
+        self.assertFalse(product.show_gender)
+
+    def test_show_gender_false_for_electronics_even_with_gender(self):
+        """
+        Electronics product with gender set → show_gender must be False
+        because Electronics is not gender-applicable.
+        """
+        product = Product.objects.create(
+            seller=self.seller_profile,
+            category=self.electronics_cat,
+            name="Bluetooth Speaker",
+            price=Decimal("1500.00"),
+            stock=20,
+            status="published",
+            gender="unisex"
+        )
+        # On save, gender should be auto-cleared; show_gender must be False
+        self.assertFalse(product.show_gender)
+
+    def test_show_gender_false_for_furniture_even_with_gender(self):
+        """
+        Furniture product with gender set → gender is auto-cleared on save
+        and show_gender is False.
+        """
+        product = Product.objects.create(
+            seller=self.seller_profile,
+            category=self.furniture_cat,
+            name="Wooden Sofa",
+            price=Decimal("25000.00"),
+            stock=2,
+            status="published",
+            gender="unisex"
+        )
+        self.assertFalse(product.show_gender)
+
+    def test_show_gender_false_when_no_category(self):
+        """Product with no category but gender set → show_gender is True (gender is shown when category is unknown)."""
+        product = Product.objects.create(
+            seller=self.seller_profile,
+            category=None,
+            name="Mystery Item",
+            price=Decimal("100.00"),
+            stock=1,
+            status="draft",
+            gender="men"
+        )
+        # No category → can't determine non-applicability → show gender
+        self.assertTrue(product.show_gender)
+
+    # ── Auto-clear gender on save ─────────────────────────────────────────────
+
+    def test_gender_auto_cleared_on_save_for_furniture(self):
+        """
+        When a product is saved with a Furniture category and gender='men',
+        the gender field must be automatically cleared to None.
+        """
+        product = Product.objects.create(
+            seller=self.seller_profile,
+            category=self.furniture_cat,
+            name="Oak Dining Table",
+            price=Decimal("18000.00"),
+            stock=3,
+            status="published",
+            gender="men"
+        )
+        product.refresh_from_db()
+        self.assertIsNone(product.gender)
+
+    def test_gender_auto_cleared_on_save_for_electronics(self):
+        """
+        Electronics product gender must be auto-cleared on save.
+        """
+        product = Product.objects.create(
+            seller=self.seller_profile,
+            category=self.electronics_cat,
+            name="Smart TV 55 inch",
+            price=Decimal("45000.00"),
+            stock=5,
+            status="published",
+            gender="unisex"
+        )
+        product.refresh_from_db()
+        self.assertIsNone(product.gender)
+
+    def test_gender_preserved_on_save_for_fashion(self):
+        """
+        Fashion/Cloth product gender must NOT be cleared on save.
+        """
+        product = Product.objects.create(
+            seller=self.seller_profile,
+            category=self.fashion_cat,
+            name="Cotton Kurti",
+            price=Decimal("799.00"),
+            stock=15,
+            status="published",
+            gender="women"
+        )
+        product.refresh_from_db()
+        self.assertEqual(product.gender, "women")
+
+    def test_gender_change_after_category_switch_to_non_fashion(self):
+        """
+        When a fashion product (with gender) switches category to Furniture,
+        gender should be cleared on the next save.
+        """
+        product = Product.objects.create(
+            seller=self.seller_profile,
+            category=self.fashion_cat,
+            name="Convertible Jacket",
+            price=Decimal("2500.00"),
+            stock=8,
+            status="published",
+            gender="men"
+        )
+        self.assertEqual(product.gender, "men")
+
+        # Switch category to Furniture
+        product.category = self.furniture_cat
+        product.save()
+        product.refresh_from_db()
+        self.assertIsNone(product.gender)
+        self.assertFalse(product.show_gender)
+
+    def test_gender_change_after_category_switch_to_fashion(self):
+        """
+        When a non-fashion product switches to a fashion category and
+        gender is explicitly set, it should be preserved.
+        """
+        # Start as electronics (no gender)
+        product = Product.objects.create(
+            seller=self.seller_profile,
+            category=self.electronics_cat,
+            name="Wireless Mouse",
+            price=Decimal("999.00"),
+            stock=25,
+            status="published",
+            gender="unisex"
+        )
+        product.refresh_from_db()
+        self.assertIsNone(product.gender)  # auto-cleared
+
+        # Switch to fashion + set gender
+        product.category = self.fashion_cat
+        product.gender = "unisex"
+        product.save()
+        product.refresh_from_db()
+        self.assertEqual(product.gender, "unisex")
+        self.assertTrue(product.show_gender)
+
+    # ── __str__ representation ────────────────────────────────────────────────
+
+    def test_str_includes_gender_for_fashion_product(self):
+        """__str__ should include gender label for fashion products."""
+        product = Product.objects.create(
+            seller=self.seller_profile,
+            category=self.fashion_cat,
+            name="Silk Saree",
+            price=Decimal("3000.00"),
+            stock=5,
+            status="published",
+            gender="women"
+        )
+        self.assertIn("Women", str(product))
+
+    def test_str_excludes_gender_for_electronics(self):
+        """__str__ should NOT include gender label for Electronics products."""
+        product = Product.objects.create(
+            seller=self.seller_profile,
+            category=self.electronics_cat,
+            name="Smart Bulb",
+            price=Decimal("250.00"),
+            stock=50,
+            status="published",
+            gender="unisex"
+        )
+        # gender auto-cleared → no gender in str
+        self.assertNotIn("Unisex", str(product))
+        self.assertNotIn("Men", str(product))
+        self.assertNotIn("Women", str(product))

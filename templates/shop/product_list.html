@@ -287,9 +287,10 @@
                         {% endfor %}
                     </div>
 
-                    <!-- Genders -->
+                    <!-- Genders (only shown when fashion/apparel is browsed or all categories) -->
+                    {% if show_gender_filter %}
                     <div class="filter-section">
-                        <h5 class="filter-section-title">Genders</h5>
+                        <h5 class="filter-section-title">Target Audience</h5>
                         {% for value, label in genders %}
                         <label class="filter-checkbox-label">
                             <input type="checkbox" name="gender" value="{{ value }}" {% if value in selected_genders %}checked{% endif %} onchange="submitFilterForm()" class="filter-checkbox-input">
@@ -297,6 +298,7 @@
                         </label>
                         {% endfor %}
                     </div>
+                    {% endif %}
 
                     <!-- Price (₹) -->
                     <div class="filter-section">
@@ -378,7 +380,7 @@
                                 </a>
                                 
                                 <!-- Badges -->
-                                {% if product.gender %}
+                                {% if product.show_gender %}
                                     <span class="badge-gender">{{ product.get_gender_display }}</span>
                                 {% endif %}
                                 {% if product.discount_percent > 0 %}

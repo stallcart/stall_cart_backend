@@ -45,7 +45,7 @@
                     <div class="no-image">No Image</div>
                 {% endif %}
                 <!-- ✅ Gender Badge -->
-                {% if product.gender %}
+                {% if product.show_gender %}
                     <span class="gender-badge">
                         {{ product.get_gender_display }}
                     </span>
@@ -105,7 +105,7 @@
                         <div class="no-image">No Image</div>
                     {% endif %}
                     <!-- ✅ Gender Badge -->
-                    {% if product.gender %}
+                    {% if product.show_gender %}
                         <span class="gender-badge">
                             {{ product.get_gender_display }}
                         </span>

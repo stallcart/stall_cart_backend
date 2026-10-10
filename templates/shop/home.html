@@ -1757,7 +1757,7 @@
                     </a>
 
                     <!-- Floating Badges -->
-                    {% if product.gender %}
+                    {% if product.show_gender %}
                         <span class="badge-gender">{{ product.get_gender_display }}</span>
                     {% endif %}
                     {% if product.discount_percent > 0 %}
@@ -1922,7 +1922,7 @@
                             <i class="fa fa-image"></i>
                         </div>
                     {% endif %}
-                    {% if product.gender %}
+                    {% if product.show_gender %}
                         <span class="badge-gender">{{ product.get_gender_display }}</span>
                     {% endif %}
                     {% if product.discount_percent > 0 %}

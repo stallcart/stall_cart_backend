@@ -49,7 +49,7 @@
                     {% if product.discount_percent > 0 %}
                         <span class="badge badge-discount">-{{ product.discount_percent }}%</span>
                     {% endif %}
-                    {% if product.gender %}
+                    {% if product.show_gender %}
                         <span class="badge badge-gender">{{ product.get_gender_display }}</span>
                     {% endif %}
                 </div>
@@ -355,7 +355,7 @@
                 <tr><th>SKU</th><td>{{ product.sku|default:"—" }}</td></tr>
                 <tr><th>Weight</th><td>{{ product.weight|default:"—" }} g</td></tr>
                 <tr><th>Dimensions</th><td>{{ product.dimensions|default:"—" }} cm</td></tr>
-                {% if product.gender %}
+                {% if product.show_gender %}
                 <tr><th>Target Audience</th><td>{{ product.get_gender_display }}</td></tr>
                 {% endif %}
                 {% if product.material %}
@@ -622,7 +622,7 @@
                         
                         <!-- Badges -->
                         <div class="related-badges">
-                            {% if p.gender %}
+                            {% if p.show_gender %}
                                 <span class="badge badge-gender">{{ p.get_gender_display }}</span>
                             {% endif %}
                             {% if p.discount_percent > 0 %}

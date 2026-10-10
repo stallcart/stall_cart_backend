@@ -2002,14 +2002,27 @@ h4 { font-size: 1rem; font-weight: 600; }
     }
     .footer-social {
         justify-content: center;
+        align-items: center;
+        flex-direction: row;
+        flex-wrap: wrap;
         gap: 14px;
     }
     .footer-col {
         padding: 0 4px;
+        text-align: center;
     }
     .footer-col h5 {
         font-size: 0.80rem;
         margin-bottom: 12px;
+        text-align: center;
+    }
+    .footer-col h5::after {
+        left: 50%;
+        transform: translateX(-50%);
+    }
+    .footer-col ul {
+        padding-left: 0;
+        list-style: none;
     }
     .footer-col a {
         font-size: 0.84rem;
