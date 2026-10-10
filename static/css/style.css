@@ -1788,18 +1788,22 @@ h4 { font-size: 1rem; font-weight: 600; }
 ══════════════════════════════════════════════ */
 .footer { background: var(--gray-900); color: var(--gray-400); margin-top: clamp(48px, 8vw, 80px); }
 
-.footer-top { padding: clamp(40px, 6vw, 64px) 0 clamp(32px, 5vw, 48px); }
+.footer-top { padding: clamp(36px, 5vw, 64px) 0 clamp(24px, 4vw, 48px); }
 .footer-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 32px;
+    gap: 28px 16px;
 }
-@media (min-width: 640px) { .footer-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (min-width: 900px) { .footer-grid { grid-template-columns: 2fr 1fr 1fr 1fr; } }
+@media (min-width: 768px) {
+    .footer-grid {
+        grid-template-columns: 2fr 1fr 1fr 1.2fr;
+        gap: 32px;
+    }
+}
 
 .footer-logo {
     font-family: 'Syne', sans-serif;
-    font-size: 1.4rem;
+    font-size: 1.5rem;
     font-weight: 800;
     color: var(--white);
     display: block;
@@ -1813,15 +1817,16 @@ h4 { font-size: 1rem; font-weight: 600; }
     line-height: 1.65;
     max-width: 260px;
     margin-bottom: 20px;
+    color: var(--gray-400);
 }
 
 .footer-social-title {
     color: var(--white);
-    font-size: 0.78rem;
+    font-size: 0.76rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    margin-top: 20px;
+    margin-top: 18px;
     margin-bottom: 12px;
     display: block;
 }
@@ -1833,13 +1838,13 @@ h4 { font-size: 1rem; font-weight: 600; }
 }
 
 .social-btn {
-    width: 40px;
-    height: 40px;
+    width: 42px;
+    height: 42px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.05rem;
+    font-size: 1.1rem;
     color: #94a3b8;
     background: rgba(255, 255, 255, 0.08);
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -1893,42 +1898,54 @@ h4 { font-size: 1rem; font-weight: 600; }
     transform: scale(1.15);
 }
 
-
 .footer-col h5 {
     color: var(--white);
-    font-size: 0.78rem;
+    font-size: 0.8rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.1em;
     margin-bottom: 16px;
+    position: relative;
+    padding-bottom: 6px;
 }
-.footer-col ul { list-style: none; }
-.footer-col li { margin-bottom: 8px; }
-.footer-col a { color: var(--gray-400); font-size: 0.875rem; transition: color var(--tr); }
+.footer-col h5::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 24px;
+    height: 2px;
+    background: var(--blue-500);
+    border-radius: 2px;
+}
+.footer-col ul { list-style: none; padding-left: 0; }
+.footer-col li { margin-bottom: 10px; }
+.footer-col a { color: #94a3b8; font-size: 0.875rem; text-decoration: none; transition: color var(--tr); }
+.footer-col a:hover { color: var(--white); text-decoration: underline; }
 .contact-link-hover { transition: color var(--tr); }
 .contact-link-hover:hover { color: var(--white) !important; text-decoration: underline !important; }
 
-.contact-list { list-style: none; }
+.contact-list { list-style: none; padding-left: 0; }
 .contact-list li {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 10px;
+    gap: 10px;
+    margin-bottom: 12px;
     font-size: 0.875rem;
 }
 .contact-icon {
-    width: 28px;
-    height: 28px;
+    width: 30px;
+    height: 30px;
     border-radius: var(--r-sm);
     background: rgba(255,255,255,0.06);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.8rem;
+    font-size: 0.82rem;
     color: var(--blue-400);
     flex-shrink: 0;
 }
-.whatsapp-link { display: flex; align-items: center; gap: 8px; color: var(--gray-400); text-decoration: none; }
+.whatsapp-link { display: flex; align-items: center; gap: 10px; color: #94a3b8; text-decoration: none; }
 .whatsapp-link:hover { color: #25D366; }
 .whatsapp-link .contact-icon { color: #25D366; }
 
@@ -1946,6 +1963,93 @@ h4 { font-size: 1rem; font-weight: 600; }
     color: var(--gray-500);
 }
 .footer-tagline { display: flex; align-items: center; gap: 5px; }
+
+/* ── Mobile Footer Specific Layout ── */
+@media (max-width: 767px) {
+    .footer {
+        padding-bottom: clamp(75px, 15vw, 95px) !important; /* Clears fixed bottom nav */
+    }
+    .footer-top {
+        padding: 32px 0 20px;
+    }
+    .footer-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 26px 14px;
+    }
+    .footer-brand-col {
+        grid-column: 1 / -1;
+        text-align: center;
+        padding-bottom: 20px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .footer-brand-col .footer-logo {
+        display: inline-block;
+        margin: 0 auto 10px auto;
+        font-size: 1.55rem;
+    }
+    .footer-brand-col p {
+        max-width: 90%;
+        margin: 0 auto 16px auto;
+        font-size: 0.85rem;
+        line-height: 1.55;
+    }
+    .footer-social-title {
+        text-align: center;
+        margin-top: 14px;
+        margin-bottom: 12px;
+        font-size: 0.74rem;
+        letter-spacing: 0.12em;
+    }
+    .footer-social {
+        justify-content: center;
+        gap: 14px;
+    }
+    .footer-col {
+        padding: 0 4px;
+    }
+    .footer-col h5 {
+        font-size: 0.80rem;
+        margin-bottom: 12px;
+    }
+    .footer-col a {
+        font-size: 0.84rem;
+    }
+    .footer-col-contact {
+        grid-column: 1 / -1;
+        padding-top: 20px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        text-align: center;
+    }
+    .footer-col-contact h5 {
+        text-align: center;
+    }
+    .footer-col-contact h5::after {
+        left: 50%;
+        transform: translateX(-50%);
+    }
+    .footer-col-contact .contact-list {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+    }
+    .footer-col-contact .contact-list li {
+        margin-bottom: 0;
+        font-size: 0.85rem;
+    }
+    .footer-bottom {
+        padding: 16px 0;
+        text-align: center;
+    }
+    .footer-bottom-inner {
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        text-align: center;
+        font-size: 0.80rem;
+    }
+}
 
 /* ══════════════════════════════════════════════
    TOAST ANIMATIONS

@@ -1078,17 +1078,23 @@
 /* --- Horizontal Category Scroller Styles (Nykaa Style) --- */
 .category-scroller-section {
     background: #fff;
-    padding: 16px 0;
+    padding: 14px 0 16px 0;
     border-bottom: 1px solid #f1f5f9;
+    position: relative;
+}
+.category-scroller-container {
+    position: relative;
 }
 .category-scroller-track {
     display: flex;
-    gap: clamp(20px, 4vw, 36px);
+    gap: clamp(18px, 3.5vw, 36px);
     overflow-x: auto;
     scrollbar-width: none; /* Firefox */
     -ms-overflow-style: none;  /* IE/Edge */
     padding: 4px 16px;
-    align-items: center;
+    align-items: flex-start;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
 }
 .category-scroller-track::-webkit-scrollbar {
     display: none; /* Safari/Chrome */
@@ -1139,46 +1145,111 @@
     transform: scale(1.06);
 }
 
+.category-scroll-hint {
+    display: none;
+}
+
 @media (max-width: 768px) {
     .category-scroller-section {
-        padding: 10px 0;
+        padding: 10px 0 12px 0;
+        overflow: hidden;
+    }
+    .category-scroller-container {
+        padding-left: 0;
+        padding-right: 0;
     }
     .category-scroller-track {
-        gap: 16px;
-        padding: 4px 12px;
+        gap: 12px;
+        padding: 4px 16px 6px 16px;
+        scroll-snap-type: x proximity;
+    }
+    .category-scroller-item {
+        flex: 0 0 66px;
+        max-width: 66px;
+        scroll-snap-align: start;
+        gap: 6px;
     }
     .category-scroller-circle {
         width: 58px;
         height: 58px;
+        border-width: 1.5px;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
     }
     .category-scroller-item span {
-        font-size: 0.72rem;
+        font-size: 0.70rem;
         font-weight: 600;
+        line-height: 1.15;
+        text-align: center;
+        max-width: 66px;
+        white-space: normal;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        height: 25px;
+    }
+    /* Subtle peek gradient + scroll prompt arrow at right edge */
+    .category-scroll-hint {
+        display: flex;
+        position: absolute;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        width: 38px;
+        align-items: center;
+        justify-content: flex-end;
+        padding-right: 4px;
+        background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.85) 45%, #ffffff 100%);
+        pointer-events: none;
+        z-index: 3;
+        transition: opacity 0.3s ease;
+    }
+    .category-scroll-hint i {
+        font-size: 0.70rem;
+        color: #2874f0;
+        background: #ffffff;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+        border: 1px solid rgba(40, 116, 240, 0.2);
+        animation: hintNudge 1.6s ease-in-out infinite;
+    }
+    @keyframes hintNudge {
+        0%, 100% { transform: translateX(0); }
+        50% { transform: translateX(3px); }
     }
 }
 @media (min-width: 769px) {
     .category-scroller-track {
         justify-content: center;
     }
+}
+
 /* ── Festive Campaign Banner (Container Aligned) ──────── */
 .campaign-home-section {
-    padding: 16px 0 6px 0;
+    padding: 16px 0 10px 0;
     background: transparent;
+    margin-bottom: 8px;
 }
 .campaign-home-card {
     border-radius: 16px;
     overflow: hidden;
-    padding: 20px 24px;
-    box-shadow: 0 4px 20px rgba(190, 18, 60, 0.15);
+    padding: 22px 26px;
+    box-shadow: 0 8px 24px rgba(190, 18, 60, 0.22);
     position: relative;
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #ffffff !important;
 }
 .campaign-home-card::before {
     content: '';
     position: absolute;
     top: 0; left: 0; right: 0; bottom: 0;
-    background: radial-gradient(circle at 10% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
-                radial-gradient(circle at 90% 80%, rgba(245, 158, 11, 0.12) 0%, transparent 50%);
+    background: radial-gradient(circle at 10% 20%, rgba(255, 255, 255, 0.12) 0%, transparent 50%),
+                radial-gradient(circle at 90% 80%, rgba(245, 158, 11, 0.14) 0%, transparent 50%);
     pointer-events: none;
 }
 .campaign-card-inner {
@@ -1198,30 +1269,32 @@
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
 }
 .campaign-card-pill {
     background: rgba(255, 255, 255, 0.22);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
-    color: #ffffff;
+    color: #ffffff !important;
     font-weight: 800;
-    font-size: 0.74rem;
-    padding: 3px 10px;
+    font-size: 0.76rem;
+    padding: 4px 12px;
     border-radius: 20px;
     text-transform: uppercase;
     letter-spacing: 0.04em;
+    border: 1px solid rgba(255, 255, 255, 0.25);
 }
 .campaign-card-live-dot {
-    background: rgba(34, 197, 94, 0.2);
-    color: #86efac;
+    background: rgba(34, 197, 94, 0.25);
+    color: #86efac !important;
     font-weight: 800;
-    font-size: 0.72rem;
-    padding: 3px 8px;
+    font-size: 0.74rem;
+    padding: 4px 10px;
     border-radius: 20px;
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 5px;
+    border: 1px solid rgba(134, 239, 172, 0.35);
 }
 .campaign-card-live-dot i {
     font-size: 0.5rem;
@@ -1234,16 +1307,18 @@
 .campaign-card-title {
     font-size: 1.25rem;
     font-weight: 900;
-    color: #ffffff;
-    margin: 0 0 4px 0;
+    color: #ffffff !important;
+    margin: 0 0 6px 0;
     letter-spacing: -0.01em;
     line-height: 1.3;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 .campaign-card-desc {
     font-size: 0.88rem;
-    color: rgba(255, 255, 255, 0.92);
-    margin: 0 0 10px 0;
-    line-height: 1.4;
+    color: rgba(255, 255, 255, 0.95) !important;
+    margin: 0 0 12px 0;
+    line-height: 1.45;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 .campaign-prizes-preview {
     display: flex;
@@ -1252,74 +1327,83 @@
     flex-wrap: wrap;
 }
 .prize-tag {
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.18);
     backdrop-filter: blur(4px);
-    color: #ffffff;
+    -webkit-backdrop-filter: blur(4px);
+    color: #ffffff !important;
     font-size: 0.76rem;
     font-weight: 700;
-    padding: 3px 9px;
-    border-radius: 6px;
+    padding: 4px 10px;
+    border-radius: 8px;
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    gap: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.22);
 }
 .campaign-card-right {
     flex-shrink: 0;
 }
 .btn-campaign-enter {
-    background: #ffffff;
+    background: #ffffff !important;
     color: #be123c !important;
     font-weight: 800;
-    font-size: 0.86rem;
-    padding: 10px 22px;
+    font-size: 0.88rem;
+    padding: 11px 24px;
     border-radius: 30px;
     text-decoration: none;
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
     white-space: nowrap;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 .btn-campaign-enter:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
     color: #9f1239 !important;
 }
 
 @media (max-width: 768px) {
     .campaign-home-section {
-        padding: 10px 0 6px 0;
+        padding: 10px 0 8px 0;
+        margin-bottom: 14px;
     }
     .campaign-home-card {
-        padding: 14px 14px;
-        border-radius: 12px;
+        padding: 16px 14px;
+        border-radius: 14px;
     }
     .campaign-card-inner {
         flex-direction: column;
         align-items: stretch;
-        gap: 12px;
+        gap: 14px;
     }
     .campaign-card-title {
-        font-size: 1.05rem;
+        font-size: 1.12rem;
+        color: #ffffff !important;
     }
     .campaign-card-desc {
-        font-size: 0.8rem;
-        margin-bottom: 8px;
+        font-size: 0.82rem;
+        color: rgba(255, 255, 255, 0.95) !important;
+        margin-bottom: 10px;
+    }
+    .campaign-prizes-preview {
+        gap: 6px;
     }
     .prize-tag {
         font-size: 0.72rem;
-        padding: 2px 7px;
+        padding: 3px 8px;
+        color: #ffffff !important;
     }
     .campaign-card-right {
         width: 100%;
+        margin-top: 2px;
     }
     .btn-campaign-enter {
         width: 100%;
         justify-content: center;
-        padding: 9px 16px;
-        font-size: 0.84rem;
+        padding: 11px 16px;
+        font-size: 0.86rem;
     }
 }
 </style>
@@ -1385,8 +1469,8 @@
      HORIZONTAL CATEGORY SCROLLER (Nykaa Style)
 ══════════════════════════════════════ -->
 <section class="category-scroller-section">
-    <div class="container">
-        <div class="category-scroller-track">
+    <div class="container category-scroller-container">
+        <div class="category-scroller-track" id="categoryScrollerTrack">
             {% for cat in categories %}
             <a href="{% url 'items:product_list' %}?category={{ cat.slug }}" class="category-scroller-item">
                 <div class="category-scroller-circle">
@@ -1408,6 +1492,9 @@
             </a>
             {% endfor %}
             {% endfor %}
+        </div>
+        <div class="category-scroll-hint" id="categoryScrollHint" aria-label="Scroll for more categories">
+            <i class="fa fa-chevron-right"></i>
         </div>
     </div>
 </section>
@@ -2446,6 +2533,19 @@ document.querySelectorAll('.btn-share').forEach(btn => {
                 }, 1000);
             }
         });
+    }
+
+    // Category scroller hint fade on scroll
+    const catTrack = document.getElementById('categoryScrollerTrack');
+    const catHint = document.getElementById('categoryScrollHint');
+    if (catTrack && catHint) {
+        catTrack.addEventListener('scroll', () => {
+            if (catTrack.scrollLeft + catTrack.clientWidth >= catTrack.scrollWidth - 15) {
+                catHint.style.opacity = '0';
+            } else {
+                catHint.style.opacity = '1';
+            }
+        }, { passive: true });
     }
 })();
 </script>
