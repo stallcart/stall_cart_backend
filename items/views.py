@@ -57,36 +57,45 @@ def _is_safe_temp_path(rel_path, user_id):
 
 def _handle_temp_upload_on_validation_failure(request):
     """
-    Persists uploaded primary and additional image files in a user-scoped temp directory
-    when form validation fails so the user never has to re-upload them.
+    Persists uploaded primary and additional image files in TemporaryProductImage (Database Model)
+    when form validation fails so the seller never has to re-upload them.
     Returns: (temp_primary_dict, temp_additional_list)
     """
-    user_temp_dir = os.path.join(settings.MEDIA_ROOT, 'temp_uploads', f'user_{request.user.id}')
-    os.makedirs(user_temp_dir, exist_ok=True)
-
     # 1. Primary image
     temp_primary = None
     new_primary = request.FILES.get('primary_image')
+    cached_primary_id = request.POST.get('cached_temp_primary_id')
     cached_primary_rel = request.POST.get('cached_temp_primary_image')
 
     if new_primary:
-        ext = os.path.splitext(new_primary.name)[1].lower()
-        if ext in ['.jpg', '.jpeg', '.png', '.webp']:
-            filename = f"primary_{uuid.uuid4().hex[:8]}{ext}"
-            filepath = os.path.join(user_temp_dir, filename)
-            with open(filepath, 'wb+') as dest:
-                for chunk in new_primary.chunks():
-                    dest.write(chunk)
-            rel_path = f"temp_uploads/user_{request.user.id}/{filename}"
+        # Clear prior primary temp image for this user in DB
+        TemporaryProductImage.objects.filter(user=request.user, is_primary=True).delete()
+        temp_obj = TemporaryProductImage.objects.create(
+            user=request.user,
+            image=new_primary,
+            is_primary=True,
+            original_filename=new_primary.name,
+        )
+        temp_primary = {
+            'id': temp_obj.id,
+            'rel_path': temp_obj.image.name,
+            'url': temp_obj.image.url,
+            'filename': new_primary.name,
+        }
+    elif cached_primary_id:
+        temp_obj = TemporaryProductImage.objects.filter(id=cached_primary_id, user=request.user, is_primary=True).first()
+        if temp_obj and temp_obj.image:
             temp_primary = {
-                'rel_path': rel_path,
-                'url': f"{settings.MEDIA_URL}{rel_path}",
-                'filename': new_primary.name,
+                'id': temp_obj.id,
+                'rel_path': temp_obj.image.name,
+                'url': temp_obj.image.url,
+                'filename': temp_obj.original_filename or os.path.basename(temp_obj.image.name),
             }
     elif cached_primary_rel and _is_safe_temp_path(cached_primary_rel, request.user.id):
         full_path = os.path.join(settings.MEDIA_ROOT, cached_primary_rel)
         if os.path.exists(full_path):
             temp_primary = {
+                'id': None,
                 'rel_path': cached_primary_rel,
                 'url': f"{settings.MEDIA_URL}{cached_primary_rel}",
                 'filename': os.path.basename(cached_primary_rel),
@@ -94,40 +103,57 @@ def _handle_temp_upload_on_validation_failure(request):
 
     # 2. Additional images
     temp_additional = []
-    # Keep existing cached that were not removed by user
-    existing_cached = request.POST.getlist('cached_temp_additional_images')
-    for rel in existing_cached:
-        if _is_safe_temp_path(rel, request.user.id):
-            full_path = os.path.join(settings.MEDIA_ROOT, rel)
-            if os.path.exists(full_path):
+    # Keep existing cached that were not removed
+    cached_additional_ids = request.POST.getlist('cached_temp_additional_ids')
+    if cached_additional_ids:
+        existing_objs = TemporaryProductImage.objects.filter(
+            id__in=cached_additional_ids, user=request.user, is_primary=False
+        )
+        for obj in existing_objs:
+            if obj.image:
                 temp_additional.append({
-                    'rel_path': rel,
-                    'url': f"{settings.MEDIA_URL}{rel}",
-                    'filename': os.path.basename(rel),
+                    'id': obj.id,
+                    'rel_path': obj.image.name,
+                    'url': obj.image.url,
+                    'filename': obj.original_filename or os.path.basename(obj.image.name),
                 })
+    else:
+        # Fallback to rel_paths if present
+        for rel in request.POST.getlist('cached_temp_additional_images'):
+            if _is_safe_temp_path(rel, request.user.id):
+                full_path = os.path.join(settings.MEDIA_ROOT, rel)
+                if os.path.exists(full_path):
+                    temp_additional.append({
+                        'id': None,
+                        'rel_path': rel,
+                        'url': f"{settings.MEDIA_URL}{rel}",
+                        'filename': os.path.basename(rel),
+                    })
 
-    # Save new additional uploads
+    # Save newly uploaded additional images to DB
     new_additional = request.FILES.getlist('additional_images')
+    start_order = len(temp_additional)
     for i, add_file in enumerate(new_additional):
-        ext = os.path.splitext(add_file.name)[1].lower()
-        if ext in ['.jpg', '.jpeg', '.png', '.webp']:
-            filename = f"add_{uuid.uuid4().hex[:8]}_{i}{ext}"
-            filepath = os.path.join(user_temp_dir, filename)
-            with open(filepath, 'wb+') as dest:
-                for chunk in add_file.chunks():
-                    dest.write(chunk)
-            rel_path = f"temp_uploads/user_{request.user.id}/{filename}"
-            temp_additional.append({
-                'rel_path': rel_path,
-                'url': f"{settings.MEDIA_URL}{rel_path}",
-                'filename': add_file.name,
-            })
+        temp_obj = TemporaryProductImage.objects.create(
+            user=request.user,
+            image=add_file,
+            is_primary=False,
+            display_order=start_order + i,
+            original_filename=add_file.name,
+        )
+        temp_additional.append({
+            'id': temp_obj.id,
+            'rel_path': temp_obj.image.name,
+            'url': temp_obj.image.url,
+            'filename': add_file.name,
+        })
 
     return temp_primary, temp_additional
 
 
 def _cleanup_user_temp_uploads(user_id):
-    """Cleans up temporary uploaded files for this user."""
+    """Cleans up temporary uploaded database records and files for this user."""
+    TemporaryProductImage.objects.filter(user_id=user_id).delete()
     user_temp_dir = os.path.join(settings.MEDIA_ROOT, 'temp_uploads', f'user_{user_id}')
     if os.path.exists(user_temp_dir):
         try:
@@ -138,27 +164,51 @@ def _cleanup_user_temp_uploads(user_id):
 
 def _apply_cached_images_to_product(request, product, is_new=True):
     """
-    Applies any cached primary and additional images to the product if not superseded by new uploads.
+    Applies any cached primary and additional images from TemporaryProductImage DB model
+    to the product if not superseded by new uploads.
     """
-    # 1. Primary image: if not uploaded in request.FILES, check cached
-    cached_primary_rel = request.POST.get('cached_temp_primary_image')
-    if not request.FILES.get('primary_image') and cached_primary_rel and _is_safe_temp_path(cached_primary_rel, request.user.id):
-        full_path = os.path.join(settings.MEDIA_ROOT, cached_primary_rel)
-        if os.path.exists(full_path):
-            with open(full_path, 'rb') as f:
-                product.primary_image.save(os.path.basename(full_path), File(f), save=False)
+    # 1. Primary image: if not uploaded in request.FILES, check cached DB ID
+    if not request.FILES.get('primary_image'):
+        cached_primary_id = request.POST.get('cached_temp_primary_id')
+        temp_primary = None
+        if cached_primary_id:
+            temp_primary = TemporaryProductImage.objects.filter(id=cached_primary_id, user=request.user, is_primary=True).first()
+        elif request.POST.get('cached_temp_primary_image'):
+            rel = request.POST.get('cached_temp_primary_image')
+            if _is_safe_temp_path(rel, request.user.id):
+                full_path = os.path.join(settings.MEDIA_ROOT, rel)
+                if os.path.exists(full_path):
+                    with open(full_path, 'rb') as f:
+                        product.primary_image.save(os.path.basename(full_path), File(f), save=False)
+                    product.save(update_fields=['primary_image'])
+
+        if temp_primary and temp_primary.image:
+            product.primary_image.save(os.path.basename(temp_primary.image.name), temp_primary.image.file, save=False)
             product.save(update_fields=['primary_image'])
 
-    # 2. Additional images from cache
-    cached_additional_rels = request.POST.getlist('cached_temp_additional_images')
-    if cached_additional_rels:
-        from django.db.models import Max
-        max_order = product.product_image_product.aggregate(
-            max_order=Max('display_order')
-        )['max_order']
-        max_order = -1 if max_order is None else max_order
+    # 2. Additional images from DB
+    cached_additional_ids = request.POST.getlist('cached_temp_additional_ids')
+    from django.db.models import Max
+    max_order = product.product_image_product.aggregate(
+        max_order=Max('display_order')
+    )['max_order']
+    max_order = -1 if max_order is None else max_order
 
-        for i, rel in enumerate(cached_additional_rels):
+    if cached_additional_ids:
+        temp_additional_objs = TemporaryProductImage.objects.filter(
+            id__in=cached_additional_ids, user=request.user, is_primary=False
+        )
+        for i, obj in enumerate(temp_additional_objs):
+            if obj.image:
+                ProductImage.objects.create(
+                    product=product,
+                    image=obj.image,
+                    is_primary=(not product.primary_image and i == 0),
+                    display_order=max_order + i + 1,
+                    alt_text=product.name,
+                )
+    elif request.POST.getlist('cached_temp_additional_images'):
+        for i, rel in enumerate(request.POST.getlist('cached_temp_additional_images')):
             if _is_safe_temp_path(rel, request.user.id):
                 full_path = os.path.join(settings.MEDIA_ROOT, rel)
                 if os.path.exists(full_path):

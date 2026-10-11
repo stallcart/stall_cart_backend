@@ -591,6 +591,32 @@ class ProductImage(BaseModel):
         ordering = ['display_order', '-is_primary']
 
 
+def temp_product_upload_path(instance, filename):
+    return f'temp_uploads/user_{instance.user_id}/{filename}'
+
+
+class TemporaryProductImage(BaseModel):
+    """
+    Database model-level storage for temporary uploaded product images.
+    Preserves images in DB when form validation fails so sellers never have to re-upload.
+    """
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='temp_product_images'
+    )
+    image = models.ImageField(upload_to=temp_product_upload_path)
+    is_primary = models.BooleanField(default=False)
+    display_order = models.PositiveSmallIntegerField(default=0)
+    original_filename = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ['display_order', 'created_at']
+
+    def __str__(self):
+        return f"Temp {'Primary' if self.is_primary else 'Gallery'} Image for {self.user} (ID: {self.id})"
+
+
 class ProductVariantManager(models.Manager):
     def get_queryset(self):
         return super().get_queryset().filter(is_deleted=False)

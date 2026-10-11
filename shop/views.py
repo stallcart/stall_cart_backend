@@ -34,6 +34,20 @@ def home(request):
         is_active=True
     ).select_related('category', 'seller').prefetch_related('product_image_product')
     
+    category_slug = request.GET.get('category')
+    if category_slug:
+        products_qs = products_qs.filter(category__slug=category_slug)
+        
+    sort = request.GET.get('sort', '-created_at')
+    if sort == 'price_asc':
+        products_qs = products_qs.order_by('price')
+    elif sort == 'price_desc':
+        products_qs = products_qs.order_by('-price')
+    elif sort == '-views_count':
+        products_qs = products_qs.order_by('-views_count')
+    else:
+        products_qs = products_qs.order_by('-created_at')
+
     product_count = products_qs.count()
     products = products_qs[:15]
     

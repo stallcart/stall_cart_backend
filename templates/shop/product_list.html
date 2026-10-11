@@ -101,6 +101,21 @@
 }
 
 /* Category Quick Card scroll list */
+.category-scroll-wrapper {
+    position: relative;
+}
+
+.category-scroll-wrapper::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 12px;
+    width: 32px;
+    background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.95));
+    pointer-events: none;
+}
+
 .category-scroll-container {
     display: flex;
     gap: 16px;
@@ -547,6 +562,21 @@ document.querySelectorAll('.product-card').forEach(card => {
             card.querySelector('a')?.click();
         }
     });
+});
+
+// ── Auto-scroll active category card into view on mobile/tablet ───
+document.addEventListener('DOMContentLoaded', () => {
+    const activeCard = document.querySelector('.category-scroll-container .category-quick-card.active');
+    const container = document.querySelector('.category-scroll-container');
+    if (activeCard && container) {
+        const cardLeft = activeCard.offsetLeft;
+        const cardWidth = activeCard.offsetWidth;
+        const containerWidth = container.offsetWidth;
+        container.scrollTo({
+            left: Math.max(0, cardLeft - (containerWidth / 2) + (cardWidth / 2)),
+            behavior: 'smooth'
+        });
+    }
 });
 </script>
 {% endblock %}

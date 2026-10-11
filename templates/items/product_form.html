@@ -250,6 +250,9 @@
                     </div>
                     {% if temp_primary_image %}
                         <input type="hidden" name="cached_temp_primary_image" id="cachedTempPrimaryImage" value="{{ temp_primary_image.rel_path }}">
+                        {% if temp_primary_image.id %}
+                            <input type="hidden" name="cached_temp_primary_id" id="cachedTempPrimaryId" value="{{ temp_primary_image.id }}">
+                        {% endif %}
                     {% endif %}
                 </div>
                 
@@ -273,9 +276,12 @@
                         {% endif %}
                         {% if temp_additional_images %}
                             {% for temp_img in temp_additional_images %}
-                                <div class="preview-thumb temp-retained" data-rel-path="{{ temp_img.rel_path }}" style="position: relative;" title="Preserved from upload">
+                                <div class="preview-thumb temp-retained" data-rel-path="{{ temp_img.rel_path }}" {% if temp_img.id %}data-temp-id="{{ temp_img.id }}"{% endif %} style="position: relative;" title="Preserved from upload">
                                     <img src="{{ temp_img.url }}" alt="Preserved additional image">
                                     <input type="hidden" name="cached_temp_additional_images" value="{{ temp_img.rel_path }}">
+                                    {% if temp_img.id %}
+                                        <input type="hidden" name="cached_temp_additional_ids" value="{{ temp_img.id }}">
+                                    {% endif %}
                                     <button type="button" class="remove-thumb remove-temp-thumb" title="Remove this preserved image">×</button>
                                     <span style="position: absolute; bottom: 2px; left: 2px; right: 2px; background: rgba(22, 101, 52, 0.85); color: #fff; font-size: 0.6rem; text-align: center; border-radius: 3px; font-weight: 700; padding: 1px 0;">SAVED</span>
                                 </div>
@@ -677,18 +683,21 @@ document.addEventListener('DOMContentLoaded', function() {
         const mrp = parseFloat(mrpInput?.value) || 0;
         const discount = parseInt(discountInput?.value) || 0;
         
-        let finalPrice = price;
+        // Base price calculation: if price is not set, use mrp
+        const basePrice = price > 0 ? price : mrp;
         
-        if (discount > 0 && price > 0) {
-            finalPrice = price * (1 - discount / 100);
+        let finalPrice = basePrice;
+        
+        if (discount > 0 && basePrice > 0) {
+            finalPrice = basePrice * (1 - discount / 100);
         }
         
         previewPrice.textContent = `₹${finalPrice.toFixed(2)}`;
         
-        const effectiveMrp = mrp > price ? mrp : price;
+        const effectiveMrp = mrp > basePrice ? mrp : basePrice;
         const totalSavings = effectiveMrp - finalPrice;
         
-        if (discount > 0 && price > 0) {
+        if (discount > 0 && basePrice > 0) {
             if (previewDiscount) {
                 previewDiscount.style.display = 'inline-block';
                 previewDiscount.textContent = `${discount}% OFF`;
@@ -705,6 +714,14 @@ document.addEventListener('DOMContentLoaded', function() {
         updateVariantPricePreviews();
     }
     
+    // Auto-sync price with MRP if seller filled MRP first and price is empty
+    mrpInput?.addEventListener('blur', function() {
+        if (mrpInput.value && (!priceInput.value || parseFloat(priceInput.value) === 0)) {
+            priceInput.value = mrpInput.value;
+            updatePricePreview();
+        }
+    });
+
     [priceInput, mrpInput, discountInput].forEach(input => {
         input?.addEventListener('input', updatePricePreview);
     });
@@ -718,6 +735,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (this.files && this.files[0]) {
             const cachedInput = document.getElementById('cachedTempPrimaryImage');
             if (cachedInput) cachedInput.remove();
+            const cachedIdInput = document.getElementById('cachedTempPrimaryId');
+            if (cachedIdInput) cachedIdInput.remove();
             const badge = document.getElementById('primaryRetainedBadge');
             if (badge) badge.remove();
 

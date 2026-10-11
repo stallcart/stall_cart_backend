@@ -1697,3 +1697,124 @@ class TemporaryUploadPersistenceTests(TestCase):
         # Cleanup: delete created media file
         if os.path.exists(product.primary_image.path):
             os.remove(product.primary_image.path)
+
+    def test_db_model_temporary_product_image_lifecycle(self):
+        """
+        Test that TemporaryProductImage records are created, queried, and attached
+        using cached_temp_primary_id and cached_temp_additional_ids.
+        """
+        from items.models import TemporaryProductImage
+        self.client.login(phone="7777777788", password="pass1234")
+
+        # 1. Create TemporaryProductImage records for primary and gallery
+        png_bytes = (
+            b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01'
+            b'\x08\x06\x00\x00\x00\x1f\x15c4\x00\x00\x00\rIDATx\x9cc`\x00\x00\x00'
+            b'\x02\x00\x01H\xaf\xa4q\x00\x00\x00\x00IEND\xaeB`\x82'
+        )
+        temp_primary = TemporaryProductImage.objects.create(
+            user=self.seller_user,
+            image=SimpleUploadedFile("db_primary.png", png_bytes, content_type="image/png"),
+            is_primary=True,
+            original_filename="db_primary.png",
+        )
+        temp_gallery = TemporaryProductImage.objects.create(
+            user=self.seller_user,
+            image=SimpleUploadedFile("db_gallery.png", png_bytes, content_type="image/png"),
+            is_primary=False,
+            original_filename="db_gallery.png",
+        )
+
+        self.assertEqual(TemporaryProductImage.objects.filter(user=self.seller_user).count(), 2)
+
+        # 2. Submit product referencing these DB model IDs
+        post_data = {
+            'name': 'DB Preserved Product',
+            'short_description': 'Short description',
+            'description': 'Detailed product description',
+            'price': '899.00',
+            'mrp': '1299.00',
+            'stock': '15',
+            'discount_percent': '10',
+            'low_stock_threshold': '2',
+            'status': 'published',
+            'category': str(self.category.id),
+            'cached_temp_primary_id': str(temp_primary.id),
+            'cached_temp_additional_ids': [str(temp_gallery.id)],
+            'variants-TOTAL_FORMS': '0',
+            'variants-INITIAL_FORMS': '0',
+            'variants-MIN_NUM_FORMS': '0',
+            'variants-MAX_NUM_FORMS': '10',
+        }
+
+        response = self.client.post(reverse('items:product_create'), post_data)
+        self.assertEqual(response.status_code, 302)
+
+        # Verify product created with primary and additional images
+        product = Product.objects.filter(name='DB Preserved Product').first()
+        self.assertIsNotNone(product)
+        self.assertTrue(bool(product.primary_image))
+        self.assertEqual(product.product_image_product.count(), 1)
+
+        # Verify TemporaryProductImage table cleanup
+        self.assertEqual(TemporaryProductImage.objects.filter(user=self.seller_user).count(), 0)
+
+    def test_form_auto_sync_mrp_to_price(self):
+        """
+        When seller inputs MRP and discount but leaves base price blank,
+        clean() should auto-populate price from mrp to avoid customer pays ₹0.00.
+        """
+        form_data = {
+            'name': 'Sofa Chair',
+            'short_description': 'Solid wood chair',
+            'description': 'Premium single seater sofa chair',
+            'mrp': '5500.00',
+            'discount_percent': '50',
+            'cost_price': '1792.00',
+            'stock': '5',
+            'category': self.category.id,
+            'status': 'published',
+            'low_stock_threshold': '1',
+        }
+        form = ProductForm(data=form_data)
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data['price'], Decimal('5500.00'))
+
+    def test_home_view_category_filter_and_sorting(self):
+        """
+        Verify home page view supports ?category= and ?sort= query parameters.
+        """
+        cat_laptops = Category.objects.create(name="Laptops", slug="laptops", commision_percentage=5.0)
+        p1 = Product.objects.create(
+            seller=self.seller_profile,
+            category=self.category,
+            name="Cloth Shirt",
+            price=Decimal("500.00"),
+            stock=10,
+            status="published",
+            is_active=True
+        )
+        p2 = Product.objects.create(
+            seller=self.seller_profile,
+            category=cat_laptops,
+            name="Acer Aspire Laptop",
+            price=Decimal("35000.00"),
+            stock=5,
+            status="published",
+            is_active=True
+        )
+
+        # Filter by laptops category
+        response = self.client.get(reverse('shop:home') + '?category=laptops')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('products', response.context)
+        products = list(response.context['products'])
+        self.assertEqual(len(products), 1)
+        self.assertEqual(products[0].name, "Acer Aspire Laptop")
+
+        # Sort by price ascending
+        response_sort = self.client.get(reverse('shop:home') + '?sort=price_asc')
+        self.assertEqual(response_sort.status_code, 200)
+        products_sorted = list(response_sort.context['products'])
+        self.assertGreaterEqual(len(products_sorted), 2)
+        self.assertEqual(products_sorted[0].price, Decimal("500.00"))

@@ -212,9 +212,10 @@ class ProductForm(forms.ModelForm):
         self.request_user  = kwargs.pop('request_user', None)
         super().__init__(*args, **kwargs)
 
-        # Make required fields explicitly required
-        for field_name in ['name', 'price', 'stock', 'category', 'status']:
+        # Make required fields explicitly required (price is validated in clean() to allow auto-fill from mrp)
+        for field_name in ['name', 'stock', 'category', 'status']:
             self.fields[field_name].required = True
+        self.fields['price'].required = False
 
         if 'category' in self.fields:
             self.fields['category'].empty_label = 'Select Category'
@@ -277,9 +278,11 @@ class ProductForm(forms.ModelForm):
         cached_count = 0
         if hasattr(self, 'data') and self.data:
             if hasattr(self.data, 'getlist'):
-                cached_count = len(self.data.getlist('cached_temp_additional_images'))
+                cached_ids = self.data.getlist('cached_temp_additional_ids')
+                cached_rels = self.data.getlist('cached_temp_additional_images')
+                cached_count = len(cached_ids) if cached_ids else len(cached_rels)
             else:
-                val = self.data.get('cached_temp_additional_images')
+                val = self.data.get('cached_temp_additional_ids') or self.data.get('cached_temp_additional_images')
                 if isinstance(val, list):
                     cached_count = len(val)
                 elif val:
@@ -313,8 +316,24 @@ class ProductForm(forms.ModelForm):
         cleaned = super().clean()
         price = cleaned.get('price')
         mrp   = cleaned.get('mrp')
+
+        # Auto-fallback: if user entered MRP but not Price (or vice versa), auto-populate
+        if not price and mrp:
+            cleaned['price'] = mrp
+            price = mrp
+            if hasattr(self, 'instance') and self.instance:
+                self.instance.price = mrp
+        elif price and not mrp:
+            cleaned['mrp'] = price
+            mrp = price
+            if hasattr(self, 'instance') and self.instance:
+                self.instance.mrp = price
+
+        if not price:
+            self.add_error('price', 'Base Price (₹) or Printed MRP (₹) is required.')
+
         if price and mrp and mrp < price:
-            self.add_error('mrp', 'MRP should be ≥ selling price.')
+            self.add_error('mrp', 'Printed MRP should be ≥ base price.')
         
         category = cleaned.get('category')
         if category and not category.is_gender_applicable:
