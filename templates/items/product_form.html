@@ -233,9 +233,14 @@
                     <small class="form-help">Main image shown in listings (recommended: 800×800px)</small>
                     
                     <!-- Image Preview -->
-                    <div class="image-preview" id="primaryImagePreview">
+                    <div class="image-preview" id="primaryImagePreview" style="position: relative;">
                         {% if product and product.primary_image %}
                             <img src="{{ product.primary_image.url }}" alt="Current primary image">
+                        {% elif temp_primary_image %}
+                            <img src="{{ temp_primary_image.url }}" alt="Preserved primary image">
+                            <div class="badge-retained" id="primaryRetainedBadge" style="position: absolute; bottom: 8px; left: 8px; right: 8px; background: rgba(22, 101, 52, 0.92); color: #fff; padding: 5px 8px; border-radius: 6px; font-size: 0.72rem; text-align: center; font-weight: 600; box-shadow: 0 2px 6px rgba(0,0,0,0.2);">
+                                <i class="fa fa-check-circle"></i> Uploaded image saved
+                            </div>
                         {% else %}
                             <div class="preview-placeholder">
                                 <i class="fa fa-image"></i>
@@ -243,6 +248,9 @@
                             </div>
                         {% endif %}
                     </div>
+                    {% if temp_primary_image %}
+                        <input type="hidden" name="cached_temp_primary_image" id="cachedTempPrimaryImage" value="{{ temp_primary_image.rel_path }}">
+                    {% endif %}
                 </div>
                 
                 <div class="form-group">
@@ -260,6 +268,16 @@
                                 <div class="preview-thumb existing" data-img-id="{{ img.id }}">
                                     <img src="{{ img.image.url }}" alt="Additional image">
                                     <button type="button" class="remove-thumb" title="Remove">×</button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                        {% if temp_additional_images %}
+                            {% for temp_img in temp_additional_images %}
+                                <div class="preview-thumb temp-retained" data-rel-path="{{ temp_img.rel_path }}" style="position: relative;" title="Preserved from upload">
+                                    <img src="{{ temp_img.url }}" alt="Preserved additional image">
+                                    <input type="hidden" name="cached_temp_additional_images" value="{{ temp_img.rel_path }}">
+                                    <button type="button" class="remove-thumb remove-temp-thumb" title="Remove this preserved image">×</button>
+                                    <span style="position: absolute; bottom: 2px; left: 2px; right: 2px; background: rgba(22, 101, 52, 0.85); color: #fff; font-size: 0.6rem; text-align: center; border-radius: 3px; font-weight: 700; padding: 1px 0;">SAVED</span>
                                 </div>
                             {% endfor %}
                         {% endif %}
@@ -698,6 +716,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     primaryImageInput?.addEventListener('change', function(e) {
         if (this.files && this.files[0]) {
+            const cachedInput = document.getElementById('cachedTempPrimaryImage');
+            if (cachedInput) cachedInput.remove();
+            const badge = document.getElementById('primaryRetainedBadge');
+            if (badge) badge.remove();
+
             const reader = new FileReader();
             reader.onload = function(event) {
                 primaryPreview.innerHTML = `<img src="${event.target.result}" alt="Preview">`;
@@ -715,7 +738,7 @@ document.addEventListener('DOMContentLoaded', function() {
             newThumbs.forEach(thumb => thumb.remove());
             
             const maxImages = 5;
-            const existingCount = additionalPreview.querySelectorAll('.preview-thumb.existing').length;
+            const existingCount = additionalPreview.querySelectorAll('.preview-thumb.existing, .preview-thumb.temp-retained').length;
             const availableSlots = maxImages - existingCount;
             
             const files = Array.from(this.files).slice(0, Math.min(availableSlots, this.files.length));
@@ -748,8 +771,22 @@ document.addEventListener('DOMContentLoaded', function() {
     document.addEventListener('click', function(e) {
         if (e.target.classList.contains('remove-thumb')) {
             const thumb = e.target.closest('.preview-thumb');
+            if (!thumb) return;
+
+            // Handle temporary preserved thumbnail removal
+            if (thumb.classList.contains('temp-retained')) {
+                thumb.remove();
+                showToast('Preserved image removed', 'info');
+                return;
+            }
+
+            // Handle unsaved new thumbnail removal
+            if (thumb.classList.contains('new')) {
+                thumb.remove();
+                return;
+            }
+
             const imgId = thumb?.dataset.imgId;
-            
             if (!imgId) {
                 thumb.remove();
                 return;
@@ -778,6 +815,105 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
+
+    // ── 3.1 Client-side Pre-Submit Form Validation ──────────────────
+    const productForm = document.getElementById('productForm');
+    if (productForm) {
+        productForm.addEventListener('submit', function(e) {
+            let errors = [];
+            let firstInvalidField = null;
+
+            function markInvalid(field, message) {
+                errors.push(message);
+                if (!firstInvalidField && field) firstInvalidField = field;
+                if (field) {
+                    field.classList.add('error-highlight');
+                    const clearHandler = function() {
+                        field.classList.remove('error-highlight');
+                        field.removeEventListener('input', clearHandler);
+                        field.removeEventListener('change', clearHandler);
+                    };
+                    field.addEventListener('input', clearHandler);
+                    field.addEventListener('change', clearHandler);
+                }
+            }
+
+            // Clear existing highlights
+            productForm.querySelectorAll('.error-highlight').forEach(el => el.classList.remove('error-highlight'));
+
+            // 1. Product Name
+            const nameEl = document.getElementById('{{ form.name.id_for_label }}');
+            if (nameEl && !nameEl.value.trim()) {
+                markInvalid(nameEl, 'Product Name is required.');
+            }
+
+            // 2. Short Description
+            const shortDescEl = document.getElementById('{{ form.short_description.id_for_label }}');
+            if (shortDescEl && !shortDescEl.value.trim()) {
+                markInvalid(shortDescEl, 'Short Description is required.');
+            }
+
+            // 3. Full Description
+            const descEl = document.getElementById('{{ form.description.id_for_label }}');
+            if (descEl && !descEl.value.trim()) {
+                markInvalid(descEl, 'Full Description is required.');
+            }
+
+            // 4. Selling Price
+            const priceEl = document.getElementById('{{ form.price.id_for_label }}');
+            if (priceEl) {
+                const val = parseFloat(priceEl.value);
+                if (isNaN(val) || val <= 0) {
+                    markInvalid(priceEl, 'Selling Price must be greater than 0.');
+                }
+            }
+
+            // 5. MRP
+            const mrpEl = document.getElementById('{{ form.mrp.id_for_label }}');
+            if (mrpEl && mrpEl.value.trim() && priceEl && priceEl.value.trim()) {
+                const p = parseFloat(priceEl.value);
+                const m = parseFloat(mrpEl.value);
+                if (!isNaN(p) && !isNaN(m) && m < p) {
+                    markInvalid(mrpEl, 'MRP must be greater than or equal to Selling Price.');
+                }
+            }
+
+            // 6. Category
+            const catEl = document.getElementById('{{ form.category.id_for_label }}');
+            if (catEl && (!catEl.value || catEl.value.trim() === '')) {
+                markInvalid(catEl, 'Please select a Category.');
+            }
+
+            // 7. Status
+            const statusEl = document.getElementById('{{ form.status.id_for_label }}');
+            if (statusEl && (!statusEl.value || statusEl.value.trim() === '')) {
+                markInvalid(statusEl, 'Please select a Status.');
+            }
+
+            // 8. Variants validation
+            const variantRows = productForm.querySelectorAll('.variant-row:not(.marked-for-delete)');
+            variantRows.forEach((row, idx) => {
+                const sizeF = row.querySelector('[name$="-size_value"]');
+                const stockF = row.querySelector('[name$="-stock"]');
+                if (sizeF && !sizeF.value.trim()) {
+                    markInvalid(sizeF, `Variant ${idx + 1}: Size/Value is required.`);
+                }
+                if (stockF && (stockF.value.trim() === '' || parseInt(stockF.value) < 0)) {
+                    markInvalid(stockF, `Variant ${idx + 1}: Stock must be 0 or greater.`);
+                }
+            });
+
+            if (errors.length > 0) {
+                e.preventDefault();
+                showToast('⚠️ ' + errors[0], 'error');
+                if (firstInvalidField) {
+                    firstInvalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    try { firstInvalidField.focus(); } catch (err) {}
+                }
+                return false;
+            }
+        });
+    }
     
     // ── 4. Delete/Archive Confirmation ─────────────────────────────
     const deleteBtn = document.getElementById('deleteBtn');

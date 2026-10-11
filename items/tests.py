@@ -1542,3 +1542,158 @@ class CategoryStringAndDropdownDisplayTests(TestCase):
 
         # 'Category object' must NEVER appear
         self.assertNotIn("Category object", rendered_html)
+
+
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.urls import reverse
+from django.conf import settings
+import os
+import shutil
+from items.views import _is_safe_temp_path
+
+
+class TemporaryUploadPersistenceTests(TestCase):
+    """
+    Tests that uploaded images are safely preserved when product creation/editing
+    fails validation, and that preserved images are successfully applied when the form
+    is re-submitted.
+    """
+
+    def setUp(self):
+        self.seller_user = User.objects.create_user(
+            phone="7777777788",
+            password="pass1234",
+            role="seller",
+            full_name="Temp Upload Seller"
+        )
+        self.seller_profile = SellerProfile.objects.create(
+            user=self.seller_user,
+            shop_name="Temp Upload Shop",
+            is_verified=True,
+            bank_name="Test Bank",
+            account_number="1234567890",
+            ifsc_code="TEST0123456",
+            account_holder_name="Temp Upload Seller"
+        )
+        self.category = Category.objects.create(
+            name="Test Apparel Cat",
+            commision_percentage=10.0
+        )
+        self.user_temp_dir = os.path.join(settings.MEDIA_ROOT, 'temp_uploads', f'user_{self.seller_user.id}')
+        os.makedirs(self.user_temp_dir, exist_ok=True)
+
+    def tearDown(self):
+        if os.path.exists(self.user_temp_dir):
+            shutil.rmtree(self.user_temp_dir, ignore_errors=True)
+
+    def test_safe_temp_path_validation(self):
+        """_is_safe_temp_path must prevent directory traversal and cross-user access."""
+        valid_path = f"temp_uploads/user_{self.seller_user.id}/primary_test.jpg"
+        self.assertTrue(_is_safe_temp_path(valid_path, self.seller_user.id))
+
+        # Cross-user access
+        other_user_path = f"temp_uploads/user_99999/primary_test.jpg"
+        self.assertFalse(_is_safe_temp_path(other_user_path, self.seller_user.id))
+
+        # Directory traversal
+        self.assertFalse(_is_safe_temp_path(f"temp_uploads/user_{self.seller_user.id}/../../etc/passwd", self.seller_user.id))
+        self.assertFalse(_is_safe_temp_path("/etc/passwd", self.seller_user.id))
+        self.assertFalse(_is_safe_temp_path("", self.seller_user.id))
+
+    def test_temp_upload_cached_on_form_validation_failure(self):
+        """
+        When a seller submits a product with an image but validation fails (e.g. missing name),
+        the uploaded image must be cached to disk and passed back to context without being lost.
+        """
+        self.client.login(phone="7777777788", password="pass1234")
+
+        # Create a small valid test image (1x1 PNG)
+        png_bytes = (
+            b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01'
+            b'\x08\x06\x00\x00\x00\x1f\x15c4\x00\x00\x00\rIDATx\x9cc`\x00\x00\x00'
+            b'\x02\x00\x01H\xaf\xa4q\x00\x00\x00\x00IEND\xaeB`\x82'
+        )
+        test_file = SimpleUploadedFile("my_sample_photo.png", png_bytes, content_type="image/png")
+
+        # Submit with missing name to trigger validation error
+        post_data = {
+            'name': '',  # Required field missing
+            'short_description': 'Short desc',
+            'description': 'Full description',
+            'price': '499.00',
+            'stock': '10',
+            'status': 'published',
+            'category': str(self.category.id),
+            'primary_image': test_file,
+            'variants-TOTAL_FORMS': '0',
+            'variants-INITIAL_FORMS': '0',
+            'variants-MIN_NUM_FORMS': '0',
+            'variants-MAX_NUM_FORMS': '10',
+        }
+
+        response = self.client.post(reverse('items:product_create'), post_data)
+        # Form re-rendered with validation error
+        self.assertEqual(response.status_code, 200)
+
+        # Context must contain temp_primary_image
+        temp_img = response.context.get('temp_primary_image')
+        self.assertIsNotNone(temp_img)
+        self.assertTrue(temp_img['rel_path'].startswith(f"temp_uploads/user_{self.seller_user.id}/"))
+
+        # File must actually exist on disk in the temp directory
+        full_disk_path = os.path.join(settings.MEDIA_ROOT, temp_img['rel_path'])
+        self.assertTrue(os.path.exists(full_disk_path))
+
+        # Rendered HTML must contain the hidden input for cached image
+        self.assertIn('cached_temp_primary_image', response.content.decode())
+
+    def test_product_created_using_cached_temp_primary_image(self):
+        """
+        When a seller resubmits with valid data and cached_temp_primary_image (without re-uploading),
+        the product must be created with that primary image attached.
+        """
+        self.client.login(phone="7777777788", password="pass1234")
+
+        # Pre-seed a file in user's temp directory
+        png_bytes = (
+            b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01'
+            b'\x08\x06\x00\x00\x00\x1f\x15c4\x00\x00\x00\rIDATx\x9cc`\x00\x00\x00'
+            b'\x02\x00\x01H\xaf\xa4q\x00\x00\x00\x00IEND\xaeB`\x82'
+        )
+        filename = "primary_preset123.png"
+        filepath = os.path.join(self.user_temp_dir, filename)
+        with open(filepath, 'wb') as f:
+            f.write(png_bytes)
+        rel_path = f"temp_uploads/user_{self.seller_user.id}/{filename}"
+
+        # Submit valid product data WITH cached_temp_primary_image, WITHOUT primary_image file
+        post_data = {
+            'name': 'Silk Saree Preserved',
+            'short_description': 'Gorgeous saree',
+            'description': 'Traditional pure silk saree',
+            'price': '1499.00',
+            'stock': '5',
+            'discount_percent': '0',
+            'low_stock_threshold': '5',
+            'status': 'published',
+            'category': str(self.category.id),
+            'cached_temp_primary_image': rel_path,
+            'variants-TOTAL_FORMS': '0',
+            'variants-INITIAL_FORMS': '0',
+            'variants-MIN_NUM_FORMS': '0',
+            'variants-MAX_NUM_FORMS': '10',
+        }
+
+        response = self.client.post(reverse('items:product_create'), post_data)
+        # Should redirect on success
+        self.assertEqual(response.status_code, 302)
+
+        # Check product created
+        product = Product.objects.filter(name='Silk Saree Preserved').first()
+        self.assertIsNotNone(product)
+        self.assertTrue(bool(product.primary_image))
+        self.assertTrue(os.path.exists(product.primary_image.path))
+
+        # Cleanup: delete created media file
+        if os.path.exists(product.primary_image.path):
+            os.remove(product.primary_image.path)

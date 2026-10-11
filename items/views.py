@@ -14,6 +14,12 @@ import json
 from orders.models import *
 from django.core.serializers.json import DjangoJSONEncoder
 from .utils import *
+import os
+import uuid
+import shutil
+from django.conf import settings
+from django.core.files import File
+
 # ---------------------------------------------------------------------------
 # Permission helpers
 # ---------------------------------------------------------------------------
@@ -35,6 +41,136 @@ def _get_product_for_user(user, product_id):
     if user.is_admin:
         return get_object_or_404(Product, pk=product_id)
     return get_object_or_404(Product, pk=product_id, seller__user=user)
+
+
+# ---------------------------------------------------------------------------
+# Temporary Upload & Image Persistence Helpers
+# ---------------------------------------------------------------------------
+
+def _is_safe_temp_path(rel_path, user_id):
+    """Ensure relative path is within user's designated temp folder and has no directory traversal."""
+    if not rel_path or '..' in rel_path or rel_path.startswith('/'):
+        return False
+    expected_prefix = f"temp_uploads/user_{user_id}/"
+    return rel_path.startswith(expected_prefix)
+
+
+def _handle_temp_upload_on_validation_failure(request):
+    """
+    Persists uploaded primary and additional image files in a user-scoped temp directory
+    when form validation fails so the user never has to re-upload them.
+    Returns: (temp_primary_dict, temp_additional_list)
+    """
+    user_temp_dir = os.path.join(settings.MEDIA_ROOT, 'temp_uploads', f'user_{request.user.id}')
+    os.makedirs(user_temp_dir, exist_ok=True)
+
+    # 1. Primary image
+    temp_primary = None
+    new_primary = request.FILES.get('primary_image')
+    cached_primary_rel = request.POST.get('cached_temp_primary_image')
+
+    if new_primary:
+        ext = os.path.splitext(new_primary.name)[1].lower()
+        if ext in ['.jpg', '.jpeg', '.png', '.webp']:
+            filename = f"primary_{uuid.uuid4().hex[:8]}{ext}"
+            filepath = os.path.join(user_temp_dir, filename)
+            with open(filepath, 'wb+') as dest:
+                for chunk in new_primary.chunks():
+                    dest.write(chunk)
+            rel_path = f"temp_uploads/user_{request.user.id}/{filename}"
+            temp_primary = {
+                'rel_path': rel_path,
+                'url': f"{settings.MEDIA_URL}{rel_path}",
+                'filename': new_primary.name,
+            }
+    elif cached_primary_rel and _is_safe_temp_path(cached_primary_rel, request.user.id):
+        full_path = os.path.join(settings.MEDIA_ROOT, cached_primary_rel)
+        if os.path.exists(full_path):
+            temp_primary = {
+                'rel_path': cached_primary_rel,
+                'url': f"{settings.MEDIA_URL}{cached_primary_rel}",
+                'filename': os.path.basename(cached_primary_rel),
+            }
+
+    # 2. Additional images
+    temp_additional = []
+    # Keep existing cached that were not removed by user
+    existing_cached = request.POST.getlist('cached_temp_additional_images')
+    for rel in existing_cached:
+        if _is_safe_temp_path(rel, request.user.id):
+            full_path = os.path.join(settings.MEDIA_ROOT, rel)
+            if os.path.exists(full_path):
+                temp_additional.append({
+                    'rel_path': rel,
+                    'url': f"{settings.MEDIA_URL}{rel}",
+                    'filename': os.path.basename(rel),
+                })
+
+    # Save new additional uploads
+    new_additional = request.FILES.getlist('additional_images')
+    for i, add_file in enumerate(new_additional):
+        ext = os.path.splitext(add_file.name)[1].lower()
+        if ext in ['.jpg', '.jpeg', '.png', '.webp']:
+            filename = f"add_{uuid.uuid4().hex[:8]}_{i}{ext}"
+            filepath = os.path.join(user_temp_dir, filename)
+            with open(filepath, 'wb+') as dest:
+                for chunk in add_file.chunks():
+                    dest.write(chunk)
+            rel_path = f"temp_uploads/user_{request.user.id}/{filename}"
+            temp_additional.append({
+                'rel_path': rel_path,
+                'url': f"{settings.MEDIA_URL}{rel_path}",
+                'filename': add_file.name,
+            })
+
+    return temp_primary, temp_additional
+
+
+def _cleanup_user_temp_uploads(user_id):
+    """Cleans up temporary uploaded files for this user."""
+    user_temp_dir = os.path.join(settings.MEDIA_ROOT, 'temp_uploads', f'user_{user_id}')
+    if os.path.exists(user_temp_dir):
+        try:
+            shutil.rmtree(user_temp_dir)
+        except Exception:
+            pass
+
+
+def _apply_cached_images_to_product(request, product, is_new=True):
+    """
+    Applies any cached primary and additional images to the product if not superseded by new uploads.
+    """
+    # 1. Primary image: if not uploaded in request.FILES, check cached
+    cached_primary_rel = request.POST.get('cached_temp_primary_image')
+    if not request.FILES.get('primary_image') and cached_primary_rel and _is_safe_temp_path(cached_primary_rel, request.user.id):
+        full_path = os.path.join(settings.MEDIA_ROOT, cached_primary_rel)
+        if os.path.exists(full_path):
+            with open(full_path, 'rb') as f:
+                product.primary_image.save(os.path.basename(full_path), File(f), save=False)
+            product.save(update_fields=['primary_image'])
+
+    # 2. Additional images from cache
+    cached_additional_rels = request.POST.getlist('cached_temp_additional_images')
+    if cached_additional_rels:
+        from django.db.models import Max
+        max_order = product.product_image_product.aggregate(
+            max_order=Max('display_order')
+        )['max_order']
+        max_order = -1 if max_order is None else max_order
+
+        for i, rel in enumerate(cached_additional_rels):
+            if _is_safe_temp_path(rel, request.user.id):
+                full_path = os.path.join(settings.MEDIA_ROOT, rel)
+                if os.path.exists(full_path):
+                    with open(full_path, 'rb') as f:
+                        ProductImage.objects.create(
+                            product=product,
+                            image=File(f, name=os.path.basename(full_path)),
+                            is_primary=(not product.primary_image and i == 0),
+                            display_order=max_order + i + 1,
+                            alt_text=product.name,
+                        )
+
 
 
 # ---------------------------------------------------------------------------
@@ -538,6 +674,9 @@ def product_create(request):
             messages.warning(request, "⚠️ You must complete your bank details in your profile before you can add products.")
             return redirect('accounts:profile')
             
+    temp_primary = None
+    temp_additional = []
+
     if request.method == 'POST':
         form = ProductForm(
             request.POST,
@@ -561,7 +700,7 @@ def product_create(request):
             product.created_by = request.user
             product.save()
 
-            # Handle images
+            # Handle newly uploaded images
             additional_images = form.cleaned_data.get('additional_images') or []
             for i, img_file in enumerate(additional_images):
                 ProductImage.objects.create(
@@ -571,6 +710,10 @@ def product_create(request):
                     display_order=i,
                     alt_text=product.name,
                 )
+
+            # ✅ Apply any cached images from previous failed attempts
+            _apply_cached_images_to_product(request, product, is_new=True)
+            _cleanup_user_temp_uploads(request.user.id)
 
             # ✅ Save variants with SKU generation (commit=False to populate deleted_objects)
             variants = variant_formset.save(commit=False)
@@ -634,6 +777,9 @@ def product_create(request):
             else:
                 return redirect('items:seller_dashboard')
         else:
+            # ✅ Cache uploaded images so they aren't lost on reload
+            temp_primary, temp_additional = _handle_temp_upload_on_validation_failure(request)
+
             if not form.is_valid():
                 for field, errors in form.errors.items():
                     messages.error(request, f"{field}: {errors[0]}")
@@ -656,12 +802,17 @@ def product_create(request):
         'title': 'Add New Product',
         'action': 'Create',
         'is_superuser': request.user.is_admin,
+        'temp_primary_image': temp_primary,
+        'temp_additional_images': temp_additional,
     })
 
 @seller_or_admin_only  
 def product_edit(request, product_id):
     product = _get_product_for_user(request.user, product_id)
  
+    temp_primary = None
+    temp_additional = []
+
     if request.method == 'POST':
         form = ProductForm(
             request.POST,
@@ -685,7 +836,7 @@ def product_edit(request, product_id):
             updated.updated_by = request.user
             updated.save()
 
-            # Handle images
+            # Handle newly uploaded images
             additional_images = form.cleaned_data.get('additional_images') or []
             if additional_images:
                 from django.db.models import Max
@@ -700,6 +851,10 @@ def product_edit(request, product_id):
                         display_order=max_order + i + 1,
                         alt_text=updated.name,
                     )
+
+            # ✅ Apply any cached images from previous failed attempts
+            _apply_cached_images_to_product(request, updated, is_new=False)
+            _cleanup_user_temp_uploads(request.user.id)
 
             # ✅ Save variants (commit=False to populate deleted_objects)
             variants = variant_formset.save(commit=False)
@@ -766,6 +921,9 @@ def product_edit(request, product_id):
             else:
                 return redirect('items:seller_dashboard')
         else:
+            # ✅ Cache uploaded images so they aren't lost on reload
+            temp_primary, temp_additional = _handle_temp_upload_on_validation_failure(request)
+
             if not form.is_valid():
                 for field, errors in form.errors.items():
                     messages.error(request, f"{field}: {errors[0]}")
@@ -792,6 +950,8 @@ def product_edit(request, product_id):
         'title': f'Edit: {product.name}',
         'action': 'Update',
         'is_superuser': request.user.is_admin,
+        'temp_primary_image': temp_primary,
+        'temp_additional_images': temp_additional,
     })
 # ---------------------------------------------------------------------------
 # Product Toggle Status (AJAX)

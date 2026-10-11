@@ -273,8 +273,20 @@ class ProductForm(forms.ModelForm):
         if self.instance and self.instance.pk:
             existing_count = self.instance.product_image_product.count()
 
+        # Count cached temporary additional images from previous failed submission
+        cached_count = 0
+        if hasattr(self, 'data') and self.data:
+            if hasattr(self.data, 'getlist'):
+                cached_count = len(self.data.getlist('cached_temp_additional_images'))
+            else:
+                val = self.data.get('cached_temp_additional_images')
+                if isinstance(val, list):
+                    cached_count = len(val)
+                elif val:
+                    cached_count = 1
+
         max_allowed = 5
-        available_slots = max_allowed - existing_count
+        available_slots = max(0, max_allowed - existing_count - cached_count)
 
         if len(images) > available_slots:
             raise forms.ValidationError(
