@@ -1489,3 +1489,56 @@ class ProductShowGenderTests(TestCase):
         self.assertNotIn("Unisex", str(product))
         self.assertNotIn("Men", str(product))
         self.assertNotIn("Women", str(product))
+
+
+class CategoryStringAndDropdownDisplayTests(TestCase):
+    """
+    Tests that Category.__str__ returns the category's human-readable name,
+    and that ProductForm category dropdown renders the category name (e.g. 'Electronics')
+    instead of raw model string 'Category object (1)'.
+    """
+
+    def setUp(self):
+        self.seller_user = User.objects.create_user(
+            phone="7777777799",
+            password="pass1234",
+            role="seller",
+            full_name="Category Dropdown Seller"
+        )
+        self.seller_profile = SellerProfile.objects.create(
+            user=self.seller_user,
+            shop_name="Category Dropdown Shop",
+            is_verified=True
+        )
+        self.cat1 = Category.objects.create(
+            name="Test Clothing Display",
+            commision_percentage=10.0
+        )
+        self.cat2 = Category.objects.create(
+            name="Test Electronics Display",
+            commision_percentage=15.0
+        )
+
+    def test_category_str_returns_name(self):
+        """Category.__str__ must return the category name, not 'Category object (id)'."""
+        self.assertEqual(str(self.cat1), "Test Clothing Display")
+        self.assertEqual(str(self.cat2), "Test Electronics Display")
+        self.assertNotIn("Category object", str(self.cat1))
+        self.assertNotIn("Category object", str(self.cat2))
+
+    def test_product_form_category_dropdown_renders_name_not_object(self):
+        """
+        ProductForm category dropdown field must display human-readable category names,
+        never 'Category object (id)'.
+        """
+        form = ProductForm(request_user=self.seller_user)
+        self.assertEqual(form.fields['category'].empty_label, 'Select Category')
+
+        rendered_html = str(form['category'])
+        # Category names must be present in the dropdown options
+        self.assertIn("Test Clothing Display", rendered_html)
+        self.assertIn("Test Electronics Display", rendered_html)
+        self.assertIn("Select Category", rendered_html)
+
+        # 'Category object' must NEVER appear
+        self.assertNotIn("Category object", rendered_html)

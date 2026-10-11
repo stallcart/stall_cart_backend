@@ -204,6 +204,9 @@ class Category(BaseModel):
     parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL, related_name='children')
     icon = models.ImageField(upload_to='category_icons/', null=True, blank=True, help_text="Category icon image (displayed on storefront/menus)")
     
+    def __str__(self):
+        return self.name
+
     def save(self, *args, **kwargs):
         if not self.slug:
             max_len = self._meta.get_field('slug').max_length or 255

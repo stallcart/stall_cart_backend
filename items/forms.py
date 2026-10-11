@@ -216,6 +216,9 @@ class ProductForm(forms.ModelForm):
         for field_name in ['name', 'price', 'stock', 'category', 'status']:
             self.fields[field_name].required = True
 
+        if 'category' in self.fields:
+            self.fields['category'].empty_label = 'Select Category'
+
         if 'gender' in self.fields:
             self.fields['gender'].empty_label = 'Not Applicable / Gender Neutral'
 
