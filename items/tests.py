@@ -684,8 +684,8 @@ class ProductCalculationAndStockTests(TestCase):
         self.assertNotEqual(mrp_pos, -1)
         self.assertLess(current_pos, mrp_pos, "Selling price must be rendered before MRP in price-row")
 
-    def test_customer_pays_input_in_product_form(self):
-        """Verify that product form renders customerPaysInput with name=customer_pay and populates selling price."""
+    def test_customer_pays_preview_in_product_form(self):
+        """Verify that product form renders customer price preview box and no redundant customerPaysInput field."""
         product = Product.objects.create(
             seller=self.seller_profile,
             category=self.category,
@@ -700,9 +700,15 @@ class ProductCalculationAndStockTests(TestCase):
         response = self.client.get(f'/items/product/{product.id}/edit/')
         self.assertEqual(response.status_code, 200)
         content = response.content.decode('utf-8')
-        self.assertIn('name="customer_pay"', content)
-        self.assertIn('id="customerPaysInput"', content)
-        self.assertIn('value="800.00"', content)
+        # Preview elements must exist
+        self.assertIn('id="pricePreview"', content)
+        self.assertIn('id="previewPrice"', content)
+        self.assertIn('Customer Pays:', content)
+        # Redundant customerPaysInput should NOT exist
+        self.assertNotIn('id="customerPaysInput"', content)
+        self.assertNotIn('name="customer_pay"', content)
+        # Verify model calculates discount_price correctly
+        self.assertEqual(product.discount_price, Decimal("800.00"))
 
 
 
