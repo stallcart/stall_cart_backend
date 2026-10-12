@@ -846,6 +846,10 @@ def product_create(request):
         )
         variant_formset = ProductVariantFormSet(prefix='variants')
 
+    category_commissions = {
+        str(c.id): c.commision_percentage for c in Category.objects.filter(is_active=True)
+    }
+
     return render(request, 'items/product_form.html', {
         'form': form,
         'variant_formset': variant_formset,
@@ -854,6 +858,7 @@ def product_create(request):
         'is_superuser': request.user.is_admin,
         'temp_primary_image': temp_primary,
         'temp_additional_images': temp_additional,
+        'category_commissions_json': json.dumps(category_commissions),
     })
 
 @seller_or_admin_only  
@@ -992,7 +997,11 @@ def product_edit(request, product_id):
         )
         # ✅ Initialize formset with instance and prefix for GET request
         variant_formset = ProductVariantFormSet(instance=product, prefix='variants')
- 
+
+    category_commissions = {
+        str(c.id): c.commision_percentage for c in Category.objects.filter(is_active=True)
+    }
+
     return render(request, 'items/product_form.html', {
         'form': form,
         'product': product,
@@ -1002,6 +1011,7 @@ def product_edit(request, product_id):
         'is_superuser': request.user.is_admin,
         'temp_primary_image': temp_primary,
         'temp_additional_images': temp_additional,
+        'category_commissions_json': json.dumps(category_commissions),
     })
 # ---------------------------------------------------------------------------
 # Product Toggle Status (AJAX)

@@ -98,16 +98,46 @@
                     <label for="{{ form.cost_price.id_for_label }}">Cost Price (₹)</label>
                     {{ form.cost_price }}
                     {% if form.cost_price.errors %}<div class="field-error">{{ form.cost_price.errors.0 }}</div>{% endif %}
-                    <small class="form-help">Your purchase cost (for profit calculation)</small>
+                    <small class="form-help">Your purchase / production cost per unit</small>
                 </div>
                 
                 <div class="form-group">
-                    <label>Calculated Customer Price Preview</label>
+                    <label>Calculated Customer Price & Savings</label>
                     <div class="price-preview" id="pricePreview" style="background:#f8fafc; border: 1.5px solid #e2e8f0; border-radius:10px; padding: 10px 14px; min-height:44px; display:flex; align-items:center; flex-wrap:wrap; gap:8px;">
                         <span style="color:#64748b; font-size:0.85rem; font-weight:600;">Customer Pays:</span>
                         <strong id="previewPrice" style="color:#0f172a; font-size:1.15rem; font-weight:800;">₹0.00</strong>
                         <span id="previewDiscount" style="display:none; color:#16a34a; font-size:0.82rem; font-weight:700; background:#dcfce7; padding:2px 8px; border-radius:6px;"></span>
                         <span id="previewSavings" style="display:none; color:#2563eb; font-size:0.82rem; font-weight:600;"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Profit Breakdown Card (Updates in real time when MRP, Discount, and Cost Price change) -->
+            <div id="profitPreviewCard" style="display: none; background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 10px; padding: 14px 18px; margin-top: 15px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; border-bottom: 1px dashed #86efac; padding-bottom: 8px;">
+                    <span style="font-size: 0.9rem; font-weight: 700; color: #166534;">
+                        <i class="fa fa-chart-line" style="margin-right: 6px;"></i>Live Seller Profit Breakdown
+                    </span>
+                    <span id="profitMarginBadge" style="font-size: 0.82rem; font-weight: 700; background: #dcfce7; color: #15803d; padding: 3px 10px; border-radius: 999px;">
+                        0% Profit Margin
+                    </span>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; font-size: 0.85rem;">
+                    <div>
+                        <span style="color: #64748b; display: block; font-size: 0.78rem;">Customer Selling Price</span>
+                        <strong id="profitCardSellingPrice" style="color: #0f172a; font-size: 0.95rem;">₹0.00</strong>
+                    </div>
+                    <div>
+                        <span style="color: #64748b; display: block; font-size: 0.78rem;" id="commissionLabel">Platform Commission (0%)</span>
+                        <strong id="profitCardCommission" style="color: #dc2626; font-size: 0.95rem;">-₹0.00</strong>
+                    </div>
+                    <div>
+                        <span style="color: #64748b; display: block; font-size: 0.78rem;">Cost Price</span>
+                        <strong id="profitCardCostPrice" style="color: #dc2626; font-size: 0.95rem;">-₹0.00</strong>
+                    </div>
+                    <div>
+                        <span style="color: #166534; display: block; font-size: 0.78rem; font-weight: 700;">Your Net Profit</span>
+                        <strong id="profitCardNetProfit" style="color: #15803d; font-size: 1.05rem; font-weight: 800;">₹0.00</strong>
                     </div>
                 </div>
             </div>
@@ -637,9 +667,24 @@ document.addEventListener('DOMContentLoaded', function() {
     const mrpInput = document.getElementById('{{ form.mrp.id_for_label }}');
     const discountInput = document.getElementById('{{ form.discount_percent.id_for_label }}');
     const customerPaysInput = document.getElementById('customerPaysInput');
+    const costPriceInput = document.getElementById('{{ form.cost_price.id_for_label }}');
+    const categorySelect = document.getElementById('{{ form.category.id_for_label }}');
     const previewPrice = document.getElementById('previewPrice');
     const previewDiscount = document.getElementById('previewDiscount');
     const previewSavings = document.getElementById('previewSavings');
+
+    const profitPreviewCard = document.getElementById('profitPreviewCard');
+    const profitMarginBadge = document.getElementById('profitMarginBadge');
+    const profitCardSellingPrice = document.getElementById('profitCardSellingPrice');
+    const profitCardCommission = document.getElementById('profitCardCommission');
+    const profitCardCostPrice = document.getElementById('profitCardCostPrice');
+    const profitCardNetProfit = document.getElementById('profitCardNetProfit');
+    const commissionLabel = document.getElementById('commissionLabel');
+
+    let categoryCommissions = {};
+    try {
+        categoryCommissions = {{ category_commissions_json|default:'{}'|safe }};
+    } catch(e) { categoryCommissions = {}; }
 
     function updateVariantPricePreviews() {
         const basePrice = parseFloat(mrpInput?.value) || parseFloat(priceInput?.value) || parseFloat(customerPaysInput?.value) || 0;
@@ -728,6 +773,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const price = parseFloat(priceInput?.value) || 0;
         const discount = parseInt(discountInput?.value) || 0;
         const customerVal = parseFloat(customerPaysInput?.value) || 0;
+        const costPrice = parseFloat(costPriceInput?.value) || 0;
 
         const basePrice = mrp > 0 ? mrp : price;
         let finalPrice = customerVal > 0 ? customerVal : basePrice;
@@ -755,12 +801,56 @@ document.addEventListener('DOMContentLoaded', function() {
             if (previewSavings) previewSavings.style.display = 'none';
         }
 
+        // Live Profit Breakdown Calculation
+        if (profitPreviewCard) {
+            if (costPrice > 0 && finalPrice > 0) {
+                const selectedCatId = categorySelect?.value || '';
+                const commRate = parseFloat(categoryCommissions[selectedCatId]) || 0;
+                const commissionAmount = finalPrice * (commRate / 100);
+                const netProfit = finalPrice - commissionAmount - costPrice;
+                const profitMargin = ((netProfit / finalPrice) * 100);
+
+                profitPreviewCard.style.display = 'block';
+                if (profitCardSellingPrice) profitCardSellingPrice.textContent = `₹${finalPrice.toFixed(2)}`;
+                if (profitCardCommission) profitCardCommission.textContent = `-₹${commissionAmount.toFixed(2)}`;
+                if (commissionLabel) commissionLabel.textContent = `Platform Commission (${commRate}%)`;
+                if (profitCardCostPrice) profitCardCostPrice.textContent = `-₹${costPrice.toFixed(2)}`;
+                if (profitCardNetProfit) {
+                    profitCardNetProfit.textContent = `${netProfit >= 0 ? '₹' : '-₹'}${Math.abs(netProfit).toFixed(2)}`;
+                }
+
+                if (netProfit >= 0) {
+                    if (profitCardNetProfit) profitCardNetProfit.style.color = '#15803d';
+                    if (profitMarginBadge) {
+                        profitMarginBadge.style.background = '#dcfce7';
+                        profitMarginBadge.style.color = '#15803d';
+                        profitMarginBadge.textContent = `+${profitMargin.toFixed(1)}% Profit Margin`;
+                    }
+                    profitPreviewCard.style.borderColor = '#bbf7d0';
+                    profitPreviewCard.style.background = '#f0fdf4';
+                } else {
+                    if (profitCardNetProfit) profitCardNetProfit.style.color = '#dc2626';
+                    if (profitMarginBadge) {
+                        profitMarginBadge.style.background = '#fee2e2';
+                        profitMarginBadge.style.color = '#b91c1c';
+                        profitMarginBadge.textContent = `${profitMargin.toFixed(1)}% Loss Warning`;
+                    }
+                    profitPreviewCard.style.borderColor = '#fca5a5';
+                    profitPreviewCard.style.background = '#fff5f5';
+                }
+            } else {
+                profitPreviewCard.style.display = 'none';
+            }
+        }
+
         updateVariantPricePreviews();
     }
 
     mrpInput?.addEventListener('input', () => syncPricing('mrp'));
     discountInput?.addEventListener('input', () => syncPricing('discount'));
     customerPaysInput?.addEventListener('input', () => syncPricing('customerPays'));
+    costPriceInput?.addEventListener('input', renderPricePreview);
+    categorySelect?.addEventListener('change', renderPricePreview);
 
     // On form submit, ensure priceInput is populated
     const productForm = document.getElementById('productForm');

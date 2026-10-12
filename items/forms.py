@@ -316,6 +316,7 @@ class ProductForm(forms.ModelForm):
         cleaned = super().clean()
         price = cleaned.get('price')
         mrp   = cleaned.get('mrp')
+        discount_percent = cleaned.get('discount_percent') or 0
 
         # Auto-fallback: if user entered MRP but not Price (or vice versa), auto-populate
         if not price and mrp:
@@ -330,10 +331,20 @@ class ProductForm(forms.ModelForm):
                 self.instance.mrp = price
 
         if not price:
-            self.add_error('price', 'Base Price (₹) or Printed MRP (₹) is required.')
+            self.add_error('price', 'Printed MRP (₹) or Base Price (₹) is required.')
+
+        # Ensure base price is MRP when discount_percent > 0 to avoid double discounting
+        if mrp and price and discount_percent > 0:
+            from decimal import Decimal
+            expected_discounted = round(mrp * (Decimal('1') - Decimal(discount_percent) / Decimal('100')), 2)
+            if price == expected_discounted or price < mrp:
+                cleaned['price'] = mrp
+                price = mrp
+                if hasattr(self, 'instance') and self.instance:
+                    self.instance.price = mrp
 
         if price and mrp and mrp < price:
-            self.add_error('mrp', 'Printed MRP should be ≥ base price.')
+            self.add_error('mrp', 'Printed MRP should be ≥ selling price.')
         
         category = cleaned.get('category')
         if category and not category.is_gender_applicable:

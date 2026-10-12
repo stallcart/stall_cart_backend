@@ -1780,6 +1780,51 @@ class TemporaryUploadPersistenceTests(TestCase):
         self.assertTrue(form.is_valid(), form.errors)
         self.assertEqual(form.cleaned_data['price'], Decimal('5500.00'))
 
+    def test_form_and_backend_profit_calculation_when_mrp_discount_cost_entered(self):
+        """
+        Verify that when MRP (5500), Discount (50%), and Cost Price (1792) are entered,
+        the form saves cleanly and backend properties (final_price, savings, profit, margin)
+        calculate and update accurately.
+        """
+        form_data = {
+            'name': 'Luxury Wood Sofa',
+            'short_description': 'Teak Wood Single Seater',
+            'description': 'Handcrafted premium sofa chair',
+            'mrp': '5500.00',
+            'discount_percent': '50',
+            'cost_price': '1792.00',
+            'stock': '10',
+            'category': self.category.id,
+            'status': 'published',
+            'low_stock_threshold': '2',
+        }
+        form = ProductForm(data=form_data, request_user=self.seller_user)
+        self.assertTrue(form.is_valid(), form.errors)
+        product = form.save(commit=False)
+        product.seller = self.seller_profile
+        product.save()
+
+        # 1. Base price is MRP (5500.00)
+        self.assertEqual(product.price, Decimal('5500.00'))
+        self.assertEqual(product.mrp, Decimal('5500.00'))
+        self.assertEqual(product.discount_percent, 50)
+        self.assertEqual(product.cost_price, Decimal('1792.00'))
+
+        # 2. Customer pays final_price: 5500 - 50% = 2750.00
+        self.assertEqual(product.final_price, Decimal('2750.00'))
+
+        # 3. Customer savings: 5500 - 2750 = 2750.00
+        self.assertEqual(product.savings_per_unit, Decimal('2750.00'))
+
+        # 4. Commission: 10% of 2750 = 275.00 (self.category commision_percentage is 10.0)
+        self.assertEqual(product.admin_commission, Decimal('275.00'))
+
+        # 5. Net Profit: 2750 - 275 - 1792 = 683.00
+        self.assertEqual(product.seller_profit, Decimal('683.00'))
+
+        # 6. Profit Margin: 683 / 2750 * 100 = 24.84%
+        self.assertAlmostEqual(float(product.seller_profit_margin), 24.836, places=2)
+
     def test_home_view_category_filter_and_sorting(self):
         """
         Verify home page view supports ?category= and ?sort= query parameters.
