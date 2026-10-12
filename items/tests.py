@@ -662,6 +662,49 @@ class ProductCalculationAndStockTests(TestCase):
         self.assertEqual(product.stock, 3)
         self.assertEqual(product.status, "published")
 
+    def test_mobile_price_display_order_in_product_list_and_home(self):
+        """Verify that product cards display selling price BEFORE MRP so mobile view displays selling price first."""
+        product = Product.objects.create(
+            seller=self.seller_profile,
+            category=self.category,
+            name="Wireless Mouse",
+            price=Decimal("798.00"),
+            mrp=Decimal("798.00"),
+            discount_percent=50,
+            stock=5,
+            status="published"
+        )
+        response = self.client.get('/products/')
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode('utf-8')
+        # In HTML, price-current (399) should appear before price-mrp (798)
+        current_pos = content.find('price-current">₹399')
+        mrp_pos = content.find('price-mrp">₹798')
+        self.assertNotEqual(current_pos, -1)
+        self.assertNotEqual(mrp_pos, -1)
+        self.assertLess(current_pos, mrp_pos, "Selling price must be rendered before MRP in price-row")
+
+    def test_customer_pays_input_in_product_form(self):
+        """Verify that product form renders customerPaysInput with name=customer_pay and populates selling price."""
+        product = Product.objects.create(
+            seller=self.seller_profile,
+            category=self.category,
+            name="Smart Keyboard",
+            price=Decimal("1000.00"),
+            mrp=Decimal("1000.00"),
+            discount_percent=20,
+            stock=5,
+            status="published"
+        )
+        self.client.login(phone="8888888888", password="sellerpassword")
+        response = self.client.get(f'/items/product/{product.id}/edit/')
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode('utf-8')
+        self.assertIn('name="customer_pay"', content)
+        self.assertIn('id="customerPaysInput"', content)
+        self.assertIn('value="800.00"', content)
+
+
 
 class ProductAndSellerReviewTests(TestCase):
     def setUp(self):

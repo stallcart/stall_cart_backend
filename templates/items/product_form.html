@@ -82,7 +82,7 @@
 
                 <div class="form-group">
                     <label for="customerPaysInput">Customer to Pay (Selling Price) (₹) *</label>
-                    <input type="number" step="0.01" min="0" class="form-input" id="customerPaysInput" placeholder="0.00" style="font-weight: 700; color: #15803d; background: #f0fdf4; border: 1.5px solid #86efac;">
+                    <input type="number" step="0.01" min="0" class="form-input" id="customerPaysInput" name="customer_pay" value="{% if product %}{{ product.discount_price|floatformat:2 }}{% elif form.price.value %}{{ form.price.value }}{% endif %}" placeholder="0.00" style="font-weight: 700; color: #15803d; background: #f0fdf4; border: 1.5px solid #86efac;">
                     <small class="form-help">Amount customer actually pays at checkout</small>
                 </div>
             </div>
@@ -846,23 +846,34 @@ document.addEventListener('DOMContentLoaded', function() {
         updateVariantPricePreviews();
     }
 
-    mrpInput?.addEventListener('input', () => syncPricing('mrp'));
-    discountInput?.addEventListener('input', () => syncPricing('discount'));
-    customerPaysInput?.addEventListener('input', () => syncPricing('customerPays'));
-    costPriceInput?.addEventListener('input', renderPricePreview);
+    // Attach comprehensive events for both desktop and mobile keyboards
+    ['input', 'change', 'keyup', 'blur'].forEach(evt => {
+        mrpInput?.addEventListener(evt, () => syncPricing('mrp'));
+        discountInput?.addEventListener(evt, () => syncPricing('discount'));
+        customerPaysInput?.addEventListener(evt, () => syncPricing('customerPays'));
+        costPriceInput?.addEventListener(evt, renderPricePreview);
+    });
     categorySelect?.addEventListener('change', renderPricePreview);
 
     // On form submit, ensure priceInput is populated
     const productForm = document.getElementById('productForm');
-    productForm?.addEventListener('submit', () => {
+    function ensurePricingSynced() {
         const mrp = parseFloat(mrpInput?.value) || 0;
         const customerVal = parseFloat(customerPaysInput?.value) || 0;
-        const price = parseFloat(priceInput?.value) || 0;
-        if (!price || price === 0) {
-            if (mrp > 0) priceInput.value = mrp.toFixed(2);
-            else if (customerVal > 0) priceInput.value = customerVal.toFixed(2);
+        const discount = parseInt(discountInput?.value) || 0;
+        let base = mrp > 0 ? mrp : (parseFloat(priceInput?.value) || 0);
+
+        if (customerVal > 0) {
+            if (base === 0) base = customerVal;
+            if (priceInput) priceInput.value = base.toFixed(2);
+            if (mrpInput && mrp === 0) mrpInput.value = customerVal.toFixed(2);
+        } else if (base > 0) {
+            const finalVal = (discount > 0) ? base * (1 - discount / 100) : base;
+            if (customerPaysInput) customerPaysInput.value = finalVal.toFixed(2);
+            if (priceInput) priceInput.value = base.toFixed(2);
         }
-    });
+    }
+    productForm?.addEventListener('submit', ensurePricingSynced);
 
     // Initialize pricing on page load
     (function initPricing() {
@@ -1035,21 +1046,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 markInvalid(descEl, 'Full Description is required.');
             }
 
-            // 4. Selling Price
+            // 4. Selling Price / Customer to Pay
+            if (typeof ensurePricingSynced === 'function') ensurePricingSynced();
+            const customerPayEl = document.getElementById('customerPaysInput');
             const priceEl = document.getElementById('{{ form.price.id_for_label }}');
-            if (priceEl) {
-                const val = parseFloat(priceEl.value);
-                if (isNaN(val) || val <= 0) {
+            const effectivePrice = parseFloat(priceEl?.value) || parseFloat(customerPayEl?.value) || 0;
+            if (isNaN(effectivePrice) || effectivePrice <= 0) {
+                if (customerPayEl) {
+                    markInvalid(customerPayEl, 'Customer Selling Price must be greater than 0.');
+                } else if (priceEl) {
                     markInvalid(priceEl, 'Selling Price must be greater than 0.');
                 }
             }
 
             // 5. MRP
             const mrpEl = document.getElementById('{{ form.mrp.id_for_label }}');
-            if (mrpEl && mrpEl.value.trim() && priceEl && priceEl.value.trim()) {
-                const p = parseFloat(priceEl.value);
+            if (mrpEl && mrpEl.value.trim() && effectivePrice > 0) {
                 const m = parseFloat(mrpEl.value);
-                if (!isNaN(p) && !isNaN(m) && m < p) {
+                if (!isNaN(m) && m < effectivePrice) {
                     markInvalid(mrpEl, 'MRP must be greater than or equal to Selling Price.');
                 }
             }
@@ -1773,6 +1787,55 @@ document.addEventListener('DOMContentLoaded', function() {
         border-color: #ef4444 !important;
         box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
         background-color: #fdf2f2 !important;
+    }
+
+    /* Mobile responsive enhancements for pricing & forms */
+    @media (max-width: 768px) {
+        .product-form-container {
+            padding: 16px 10px;
+        }
+        .product-form {
+            padding: 20px 14px;
+            border-radius: 14px;
+        }
+        .form-section {
+            padding: 18px 14px;
+            margin-bottom: 20px;
+            border-radius: 12px;
+        }
+        .form-row.two-col, .form-row.three-col {
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+        .section-header h3 {
+            font-size: 1.1rem;
+        }
+        .price-preview {
+            padding: 8px 12px !important;
+            font-size: 0.85rem !important;
+        }
+        #profitPreviewCard {
+            padding: 12px 14px !important;
+        }
+        #profitPreviewCard > div:last-child {
+            grid-template-columns: 1fr 1fr !important;
+            gap: 10px !important;
+        }
+    }
+    @media (max-width: 480px) {
+        #profitPreviewCard > div:last-child {
+            grid-template-columns: 1fr !important;
+            gap: 8px !important;
+        }
+        .form-actions {
+            flex-direction: column-reverse;
+            gap: 10px;
+        }
+        .form-actions button, .form-actions a {
+            width: 100%;
+            text-align: center;
+            justify-content: center;
+        }
     }
 </style>
 {% endblock %}

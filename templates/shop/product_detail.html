@@ -112,15 +112,15 @@
 
             <!-- Price Box -->
             <div class="price-box">
-                <div class="price-row" id="mrpRow" {% if product.discount_percent == 0 and not product.mrp %}style="display:none;"{% endif %}>
-                    <span class="price-mrp">MRP: <del id="displayMrp">₹{{ product.mrp|default:product.price|floatformat:2 }}</del></span>
-                    <span class="price-off" id="displayOff" {% if product.discount_percent == 0 %}style="display:none;"{% endif %}>{{ product.discount_percent }}% OFF</span>
-                </div>
-                <div class="price-current-wrapper">
+                <div class="price-main-row" style="display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;">
                     <span class="price-current" id="displayPrice">₹{{ product.final_price|floatformat:2 }}</span>
+                    <div class="price-row" id="mrpRow" style="display: inline-flex; align-items: baseline; gap: 8px; margin: 0; {% if product.discount_percent == 0 and not product.mrp %}display:none;{% endif %}">
+                        <span class="price-mrp">MRP: <del id="displayMrp">₹{{ product.mrp|default:product.price|floatformat:2 }}</del></span>
+                        <span class="price-off" id="displayOff" {% if product.discount_percent == 0 %}style="display:none;"{% endif %}>{{ product.discount_percent }}% OFF</span>
+                    </div>
                 </div>
                 
-                <span class="savings-text" id="displaySavings" {% if product.savings_per_unit <= 0 %}style="display:none;"{% endif %}>
+                <span class="savings-text" id="displaySavings" {% if product.savings_per_unit <= 0 %}style="display:none;"{% endif %} style="display: block; margin-top: 4px;">
                     You save: <strong>₹{{ product.savings_per_unit|floatformat:2 }}</strong>
                 </span>
             </div>

@@ -428,16 +428,14 @@
                                 
                                 <!-- Price Row -->
                                 <div class="price-row">
-                                    {% if product.discount_percent > 0 and product.mrp %}
-                                        <span class="price-mrp">₹{{ product.mrp|floatformat:0 }}</span>
-                                        <span class="price-current">₹{{ product.discount_price|floatformat:0 }}</span>
+                                    <span class="price-current">₹{{ product.discount_price|default:product.price|floatformat:0 }}</span>
+                                    {% if product.discount_percent > 0 %}
+                                        {% if product.mrp and product.mrp > product.discount_price %}
+                                            <span class="price-mrp">₹{{ product.mrp|floatformat:0 }}</span>
+                                        {% elif product.price > product.discount_price %}
+                                            <span class="price-mrp">₹{{ product.price|floatformat:0 }}</span>
+                                        {% endif %}
                                         <span class="price-off">-{{ product.discount_percent }}%</span>
-                                    {% elif product.discount_percent > 0 %}
-                                        <span class="price-mrp">₹{{ product.price|floatformat:0 }}</span>
-                                        <span class="price-current">₹{{ product.discount_price|floatformat:0 }}</span>
-                                        <span class="price-off">-{{ product.discount_percent }}%</span>
-                                    {% else %}
-                                        <span class="price-current">₹{{ product.price|floatformat:0 }}</span>
                                     {% endif %}
                                 </div>
                                 
