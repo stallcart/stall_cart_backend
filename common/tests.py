@@ -47,6 +47,54 @@ class SiteSettingsBrandingTests(TestCase):
         if os.path.exists(logo_path):
             os.remove(logo_path)
 
+    def test_apple_touch_icon_auto_optimization_on_save(self):
+        """Verify that when a large image is uploaded as apple_touch_icon, it is square cropped to 180x180 with solid RGB canvas."""
+        large_image_data = io.BytesIO()
+        img = Image.new('RGBA', (600, 400), (0, 100, 255, 255))
+        img.save(large_image_data, format='PNG')
+        large_image_data.seek(0)
+
+        uploaded_touch = SimpleUploadedFile(
+            name="large_touch_icon.png",
+            content=large_image_data.read(),
+            content_type="image/png"
+        )
+
+        settings = SiteSettings.objects.create(
+            site_name="Test Shop",
+            apple_touch_icon=uploaded_touch
+        )
+
+        self.assertTrue(settings.apple_touch_icon)
+        touch_path = settings.apple_touch_icon.path
+        self.assertTrue(os.path.exists(touch_path))
+
+        saved_img = Image.open(touch_path)
+        self.assertEqual(saved_img.width, 180)
+        self.assertEqual(saved_img.height, 180)
+        self.assertEqual(saved_img.mode, 'RGB')
+
+        if os.path.exists(touch_path):
+            os.remove(touch_path)
+
+    def test_manifest_and_favicon_routes(self):
+        """Verify that /favicon.ico and /manifest.json endpoints redirect to static assets."""
+        response = self.client.get('/favicon.ico')
+        self.assertIn(response.status_code, [200, 301, 302])
+
+        manifest_resp = self.client.get('/manifest.json')
+        self.assertIn(manifest_resp.status_code, [200, 301, 302])
+
+    def test_base_template_renders_apple_touch_icon_and_manifest(self):
+        """Verify that base template contains rel=apple-touch-icon and rel=manifest."""
+        response = self.client.get('/')
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode('utf-8')
+        self.assertIn('rel="apple-touch-icon"', content)
+        self.assertIn('rel="manifest"', content)
+        self.assertIn('sizes="192x192"', content)
+
+
 
 from django.contrib.auth import get_user_model
 from django.urls import reverse

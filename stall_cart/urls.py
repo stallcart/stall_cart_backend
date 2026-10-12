@@ -21,6 +21,7 @@ from django.conf.urls.static import static
 from common.views import custom_404, custom_403, custom_500, custom_400,firebase_sw
 from common import views as common_views
 from django.views.static import serve
+from django.views.generic import RedirectView
 from items import views as items_views
 
 handler404 = 'common.views.custom_404'
@@ -44,6 +45,13 @@ urlpatterns = [
     path('product/<slug:slug>/', items_views.product_detail, name='product_detail_direct'),
     path('wishlist/', items_views.wishlist_page, name='wishlist_direct'),
     path('campaign/<slug:slug>/', common_views.campaign_detail_view, name='campaign_detail_direct'),
+
+    # App icons & Web Manifest for Chrome shortcuts & PWAs
+    path('favicon.ico', RedirectView.as_view(url=settings.STATIC_URL + 'favicon.ico', permanent=True), name='favicon_ico'),
+    path('manifest.json', RedirectView.as_view(url=settings.STATIC_URL + 'manifest.json', permanent=True), name='manifest_json'),
+    path('site.webmanifest', RedirectView.as_view(url=settings.STATIC_URL + 'site.webmanifest', permanent=True), name='site_webmanifest'),
+    path('apple-touch-icon.png', RedirectView.as_view(url=settings.STATIC_URL + 'apple-touch-icon.png', permanent=True), name='apple_touch_icon_root'),
+    path('apple-touch-icon-precomposed.png', RedirectView.as_view(url=settings.STATIC_URL + 'apple-touch-icon-precomposed.png', permanent=True), name='apple_touch_icon_precomposed_root'),
 ]
 
 

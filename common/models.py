@@ -257,6 +257,42 @@ class SiteSettings(models.Model):
         self._optimize_image(self.logo_primary)
         self._optimize_image(self.logo_dark)
         self._optimize_image(self.logo_mobile)
+        self._optimize_square_icon(self.favicon, target_size=32, ensure_opaque_white=False)
+        self._optimize_square_icon(self.apple_touch_icon, target_size=180, ensure_opaque_white=True)
+
+    def _optimize_square_icon(self, image_field, target_size=180, ensure_opaque_white=False):
+        """Crop and square-center icon image for browser tabs, apple touch icons, and shortcuts."""
+        if image_field and hasattr(image_field, 'path') and os.path.exists(image_field.path):
+            try:
+                img = Image.open(image_field.path)
+                if img.mode in ('RGBA', 'LA') or (img.mode == 'P' and 'transparency' in img.info):
+                    img = img.convert('RGBA')
+                    alpha = img.split()[-1]
+                    mask = alpha.point(lambda p: 255 if p > 30 else 0)
+                    bbox = mask.getbbox()
+                    if bbox:
+                        img = img.crop(bbox)
+                
+                w, h = img.size
+                padding = int(target_size * 0.12)
+                draw_dim = max(1, target_size - 2 * padding)
+                scale = min(draw_dim / w, draw_dim / h)
+                nw, nh = max(1, int(w * scale)), max(1, int(h * scale))
+                resized = img.resize((nw, nh), Image.Resampling.LANCZOS)
+                
+                if ensure_opaque_white:
+                    canvas = Image.new('RGB', (target_size, target_size), (255, 255, 255))
+                    if resized.mode == 'RGBA':
+                        canvas.paste(resized, ((target_size - nw) // 2, (target_size - nh) // 2), resized)
+                    else:
+                        canvas.paste(resized, ((target_size - nw) // 2, (target_size - nh) // 2))
+                else:
+                    canvas = Image.new('RGBA', (target_size, target_size), (255, 255, 255, 0))
+                    canvas.paste(resized, ((target_size - nw) // 2, (target_size - nh) // 2), resized if resized.mode == 'RGBA' else None)
+                
+                canvas.save(image_field.path, optimize=True)
+            except Exception:
+                pass
 
     def _optimize_image(self, image_field):
         """Compress & resize uploaded logos automatically while preserving transparency for PNG/WebP"""

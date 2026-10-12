@@ -7,11 +7,31 @@
     <title>{% block title %}{{ site_settings.site_name|default:"StallCart" }}{% endblock %}</title>
     <meta name="description" content="{% block meta_description %}{{ site_settings.meta_description|default:"Shop premium fashion at unbeatable prices" }}{% endblock %}">
 
-    {% if site_settings.favicon %}
-        <link rel="icon" type="image/png" href="{{ site_settings.favicon.url }}">
-    {% else %}
-        <link rel="icon" href="{% static 'images/favicon.png' %}">
-    {% endif %}
+    <!-- Favicon & App Icons -->
+    <link rel="shortcut icon" href="{% static 'favicon.ico' %}">
+    <link rel="icon" type="image/x-icon" href="{% static 'favicon.ico' %}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{% static 'images/icons/favicon-16x16.png' %}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{% if site_settings.favicon %}{{ site_settings.favicon.url }}{% else %}{% static 'images/icons/favicon-32x32.png' %}{% endif %}">
+    <link rel="icon" type="image/png" sizes="48x48" href="{% static 'images/icons/favicon-48x48.png' %}">
+    <link rel="icon" type="image/png" sizes="192x192" href="{% static 'images/icons/android-chrome-192x192.png' %}">
+    <link rel="icon" type="image/png" sizes="512x512" href="{% static 'images/icons/android-chrome-512x512.png' %}">
+
+    <!-- Apple Touch Icon & Precomposed Icon (iOS & Google Chrome Shortcuts) -->
+    <link rel="apple-touch-icon" sizes="180x180" href="{% if site_settings.apple_touch_icon %}{{ site_settings.apple_touch_icon.url }}{% else %}{% static 'images/icons/apple-touch-icon.png' %}{% endif %}">
+    <link rel="apple-touch-icon-precomposed" sizes="180x180" href="{% if site_settings.apple_touch_icon %}{{ site_settings.apple_touch_icon.url }}{% else %}{% static 'images/icons/apple-touch-icon.png' %}{% endif %}">
+
+    <!-- Web App Manifest (Google Chrome Shortcuts, PWA, Android Home Screen) -->
+    <link rel="manifest" href="{% static 'manifest.json' %}">
+
+    <!-- Mobile Browser Chrome & Theme Styling -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="{{ site_settings.site_name|default:'StallCart' }}">
+    <meta name="application-name" content="{{ site_settings.site_name|default:'StallCart' }}">
+    <meta name="theme-color" content="{{ PRIMARY_COLOR|default:'#2874f0' }}">
+    <meta name="msapplication-TileColor" content="{{ PRIMARY_COLOR|default:'#2874f0' }}">
+    <meta name="msapplication-TileImage" content="{% static 'images/icons/android-chrome-192x192.png' %}">
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
