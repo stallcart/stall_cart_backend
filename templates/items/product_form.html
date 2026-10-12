@@ -67,12 +67,12 @@
             
             <div class="form-row three-col">
                 <div class="form-group">
-                    <label for="{{ form.price.id_for_label }}">Base / MRP Price (₹) *</label>
-                    {{ form.price }}
-                    {% if form.price.errors %}<div class="field-error">{{ form.price.errors.0 }}</div>{% endif %}
-                    <small class="form-help">Regular listing price before discount</small>
+                    <label for="{{ form.mrp.id_for_label }}">Printed MRP (₹) *</label>
+                    {{ form.mrp }}
+                    {% if form.mrp.errors %}<div class="field-error">{{ form.mrp.errors.0 }}</div>{% endif %}
+                    <small class="form-help">Maximum Retail Price printed on tag/box</small>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="{{ form.discount_percent.id_for_label }}">Discount (%)</label>
                     {{ form.discount_percent }}
@@ -81,11 +81,16 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="{{ form.mrp.id_for_label }}">Printed MRP (₹)</label>
-                    {{ form.mrp }}
-                    {% if form.mrp.errors %}<div class="field-error">{{ form.mrp.errors.0 }}</div>{% endif %}
-                    <small class="form-help">Optional printed MRP if higher than base price</small>
+                    <label for="customerPaysInput">Customer to Pay (Selling Price) (₹) *</label>
+                    <input type="number" step="0.01" min="0" class="form-input" id="customerPaysInput" placeholder="0.00" style="font-weight: 700; color: #15803d; background: #f0fdf4; border: 1.5px solid #86efac;">
+                    <small class="form-help">Amount customer actually pays at checkout</small>
                 </div>
+            </div>
+
+            <!-- Base Price Field (synchronized automatically with pricing calculations) -->
+            <div class="form-group" style="display: none;">
+                {{ form.price }}
+                {% if form.price.errors %}<div class="field-error">{{ form.price.errors.0 }}</div>{% endif %}
             </div>
             
             <div class="form-row two-col">
@@ -627,16 +632,17 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // ── 2. Price Preview Calculator ─────────────────────────────────
+    // ── 2. Price Preview Calculator & Two-Way Sync ─────────────────────
     const priceInput = document.getElementById('{{ form.price.id_for_label }}');
     const mrpInput = document.getElementById('{{ form.mrp.id_for_label }}');
     const discountInput = document.getElementById('{{ form.discount_percent.id_for_label }}');
+    const customerPaysInput = document.getElementById('customerPaysInput');
     const previewPrice = document.getElementById('previewPrice');
     const previewDiscount = document.getElementById('previewDiscount');
     const previewSavings = document.getElementById('previewSavings');
 
     function updateVariantPricePreviews() {
-        const basePrice = parseFloat(priceInput?.value) || 0;
+        const basePrice = parseFloat(mrpInput?.value) || parseFloat(priceInput?.value) || parseFloat(customerPaysInput?.value) || 0;
         const discount = parseInt(discountInput?.value) || 0;
         
         document.querySelectorAll('.variant-row').forEach(row => {
@@ -675,34 +681,72 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     window.updateVariantPricePreviews = updateVariantPricePreviews;
-    
-    function updatePricePreview() {
-        if (!priceInput || !previewPrice) return;
-        
-        const price = parseFloat(priceInput.value) || 0;
+
+    let isUpdatingPrice = false;
+
+    function syncPricing(source) {
+        if (isUpdatingPrice) return;
+        isUpdatingPrice = true;
+
         const mrp = parseFloat(mrpInput?.value) || 0;
         const discount = parseInt(discountInput?.value) || 0;
-        
-        // Base price calculation: if price is not set, use mrp
-        const basePrice = price > 0 ? price : mrp;
-        
-        let finalPrice = basePrice;
-        
-        if (discount > 0 && basePrice > 0) {
+        const customerVal = parseFloat(customerPaysInput?.value) || 0;
+
+        if (source === 'customerPays') {
+            if (mrp > 0 && customerVal > 0 && customerVal < mrp) {
+                const computedDiscount = Math.round(((mrp - customerVal) / mrp) * 100);
+                if (discountInput) discountInput.value = computedDiscount;
+                if (priceInput) priceInput.value = mrp.toFixed(2);
+            } else if (customerVal > 0) {
+                if (mrpInput && (!mrp || mrp < customerVal)) mrpInput.value = customerVal.toFixed(2);
+                if (discountInput) discountInput.value = 0;
+                if (priceInput) priceInput.value = customerVal.toFixed(2);
+            }
+        } else {
+            // Source is MRP or Discount
+            const basePrice = mrp > 0 ? mrp : (parseFloat(priceInput?.value) || 0);
+            let finalPrice = basePrice;
+            if (discount > 0 && basePrice > 0) {
+                finalPrice = basePrice * (1 - discount / 100);
+            }
+            if (customerPaysInput) {
+                customerPaysInput.value = (finalPrice > 0) ? finalPrice.toFixed(2) : '';
+            }
+            if (priceInput && basePrice > 0) {
+                priceInput.value = basePrice.toFixed(2);
+            }
+        }
+
+        renderPricePreview();
+        isUpdatingPrice = false;
+    }
+
+    function renderPricePreview() {
+        if (!previewPrice) return;
+
+        const mrp = parseFloat(mrpInput?.value) || 0;
+        const price = parseFloat(priceInput?.value) || 0;
+        const discount = parseInt(discountInput?.value) || 0;
+        const customerVal = parseFloat(customerPaysInput?.value) || 0;
+
+        const basePrice = mrp > 0 ? mrp : price;
+        let finalPrice = customerVal > 0 ? customerVal : basePrice;
+
+        if (customerVal === 0 && discount > 0 && basePrice > 0) {
             finalPrice = basePrice * (1 - discount / 100);
         }
-        
+
         previewPrice.textContent = `₹${finalPrice.toFixed(2)}`;
-        
-        const effectiveMrp = mrp > basePrice ? mrp : basePrice;
+
+        const effectiveMrp = mrp > finalPrice ? mrp : (basePrice > finalPrice ? basePrice : finalPrice);
         const totalSavings = effectiveMrp - finalPrice;
-        
-        if (discount > 0 && basePrice > 0) {
+
+        if (discount > 0 && totalSavings > 0) {
             if (previewDiscount) {
                 previewDiscount.style.display = 'inline-block';
                 previewDiscount.textContent = `${discount}% OFF`;
             }
-            if (previewSavings && totalSavings > 0) {
+            if (previewSavings) {
                 previewSavings.style.display = 'inline-block';
                 previewSavings.textContent = `• Save ₹${totalSavings.toFixed(2)}`;
             }
@@ -713,19 +757,42 @@ document.addEventListener('DOMContentLoaded', function() {
 
         updateVariantPricePreviews();
     }
-    
-    // Auto-sync price with MRP if seller filled MRP first and price is empty
-    mrpInput?.addEventListener('blur', function() {
-        if (mrpInput.value && (!priceInput.value || parseFloat(priceInput.value) === 0)) {
-            priceInput.value = mrpInput.value;
-            updatePricePreview();
+
+    mrpInput?.addEventListener('input', () => syncPricing('mrp'));
+    discountInput?.addEventListener('input', () => syncPricing('discount'));
+    customerPaysInput?.addEventListener('input', () => syncPricing('customerPays'));
+
+    // On form submit, ensure priceInput is populated
+    const productForm = document.getElementById('productForm');
+    productForm?.addEventListener('submit', () => {
+        const mrp = parseFloat(mrpInput?.value) || 0;
+        const customerVal = parseFloat(customerPaysInput?.value) || 0;
+        const price = parseFloat(priceInput?.value) || 0;
+        if (!price || price === 0) {
+            if (mrp > 0) priceInput.value = mrp.toFixed(2);
+            else if (customerVal > 0) priceInput.value = customerVal.toFixed(2);
         }
     });
 
-    [priceInput, mrpInput, discountInput].forEach(input => {
-        input?.addEventListener('input', updatePricePreview);
-    });
-    updatePricePreview();
+    // Initialize pricing on page load
+    (function initPricing() {
+        const initialPrice = parseFloat(priceInput?.value) || 0;
+        const initialMrp = parseFloat(mrpInput?.value) || 0;
+        const initialDiscount = parseInt(discountInput?.value) || 0;
+
+        if (initialMrp > 0 && (!initialPrice || initialPrice === 0)) {
+            if (priceInput) priceInput.value = initialMrp.toFixed(2);
+        } else if (initialPrice > 0 && (!initialMrp || initialMrp === 0)) {
+            if (mrpInput) mrpInput.value = initialPrice.toFixed(2);
+        }
+
+        const base = (initialMrp > 0 ? initialMrp : initialPrice);
+        if (base > 0) {
+            const finalVal = (initialDiscount > 0) ? base * (1 - initialDiscount / 100) : base;
+            if (customerPaysInput) customerPaysInput.value = finalVal.toFixed(2);
+        }
+        renderPricePreview();
+    })();
     
     // ── 3. Image Preview ────────────────────────────────────────────
     const primaryImageInput = document.getElementById('{{ form.primary_image.id_for_label }}');
