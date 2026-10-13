@@ -629,9 +629,16 @@
 @media (min-width: 768px) {
     .pwa-install-banner {
         bottom: 24px !important;
-        right: 24px !important;
-        left: auto !important;
+        left: 24px !important;
+        right: auto !important;
         width: 360px !important;
+    }
+}
+/* Shift chatbot upwards on mobile when PWA banner is active so they never overlap */
+@media (max-width: 768px) {
+    body.has-pwa-banner .chatbot-wrapper {
+        bottom: calc(130px + env(safe-area-inset-bottom, 0px)) !important;
+        transition: bottom 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
     }
 }
 .pwa-banner-content {
@@ -1474,6 +1481,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (desktopBtn) desktopBtn.style.display = 'none';
         if (iosModal) iosModal.style.setProperty('display', 'none', 'important');
         if (androidModal) androidModal.style.setProperty('display', 'none', 'important');
+        document.body.classList.remove('has-pwa-banner');
     }
 
     // If already installed, hide everything and do not show anything
@@ -1497,6 +1505,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (banner && !isBannerSnoozed()) {
             banner.style.setProperty('display', 'flex', 'important');
+            document.body.classList.add('has-pwa-banner');
         }
     }
 
@@ -1546,6 +1555,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Dismiss floating banner
     closeBtn?.addEventListener('click', () => {
         if (banner) banner.style.setProperty('display', 'none', 'important');
+        document.body.classList.remove('has-pwa-banner');
         try { localStorage.setItem('stallcart_pwa_dismissed', Date.now().toString()); } catch(e) {}
     });
 
