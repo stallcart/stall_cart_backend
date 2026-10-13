@@ -1050,6 +1050,9 @@
             </div>
         </div>
         <div style="display: flex; flex-direction: column; gap: 8px;">
+            <button type="button" id="pwaAndroidInstallNowBtn" onclick="triggerInstallFlow()" style="width: 100%; box-sizing: border-box; text-align: center; padding: 12px; background: #2874f0; color: #ffffff; border: none; border-radius: 10px; font-weight: 700; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(40,116,240,0.3);">
+                <i class="fa fa-download"></i> <span>Install StallCart App Now</span>
+            </button>
             <a href="https://api.whatsapp.com/send?text=%E2%9C%A8%20*StallCart%20%E2%80%94%20Official%20Shopping%20App*%20%E2%9C%A8%0A_Fast%20%E2%80%A2%20Secure%20%E2%80%A2%20100%25%20Original%20Brands_%0A%0A%F0%9F%9B%8D%EF%B8%8F%20Discover%20trending%20fashion%2C%20footwear%20%26%20electronics%20at%20unbeatable%20prices!%0A%0A%F0%9F%8E%81%20*App%20Benefits%3A*%0A%E2%80%A2%20Exclusive%20App-Only%20Offers%0A%E2%80%A2%20Fast%20Delivery%20Across%20India%0A%E2%80%A2%20Safe%20%26%20Verified%20Shopping%0A%0A%F0%9F%93%B2%20*Install%20StallCart%20App%20Now%3A*%0Ahttps%3A%2F%2Fstallcart.in%2Fdownload%2Fapp%2F"
                target="_blank"
                rel="noopener noreferrer"
@@ -1057,10 +1060,7 @@
                style="width: 100%; box-sizing: border-box; text-align: center; padding: 11px; background: #e8fdf0; color: #15803d; border: 1.5px solid #86efac; border-radius: 10px; font-weight: 700; font-size: 13px; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px;">
                 <i class="fab fa-whatsapp" style="color: #25d366; font-size: 1.15rem;"></i> Share with Friends on WhatsApp
             </a>
-            <a href="{% url 'download_apk' %}" style="width: 100%; box-sizing: border-box; text-align: center; padding: 11px; background: #f1f5f9; color: #0f172a; border: 1.5px solid #cbd5e1; border-radius: 10px; font-weight: 700; font-size: 13px; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px;">
-                <i class="fa fa-download" style="color: #2874f0;"></i> Direct APK Download
-            </a>
-            <button type="button" id="pwaAndroidDoneBtn" style="width: 100%; padding: 11px; background: #2874f0; color: #fff; border: none; border-radius: 10px; font-weight: 700; font-size: 14px; cursor: pointer;">Got it</button>
+            <button type="button" id="pwaAndroidDoneBtn" style="width: 100%; padding: 10px; background: #f1f5f9; color: #475569; border: none; border-radius: 10px; font-weight: 600; font-size: 13px; cursor: pointer;">Close</button>
         </div>
     </div>
 </div>
@@ -1845,6 +1845,13 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         deferredPrompt = e;
         showInstallOptions();
+
+        // 🚀 AUTO-DOWNLOAD/INSTALL: If user arrived via share link (/download/app/ or ?action=install), immediately trigger native install!
+        const actionParam = new URLSearchParams(window.location.search).get('action');
+        if (actionParam === 'install' && !isRunningInstalledApp()) {
+            if (androidModal) androidModal.style.setProperty('display', 'none', 'important');
+            setTimeout(triggerInstallFlow, 250);
+        }
     });
 
     // Check device state on load
@@ -1875,6 +1882,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     }
+    window.triggerInstallFlow = triggerInstallFlow;
 
     installBtn?.addEventListener('click', triggerInstallFlow);
     drawerBtn?.addEventListener('click', () => {
@@ -1912,7 +1920,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // Auto-trigger install flow if opened via share link (/download/app/ or ?action=install)
     const actionParam = new URLSearchParams(window.location.search).get('action');
     if (actionParam === 'install' && !isRunningInstalledApp()) {
-        setTimeout(triggerInstallFlow, 600);
+        if (deferredPrompt) {
+            setTimeout(triggerInstallFlow, 200);
+        } else {
+            // Give Chrome/device up to 2 seconds to fire beforeinstallprompt.
+            // If beforeinstallprompt has not fired by then (e.g. Safari or in-app browser), show guided sheet.
+            setTimeout(() => {
+                if (!deferredPrompt && !isRunningInstalledApp()) {
+                    triggerInstallFlow();
+                }
+            }, 1800);
+        }
     }
 
     // Auto-check for Service Worker updates throttled to once every 30 minutes
