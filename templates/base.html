@@ -1745,8 +1745,14 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(triggerInstallFlow, 600);
     }
 
-    // Auto-check for Service Worker updates on window focus to ensure installed app is always in sync
+    // Auto-check for Service Worker updates throttled to once every 30 minutes
     window.addEventListener('focus', () => {
+        try {
+            const lastCheck = sessionStorage.getItem('pwa_sw_last_check');
+            const now = Date.now();
+            if (lastCheck && (now - parseInt(lastCheck, 10)) < 1800000) return;
+            sessionStorage.setItem('pwa_sw_last_check', now.toString());
+        } catch(e) {}
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.getRegistration().then(reg => {
                 if (reg) reg.update();

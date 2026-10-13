@@ -43,17 +43,12 @@ self.addEventListener('notificationclick', (e) => {
 });
 
 // ══════════════════════════════════════════════════════
-// PWA Service Worker Lifecycle & Offline Fetch Support
+// PWA Service Worker Lifecycle & High-Performance Fetch
 // ══════════════════════════════════════════════════════
-const PWA_CACHE_NAME = 'stallcart-pwa-v1';
+const PWA_CACHE_NAME = 'stallcart-pwa-v2';
 const PWA_CORE_ASSETS = [
     '/',
-    '/static/manifest.json',
-    '/static/favicon.ico',
-    '/static/images/icons/android-chrome-192x192.png',
-    '/static/images/icons/android-chrome-512x512.png',
-    '/static/images/icons/apple-touch-icon.png',
-    '/static/css/style.css'
+    '/static/manifest.json'
 ];
 
 self.addEventListener('install', (event) => {
@@ -61,7 +56,6 @@ self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(PWA_CACHE_NAME).then((cache) => {
             return cache.addAll(PWA_CORE_ASSETS).catch((err) => {
-                // Graceful fallback if any asset fails to pre-cache
                 console.warn('PWA Pre-cache notice:', err);
             });
         })
@@ -78,9 +72,13 @@ self.addEventListener('activate', (event) => {
     );
 });
 
-// Network-first fetch strategy required for PWA installability
+// High-Performance Fetch Strategy:
+// Intercept ONLY top-level HTML navigation requests for offline support & PWA compliance.
+// Subresources (images, stylesheets, fonts, scripts, API calls) bypass Service Worker thread completely,
+// streaming directly through native browser HTTP cache and network pipelines at maximum speed.
 self.addEventListener('fetch', (event) => {
     if (event.request.method !== 'GET') return;
+    if (event.request.mode !== 'navigate') return;
     if (!event.request.url.startsWith(self.location.origin)) return;
 
     event.respondWith(
