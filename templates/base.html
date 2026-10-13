@@ -18,8 +18,8 @@
             );
 
             var isPhoneOrTouch = (
-                Math.min(window.screen.width, window.screen.height) <= 768 ||
-                (navigator.maxTouchPoints > 0 && /Android|iPhone|iPod|Mobile/i.test(navigator.userAgent))
+                Math.min(window.screen.width, window.screen.height) <= 820 ||
+                (navigator.maxTouchPoints > 0 && (/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)))
             );
 
             if (isStandalone) {
@@ -1151,10 +1151,10 @@ body.pwa-mobile-standalone #pwaDrawerInstallItem {
             <img src="{% static 'images/icons/apple-touch-icon.png' %}" alt="StallCart" style="width: 44px; height: 44px; border-radius: 11px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
             <div>
                 <div style="font-size: 16px; font-weight: 700; color: #0f172a;" id="pwaIosTitle">Install StallCart on iPhone</div>
-                <div style="font-size: 12px; color: #64748b;">Install as a native app on your home screen</div>
+                <div style="font-size: 12px; color: #64748b;" id="pwaIosSubtitle">Install as a native app on your home screen</div>
             </div>
         </div>
-        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; margin-bottom: 16px;">
+        <div id="pwaIosSteps" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; margin-bottom: 16px;">
             <div class="pwa-step">
                 <span class="pwa-step-num">1</span>
                 <span>Tap the <strong>Share</strong> button <i class="fa fa-arrow-up-from-bracket" style="color: #2874f0;"></i> at bottom of Safari</span>
@@ -1172,7 +1172,7 @@ body.pwa-mobile-standalone #pwaDrawerInstallItem {
     </div>
 </div>
 
-<!-- Android / Chrome Guided Install Sheet -->
+<!-- Android / Multi-Browser Guided Install Sheet -->
 <div id="pwaAndroidModal" class="pwa-modal-overlay" style="display: none !important;" role="dialog" aria-modal="true" aria-labelledby="pwaAndroidTitle">
     <div class="pwa-modal-sheet">
         <button type="button" class="pwa-close-btn" id="pwaAndroidCloseBtn" aria-label="Close" style="position: absolute; top: 14px; right: 14px;">
@@ -1182,10 +1182,10 @@ body.pwa-mobile-standalone #pwaDrawerInstallItem {
             <img src="{% static 'images/icons/android-chrome-192x192.png' %}" alt="StallCart" style="width: 44px; height: 44px; border-radius: 11px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
             <div>
                 <div style="font-size: 16px; font-weight: 700; color: #0f172a;" id="pwaAndroidTitle">Install StallCart App</div>
-                <div style="font-size: 12px; color: #64748b;">Fast, lite & secure on your phone</div>
+                <div style="font-size: 12px; color: #64748b;" id="pwaAndroidSubtitle">Fast, lite & secure on your phone</div>
             </div>
         </div>
-        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; margin-bottom: 14px;">
+        <div id="pwaAndroidSteps" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; margin-bottom: 14px;">
             <div class="pwa-step">
                 <span class="pwa-step-num">1</span>
                 <span>Tap the <strong>3-dots menu (⋮)</strong> in the top-right corner of Chrome</span>
@@ -1937,9 +1937,135 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.removeItem('stallcart_pwa_installed');
     } catch(e) {}
 
-    // Detect iOS Safari
+    // Robust Multi-Browser & Device Intelligence
+    function getPwaBrowserInfo() {
+        var ua = navigator.userAgent || '';
+        var platform = navigator.platform || '';
+        var maxTouch = navigator.maxTouchPoints || 0;
+
+        var isIos = (/iPhone|iPod/i.test(ua)) || (/iPad/i.test(ua)) || (platform === 'MacIntel' && maxTouch > 1);
+        var isIpad = (/iPad/i.test(ua)) || (platform === 'MacIntel' && maxTouch > 1);
+        var isAndroid = /Android/i.test(ua);
+        var isSamsung = /SamsungBrowser/i.test(ua);
+        var isFirefox = /Firefox|FxiOS/i.test(ua);
+        var isEdge = /EdgA|EdgiOS|Edg\//i.test(ua);
+        var isOpera = /OPR|Opera|OPT/i.test(ua);
+        var isBrave = !!(navigator.brave && typeof navigator.brave.isBrave === 'function');
+        var isChrome = !isSamsung && !isEdge && !isOpera && !isBrave && (/Chrome|CriOS/i.test(ua));
+        var isSafari = isIos && !isChrome && !isFirefox && !isEdge && (/Safari/i.test(ua));
+
+        return {
+            isIos: isIos,
+            isIpad: isIpad,
+            isAndroid: isAndroid,
+            isSamsung: isSamsung,
+            isFirefox: isFirefox,
+            isEdge: isEdge,
+            isOpera: isOpera,
+            isBrave: isBrave,
+            isChrome: isChrome,
+            isSafari: isSafari,
+            isDesktop: !isIos && !isAndroid && maxTouch === 0 && window.innerWidth >= 992
+        };
+    }
+
+    // Detect iOS devices (iPhone, iPad)
     function isIosDevice() {
-        return /iPhone|iPad|iPod/i.test(navigator.userAgent) && !window.MSStream;
+        var b = getPwaBrowserInfo();
+        return b.isIos;
+    }
+
+    function updateIosModalContent(b) {
+        var titleEl = document.getElementById('pwaIosTitle');
+        var subEl = document.getElementById('pwaIosSubtitle');
+        var stepsEl = document.getElementById('pwaIosSteps');
+        if (!stepsEl) return;
+
+        if (b.isIpad) {
+            if (titleEl) titleEl.textContent = 'Install StallCart on iPad';
+            if (subEl) subEl.textContent = 'Install as a full-screen tablet app';
+            stepsEl.innerHTML = 
+                '<div class="pwa-step"><span class="pwa-step-num">1</span><span>Tap the <strong>Share</strong> button <i class="fa fa-arrow-up-from-bracket" style="color: #2874f0;"></i> at the top of Safari</span></div>' +
+                '<div class="pwa-step"><span class="pwa-step-num">2</span><span>Scroll down and tap <strong>Add to Home Screen</strong> <i class="far fa-plus-square" style="color: #2874f0;"></i></span></div>' +
+                '<div class="pwa-step" style="margin-bottom:0;"><span class="pwa-step-num">3</span><span>Tap <strong>Add</strong> in the top-right corner to finish</span></div>';
+        } else if (b.isChrome || b.isFirefox || b.isEdge) {
+            var bName = b.isChrome ? 'Chrome' : (b.isFirefox ? 'Firefox' : 'Edge');
+            if (titleEl) titleEl.textContent = 'Install on iOS (' + bName + ')';
+            if (subEl) subEl.textContent = 'Add StallCart to your home screen';
+            stepsEl.innerHTML = 
+                '<div class="pwa-step"><span class="pwa-step-num">1</span><span>Tap the <strong>Share</strong> icon <i class="fa fa-arrow-up-from-bracket" style="color: #2874f0;"></i> or menu <strong>(...)</strong></span></div>' +
+                '<div class="pwa-step"><span class="pwa-step-num">2</span><span>Select <strong>Add to Home Screen</strong> <i class="far fa-plus-square" style="color: #2874f0;"></i></span></div>' +
+                '<div class="pwa-step" style="margin-bottom:0;"><span class="pwa-step-num">3</span><span>Tap <strong>Add</strong> to place StallCart on your home screen</span></div>';
+        } else {
+            // iPhone Safari
+            if (titleEl) titleEl.textContent = 'Install StallCart on iPhone';
+            if (subEl) subEl.textContent = 'Install as a native app on your home screen';
+            stepsEl.innerHTML = 
+                '<div class="pwa-step"><span class="pwa-step-num">1</span><span>Tap the <strong>Share</strong> button <i class="fa fa-arrow-up-from-bracket" style="color: #2874f0;"></i> at bottom of Safari</span></div>' +
+                '<div class="pwa-step"><span class="pwa-step-num">2</span><span>Scroll down and tap <strong>Add to Home Screen</strong> <i class="far fa-plus-square" style="color: #2874f0;"></i></span></div>' +
+                '<div class="pwa-step" style="margin-bottom:0;"><span class="pwa-step-num">3</span><span>Tap <strong>Add</strong> in the top-right corner</span></div>';
+        }
+    }
+
+    function updateAndroidModalContent(b) {
+        var titleEl = document.getElementById('pwaAndroidTitle');
+        var subEl = document.getElementById('pwaAndroidSubtitle');
+        var stepsEl = document.getElementById('pwaAndroidSteps');
+        if (!stepsEl) return;
+
+        if (b.isSamsung) {
+            if (titleEl) titleEl.textContent = 'Install on Samsung Internet';
+            if (subEl) subEl.textContent = 'Quick setup via Samsung Internet';
+            stepsEl.innerHTML = 
+                '<div class="pwa-step"><span class="pwa-step-num">1</span><span>Tap the <strong>install icon (⬇)</strong> in address bar, or <strong>menu (☰)</strong> at bottom-right</span></div>' +
+                '<div class="pwa-step"><span class="pwa-step-num">2</span><span>Select <strong>Add page to</strong> &rarr; <strong>Home screen</strong></span></div>' +
+                '<div class="pwa-step" style="margin-bottom:0;"><span class="pwa-step-num">3</span><span>Tap <strong>Add</strong> to place StallCart on your home screen</span></div>';
+        } else if (b.isFirefox) {
+            if (titleEl) titleEl.textContent = 'Install on Firefox';
+            if (subEl) subEl.textContent = 'Add StallCart to your phone home screen';
+            stepsEl.innerHTML = 
+                '<div class="pwa-step"><span class="pwa-step-num">1</span><span>Tap the <strong>3-dots menu (⋮)</strong> in Firefox</span></div>' +
+                '<div class="pwa-step"><span class="pwa-step-num">2</span><span>Select <strong>Install</strong> or <strong>Add to Home screen</strong></span></div>' +
+                '<div class="pwa-step" style="margin-bottom:0;"><span class="pwa-step-num">3</span><span>Tap <strong>Add</strong> to confirm</span></div>';
+        } else if (b.isEdge) {
+            if (titleEl) titleEl.textContent = 'Install on Microsoft Edge';
+            if (subEl) subEl.textContent = 'Official web app installation';
+            stepsEl.innerHTML = 
+                '<div class="pwa-step"><span class="pwa-step-num">1</span><span>Tap the <strong>menu (...)</strong> in Microsoft Edge</span></div>' +
+                '<div class="pwa-step"><span class="pwa-step-num">2</span><span>Select <strong>Add to phone</strong> or <strong>Install app</strong></span></div>' +
+                '<div class="pwa-step" style="margin-bottom:0;"><span class="pwa-step-num">3</span><span>Tap <strong>Add</strong> to place on home screen</span></div>';
+        } else if (b.isOpera || b.isBrave) {
+            if (titleEl) titleEl.textContent = 'Install StallCart App';
+            if (subEl) subEl.textContent = 'Fast, lite & secure on your phone';
+            stepsEl.innerHTML = 
+                '<div class="pwa-step"><span class="pwa-step-num">1</span><span>Tap the <strong>browser menu (⋮ or ☰)</strong></span></div>' +
+                '<div class="pwa-step"><span class="pwa-step-num">2</span><span>Select <strong>Add to Home screen</strong> or <strong>Install app</strong></span></div>' +
+                '<div class="pwa-step" style="margin-bottom:0;"><span class="pwa-step-num">3</span><span>Tap <strong>Install</strong> or <strong>Add</strong></span></div>';
+        } else {
+            // Chrome / Default Android
+            if (titleEl) titleEl.textContent = 'Install StallCart App';
+            if (subEl) subEl.textContent = 'Fast, lite & secure on your phone';
+            stepsEl.innerHTML = 
+                '<div class="pwa-step"><span class="pwa-step-num">1</span><span>Tap the <strong>3-dots menu (⋮)</strong> in the top-right corner of Chrome</span></div>' +
+                '<div class="pwa-step"><span class="pwa-step-num">2</span><span>Select <strong>Install app</strong> or <strong>Add to Home screen</strong></span></div>' +
+                '<div class="pwa-step" style="margin-bottom:0;"><span class="pwa-step-num">3</span><span>Confirm by tapping <strong>Install</strong></span></div>';
+        }
+    }
+
+    function showDesktopInstallHint(b) {
+        var msg = 'Click the Install icon (⊕) on the right side of your browser address bar.';
+        if (b.isEdge) {
+            msg = 'Click the App available icon (⊕) in your address bar, or Menu (...) ➔ Apps ➔ Install StallCart.';
+        } else if (b.isChrome || b.isBrave) {
+            msg = 'Click the Install icon (⊕) on the right side of your address bar, or Menu (⋮) ➔ Save and Share ➔ Install StallCart.';
+        } else if (b.isSafari) {
+            msg = 'Click File in the top menu bar ➔ Add to Dock... to install StallCart.';
+        }
+        if (window.showToast) {
+            showToast(msg, 'info');
+        } else {
+            alert(msg);
+        }
     }
 
     // Check if user dismissed floating banner (snoozed only 15 minutes, never on /download/app/)
@@ -1986,8 +2112,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Trigger installation
+    // Trigger installation across all platforms and browsers
     async function triggerInstallFlow() {
+        var browser = getPwaBrowserInfo();
+
         if (deferredPrompt) {
             deferredPrompt.prompt();
             try {
@@ -1998,23 +2126,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } catch(e) {}
             deferredPrompt = null;
-        } else if (isIosDevice()) {
+        } else if (browser.isIos) {
+            updateIosModalContent(browser);
             if (iosModal) iosModal.style.setProperty('display', 'flex', 'important');
-        } else if (window.innerWidth >= 768) {
+        } else if (browser.isDesktop) {
             // Desktop: if prompt not ready, redirect to /download/app/ or show address bar hint
             if (window.location.pathname !== '/download/app/') {
                 window.location.href = "{% url 'download_app' %}";
-            } else if (window.showToast) {
-                showToast('Click the Install icon (⊕) in your browser address bar', 'info');
             } else {
-                alert('Click the Install icon (⊕) in the right side of your browser address bar to install.');
+                showDesktopInstallHint(browser);
             }
         } else {
-            // Mobile Android
+            // Mobile Android / Samsung / Firefox / Edge / Opera / Brave / Other
+            updateAndroidModalContent(browser);
             if (androidModal) {
                 androidModal.style.setProperty('display', 'flex', 'important');
             } else if (window.showToast) {
-                showToast('Tap browser menu (⋮) and select "Install app"', 'info');
+                showToast('Tap browser menu and select "Install app" or "Add to Home screen"', 'info');
             }
         }
     }

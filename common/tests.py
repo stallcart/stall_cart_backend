@@ -911,15 +911,35 @@ class PwaAppInstallTests(TestCase):
 
         # Standalone mobile app enforcement styles and script
         self.assertIn('pwa-mobile-standalone', content)
+        self.assertIn('MacIntel', content)  # iPadOS detection
+
+        # Multi-browser logic in base template
+        self.assertIn('getPwaBrowserInfo', content)
+        self.assertIn('SamsungBrowser', content)
+        self.assertIn('Firefox', content)
 
     def test_download_app_and_apk_endpoints(self):
-        """Verify /download/app/ renders dedicated app install page and /download/apk/ redirects to it."""
+        """Verify /download/app/ renders dedicated app install page with multi-browser cards and /download/apk/ redirects to it."""
         # /download/app/ renders dedicated download landing page
         resp_app = self.client.get('/download/app/')
         self.assertEqual(resp_app.status_code, 200)
         content = resp_app.content.decode('utf-8')
         self.assertIn('Install StallCart App', content)
         self.assertIn('Open in Google Chrome', content)
+        self.assertIn('Open in Default Browser', content)
+
+        # Multi-browser guide cards
+        self.assertIn('id="chromeGuideCard"', content)
+        self.assertIn('id="iosGuideCard"', content)
+        self.assertIn('id="iosChromeGuideCard"', content)
+        self.assertIn('id="samsungGuideCard"', content)
+        self.assertIn('id="firefoxGuideCard"', content)
+        self.assertIn('id="edgeGuideCard"', content)
+        self.assertIn('id="desktopGuideCard"', content)
+
+        # Multi-browser tab switchers
+        self.assertIn('browser-switcher-wrap', content)
+        self.assertIn('getAppPageBrowserInfo', content)
 
         # /download/apk/ redirects directly to verified app install page
         resp_apk = self.client.get('/download/apk/')

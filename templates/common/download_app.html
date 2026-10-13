@@ -164,8 +164,44 @@
     font-weight: 700;
     font-size: 0.82rem;
     text-decoration: none !important;
-    margin-top: 8px;
     box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+}
+.browser-switcher-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    margin-bottom: 12px;
+    -webkit-overflow-scrolling: touch;
+}
+.browser-switcher-wrap::-webkit-scrollbar {
+    display: none;
+}
+.browser-tab-btn {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 20px;
+    padding: 6px 12px;
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: #475569;
+    cursor: pointer;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.15s ease;
+}
+.browser-tab-btn:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+.browser-tab-btn.active {
+    background: #2874f0;
+    color: #ffffff;
+    border-color: #2874f0;
+    box-shadow: 0 2px 6px rgba(40,116,240,0.25);
 }
 .install-guide-card {
     background: #f8fafc;
@@ -301,9 +337,12 @@
                 <i class="fa fa-info-circle" style="font-size: 1.3rem; color: #2563eb; flex-shrink: 0; margin-top: 2px;"></i>
                 <div style="flex: 1;">
                     <strong>Opened from WhatsApp or Social App?</strong><br>
-                    Tap below to launch in Google Chrome for instant 1-tap installation onto your phone:
-                    <div>
-                        <a href="intent://stallcart.in/download/app/#Intent;scheme=https;package=com.android.chrome;end" class="btn-chrome-intent">
+                    In-app browsers restrict app installation. Tap below to open in your browser for instant 1-tap setup:
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;">
+                        <a href="intent://stallcart.in/download/app/#Intent;action=android.intent.action.VIEW;scheme=https;end" class="btn-chrome-intent" style="background: #2563eb;">
+                            <i class="fa fa-compass"></i> Open in Default Browser
+                        </a>
+                        <a href="intent://stallcart.in/download/app/#Intent;scheme=https;package=com.android.chrome;end" class="btn-chrome-intent" style="background: #059669;">
                             <i class="fab fa-chrome"></i> Open in Google Chrome
                         </a>
                     </div>
@@ -322,11 +361,36 @@
                 </div>
             </div>
 
+            <!-- Browser Selector Pills (Fast Switching) -->
+            <div style="text-align: left; margin-bottom: 6px; font-size: 0.74rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em;">
+                <span>Instructions for your browser:</span>
+            </div>
+            <div class="browser-switcher-wrap">
+                <button type="button" class="browser-tab-btn active" data-target="chromeGuideCard" onclick="selectBrowserGuide('chromeGuideCard')">
+                    <i class="fab fa-chrome"></i> Chrome / Android
+                </button>
+                <button type="button" class="browser-tab-btn" data-target="iosGuideCard" onclick="selectBrowserGuide('iosGuideCard')">
+                    <i class="fab fa-apple"></i> iPhone / iPad
+                </button>
+                <button type="button" class="browser-tab-btn" data-target="samsungGuideCard" onclick="selectBrowserGuide('samsungGuideCard')">
+                    <i class="fa fa-globe"></i> Samsung
+                </button>
+                <button type="button" class="browser-tab-btn" data-target="firefoxGuideCard" onclick="selectBrowserGuide('firefoxGuideCard')">
+                    <i class="fab fa-firefox-browser"></i> Firefox
+                </button>
+                <button type="button" class="browser-tab-btn" data-target="edgeGuideCard" onclick="selectBrowserGuide('edgeGuideCard')">
+                    <i class="fab fa-edge"></i> Edge
+                </button>
+                <button type="button" class="browser-tab-btn" data-target="desktopGuideCard" onclick="selectBrowserGuide('desktopGuideCard')">
+                    <i class="fa fa-desktop"></i> Desktop PC / Mac
+                </button>
+            </div>
+
             <!-- Chrome Guide Card (shown on Android) -->
             <div id="chromeGuideCard" class="install-guide-card">
                 <div class="guide-title">
                     <i class="fab fa-chrome" style="color: #2563eb;"></i>
-                    <span>Fast Setup in Google Chrome:</span>
+                    <span>Fast Setup in Google Chrome &amp; Brave:</span>
                 </div>
                 <div class="guide-step">
                     <span class="step-badge">1</span>
@@ -346,19 +410,119 @@
             <div id="iosGuideCard" class="install-guide-card" style="display: none;">
                 <div class="guide-title">
                     <i class="fab fa-apple"></i>
-                    <span>Fast Setup on iPhone (Safari):</span>
+                    <span>Fast Setup on Apple (iPhone &amp; iPad Safari):</span>
                 </div>
                 <div class="guide-step">
                     <span class="step-badge">1</span>
-                    <span>Tap the <strong>Share</strong> button <i class="fa fa-arrow-up-from-bracket" style="color: #2874f0;"></i> at bottom of Safari.</span>
+                    <span>Tap the <strong>Share</strong> button <i class="fa fa-arrow-up-from-bracket" style="color: #2874f0;"></i> at bottom of Safari (or top toolbar on iPad).</span>
                 </div>
                 <div class="guide-step">
                     <span class="step-badge">2</span>
-                    <span>Scroll down and tap <strong>Add to Home Screen</strong>.</span>
+                    <span>Scroll down and tap <strong>Add to Home Screen</strong> <i class="far fa-plus-square" style="color: #2874f0;"></i>.</span>
                 </div>
                 <div class="guide-step">
                     <span class="step-badge">3</span>
                     <span>Tap <strong>Add</strong> in the top-right corner to finish!</span>
+                </div>
+            </div>
+
+            <!-- iOS Chrome / Edge Guide Card -->
+            <div id="iosChromeGuideCard" class="install-guide-card" style="display: none;">
+                <div class="guide-title">
+                    <i class="fab fa-apple"></i>
+                    <span>Fast Setup on iOS (Chrome &amp; Edge):</span>
+                </div>
+                <div class="guide-step">
+                    <span class="step-badge">1</span>
+                    <span>Tap the <strong>Share</strong> icon <i class="fa fa-arrow-up-from-bracket" style="color: #2874f0;"></i> or <strong>3-dots (⋯)</strong> menu in the browser.</span>
+                </div>
+                <div class="guide-step">
+                    <span class="step-badge">2</span>
+                    <span>Select <strong>Add to Home Screen</strong> <i class="far fa-plus-square" style="color: #2874f0;"></i>.</span>
+                </div>
+                <div class="guide-step">
+                    <span class="step-badge">3</span>
+                    <span>Tap <strong>Add</strong> in the top-right corner to install StallCart!</span>
+                </div>
+            </div>
+
+            <!-- Samsung Internet Guide Card -->
+            <div id="samsungGuideCard" class="install-guide-card" style="display: none;">
+                <div class="guide-title">
+                    <i class="fa fa-globe" style="color: #6366f1;"></i>
+                    <span>Fast Setup on Samsung Internet:</span>
+                </div>
+                <div class="guide-step">
+                    <span class="step-badge">1</span>
+                    <span>Tap the <strong>Install (⬇)</strong> icon in top address bar, OR tap the <strong>menu (☰)</strong> at bottom-right.</span>
+                </div>
+                <div class="guide-step">
+                    <span class="step-badge">2</span>
+                    <span>Select <strong>Add page to</strong> &rarr; <strong>Home screen</strong>.</span>
+                </div>
+                <div class="guide-step">
+                    <span class="step-badge">3</span>
+                    <span>Tap <strong>Add</strong> to place StallCart on your home screen!</span>
+                </div>
+            </div>
+
+            <!-- Mozilla Firefox Guide Card -->
+            <div id="firefoxGuideCard" class="install-guide-card" style="display: none;">
+                <div class="guide-title">
+                    <i class="fab fa-firefox-browser" style="color: #ea580c;"></i>
+                    <span>Fast Setup on Mozilla Firefox:</span>
+                </div>
+                <div class="guide-step">
+                    <span class="step-badge">1</span>
+                    <span>Tap the <strong>3-dots menu (⋮)</strong> in Firefox.</span>
+                </div>
+                <div class="guide-step">
+                    <span class="step-badge">2</span>
+                    <span>Select <strong>Install</strong> or <strong>Add to Home screen</strong>.</span>
+                </div>
+                <div class="guide-step">
+                    <span class="step-badge">3</span>
+                    <span>Tap <strong>Add</strong> to confirm!</span>
+                </div>
+            </div>
+
+            <!-- Microsoft Edge Guide Card -->
+            <div id="edgeGuideCard" class="install-guide-card" style="display: none;">
+                <div class="guide-title">
+                    <i class="fab fa-edge" style="color: #0284c7;"></i>
+                    <span>Fast Setup on Microsoft Edge:</span>
+                </div>
+                <div class="guide-step">
+                    <span class="step-badge">1</span>
+                    <span>Tap the <strong>menu (...)</strong> or address bar app icon.</span>
+                </div>
+                <div class="guide-step">
+                    <span class="step-badge">2</span>
+                    <span>Select <strong>Add to phone</strong> or <strong>Install app</strong>.</span>
+                </div>
+                <div class="guide-step">
+                    <span class="step-badge">3</span>
+                    <span>Tap <strong>Add</strong> to finish!</span>
+                </div>
+            </div>
+
+            <!-- Desktop PC & Mac Guide Card -->
+            <div id="desktopGuideCard" class="install-guide-card" style="display: none;">
+                <div class="guide-title">
+                    <i class="fa fa-desktop" style="color: #0f172a;"></i>
+                    <span>Fast Setup on Laptop &amp; Desktop (Chrome / Edge / Mac):</span>
+                </div>
+                <div class="guide-step">
+                    <span class="step-badge">1</span>
+                    <span>Click <strong>Install StallCart App</strong> above or the <strong>Install icon (⊕)</strong> on the right of the address bar.</span>
+                </div>
+                <div class="guide-step">
+                    <span class="step-badge">2</span>
+                    <span>Click <strong>Install</strong> when your browser prompts. (On Safari Mac Sonoma: Click <strong>File &rarr; Add to Dock</strong>).</span>
+                </div>
+                <div class="guide-step">
+                    <span class="step-badge">3</span>
+                    <span>StallCart launches immediately as an independent, lightweight desktop application!</span>
                 </div>
             </div>
 
@@ -393,8 +557,52 @@
 </section>
 
 <script>
-function isIos() {
-    return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+function getAppPageBrowserInfo() {
+    var ua = navigator.userAgent || '';
+    var platform = navigator.platform || '';
+    var maxTouch = navigator.maxTouchPoints || 0;
+
+    var isIos = (/iPhone|iPod/i.test(ua)) || (/iPad/i.test(ua)) || (platform === 'MacIntel' && maxTouch > 1);
+    var isIpad = (/iPad/i.test(ua)) || (platform === 'MacIntel' && maxTouch > 1);
+    var isAndroid = /Android/i.test(ua);
+    var isSamsung = /SamsungBrowser/i.test(ua);
+    var isFirefox = /Firefox|FxiOS/i.test(ua);
+    var isEdge = /EdgA|EdgiOS|Edg\//i.test(ua);
+    var isOpera = /OPR|Opera|OPT/i.test(ua);
+    var isBrave = !!(navigator.brave && typeof navigator.brave.isBrave === 'function');
+    var isChrome = !isSamsung && !isEdge && !isOpera && !isBrave && (/Chrome|CriOS/i.test(ua));
+    var isSafari = isIos && !isChrome && !isFirefox && !isEdge && (/Safari/i.test(ua));
+    var isDesktop = !isIos && !isAndroid && maxTouch === 0 && window.innerWidth >= 992;
+
+    return {
+        isIos: isIos,
+        isIpad: isIpad,
+        isAndroid: isAndroid,
+        isSamsung: isSamsung,
+        isFirefox: isFirefox,
+        isEdge: isEdge,
+        isOpera: isOpera,
+        isBrave: isBrave,
+        isChrome: isChrome,
+        isSafari: isSafari,
+        isDesktop: isDesktop
+    };
+}
+
+function selectBrowserGuide(guideId) {
+    var allCards = document.querySelectorAll('.install-guide-card');
+    allCards.forEach(function(c) { c.style.display = 'none'; });
+    var target = document.getElementById(guideId);
+    if (target) target.style.display = 'block';
+
+    var allTabs = document.querySelectorAll('.browser-tab-btn');
+    allTabs.forEach(function(t) {
+        if (t.dataset.target === guideId) {
+            t.classList.add('active');
+        } else {
+            t.classList.remove('active');
+        }
+    });
 }
 
 function isInsideWebView() {
@@ -403,8 +611,8 @@ function isInsideWebView() {
 
 function triggerPwaInstall() {
     if (isInsideWebView()) {
-        // WhatsApp webview blocks PWA prompt -> Launch real Chrome
-        window.location.href = "intent://stallcart.in/download/app/#Intent;scheme=https;package=com.android.chrome;end";
+        // Fallback intent for in-app webview
+        window.location.href = "intent://stallcart.in/download/app/#Intent;action=android.intent.action.VIEW;scheme=https;end";
         return;
     }
 
@@ -414,12 +622,25 @@ function triggerPwaInstall() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Show iOS or Chrome guide
-    if (isIos()) {
-        const iosCard = document.getElementById('iosGuideCard');
-        const chromeCard = document.getElementById('chromeGuideCard');
-        if (iosCard) iosCard.style.display = 'block';
-        if (chromeCard) chromeCard.style.display = 'none';
+    var b = getAppPageBrowserInfo();
+
+    // Auto-select relevant guide card based on visitor's browser & device
+    if (b.isIos) {
+        if (b.isChrome || b.isFirefox || b.isEdge) {
+            selectBrowserGuide('iosChromeGuideCard');
+        } else {
+            selectBrowserGuide('iosGuideCard');
+        }
+    } else if (b.isSamsung) {
+        selectBrowserGuide('samsungGuideCard');
+    } else if (b.isFirefox) {
+        selectBrowserGuide('firefoxGuideCard');
+    } else if (b.isEdge) {
+        selectBrowserGuide('edgeGuideCard');
+    } else if (b.isDesktop) {
+        selectBrowserGuide('desktopGuideCard');
+    } else {
+        selectBrowserGuide('chromeGuideCard');
     }
 
     // Detect in-app webview
