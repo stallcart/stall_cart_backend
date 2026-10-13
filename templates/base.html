@@ -830,54 +830,105 @@
     display: flex !important;
     align-items: center !important;
     gap: 8px !important;
-    padding: 12px 14px !important;
+    padding: 10px 14px !important;
     background: #ffffff !important;
     border-bottom: 1px solid #e2e8f0 !important;
     box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04) !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
 }
 .mobile-search-back-btn {
     background: none !important;
     border: none !important;
     color: #475569 !important;
     font-size: 1.15rem !important;
-    padding: 8px !important;
+    padding: 6px !important;
     cursor: pointer !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
+    flex-shrink: 0 !important;
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 50% !important;
+}
+.mobile-search-back-btn:active {
+    background: #f1f5f9 !important;
 }
 .mobile-search-input-form {
-    flex: 1 !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    width: 100% !important;
     display: flex !important;
     align-items: center !important;
     background: #f1f5f9 !important;
     border: 1.5px solid #cbd5e1 !important;
     border-radius: 24px !important;
-    padding: 4px 6px 4px 12px !important;
-    gap: 8px !important;
+    padding: 3px 4px 3px 12px !important;
+    gap: 6px !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+}
+.mobile-search-input-form:focus-within {
+    border-color: #2874f0 !important;
+    background: #ffffff !important;
+    box-shadow: 0 0 0 3px rgba(40, 116, 240, 0.12) !important;
 }
 .mobile-search-icon {
     color: #64748b !important;
     font-size: 0.95rem !important;
+    flex-shrink: 0 !important;
 }
 #globalMobileSearchInput {
-    flex: 1 !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    width: 100% !important;
     background: transparent !important;
     border: none !important;
     outline: none !important;
     font-size: 0.92rem !important;
     color: #0f172a !important;
     font-family: inherit !important;
+    padding: 6px 0 !important;
+    box-sizing: border-box !important;
+}
+#globalMobileSearchInput::placeholder {
+    color: #94a3b8 !important;
+    font-size: 0.88rem !important;
+}
+.mobile-search-clear-btn {
+    background: none !important;
+    border: none !important;
+    color: #94a3b8 !important;
+    font-size: 1.05rem !important;
+    padding: 4px !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
 }
 .mobile-search-submit-btn {
     background: #2874f0 !important;
     color: #ffffff !important;
     border: none !important;
-    border-radius: 18px !important;
-    padding: 6px 14px !important;
-    font-size: 0.82rem !important;
-    font-weight: 700 !important;
+    border-radius: 50% !important;
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    padding: 0 !important;
+    font-size: 0.85rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
     cursor: pointer !important;
+    flex-shrink: 0 !important;
+    box-shadow: 0 2px 6px rgba(40, 116, 240, 0.25) !important;
+    transition: transform 0.15s ease, background 0.15s ease !important;
+}
+.mobile-search-submit-btn:active {
+    transform: scale(0.92) !important;
+    background: #1d4ed8 !important;
 }
 .mobile-search-content {
     padding: 18px 16px !important;
@@ -1024,11 +1075,13 @@
             <i class="fa fa-search mobile-search-icon"></i>
             <input type="search" name="search" id="globalMobileSearchInput" placeholder="Search products, brands, categories…" value="{{ request.GET.search|default:'' }}" autocomplete="off" enterkeyhint="search">
             {% if request.GET.search %}
-            <button type="button" style="background:none;border:none;color:#94a3b8;cursor:pointer;padding:4px 6px;font-size:1rem;" onclick="document.getElementById('globalMobileSearchInput').value='';document.getElementById('globalMobileSearchInput').focus();" aria-label="Clear search">
+            <button type="button" class="mobile-search-clear-btn" onclick="document.getElementById('globalMobileSearchInput').value='';document.getElementById('globalMobileSearchInput').focus();" aria-label="Clear search">
                 <i class="fa fa-times-circle"></i>
             </button>
             {% endif %}
-            <button type="submit" class="mobile-search-submit-btn">Search</button>
+            <button type="submit" class="mobile-search-submit-btn" aria-label="Search" title="Search">
+                <i class="fa fa-search"></i>
+            </button>
         </form>
     </div>
     <div class="mobile-search-content">
