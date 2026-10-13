@@ -231,6 +231,11 @@
                 <span>Get App</span>
             </button>
 
+            <!-- Mobile Search Button (visible on mobile screens) -->
+            <button type="button" class="nav-link nav-icon-btn mobile-header-search-btn" onclick="openMobileSearch(event)" aria-label="Search products" title="Search">
+                <i class="fa fa-search"></i>
+            </button>
+
             <!-- Cart -->
             {% if user.is_authenticated and user.role == 'customer' or not user.is_authenticated %}
                 <a href="{% url 'shop:cart' %}" class="nav-link nav-icon-btn cart-link" aria-label="Shopping cart">
@@ -573,10 +578,10 @@
         <i class="fa fa-home"></i>
         <span>Home</span>
     </a>
-    <a href="{% url 'items:product_list' %}" class="bottom-nav-item {% if request.resolver_match.url_name == 'product_list' %}active{% endif %}" id="bottomExploreBtn" aria-label="Explore and Search">
+    <button type="button" class="bottom-nav-item {% if request.resolver_match.url_name == 'product_list' and not request.GET.search %}active{% endif %}" id="bottomExploreBtn" onclick="openMobileSearch(event)" aria-label="Explore and Search">
         <i class="fa fa-search"></i>
         <span>Explore</span>
-    </a>
+    </button>
     {% if user.is_authenticated and user.role == 'customer' or not user.is_authenticated %}
     <a href="{% url 'shop:cart' %}" class="bottom-nav-item" style="position:relative;">
         <i class="fa fa-shopping-bag"></i>
@@ -780,6 +785,30 @@
     justify-content: center !important;
     flex-shrink: 0 !important;
 }
+/* Mobile Header Search Button */
+.mobile-header-search-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: none !important;
+    border: none !important;
+    cursor: pointer !important;
+    font-size: 1.1rem !important;
+    color: #334155 !important;
+    padding: 7px 10px !important;
+    border-radius: 8px !important;
+    transition: background 0.2s ease !important;
+}
+.mobile-header-search-btn:hover {
+    background: #f1f5f9 !important;
+    color: #2874f0 !important;
+}
+@media (min-width: 640px) {
+    .mobile-header-search-btn {
+        display: none !important;
+    }
+}
+
 /* Mobile Search Overlay */
 .mobile-search-overlay {
     position: fixed !important;
@@ -787,10 +816,14 @@
     left: 0 !important;
     right: 0 !important;
     bottom: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
     background: #ffffff !important;
-    z-index: 10005 !important;
+    z-index: 999999 !important;
     display: none;
     flex-direction: column !important;
+    overflow: hidden !important;
 }
 .mobile-search-header {
     display: flex !important;
@@ -982,16 +1015,27 @@
 <!-- Mobile Search Modal Overlay -->
 <div id="mobileSearchOverlay" class="mobile-search-overlay" style="display: none !important;" role="dialog" aria-modal="true" aria-label="Search StallCart">
     <div class="mobile-search-header">
-        <button type="button" class="mobile-search-back-btn" id="closeMobileSearchBtn" aria-label="Back">
+        <button type="button" class="mobile-search-back-btn" id="closeMobileSearchBtn" onclick="closeMobileSearch(event)" aria-label="Close search">
             <i class="fa fa-arrow-left"></i>
         </button>
         <form method="get" action="{% url 'items:product_list' %}" class="mobile-search-input-form" id="mobileSearchInputForm">
             <i class="fa fa-search mobile-search-icon"></i>
-            <input type="search" name="search" id="globalMobileSearchInput" placeholder="Search products, brands, categories…" value="{{ request.GET.search|default:'' }}" autocomplete="off">
+            <input type="search" name="search" id="globalMobileSearchInput" placeholder="Search products, brands, categories…" value="{{ request.GET.search|default:'' }}" autocomplete="off" enterkeyhint="search">
+            {% if request.GET.search %}
+            <button type="button" style="background:none;border:none;color:#94a3b8;cursor:pointer;padding:4px 6px;font-size:1rem;" onclick="document.getElementById('globalMobileSearchInput').value='';document.getElementById('globalMobileSearchInput').focus();" aria-label="Clear search">
+                <i class="fa fa-times-circle"></i>
+            </button>
+            {% endif %}
             <button type="submit" class="mobile-search-submit-btn">Search</button>
         </form>
     </div>
     <div class="mobile-search-content">
+        <div style="margin-bottom: 16px;">
+            <a href="{% url 'items:product_list' %}" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: #eff6ff; border: 1.5px solid #bfdbfe; border-radius: 12px; color: #1d4ed8; font-weight: 700; font-size: 0.9rem; text-decoration: none;">
+                <span><i class="fa fa-th-large" style="margin-right: 8px;"></i> Browse All Products</span>
+                <i class="fa fa-arrow-right"></i>
+            </a>
+        </div>
         <div class="mobile-search-section-title">Popular Categories</div>
         <div class="mobile-search-tags">
             <a href="{% url 'items:product_list' %}" class="mobile-search-tag">🛍️ All Products</a>
@@ -1001,9 +1045,50 @@
             <a href="{% url 'items:product_list' %}?search=jewellery" class="mobile-search-tag">💍 Jewellery</a>
             <a href="{% url 'items:product_list' %}?search=electronics" class="mobile-search-tag">⚡ Electronics</a>
             <a href="{% url 'items:product_list' %}?search=beauty" class="mobile-search-tag">💄 Beauty</a>
+            <a href="{% url 'items:product_list' %}?search=shirt" class="mobile-search-tag">👕 Shirts</a>
+            <a href="{% url 'items:product_list' %}?search=saree" class="mobile-search-tag">🥻 Sarees</a>
+            <a href="{% url 'items:product_list' %}?search=shoes" class="mobile-search-tag">👟 Shoes</a>
         </div>
     </div>
 </div>
+
+<script>
+// 🔍 Global Mobile Search Functions (Immediate execution without DOMContentLoaded dependency)
+window.openMobileSearch = function(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    if (e && e.stopPropagation) e.stopPropagation();
+    var overlay = document.getElementById('mobileSearchOverlay');
+    if (overlay) {
+        overlay.style.setProperty('display', 'flex', 'important');
+        document.body.style.overflow = 'hidden';
+        var input = document.getElementById('globalMobileSearchInput');
+        if (input) {
+            setTimeout(function() {
+                input.focus();
+                if (input.value) input.select();
+            }, 60);
+        }
+    }
+    return false;
+};
+
+window.closeMobileSearch = function(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    if (e && e.stopPropagation) e.stopPropagation();
+    var overlay = document.getElementById('mobileSearchOverlay');
+    if (overlay) {
+        overlay.style.setProperty('display', 'none', 'important');
+        document.body.style.overflow = '';
+    }
+    return false;
+};
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        window.closeMobileSearch(e);
+    }
+});
+</script>
 
 <!-- ══════════════════════════════════════
      SCRIPTS
@@ -1011,38 +1096,15 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
 
-    // 🔍 Mobile Bottom Nav Explore / Search Handler
+    // 🔍 Mobile Bottom Nav Explore / Search Backup Listeners
     const bottomExploreBtn = document.getElementById('bottomExploreBtn');
-    const mobileSearchOverlay = document.getElementById('mobileSearchOverlay');
     const closeMobileSearchBtn = document.getElementById('closeMobileSearchBtn');
-    const globalMobileSearchInput = document.getElementById('globalMobileSearchInput');
-
-    if (bottomExploreBtn && mobileSearchOverlay) {
-        bottomExploreBtn.addEventListener('click', (e) => {
-            const catalogInput = document.getElementById('catalogSearchInput');
-            if (catalogInput && window.innerWidth <= 768) {
-                // If on catalog page on mobile, focus catalog search directly
-                catalogInput.focus();
-                catalogInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                return;
-            }
-            // Open mobile search sheet directly
-            e.preventDefault();
-            mobileSearchOverlay.style.setProperty('display', 'flex', 'important');
-            document.body.style.overflow = 'hidden';
-            setTimeout(() => {
-                if (globalMobileSearchInput) globalMobileSearchInput.focus();
-            }, 100);
-        });
+    if (bottomExploreBtn) {
+        bottomExploreBtn.addEventListener('click', window.openMobileSearch);
     }
-
-    function closeMobileSearch() {
-        if (mobileSearchOverlay) {
-            mobileSearchOverlay.style.setProperty('display', 'none', 'important');
-            document.body.style.overflow = '';
-        }
+    if (closeMobileSearchBtn) {
+        closeMobileSearchBtn.addEventListener('click', window.closeMobileSearch);
     }
-    closeMobileSearchBtn?.addEventListener('click', closeMobileSearch);
 
     // Announcement bar
     document.getElementById('announcementClose')?.addEventListener('click', () => {

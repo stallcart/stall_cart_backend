@@ -917,4 +917,25 @@ class PwaAppInstallTests(TestCase):
         self.assertEqual(resp_apk.status_code, 302)
         self.assertEqual(resp_apk.url, '/?source=pwa&action=install')
 
+    def test_mobile_explore_and_search_elements_present_and_functional(self):
+        """Verify that bottom nav Explore button, header search trigger, and mobileSearchOverlay are properly wired."""
+        response = self.client.get('/')
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode('utf-8')
+
+        # Mobile header search button
+        self.assertIn('mobile-header-search-btn', content)
+        self.assertIn('onclick="openMobileSearch(event)"', content)
+
+        # Bottom nav explore button (must be button with onclick, not bare a-tag)
+        self.assertIn('id="bottomExploreBtn"', content)
+        self.assertIn('<button type="button" class="bottom-nav-item', content)
+
+        # Mobile search modal overlay
+        self.assertIn('id="mobileSearchOverlay"', content)
+        self.assertIn('id="closeMobileSearchBtn"', content)
+        self.assertIn('id="globalMobileSearchInput"', content)
+        self.assertIn('window.openMobileSearch = function', content)
+        self.assertIn('window.closeMobileSearch = function', content)
+
 
