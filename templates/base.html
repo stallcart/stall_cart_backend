@@ -873,8 +873,12 @@
 </style>
 
 <div id="pwaInstallBanner" class="pwa-install-banner" style="display: none !important;" role="dialog" aria-label="Install StallCart App">
+    <!-- Close cross button on LEFT side -->
+    <button type="button" class="pwa-close-btn" id="pwaCloseBtn" aria-label="Close install banner" title="Close">
+        &times;
+    </button>
     <div class="pwa-banner-content">
-        <img src="{% static 'images/icons/android-chrome-192x192.png' %}" alt="StallCart App" class="pwa-app-icon" width="40" height="40">
+        <img src="{% static 'images/icons/android-chrome-192x192.png' %}" alt="StallCart App" class="pwa-app-icon" width="38" height="38">
         <div class="pwa-app-details">
             <div class="pwa-app-title">
                 <span>StallCart App</span>
@@ -887,9 +891,6 @@
         <button type="button" class="pwa-install-btn" id="pwaInstallBtn" aria-label="Install StallCart App">
             <i class="fa fa-download"></i>
             <span>Install</span>
-        </button>
-        <button type="button" class="pwa-close-btn" id="pwaCloseBtn" aria-label="Close install banner">
-            &times;
         </button>
     </div>
 </div>
