@@ -45,7 +45,9 @@ urlpatterns = [
     path('products/', items_views.product_list, name='product_list_direct'),
     path('product/<slug:slug>/', items_views.product_detail, name='product_detail_direct'),
     path('wishlist/', items_views.wishlist_page, name='wishlist_direct'),
-    path('campaign/<slug:slug>/', common_views.campaign_detail_view, name='campaign_detail_direct'),
+    # Universal app download & APK routes
+    path('download/app/', common_views.download_app_view, name='download_app'),
+    path('download/apk/', common_views.download_apk_view, name='download_apk'),
 
     # App icons & Web Manifest for Chrome shortcuts & PWAs
     path('favicon.ico', RedirectView.as_view(url=settings.STATIC_URL + 'favicon.ico', permanent=True), name='favicon_ico'),

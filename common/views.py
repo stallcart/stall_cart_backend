@@ -2,12 +2,11 @@
 from django.contrib import messages
 from django.shortcuts import redirect, resolve_url
 from django.urls import reverse
-from django.http import HttpResponse, JsonResponse
-from pathlib import Path  # ← Required for firebase_sw view
-
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse, HttpResponseRedirect
 from django.conf import settings
 from django.views.decorators.cache import never_cache
+from pathlib import Path  # ← Required for firebase_sw view
+import os
 import json
 
 def custom_404(request, exception=None):
@@ -306,3 +305,29 @@ def campaign_detail_view(request, slug):
         'is_live': campaign.is_live,
     }
     return render(request, 'common/campaign_detail.html', context)
+
+
+def download_apk_view(request):
+    """
+    Direct endpoint for downloading StallCart Android APK.
+    If StallCart.apk exists in media/downloads/ or static/downloads/, stream it as attachment.
+    Otherwise, redirect to the web app install flow.
+    """
+    apk_candidates = [
+        os.path.join(settings.BASE_DIR, 'media', 'downloads', 'StallCart.apk'),
+        os.path.join(settings.BASE_DIR, 'static', 'downloads', 'StallCart.apk'),
+    ]
+    for apk_path in apk_candidates:
+        if os.path.exists(apk_path):
+            from django.http import FileResponse
+            return FileResponse(open(apk_path, 'rb'), as_attachment=True, filename='StallCart.apk')
+
+    return HttpResponseRedirect('/?source=pwa&action=install')
+
+
+def download_app_view(request):
+    """
+    Universal shareable link: https://stallcart.in/download/app/
+    Redirects to homepage with direct install action.
+    """
+    return HttpResponseRedirect('/?source=pwa&action=install')

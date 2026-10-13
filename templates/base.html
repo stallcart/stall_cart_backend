@@ -1357,6 +1357,21 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     desktopBtn?.addEventListener('click', triggerInstallFlow);
 
+    // Auto-trigger install flow if opened via share link (/download/app/ or ?action=install)
+    const actionParam = new URLSearchParams(window.location.search).get('action');
+    if (actionParam === 'install' && !isRunningInstalledApp()) {
+        setTimeout(triggerInstallFlow, 600);
+    }
+
+    // Auto-check for Service Worker updates on window focus to ensure installed app is always in sync
+    window.addEventListener('focus', () => {
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistration().then(reg => {
+                if (reg) reg.update();
+            });
+        }
+    });
+
     // Dismiss floating banner
     closeBtn?.addEventListener('click', () => {
         if (banner) banner.style.display = 'none';

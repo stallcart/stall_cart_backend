@@ -900,3 +900,16 @@ class PwaAppInstallTests(TestCase):
         self.assertIn('name="mobile-web-app-capable"', content)
         self.assertIn('name="apple-mobile-web-app-capable"', content)
 
+    def test_download_app_and_apk_endpoints(self):
+        """Verify /download/app/ and /download/apk/ routes work and redirect appropriately."""
+        # /download/app/ should redirect to /?source=pwa&action=install
+        resp_app = self.client.get('/download/app/')
+        self.assertEqual(resp_app.status_code, 302)
+        self.assertEqual(resp_app.url, '/?source=pwa&action=install')
+
+        # /download/apk/ without apk file on disk should redirect to install action
+        resp_apk = self.client.get('/download/apk/')
+        self.assertEqual(resp_apk.status_code, 302)
+        self.assertEqual(resp_apk.url, '/?source=pwa&action=install')
+
+
