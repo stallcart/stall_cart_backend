@@ -938,4 +938,15 @@ class PwaAppInstallTests(TestCase):
         self.assertIn('window.openMobileSearch = function', content)
         self.assertIn('window.closeMobileSearch = function', content)
 
+    def test_whatsapp_dual_share_handlers_present(self):
+        """Verify that WhatsApp sharing buttons invoke shareAppOnWhatsApp for dual WhatsApp / native picker support."""
+        response = self.client.get('/')
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode('utf-8')
+
+        self.assertIn('window.shareAppOnWhatsApp = function', content)
+        self.assertIn('onclick="shareAppOnWhatsApp(event)"', content)
+        self.assertIn('navigator.share', content)
+        self.assertIn('whatsapp://send', content)
+
 

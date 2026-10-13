@@ -324,6 +324,7 @@
             <a href="https://api.whatsapp.com/send?text=🛍️%20Shop%20faster%20with%20the%20official%20StallCart%20App!%20Install%20now%20for%20exclusive%20deals%20and%20unbeatable%20prices:%20https://stallcart.in/download/app/"
                target="_blank"
                rel="noopener noreferrer"
+               onclick="shareAppOnWhatsApp(event)"
                style="display: flex; align-items: center; justify-content: center; gap: 8px; background: #25d366; color: #ffffff; padding: 10px 14px; border-radius: 10px; font-weight: 700; font-size: 0.86rem; text-decoration: none; box-shadow: 0 2px 8px rgba(37, 211, 102, 0.25);">
                 <i class="fab fa-whatsapp" style="font-size: 1.15rem;"></i>
                 <span>Share App on WhatsApp</span>
@@ -1001,6 +1002,7 @@
             <a href="https://api.whatsapp.com/send?text=🛍️%20Shop%20faster%20with%20the%20official%20StallCart%20App!%20Install%20now%20for%20exclusive%20deals:%20https://stallcart.in/download/app/"
                target="_blank"
                rel="noopener noreferrer"
+               onclick="shareAppOnWhatsApp(event)"
                style="width: 100%; box-sizing: border-box; text-align: center; padding: 11px; background: #e8fdf0; color: #15803d; border: 1.5px solid #86efac; border-radius: 10px; font-weight: 700; font-size: 13px; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px;">
                 <i class="fab fa-whatsapp" style="color: #25d366; font-size: 1.15rem;"></i> Share with Friends on WhatsApp
             </a>
@@ -1088,6 +1090,31 @@ document.addEventListener('keydown', function(e) {
         window.closeMobileSearch(e);
     }
 });
+
+// 📲 Dual WhatsApp & System App Picker Share Handler
+window.shareAppOnWhatsApp = function(e) {
+    var shareText = '🛍️ Shop faster with the official StallCart App! Install now for exclusive deals & unbeatable prices: https://stallcart.in/download/app/';
+    var shareUrl = 'https://stallcart.in/download/app/';
+
+    // Web Share API triggers the native system share drawer where users with
+    // Dual WhatsApp, Cloned WhatsApp, or WhatsApp Business can select which account to share with.
+    if (navigator.share) {
+        if (e && e.preventDefault) e.preventDefault();
+        navigator.share({
+            title: 'StallCart App',
+            text: shareText,
+            url: shareUrl
+        }).catch(function(err) {
+            // User cancelled (AbortError) - ignore. For other errors, fallback to whatsapp:// scheme
+            if (err && err.name !== 'AbortError') {
+                window.location.href = 'whatsapp://send?text=' + encodeURIComponent(shareText);
+            }
+        });
+        return false;
+    }
+    // Desktop / non-WebShare fallback: allows default href="https://api.whatsapp.com/..." navigation
+    return true;
+};
 </script>
 
 <!-- ══════════════════════════════════════
