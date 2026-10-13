@@ -1,0 +1,304 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Download StallCart App | Fast, Lite & 100% Secure{% endblock %}
+{% block meta_description %}Download the official StallCart App. Discover trending fashion, footwear & electronics with exclusive app discounts and fast delivery.{% endblock %}
+
+{% block extra_css %}
+<style>
+.download-page-wrap {
+    background: linear-gradient(180deg, #f0f7ff 0%, #ffffff 40%);
+    min-height: calc(100vh - 120px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 0 40px;
+}
+.download-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 24px;
+    padding: 28px 22px;
+    box-shadow: 0 12px 36px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(40, 116, 240, 0.04);
+    text-align: center;
+}
+.download-icon-wrap {
+    position: relative;
+    display: inline-block;
+    margin-bottom: 14px;
+}
+.download-app-icon {
+    width: 96px;
+    height: 96px;
+    border-radius: 22px;
+    box-shadow: 0 8px 20px rgba(40, 116, 240, 0.16);
+    display: block;
+}
+.download-verified-badge {
+    position: absolute;
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #16a34a;
+    color: #ffffff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 12px;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    border: 2px solid #ffffff;
+}
+.download-app-title {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 10px 0 2px;
+    letter-spacing: -0.02em;
+}
+.download-app-tagline {
+    font-size: 0.88rem;
+    color: #64748b;
+    margin: 0 0 18px;
+    font-weight: 500;
+}
+.download-stats-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 12px 8px;
+    margin-bottom: 22px;
+}
+.download-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    flex: 1;
+}
+.download-stat .stat-value {
+    font-size: 1rem;
+    font-weight: 800;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+.download-stat .stat-label {
+    font-size: 0.72rem;
+    color: #64748b;
+    font-weight: 600;
+}
+.stat-divider {
+    width: 1px;
+    height: 28px;
+    background: #e2e8f0;
+}
+.download-action-wrap {
+    margin-bottom: 16px;
+}
+.btn-download-primary {
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: #2874f0;
+    color: #ffffff;
+    border: none;
+    border-radius: 14px;
+    padding: 15px 20px;
+    font-size: 1.05rem;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 8px 24px rgba(40, 116, 240, 0.35);
+    transition: transform 0.15s ease, background 0.15s ease;
+}
+.btn-download-primary:active {
+    transform: scale(0.98);
+    background: #1d4ed8;
+}
+.in-app-notice {
+    background: #fffbeb;
+    border: 1.5px solid #fde68a;
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-size: 0.8rem;
+    color: #92400e;
+    line-height: 1.45;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    text-align: left;
+}
+.download-benefits-list {
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background: #ffffff;
+    border: 1px solid #f1f5f9;
+    border-radius: 16px;
+    padding: 16px 14px;
+    margin-bottom: 22px;
+}
+.benefit-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+.benefit-icon {
+    font-size: 1rem;
+    margin-top: 3px;
+    flex-shrink: 0;
+}
+.benefit-item strong {
+    display: block;
+    font-size: 0.85rem;
+    color: #0f172a;
+    font-weight: 700;
+    margin-bottom: 1px;
+}
+.benefit-item p {
+    font-size: 0.76rem;
+    color: #64748b;
+    margin: 0;
+    line-height: 1.4;
+}
+.download-footer-links {
+    margin-top: 10px;
+}
+.link-continue-web {
+    display: inline-block;
+    color: #2874f0;
+    font-size: 0.88rem;
+    font-weight: 700;
+    text-decoration: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    transition: background 0.2s ease;
+}
+.link-continue-web:hover {
+    background: #eff6ff;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="download-page-wrap">
+    <div class="container" style="max-width: 480px; padding: 20px 16px;">
+        
+        <!-- App Download Card -->
+        <div class="download-card">
+            
+            <div class="download-icon-wrap">
+                <img src="{% static 'images/icons/android-chrome-192x192.png' %}" alt="StallCart App Icon" class="download-app-icon">
+                <div class="download-verified-badge"><i class="fa fa-check"></i> Verified</div>
+            </div>
+
+            <h1 class="download-app-title">StallCart</h1>
+            <p class="download-app-tagline">Official Online Shopping App</p>
+
+            <!-- Stats -->
+            <div class="download-stats-bar">
+                <div class="download-stat">
+                    <span class="stat-value">4.8 <i class="fa fa-star" style="color: #f59e0b; font-size: 0.8rem;"></i></span>
+                    <span class="stat-label">15K+ Reviews</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="download-stat">
+                    <span class="stat-value">2 MB</span>
+                    <span class="stat-label">Fast & Lite</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="download-stat">
+                    <span class="stat-value">100%</span>
+                    <span class="stat-label">Secure</span>
+                </div>
+            </div>
+
+            <!-- Big Download & Install Button -->
+            <div class="download-action-wrap">
+                <button type="button" class="btn-download-primary" id="pageInstallBtn" onclick="triggerPageInstall()">
+                    <i class="fa fa-download"></i>
+                    <span>Install StallCart App</span>
+                </button>
+            </div>
+
+            <!-- In-App WhatsApp Browser Notice (only shown when opened inside WhatsApp/FB/Insta) -->
+            <div id="inAppBrowserNotice" class="in-app-notice" style="display: none;">
+                <i class="fa fa-info-circle" style="font-size: 1.1rem; color: #f59e0b; flex-shrink: 0; margin-top: 2px;"></i>
+                <div>
+                    <strong>Opened in WhatsApp?</strong><br>
+                    Tap the <strong>3-dots menu (⋮)</strong> in the top-right corner and tap <strong>"Open in Chrome"</strong> to install directly onto your home screen!
+                </div>
+            </div>
+
+            <!-- Key Features -->
+            <div class="download-benefits-list">
+                <div class="benefit-item">
+                    <i class="fa fa-bolt benefit-icon" style="color: #f59e0b;"></i>
+                    <div>
+                        <strong>Exclusive App Deals</strong>
+                        <p>Unlock app-only coupons, flash sales, and special discounts.</p>
+                    </div>
+                </div>
+                <div class="benefit-item">
+                    <i class="fa fa-shield-alt benefit-icon" style="color: #16a34a;"></i>
+                    <div>
+                        <strong>100% Original Brands</strong>
+                        <p>Direct from verified sellers with easy returns and buyer guarantee.</p>
+                    </div>
+                </div>
+                <div class="benefit-item">
+                    <i class="fa fa-truck-fast benefit-icon" style="color: #2874f0;"></i>
+                    <div>
+                        <strong>Fast Delivery & Live Tracking</strong>
+                        <p>Real-time delivery notifications straight to your phone.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Continue to Website -->
+            <div class="download-footer-links">
+                <a href="{% url 'shop:home' %}" class="link-continue-web">
+                    Continue to Web Store →
+                </a>
+            </div>
+
+        </div>
+
+    </div>
+</section>
+
+<script>
+function triggerPageInstall() {
+    if (window.triggerInstallFlow) {
+        window.triggerInstallFlow();
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Detect in-app webview
+    const isWebView = /WhatsApp|FBAN|FBAV|Instagram/i.test(navigator.userAgent);
+    if (isWebView) {
+        const notice = document.getElementById('inAppBrowserNotice');
+        if (notice) notice.style.display = 'flex';
+    }
+
+    // Auto-prompt after brief delay if available
+    setTimeout(() => {
+        if (window.triggerInstallFlow && !isWebView) {
+            window.triggerInstallFlow();
+        }
+    }, 600);
+});
+</script>
+{% endblock %}

@@ -1,6 +1,6 @@
 # common/views.py
 from django.contrib import messages
-from django.shortcuts import redirect, resolve_url
+from django.shortcuts import redirect, resolve_url, render
 from django.urls import reverse
 from django.http import HttpResponse, JsonResponse, HttpResponseRedirect
 from django.conf import settings
@@ -328,6 +328,6 @@ def download_apk_view(request):
 def download_app_view(request):
     """
     Universal shareable link: https://stallcart.in/download/app/
-    Redirects to homepage with direct install action.
+    Renders dedicated App Download page with direct install flow.
     """
-    return HttpResponseRedirect('/?source=pwa&action=install')
+    return render(request, 'common/download_app.html')

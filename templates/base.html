@@ -225,10 +225,10 @@
                 </div>
             {% endif %}
 
-            <!-- PWA Desktop Install Pill -->
+            <!-- PWA Header Install Pill (Mobile & Desktop) -->
             <button type="button" class="pwa-desktop-btn" id="pwaDesktopInstallBtn" style="display: none;" title="Install StallCart App">
                 <i class="fa fa-download"></i>
-                <span>Get App</span>
+                <span class="hide-mobile">Get </span><span>App</span>
             </button>
 
             <!-- Mobile Search Button (visible on mobile screens) -->
@@ -624,6 +624,38 @@
      PWA APP INSTALL BANNER & MODALS (SELF-CONTAINED STYLES)
 ══════════════════════════════════════ -->
 <style>
+/* PWA Header Install Pill - shown on mobile & desktop */
+.pwa-desktop-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    background: #eff6ff !important;
+    color: #2874f0 !important;
+    border: 1.5px solid #bfdbfe !important;
+    border-radius: 14px !important;
+    padding: 4px 8px !important;
+    font-size: 0.74rem !important;
+    font-weight: 700 !important;
+    cursor: pointer !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    margin-right: 2px !important;
+    font-family: inherit !important;
+    transition: all 0.2s ease !important;
+}
+.pwa-desktop-btn:hover, .pwa-desktop-btn:active {
+    background: #2874f0 !important;
+    color: #ffffff !important;
+    border-color: #2874f0 !important;
+    box-shadow: 0 4px 10px rgba(40, 116, 240, 0.25) !important;
+}
+@media (min-width: 768px) {
+    .pwa-desktop-btn {
+        padding: 6px 14px !important;
+        font-size: 0.82rem !important;
+        border-radius: 20px !important;
+    }
+}
 .pwa-install-banner {
     position: fixed !important;
     bottom: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
@@ -1793,14 +1825,16 @@ document.addEventListener('DOMContentLoaded', () => {
         return /iPhone|iPad|iPod/i.test(navigator.userAgent) && !window.MSStream;
     }
 
-    // Check if user dismissed floating banner within 24h
+    // Check if user dismissed floating banner within 1h (never snoozed if action=install)
     function isBannerSnoozed() {
         try {
+            const actionParam = new URLSearchParams(window.location.search).get('action');
+            if (actionParam === 'install') return false;
             const dismissedAt = localStorage.getItem('stallcart_pwa_dismissed');
             if (!dismissedAt) return false;
             const now = Date.now();
             const diffHours = (now - parseInt(dismissedAt, 10)) / (1000 * 60 * 60);
-            return diffHours < 24;
+            return diffHours < 1;
         } catch(e) {
             return false;
         }
@@ -1830,7 +1864,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (drawerItem) drawerItem.style.display = 'block';
 
-        if (desktopBtn && window.innerWidth >= 768) {
+        if (desktopBtn) {
             desktopBtn.style.display = 'inline-flex';
         }
 
