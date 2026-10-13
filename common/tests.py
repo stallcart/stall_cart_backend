@@ -905,6 +905,10 @@ class PwaAppInstallTests(TestCase):
         self.assertIn('name="mobile-web-app-capable"', content)
         self.assertIn('name="apple-mobile-web-app-capable"', content)
 
+        # Permanent Quick Links and navigation app download link
+        self.assertIn('href="/download/app/"', content)
+        self.assertIn('Download App', content)
+
     def test_download_app_and_apk_endpoints(self):
         """Verify /download/app/ renders dedicated app download page and /download/apk/ works."""
         # /download/app/ renders dedicated download landing page

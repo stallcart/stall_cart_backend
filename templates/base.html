@@ -341,6 +341,11 @@
             <span class="mobile-nav-icon"><i class="fa fa-th-large"></i></span>
             All Products
         </a>
+        <a href="{% url 'download_app' %}" class="mobile-nav-item">
+            <span class="mobile-nav-icon" style="color: #2874f0;"><i class="fa fa-mobile-alt"></i></span>
+            Download App
+            <span class="mobile-badge" style="background: #2874f0; color: #fff; font-size: 0.65rem; font-weight: 700; padding: 2px 6px; border-radius: 4px;">FREE</span>
+        </a>
 
         {% if user.is_authenticated %}
             <div class="mobile-nav-section-label">Account Options</div>
@@ -534,6 +539,11 @@
                         <li><a href="{% url 'shop:home' %}">Shop</a></li>
                         <li><a href="{% url 'items:product_list' %}">All Products</a></li>
                         <li><a href="{% url 'blog:blog_list' %}">Blog</a></li>
+                        <li>
+                            <a href="{% url 'download_app' %}">
+                                <i class="fa fa-mobile-alt" style="margin-right: 5px; color: var(--blue-500);"></i> Download App
+                            </a>
+                        </li>
                     </ul>
                 </div>
 
