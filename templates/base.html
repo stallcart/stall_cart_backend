@@ -321,7 +321,7 @@
 
         <!-- Share App via WhatsApp -->
         <div style="margin: 6px 14px 14px;">
-            <a href="https://api.whatsapp.com/send?text=🛍️%20Shop%20faster%20with%20the%20official%20StallCart%20App!%20Install%20now%20for%20exclusive%20deals%20and%20unbeatable%20prices:%20https://stallcart.in/download/app/"
+            <a href="https://api.whatsapp.com/send?text=%E2%9C%A8%20*StallCart%20%E2%80%94%20Official%20Shopping%20App*%20%E2%9C%A8%0A_Fast%20%E2%80%A2%20Secure%20%E2%80%A2%20100%25%20Original%20Brands_%0A%0A%F0%9F%9B%8D%EF%B8%8F%20Discover%20trending%20fashion%2C%20footwear%20%26%20electronics%20at%20unbeatable%20prices!%0A%0A%F0%9F%8E%81%20*App%20Benefits%3A*%0A%E2%80%A2%20Exclusive%20App-Only%20Offers%0A%E2%80%A2%20Fast%20Delivery%20Across%20India%0A%E2%80%A2%20Safe%20%26%20Verified%20Shopping%0A%0A%F0%9F%93%B2%20*Install%20StallCart%20App%20Now%3A*%0Ahttps%3A%2F%2Fstallcart.in%2Fdownload%2Fapp%2F"
                target="_blank"
                rel="noopener noreferrer"
                onclick="shareAppOnWhatsApp(event)"
@@ -1050,7 +1050,7 @@
             </div>
         </div>
         <div style="display: flex; flex-direction: column; gap: 8px;">
-            <a href="https://api.whatsapp.com/send?text=🛍️%20Shop%20faster%20with%20the%20official%20StallCart%20App!%20Install%20now%20for%20exclusive%20deals:%20https://stallcart.in/download/app/"
+            <a href="https://api.whatsapp.com/send?text=%E2%9C%A8%20*StallCart%20%E2%80%94%20Official%20Shopping%20App*%20%E2%9C%A8%0A_Fast%20%E2%80%A2%20Secure%20%E2%80%A2%20100%25%20Original%20Brands_%0A%0A%F0%9F%9B%8D%EF%B8%8F%20Discover%20trending%20fashion%2C%20footwear%20%26%20electronics%20at%20unbeatable%20prices!%0A%0A%F0%9F%8E%81%20*App%20Benefits%3A*%0A%E2%80%A2%20Exclusive%20App-Only%20Offers%0A%E2%80%A2%20Fast%20Delivery%20Across%20India%0A%E2%80%A2%20Safe%20%26%20Verified%20Shopping%0A%0A%F0%9F%93%B2%20*Install%20StallCart%20App%20Now%3A*%0Ahttps%3A%2F%2Fstallcart.in%2Fdownload%2Fapp%2F"
                target="_blank"
                rel="noopener noreferrer"
                onclick="shareAppOnWhatsApp(event)"
@@ -1144,29 +1144,40 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
-// 📲 Dual WhatsApp & System App Picker Share Handler
+// 📲 Premium WhatsApp & Dual App Picker Share Handler
 window.shareAppOnWhatsApp = function(e) {
-    var shareText = '🛍️ Shop faster with the official StallCart App! Install now for exclusive deals & unbeatable prices: https://stallcart.in/download/app/';
-    var shareUrl = 'https://stallcart.in/download/app/';
+    if (e && e.preventDefault) e.preventDefault();
 
-    // Web Share API triggers the native system share drawer where users with
-    // Dual WhatsApp, Cloned WhatsApp, or WhatsApp Business can select which account to share with.
+    var premiumMessage = 
+        '✨ *StallCart — Official Shopping App* ✨\n' +
+        '_Fast • Secure • 100% Original Brands_\n\n' +
+        '🛍️ Discover trending fashion, footwear & electronics at unbeatable prices!\n\n' +
+        '🎁 *App Benefits:*\n' +
+        '• Exclusive App-Only Offers\n' +
+        '• Fast Delivery Across India\n' +
+        '• Safe & Verified Shopping\n\n' +
+        '📲 *Install StallCart App Now:*\n' +
+        'https://stallcart.in/download/app/';
+
+    // Web Share API triggers the native system share drawer (Dual WhatsApp / Cloned WhatsApp).
+    // IMPORTANT: We pass only `text` (which already contains the single URL at the bottom)
+    // so Android Chrome does NOT append the URL a second time.
     if (navigator.share) {
-        if (e && e.preventDefault) e.preventDefault();
         navigator.share({
             title: 'StallCart App',
-            text: shareText,
-            url: shareUrl
+            text: premiumMessage
         }).catch(function(err) {
             // User cancelled (AbortError) - ignore. For other errors, fallback to whatsapp:// scheme
             if (err && err.name !== 'AbortError') {
-                window.location.href = 'whatsapp://send?text=' + encodeURIComponent(shareText);
+                window.location.href = 'whatsapp://send?text=' + encodeURIComponent(premiumMessage);
             }
         });
         return false;
     }
-    // Desktop / non-WebShare fallback: allows default href="https://api.whatsapp.com/..." navigation
-    return true;
+
+    // Fallback for desktop / non-WebShare browsers
+    window.open('https://api.whatsapp.com/send?text=' + encodeURIComponent(premiumMessage), '_blank');
+    return false;
 };
 </script>
 
