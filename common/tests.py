@@ -910,19 +910,18 @@ class PwaAppInstallTests(TestCase):
         self.assertIn('Download App', content)
 
     def test_download_app_and_apk_endpoints(self):
-        """Verify /download/app/ renders dedicated app download page and /download/apk/ serves the APK."""
+        """Verify /download/app/ renders dedicated app install page and /download/apk/ redirects to it."""
         # /download/app/ renders dedicated download landing page
         resp_app = self.client.get('/download/app/')
         self.assertEqual(resp_app.status_code, 200)
         content = resp_app.content.decode('utf-8')
-        self.assertIn('Download Android App (.APK)', content)
-        self.assertIn('href="/download/apk/"', content)
+        self.assertIn('Install StallCart App', content)
+        self.assertIn('Open in Google Chrome', content)
 
-        # /download/apk/ serves StallCart.apk directly as attachment
+        # /download/apk/ redirects directly to verified app install page
         resp_apk = self.client.get('/download/apk/')
-        self.assertEqual(resp_apk.status_code, 200)
-        self.assertEqual(resp_apk['Content-Type'], 'application/vnd.android.package-archive')
-        self.assertIn('StallCart.apk', resp_apk['Content-Disposition'])
+        self.assertEqual(resp_apk.status_code, 302)
+        self.assertEqual(resp_apk.url, '/download/app/')
 
     def test_mobile_explore_and_search_elements_present_and_functional(self):
         """Verify that bottom nav Explore button, header search trigger, and mobileSearchOverlay are properly wired."""

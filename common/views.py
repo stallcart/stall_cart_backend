@@ -309,22 +309,10 @@ def campaign_detail_view(request, slug):
 
 def download_apk_view(request):
     """
-    Direct endpoint for downloading StallCart Android APK.
-    If StallCart.apk exists in media/downloads/ or static/downloads/, stream it as attachment.
-    Otherwise, redirect to the web app install flow.
+    Direct endpoint for downloading StallCart Android App.
+    Redirects to the secure, verified PWA Web App install page.
     """
-    apk_candidates = [
-        os.path.join(settings.BASE_DIR, 'static', 'downloads', 'StallCart.apk'),
-        os.path.join(settings.BASE_DIR, 'media', 'downloads', 'StallCart.apk'),
-    ]
-    for apk_path in apk_candidates:
-        if os.path.exists(apk_path):
-            from django.http import FileResponse
-            response = FileResponse(open(apk_path, 'rb'), as_attachment=True, filename='StallCart.apk')
-            response['Content-Type'] = 'application/vnd.android.package-archive'
-            return response
-
-    return HttpResponseRedirect('/?source=pwa&action=install')
+    return HttpResponseRedirect('/download/app/')
 
 
 def download_app_view(request):
