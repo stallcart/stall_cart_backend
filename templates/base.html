@@ -1809,42 +1809,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let deferredPrompt = null;
 
-    // Detect if already installed or running standalone
+    // Detect if already installed and running standalone
     function isRunningInstalledApp() {
         if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
         if (window.navigator.standalone === true) return true;
         if (document.referrer && document.referrer.includes('android-app://')) return true;
-
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('source') === 'pwa' || urlParams.get('utm_source') === 'pwa_app') {
-            try { localStorage.setItem('stallcart_pwa_installed', 'true'); } catch(e) {}
-            return true;
-        }
-
-        try {
-            if (localStorage.getItem('stallcart_pwa_installed') === 'true') {
-                return true;
-            }
-        } catch(e) {}
-
         return false;
     }
+
+    // Clean up any stale localStorage blocker from previous test sessions
+    try {
+        localStorage.removeItem('stallcart_pwa_installed');
+    } catch(e) {}
 
     // Detect iOS Safari
     function isIosDevice() {
         return /iPhone|iPad|iPod/i.test(navigator.userAgent) && !window.MSStream;
     }
 
-    // Check if user dismissed floating banner within 1h (never snoozed if action=install)
+    // Check if user dismissed floating banner (snoozed only 15 minutes, never on /download/app/)
     function isBannerSnoozed() {
         try {
             const actionParam = new URLSearchParams(window.location.search).get('action');
             if (actionParam === 'install') return false;
+            if (window.location.pathname.includes('/download/app')) return false;
             const dismissedAt = localStorage.getItem('stallcart_pwa_dismissed');
             if (!dismissedAt) return false;
             const now = Date.now();
-            const diffHours = (now - parseInt(dismissedAt, 10)) / (1000 * 60 * 60);
-            return diffHours < 1;
+            const diffMinutes = (now - parseInt(dismissedAt, 10)) / (1000 * 60);
+            return diffMinutes < 15;
         } catch(e) {
             return false;
         }
@@ -1859,13 +1852,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.classList.remove('has-pwa-banner');
     }
 
-    // If already installed, hide everything and do not show anything
-    if (isRunningInstalledApp()) {
-        hideAllInstallUI();
-        return;
-    }
-
-    // Show install options when not installed
+    // Show install options when in browser tab
     function showInstallOptions() {
         if (isRunningInstalledApp()) {
             hideAllInstallUI();
@@ -1875,7 +1862,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (drawerItem) drawerItem.style.display = 'block';
 
         if (desktopBtn) {
-            desktopBtn.style.display = 'inline-flex';
+            desktopBtn.style.setProperty('display', 'inline-flex', 'important');
         }
 
         if (banner && !isBannerSnoozed()) {
@@ -1884,7 +1871,49 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Intercept Chrome/Android beforeinstallprompt
+    // Trigger installation
+    async function triggerInstallFlow() {
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            try {
+                const choice = await deferredPrompt.userChoice;
+                if (choice && choice.outcome === 'accepted') {
+                    hideAllInstallUI();
+                    if (window.showToast) showToast('Installing StallCart App...', 'success');
+                }
+            } catch(e) {}
+            deferredPrompt = null;
+        } else if (isIosDevice()) {
+            if (iosModal) iosModal.style.setProperty('display', 'flex', 'important');
+        } else if (window.innerWidth >= 768) {
+            // Desktop: if prompt not ready, redirect to /download/app/ or show address bar hint
+            if (window.location.pathname !== '/download/app/') {
+                window.location.href = "{% url 'download_app' %}";
+            } else if (window.showToast) {
+                showToast('Click the Install icon (⊕) in your browser address bar', 'info');
+            } else {
+                alert('Click the Install icon (⊕) in the right side of your browser address bar to install.');
+            }
+        } else {
+            // Mobile Android
+            if (androidModal) {
+                androidModal.style.setProperty('display', 'flex', 'important');
+            } else if (window.showToast) {
+                showToast('Tap browser menu (⋮) and select "Install app"', 'info');
+            }
+        }
+    }
+    window.triggerInstallFlow = triggerInstallFlow;
+
+    // Attach listeners immediately
+    installBtn?.addEventListener('click', triggerInstallFlow);
+    drawerBtn?.addEventListener('click', () => {
+        if (window.closeMobileNav) window.closeMobileNav();
+        triggerInstallFlow();
+    });
+    desktopBtn?.addEventListener('click', triggerInstallFlow);
+
+    // Intercept Chrome/Android/Desktop beforeinstallprompt
     window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
         deferredPrompt = e;
@@ -1898,42 +1927,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Check device state on load
+    // Check device state on load immediately and again after brief delay
     if (!isRunningInstalledApp()) {
-        setTimeout(showInstallOptions, 800);
+        showInstallOptions();
+        setTimeout(showInstallOptions, 600);
+    } else {
+        hideAllInstallUI();
     }
-
-    // Trigger installation
-    async function triggerInstallFlow() {
-        if (deferredPrompt) {
-            deferredPrompt.prompt();
-            try {
-                const choice = await deferredPrompt.userChoice;
-                if (choice && choice.outcome === 'accepted') {
-                    try { localStorage.setItem('stallcart_pwa_installed', 'true'); } catch(e) {}
-                    hideAllInstallUI();
-                    if (window.showToast) showToast('Installing StallCart App...', 'success');
-                }
-            } catch(e) {}
-            deferredPrompt = null;
-        } else if (isIosDevice()) {
-            if (iosModal) iosModal.style.setProperty('display', 'flex', 'important');
-        } else {
-            if (androidModal) {
-                androidModal.style.setProperty('display', 'flex', 'important');
-            } else if (window.showToast) {
-                showToast('Tap browser menu (⋮) and select "Install app"', 'info');
-            }
-        }
-    }
-    window.triggerInstallFlow = triggerInstallFlow;
-
-    installBtn?.addEventListener('click', triggerInstallFlow);
-    drawerBtn?.addEventListener('click', () => {
-        if (window.closeMobileNav) window.closeMobileNav();
-        triggerInstallFlow();
-    });
-    desktopBtn?.addEventListener('click', triggerInstallFlow);
 
     // Dismiss floating banner
     closeBtn?.addEventListener('click', () => {
@@ -1967,8 +1967,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (deferredPrompt) {
             setTimeout(triggerInstallFlow, 200);
         } else {
-            // Give Chrome/device up to 2 seconds to fire beforeinstallprompt.
-            // If beforeinstallprompt has not fired by then (e.g. Safari or in-app browser), show guided sheet.
             setTimeout(() => {
                 if (!deferredPrompt && !isRunningInstalledApp()) {
                     triggerInstallFlow();
