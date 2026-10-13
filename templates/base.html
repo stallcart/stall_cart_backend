@@ -12,11 +12,11 @@
     <meta property="og:type" content="{% block og_type %}website{% endblock %}">
     <meta property="og:title" content="{% block og_title %}{{ site_settings.site_name|default:"StallCart" }}{% endblock %}">
     <meta property="og:description" content="{% block og_description %}{{ site_settings.meta_description|default:"Shop premium fashion at unbeatable prices" }}{% endblock %}">
-    <meta property="og:image" content="{% block og_image %}{% if request %}{% if 'localhost' in request.get_host or '127.0.0.1' in request.get_host %}http{% else %}https{% endif %}://{{ request.get_host }}{% if site_settings.logo_primary %}{{ site_settings.logo_primary.url }}{% else %}{% static 'images/favicon.png' %}{% endif %}{% endif %}{% endblock %}">
-    <meta property="og:image:secure_url" content="{% block og_image_secure %}{% if request %}{% if 'localhost' in request.get_host or '127.0.0.1' in request.get_host %}http{% else %}https{% endif %}://{{ request.get_host }}{% if site_settings.logo_primary %}{{ site_settings.logo_primary.url }}{% else %}{% static 'images/favicon.png' %}{% endif %}{% endif %}{% endblock %}">
-    <meta property="og:image:width" content="600">
-    <meta property="og:image:height" content="600">
-    <meta property="og:image:type" content="image/jpeg">
+    <meta property="og:image" content="{% block og_image %}{% if request %}{% if 'localhost' in request.get_host or '127.0.0.1' in request.get_host %}http{% else %}https{% endif %}://{{ request.get_host }}{% if site_settings.logo_primary %}{{ site_settings.logo_primary.url }}{% else %}{% static 'images/icons/android-chrome-512x512.png' %}{% endif %}{% endif %}{% endblock %}">
+    <meta property="og:image:secure_url" content="{% block og_image_secure %}{% if request %}{% if 'localhost' in request.get_host or '127.0.0.1' in request.get_host %}http{% else %}https{% endif %}://{{ request.get_host }}{% if site_settings.logo_primary %}{{ site_settings.logo_primary.url }}{% else %}{% static 'images/icons/android-chrome-512x512.png' %}{% endif %}{% endif %}{% endblock %}">
+    <meta property="og:image:width" content="512">
+    <meta property="og:image:height" content="512">
+    <meta property="og:image:type" content="image/png">
     <meta property="og:url" content="{% block og_url %}{% if request %}{{ request.build_absolute_uri }}{% endif %}{% endblock %}">
     <meta property="og:site_name" content="{{ site_settings.site_name|default:"StallCart" }}">
 
@@ -24,7 +24,7 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="{% block twitter_title %}{{ site_settings.site_name|default:"StallCart" }}{% endblock %}">
     <meta name="twitter:description" content="{% block twitter_description %}{{ site_settings.meta_description|default:"Shop premium fashion at unbeatable prices" }}{% endblock %}">
-    <meta name="twitter:image" content="{% block twitter_image %}{% if request %}{% if 'localhost' in request.get_host or '127.0.0.1' in request.get_host %}http{% else %}https{% endif %}://{{ request.get_host }}{% if site_settings.logo_primary %}{{ site_settings.logo_primary.url }}{% else %}{% static 'images/favicon.png' %}{% endif %}{% endif %}{% endblock %}">
+    <meta name="twitter:image" content="{% block twitter_image %}{% if request %}{% if 'localhost' in request.get_host or '127.0.0.1' in request.get_host %}http{% else %}https{% endif %}://{{ request.get_host }}{% if site_settings.logo_primary %}{{ site_settings.logo_primary.url }}{% else %}{% static 'images/icons/android-chrome-512x512.png' %}{% endif %}{% endif %}{% endblock %}">
 
     <!-- Favicon & App Icons -->
     <link rel="shortcut icon" href="{% static 'favicon.ico' %}">
@@ -312,6 +312,17 @@
                 </span>
                 <span class="pwa-drawer-badge">INSTALL</span>
             </button>
+        </div>
+
+        <!-- Share App via WhatsApp -->
+        <div style="margin: 6px 14px 14px;">
+            <a href="https://api.whatsapp.com/send?text=🛍️%20Shop%20faster%20with%20the%20official%20StallCart%20App!%20Install%20now%20for%20exclusive%20deals%20and%20unbeatable%20prices:%20https://stallcart.in/download/app/"
+               target="_blank"
+               rel="noopener noreferrer"
+               style="display: flex; align-items: center; justify-content: center; gap: 8px; background: #25d366; color: #ffffff; padding: 10px 14px; border-radius: 10px; font-weight: 700; font-size: 0.86rem; text-decoration: none; box-shadow: 0 2px 8px rgba(37, 211, 102, 0.25);">
+                <i class="fab fa-whatsapp" style="font-size: 1.15rem;"></i>
+                <span>Share App on WhatsApp</span>
+            </a>
         </div>
 
         <div class="mobile-nav-section-label">Navigation</div>
@@ -954,6 +965,12 @@
             </div>
         </div>
         <div style="display: flex; flex-direction: column; gap: 8px;">
+            <a href="https://api.whatsapp.com/send?text=🛍️%20Shop%20faster%20with%20the%20official%20StallCart%20App!%20Install%20now%20for%20exclusive%20deals:%20https://stallcart.in/download/app/"
+               target="_blank"
+               rel="noopener noreferrer"
+               style="width: 100%; box-sizing: border-box; text-align: center; padding: 11px; background: #e8fdf0; color: #15803d; border: 1.5px solid #86efac; border-radius: 10px; font-weight: 700; font-size: 13px; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <i class="fab fa-whatsapp" style="color: #25d366; font-size: 1.15rem;"></i> Share with Friends on WhatsApp
+            </a>
             <a href="{% url 'download_apk' %}" style="width: 100%; box-sizing: border-box; text-align: center; padding: 11px; background: #f1f5f9; color: #0f172a; border: 1.5px solid #cbd5e1; border-radius: 10px; font-weight: 700; font-size: 13px; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px;">
                 <i class="fa fa-download" style="color: #2874f0;"></i> Direct APK Download
             </a>
