@@ -833,3 +833,70 @@ class CampaignServiceCustomerWordingTests(TestCase):
             campaign_service_module.notify_campaign_winner(winner)
 
         self.assertEqual(captured_context.get("customer_name"), "Manish Jaiswal")
+
+
+class PwaAppInstallTests(TestCase):
+    def test_manifest_json_file_and_pwa_properties(self):
+        """Verify that manifest.json contains all required PWA installability fields."""
+        import json
+        from django.conf import settings
+        from pathlib import Path
+
+        manifest_path = Path(settings.BASE_DIR) / 'static/manifest.json'
+        self.assertTrue(manifest_path.exists(), "static/manifest.json must exist")
+
+        with open(manifest_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        self.assertEqual(data.get('name'), 'StallCart')
+        self.assertEqual(data.get('short_name'), 'StallCart')
+        self.assertEqual(data.get('display'), 'standalone')
+        self.assertIn('?source=pwa', data.get('start_url', ''))
+        self.assertIn('?source=pwa', data.get('id', ''))
+
+        # Check icons
+        icons = data.get('icons', [])
+        sizes = [icon.get('sizes') for icon in icons]
+        self.assertIn('192x192', sizes)
+        self.assertIn('512x512', sizes)
+
+    def test_service_worker_endpoints_and_headers(self):
+        """Verify that /firebase-messaging-sw.js and /sw.js are served at root scope with correct headers."""
+        for endpoint in ['/firebase-messaging-sw.js', '/sw.js']:
+            response = self.client.get(endpoint)
+            self.assertEqual(response.status_code, 200, f"{endpoint} should return 200")
+            self.assertEqual(response.headers.get('Content-Type'), 'application/javascript')
+            self.assertEqual(response.headers.get('Service-Worker-Allowed'), '/')
+            content = response.content.decode('utf-8')
+            self.assertIn('fetch', content)
+            self.assertIn('install', content)
+            self.assertIn('activate', content)
+
+    def test_base_template_renders_pwa_install_elements(self):
+        """Verify that home page renders PWA install banner, mobile drawer item, desktop button, and iOS modal."""
+        response = self.client.get('/')
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode('utf-8')
+
+        # Floating install banner elements
+        self.assertIn('id="pwaInstallBanner"', content)
+        self.assertIn('id="pwaInstallBtn"', content)
+        self.assertIn('id="pwaCloseBtn"', content)
+
+        # Mobile drawer install option
+        self.assertIn('id="pwaDrawerInstallItem"', content)
+        self.assertIn('id="pwaDrawerInstallBtn"', content)
+
+        # Desktop header install button
+        self.assertIn('id="pwaDesktopInstallBtn"', content)
+
+        # iOS Safari guided install sheet
+        self.assertIn('id="pwaIosModal"', content)
+        self.assertIn('Install StallCart on iPhone', content)
+        self.assertIn('Add to Home Screen', content)
+
+        # Meta tags and manifest link
+        self.assertIn('rel="manifest"', content)
+        self.assertIn('name="mobile-web-app-capable"', content)
+        self.assertIn('name="apple-mobile-web-app-capable"', content)
+

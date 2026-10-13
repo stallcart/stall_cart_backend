@@ -39,6 +39,7 @@ urlpatterns = [
     path('items/', include('items.urls')),     # Products
     path('common/', include('common.urls')),   
     path('firebase-messaging-sw.js', firebase_sw, name='firebase_sw'),
+    path('sw.js', firebase_sw, name='sw_js'),
 
     # Direct mapping to prevent 404 on root-level urls (e.g. from banner/collection links)
     path('products/', items_views.product_list, name='product_list_direct'),

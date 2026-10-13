@@ -5963,3 +5963,370 @@ input[id$="-DELETE"] {
         font-size: 0.75rem !important;
     }
 }
+
+/* ══════════════════════════════════════════════
+   PWA APP INSTALL BANNER & MODAL SYSTEM
+   ══════════════════════════════════════════════ */
+@keyframes pwaSlideUp {
+    from {
+        transform: translateY(100px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.pwa-install-banner {
+    position: fixed;
+    bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+    left: 12px;
+    right: 12px;
+    max-width: 480px;
+    margin: 0 auto;
+    background: #ffffff;
+    border: 1.5px solid rgba(40, 116, 240, 0.25);
+    border-radius: 16px;
+    box-shadow: 0 12px 36px rgba(15, 23, 42, 0.18), 0 4px 12px rgba(40, 116, 240, 0.12);
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    z-index: 998;
+    animation: pwaSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@media (min-width: 768px) {
+    .pwa-install-banner {
+        bottom: 24px;
+        right: 24px;
+        left: auto;
+        width: 380px;
+        max-width: 380px;
+    }
+}
+
+.pwa-banner-content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    flex: 1;
+}
+
+.pwa-app-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    object-fit: cover;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    flex-shrink: 0;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.pwa-app-details {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.pwa-app-title {
+    font-size: 0.9rem;
+    font-weight: 800;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pwa-app-badge {
+    font-size: 0.62rem;
+    font-weight: 700;
+    background: #dbeafe;
+    color: #1d4ed8;
+    padding: 1px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+}
+
+.pwa-app-subtitle {
+    font-size: 0.72rem;
+    color: #64748b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pwa-app-rating {
+    font-size: 0.68rem;
+    color: #475569;
+    font-weight: 600;
+}
+
+.pwa-stars {
+    color: #f59e0b;
+    font-size: 0.7rem;
+}
+
+.pwa-banner-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.pwa-install-btn {
+    background: #2874f0;
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 0.8rem;
+    padding: 8px 14px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 4px 14px rgba(40, 116, 240, 0.35);
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    font-family: inherit;
+}
+
+.pwa-install-btn:hover {
+    background: #1a62d6;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(40, 116, 240, 0.45);
+}
+
+.pwa-install-btn:active {
+    transform: scale(0.97);
+}
+
+.pwa-close-btn {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    font-size: 0.95rem;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    flex-shrink: 0;
+}
+
+.pwa-close-btn:hover {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+/* ── Mobile Drawer Install Item ── */
+.pwa-drawer-item {
+    margin: 8px 0;
+    padding: 0 6px;
+}
+
+.pwa-drawer-btn {
+    width: 100%;
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%) !important;
+    border: 1.5px solid #bfdbfe !important;
+    border-radius: 12px !important;
+    padding: 10px 14px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.pwa-drawer-btn:hover {
+    background: #dbeafe !important;
+    transform: translateY(-1px);
+}
+
+.pwa-drawer-badge {
+    background: #2874f0;
+    color: #ffffff;
+    font-size: 0.65rem;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 999px;
+    letter-spacing: 0.04em;
+}
+
+/* ── Desktop Header Install Pill ── */
+.pwa-desktop-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #eff6ff;
+    color: #2874f0;
+    border: 1.5px solid #bfdbfe;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    font-family: inherit;
+    margin-right: 6px;
+}
+
+.pwa-desktop-btn:hover {
+    background: #2874f0;
+    color: #ffffff;
+    border-color: #2874f0;
+    box-shadow: 0 4px 12px rgba(40, 116, 240, 0.25);
+}
+
+/* ── iOS Safari Guided Install Modal ── */
+.pwa-ios-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 10000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.25s ease, visibility 0.25s ease;
+    padding: 16px;
+}
+
+.pwa-ios-modal-overlay.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.pwa-ios-sheet {
+    background: #ffffff;
+    width: 100%;
+    max-width: 440px;
+    border-radius: 20px;
+    padding: 24px 20px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+    position: relative;
+    transform: translateY(40px);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pwa-ios-modal-overlay.show .pwa-ios-sheet {
+    transform: translateY(0);
+}
+
+.pwa-ios-close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #f1f5f9;
+    border: none;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.pwa-ios-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.pwa-ios-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 12px;
+    object-fit: cover;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.pwa-ios-title {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.pwa-ios-desc {
+    font-size: 0.8rem;
+    color: #64748b;
+}
+
+.pwa-ios-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+.pwa-ios-step {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.85rem;
+    color: #1e293b;
+    font-weight: 500;
+}
+
+.pwa-ios-step-num {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #2874f0;
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.pwa-ios-step i {
+    color: #2874f0;
+    margin: 0 2px;
+    font-size: 1rem;
+}
+
+.pwa-ios-done-btn {
+    width: 100%;
+    background: #2874f0;
+    color: #ffffff;
+    border: none;
+    font-weight: 700;
+    padding: 12px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-family: inherit;
+    transition: background 0.2s;
+}
+
+.pwa-ios-done-btn:hover {
+    background: #1a62d6;
+}

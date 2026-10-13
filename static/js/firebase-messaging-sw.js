@@ -41,3 +41,57 @@ self.addEventListener('notificationclick', (e) => {
         })
     );
 });
+
+// ══════════════════════════════════════════════════════
+// PWA Service Worker Lifecycle & Offline Fetch Support
+// ══════════════════════════════════════════════════════
+const PWA_CACHE_NAME = 'stallcart-pwa-v1';
+const PWA_CORE_ASSETS = [
+    '/',
+    '/static/manifest.json',
+    '/static/favicon.ico',
+    '/static/images/icons/android-chrome-192x192.png',
+    '/static/images/icons/android-chrome-512x512.png',
+    '/static/images/icons/apple-touch-icon.png',
+    '/static/css/style.css'
+];
+
+self.addEventListener('install', (event) => {
+    self.skipWaiting();
+    event.waitUntil(
+        caches.open(PWA_CACHE_NAME).then((cache) => {
+            return cache.addAll(PWA_CORE_ASSETS).catch((err) => {
+                // Graceful fallback if any asset fails to pre-cache
+                console.warn('PWA Pre-cache notice:', err);
+            });
+        })
+    );
+});
+
+self.addEventListener('activate', (event) => {
+    event.waitUntil(
+        caches.keys().then((keys) => {
+            return Promise.all(
+                keys.filter((key) => key !== PWA_CACHE_NAME).map((key) => caches.delete(key))
+            );
+        }).then(() => clients.claim())
+    );
+});
+
+// Network-first fetch strategy required for PWA installability
+self.addEventListener('fetch', (event) => {
+    if (event.request.method !== 'GET') return;
+    if (!event.request.url.startsWith(self.location.origin)) return;
+
+    event.respondWith(
+        fetch(event.request)
+            .then((networkResponse) => {
+                return networkResponse;
+            })
+            .catch(() => {
+                return caches.match(event.request).then((cached) => {
+                    return cached || caches.match('/');
+                });
+            })
+    );
+});

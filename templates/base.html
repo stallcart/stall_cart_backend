@@ -223,7 +223,14 @@
                         </div>
                     </div>
                 </div>
-            {% endif %}    
+            {% endif %}
+
+            <!-- PWA Desktop Install Pill -->
+            <button type="button" class="pwa-desktop-btn" id="pwaDesktopInstallBtn" style="display: none;" title="Install StallCart App">
+                <i class="fa fa-download"></i>
+                <span>Get App</span>
+            </button>
+
             <!-- Cart -->
             {% if user.is_authenticated and user.role == 'customer' or not user.is_authenticated %}
                 <a href="{% url 'shop:cart' %}" class="nav-link nav-icon-btn cart-link" aria-label="Shopping cart">
@@ -295,6 +302,17 @@
                 <i class="fa fa-sign-in-alt"></i> Login / Sign Up
             </button>
         {% endif %}
+
+        <!-- PWA Download/Install Mobile Option -->
+        <div class="pwa-drawer-item" id="pwaDrawerInstallItem" style="display: none;">
+            <button type="button" class="mobile-nav-item pwa-drawer-btn" id="pwaDrawerInstallBtn">
+                <span style="display: flex; align-items: center; gap: 10px;">
+                    <span class="mobile-nav-icon" style="color: #2874f0;"><i class="fa fa-mobile-alt"></i></span>
+                    <span style="font-weight: 700; color: #1e293b;">Download StallCart App</span>
+                </span>
+                <span class="pwa-drawer-badge">INSTALL</span>
+            </button>
+        </div>
 
         <div class="mobile-nav-section-label">Navigation</div>
 
@@ -584,6 +602,65 @@
     </button>
     {% endif %}
 </nav>
+
+<!-- ══════════════════════════════════════
+     PWA APP INSTALL BANNER & IOS GUIDE MODAL
+══════════════════════════════════════ -->
+<div id="pwaInstallBanner" class="pwa-install-banner" style="display: none;" role="dialog" aria-label="Install StallCart App">
+    <div class="pwa-banner-content">
+        <img src="{% static 'images/icons/android-chrome-192x192.png' %}" alt="StallCart App" class="pwa-app-icon">
+        <div class="pwa-app-details">
+            <div class="pwa-app-title">
+                <span>StallCart App</span>
+                <span class="pwa-app-badge">Official</span>
+            </div>
+            <div class="pwa-app-subtitle">Fast, Lite • App-exclusive Deals</div>
+            <div class="pwa-app-rating">
+                <span class="pwa-stars">★★★★★</span> 4.8 (Free)
+            </div>
+        </div>
+    </div>
+    <div class="pwa-banner-actions">
+        <button type="button" class="pwa-install-btn" id="pwaInstallBtn" aria-label="Install StallCart App">
+            <i class="fa fa-download"></i>
+            <span>Install</span>
+        </button>
+        <button type="button" class="pwa-close-btn" id="pwaCloseBtn" aria-label="Close install banner">
+            <i class="fa fa-times"></i>
+        </button>
+    </div>
+</div>
+
+<!-- iOS Safari Guided Install Sheet -->
+<div id="pwaIosModal" class="pwa-ios-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="pwaIosTitle">
+    <div class="pwa-ios-sheet">
+        <button type="button" class="pwa-ios-close" id="pwaIosCloseBtn" aria-label="Close">
+            <i class="fa fa-times"></i>
+        </button>
+        <div class="pwa-ios-header">
+            <img src="{% static 'images/icons/apple-touch-icon.png' %}" alt="StallCart" class="pwa-ios-icon">
+            <div>
+                <div class="pwa-ios-title" id="pwaIosTitle">Install StallCart on iPhone</div>
+                <div class="pwa-ios-desc">Install as a native app on your home screen</div>
+            </div>
+        </div>
+        <div class="pwa-ios-steps">
+            <div class="pwa-ios-step">
+                <span class="pwa-ios-step-num">1</span>
+                <span>Tap the <strong>Share</strong> button <i class="fa fa-arrow-up-from-bracket"></i> in Safari's bottom bar</span>
+            </div>
+            <div class="pwa-ios-step">
+                <span class="pwa-ios-step-num">2</span>
+                <span>Scroll down and tap <strong>Add to Home Screen</strong> <i class="far fa-plus-square"></i></span>
+            </div>
+            <div class="pwa-ios-step">
+                <span class="pwa-ios-step-num">3</span>
+                <span>Tap <strong>Add</strong> in the top right corner</span>
+            </div>
+        </div>
+        <button type="button" class="pwa-ios-done-btn" id="pwaIosDoneBtn">Got it</button>
+    </div>
+</div>
 
 <!-- ══════════════════════════════════════
      SCRIPTS
@@ -1133,6 +1210,180 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
+// ══════════════════════════════════════════════
+// 📲 Progressive Web App (PWA) Install Controller
+// ══════════════════════════════════════════════
+(function initPWA() {
+    // 1. Auto-register Service Worker on page load
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' })
+                .catch(err => console.debug('PWA ServiceWorker Notice:', err));
+        });
+    }
+
+    const banner = document.getElementById('pwaInstallBanner');
+    const installBtn = document.getElementById('pwaInstallBtn');
+    const closeBtn = document.getElementById('pwaCloseBtn');
+    const drawerItem = document.getElementById('pwaDrawerInstallItem');
+    const drawerBtn = document.getElementById('pwaDrawerInstallBtn');
+    const desktopBtn = document.getElementById('pwaDesktopInstallBtn');
+    const iosModal = document.getElementById('pwaIosModal');
+    const iosCloseBtn = document.getElementById('pwaIosCloseBtn');
+    const iosDoneBtn = document.getElementById('pwaIosDoneBtn');
+
+    let deferredPrompt = null;
+
+    // Detect if already installed or running standalone
+    function isRunningInstalledApp() {
+        if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
+        if (window.navigator.standalone === true) return true;
+        if (document.referrer && document.referrer.includes('android-app://')) return true;
+
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('source') === 'pwa' || urlParams.get('utm_source') === 'pwa_app') {
+            try { localStorage.setItem('stallcart_pwa_installed', 'true'); } catch(e) {}
+            return true;
+        }
+
+        try {
+            if (localStorage.getItem('stallcart_pwa_installed') === 'true') {
+                return true;
+            }
+        } catch(e) {}
+
+        return false;
+    }
+
+    // Detect iOS Safari
+    function isIosDevice() {
+        return /iPhone|iPad|iPod/i.test(navigator.userAgent) && !window.MSStream;
+    }
+
+    // Check if user dismissed floating banner within 24h
+    function isBannerSnoozed() {
+        try {
+            const dismissedAt = localStorage.getItem('stallcart_pwa_dismissed');
+            if (!dismissedAt) return false;
+            const now = Date.now();
+            const diffHours = (now - parseInt(dismissedAt, 10)) / (1000 * 60 * 60);
+            return diffHours < 24;
+        } catch(e) {
+            return false;
+        }
+    }
+
+    function hideAllInstallUI() {
+        if (banner) banner.style.display = 'none';
+        if (drawerItem) drawerItem.style.display = 'none';
+        if (desktopBtn) desktopBtn.style.display = 'none';
+    }
+
+    // If already installed, hide everything and do not show anything
+    if (isRunningInstalledApp()) {
+        hideAllInstallUI();
+        return;
+    }
+
+    // Show install options when not installed
+    function showInstallOptions() {
+        if (isRunningInstalledApp()) {
+            hideAllInstallUI();
+            return;
+        }
+
+        // Drawer option is always available when not installed
+        if (drawerItem) drawerItem.style.display = 'block';
+
+        // Desktop header button
+        if (desktopBtn && window.innerWidth >= 768) {
+            desktopBtn.style.display = 'inline-flex';
+        }
+
+        // Floating banner shown unless user closed it within last 24h
+        if (banner && !isBannerSnoozed()) {
+            banner.style.display = 'flex';
+        }
+    }
+
+    // Intercept Chrome/Android beforeinstallprompt
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        showInstallOptions();
+    });
+
+    // Check device state on load
+    if (!isRunningInstalledApp()) {
+        if (isIosDevice()) {
+            showInstallOptions();
+        } else {
+            // Give beforeinstallprompt a short window, else display fallback
+            setTimeout(() => {
+                if (!isRunningInstalledApp()) {
+                    showInstallOptions();
+                }
+            }, 1200);
+        }
+    }
+
+    // Trigger installation
+    async function triggerInstallFlow() {
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            try {
+                const choice = await deferredPrompt.userChoice;
+                if (choice && choice.outcome === 'accepted') {
+                    try { localStorage.setItem('stallcart_pwa_installed', 'true'); } catch(e) {}
+                    hideAllInstallUI();
+                    if (window.showToast) showToast('Installing StallCart App...', 'success');
+                }
+            } catch(e) {}
+            deferredPrompt = null;
+        } else if (isIosDevice()) {
+            if (iosModal) iosModal.classList.add('show');
+        } else {
+            if (window.showToast) {
+                showToast('Tap browser menu (⋮) and select "Install app" or "Add to Home screen"', 'info');
+            }
+        }
+    }
+
+    installBtn?.addEventListener('click', triggerInstallFlow);
+    drawerBtn?.addEventListener('click', () => {
+        if (window.closeMobileNav) window.closeMobileNav();
+        triggerInstallFlow();
+    });
+    desktopBtn?.addEventListener('click', triggerInstallFlow);
+
+    // Dismiss floating banner
+    closeBtn?.addEventListener('click', () => {
+        if (banner) banner.style.display = 'none';
+        try { localStorage.setItem('stallcart_pwa_dismissed', Date.now().toString()); } catch(e) {}
+    });
+
+    // Close iOS modal
+    function closeIosModal() {
+        if (iosModal) iosModal.classList.remove('show');
+    }
+    iosCloseBtn?.addEventListener('click', closeIosModal);
+    iosDoneBtn?.addEventListener('click', closeIosModal);
+    iosModal?.addEventListener('click', (e) => {
+        if (e.target === iosModal) closeIosModal();
+    });
+
+    // App installed event listener
+    window.addEventListener('appinstalled', () => {
+        try { localStorage.setItem('stallcart_pwa_installed', 'true'); } catch(e) {}
+        deferredPrompt = null;
+        hideAllInstallUI();
+        closeIosModal();
+        if (window.showToast) {
+            showToast('🎉 StallCart App installed successfully!', 'success');
+        }
+    });
+})();
 </script>
 
 {% block scripts %}{% endblock %}

@@ -1,8 +1,9 @@
 {
   "name": "StallCart",
   "short_name": "StallCart",
+  "id": "/?source=pwa",
   "description": "Shop premium fashion, electronics, jewellery, and essentials at unbeatable prices.",
-  "start_url": "/",
+  "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
