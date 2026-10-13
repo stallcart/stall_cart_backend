@@ -314,13 +314,15 @@ def download_apk_view(request):
     Otherwise, redirect to the web app install flow.
     """
     apk_candidates = [
-        os.path.join(settings.BASE_DIR, 'media', 'downloads', 'StallCart.apk'),
         os.path.join(settings.BASE_DIR, 'static', 'downloads', 'StallCart.apk'),
+        os.path.join(settings.BASE_DIR, 'media', 'downloads', 'StallCart.apk'),
     ]
     for apk_path in apk_candidates:
         if os.path.exists(apk_path):
             from django.http import FileResponse
-            return FileResponse(open(apk_path, 'rb'), as_attachment=True, filename='StallCart.apk')
+            response = FileResponse(open(apk_path, 'rb'), as_attachment=True, filename='StallCart.apk')
+            response['Content-Type'] = 'application/vnd.android.package-archive'
+            return response
 
     return HttpResponseRedirect('/?source=pwa&action=install')
 

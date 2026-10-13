@@ -117,12 +117,56 @@
     font-size: 1.05rem;
     font-weight: 800;
     cursor: pointer;
+    text-decoration: none;
     box-shadow: 0 8px 24px rgba(40, 116, 240, 0.35);
     transition: transform 0.15s ease, background 0.15s ease;
+}
+.btn-download-primary:hover, .btn-download-primary:focus {
+    color: #ffffff;
+    text-decoration: none;
 }
 .btn-download-primary:active {
     transform: scale(0.98);
     background: #1d4ed8;
+}
+.btn-download-secondary {
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: #f8fafc;
+    color: #1e293b;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 14px;
+    padding: 13px 18px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+.btn-download-secondary:hover {
+    background: #f1f5f9;
+    border-color: #94a3b8;
+}
+.btn-download-secondary:active {
+    transform: scale(0.98);
+    background: #e2e8f0;
+}
+.btn-chrome-intent {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #2563eb;
+    color: #ffffff !important;
+    padding: 7px 12px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.8rem;
+    text-decoration: none !important;
+    margin-top: 6px;
 }
 .in-app-notice {
     background: #fffbeb;
@@ -224,20 +268,44 @@
                 </div>
             </div>
 
-            <!-- Big Download & Install Button -->
-            <div class="download-action-wrap">
-                <button type="button" class="btn-download-primary" id="pageInstallBtn" onclick="triggerPageInstall()">
+            <!-- Big Download & Install Buttons -->
+            <div class="download-action-wrap" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px;">
+                <!-- 1. Direct Android APK Download -->
+                <a href="{% url 'download_apk' %}" class="btn-download-primary" id="pageApkDownloadBtn" download>
                     <i class="fa fa-download"></i>
-                    <span>Install StallCart App</span>
+                    <span>Download Android App (.APK)</span>
+                </a>
+
+                <!-- 2. Instant Add to Home Screen (PWA) -->
+                <button type="button" class="btn-download-secondary" id="pageInstallBtn" onclick="triggerPageInstall()">
+                    <i class="fa fa-bolt" style="color: #f59e0b;"></i>
+                    <span>Add to Home Screen (Instant)</span>
                 </button>
             </div>
 
             <!-- In-App WhatsApp Browser Notice (only shown when opened inside WhatsApp/FB/Insta) -->
             <div id="inAppBrowserNotice" class="in-app-notice" style="display: none;">
-                <i class="fa fa-info-circle" style="font-size: 1.1rem; color: #f59e0b; flex-shrink: 0; margin-top: 2px;"></i>
-                <div>
-                    <strong>Opened in WhatsApp?</strong><br>
-                    Tap the <strong>3-dots menu (⋮)</strong> in the top-right corner and tap <strong>"Open in Chrome"</strong> to install directly onto your home screen!
+                <i class="fa fa-info-circle" style="font-size: 1.25rem; color: #f59e0b; flex-shrink: 0; margin-top: 2px;"></i>
+                <div style="flex: 1;">
+                    <strong>Opened in WhatsApp / Social App?</strong><br>
+                    You can tap <strong>Download Android App (.APK)</strong> above directly, or open in Chrome:
+                    <div style="margin-top: 8px;">
+                        <a href="intent://stallcart.in/download/app/#Intent;scheme=https;package=com.android.chrome;end" class="btn-chrome-intent">
+                            <i class="fab fa-chrome"></i> Open in Google Chrome
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- How to Install APK Guide -->
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 12px 14px; margin-bottom: 20px; text-align: left; font-size: 0.8rem; color: #475569;">
+                <div style="font-weight: 700; color: #0f172a; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa fa-circle-check" style="color: #16a34a;"></i> How to install APK on your phone:
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 4px; line-height: 1.45;">
+                    <div>1️⃣ Tap <strong>Download Android App (.APK)</strong> above.</div>
+                    <div>2️⃣ Tap <strong>Open</strong> when download completes (or check your <em>Downloads</em> folder).</div>
+                    <div>3️⃣ Tap <strong>Install</strong> to start shopping with StallCart!</div>
                 </div>
             </div>
 

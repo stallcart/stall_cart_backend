@@ -28,6 +28,8 @@ build/
 develop-eggs/
 dist/
 downloads/
+!static/downloads/
+!static/downloads/StallCart.apk
 eggs/
 .eggs/
 lib/
