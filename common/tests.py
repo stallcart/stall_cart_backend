@@ -927,6 +927,8 @@ class PwaAppInstallTests(TestCase):
         self.assertIn('Install StallCart App', content)
         self.assertIn('Open in Google Chrome', content)
         self.assertIn('Open in Default Browser', content)
+        self.assertIn('1.8 MB', content)
+        self.assertIn('App Size', content)
 
         # Multi-browser guide cards
         self.assertIn('id="chromeGuideCard"', content)
