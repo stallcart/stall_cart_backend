@@ -852,7 +852,8 @@ class PwaAppInstallTests(TestCase):
         self.assertEqual(data.get('short_name'), 'StallCart')
         self.assertEqual(data.get('display'), 'standalone')
         self.assertIn('?source=pwa', data.get('start_url', ''))
-        self.assertIn('?source=pwa', data.get('id', ''))
+        self.assertIn(data.get('id', ''), ['/', '/?source=pwa'])
+        self.assertFalse(data.get('prefer_related_applications', True))
 
         # Check icons
         icons = data.get('icons', [])
@@ -894,6 +895,10 @@ class PwaAppInstallTests(TestCase):
         self.assertIn('id="pwaIosModal"', content)
         self.assertIn('Install StallCart on iPhone', content)
         self.assertIn('Add to Home Screen', content)
+
+        # Android guided install sheet
+        self.assertIn('id="pwaAndroidModal"', content)
+        self.assertIn('id="pwaAndroidDoneBtn"', content)
 
         # Meta tags and manifest link
         self.assertIn('rel="manifest"', content)

@@ -1,7 +1,7 @@
 {
   "name": "StallCart",
   "short_name": "StallCart",
-  "id": "/?source=pwa",
+  "id": "/",
   "description": "Shop premium fashion, electronics, jewellery, and essentials at unbeatable prices.",
   "start_url": "/?source=pwa",
   "scope": "/",
@@ -9,6 +9,7 @@
   "orientation": "portrait-primary",
   "background_color": "#ffffff",
   "theme_color": "#2874f0",
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/static/images/icons/favicon-16x16.png",
