@@ -205,8 +205,8 @@
 <section class="section-wrap">
     <div class="container">
 
-        <!-- Header -->
-        <div class="section-row" style="margin-bottom: 20px;">
+        <!-- Header & Search -->
+        <div class="section-row" style="margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
             <div>
                 <h2 class="section-title">
                     <i class="fa fa-box-open" style="color: var(--blue-500); margin-right: 8px;"></i>
@@ -214,6 +214,13 @@
                 </h2>
                 <p class="section-subtitle">{{ products|length }} item{{ products|length|pluralize }} found</p>
             </div>
+            <!-- Search bar on Product List -->
+            <form method="get" action="{% url 'items:product_list' %}" style="display: flex; align-items: center; background: #ffffff; border: 1.5px solid var(--gray-200); border-radius: 30px; padding: 4px 6px 4px 14px; width: 100%; max-width: 360px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+                {% if request.GET.sort %}<input type="hidden" name="sort" value="{{ request.GET.sort }}">{% endif %}
+                <i class="fa fa-search" style="color: var(--gray-400); margin-right: 8px; font-size: 0.9rem;"></i>
+                <input type="search" name="search" id="catalogSearchInput" placeholder="Search products, brands…" value="{{ request.GET.search|default:'' }}" style="border: none; outline: none; background: transparent; width: 100%; font-size: 0.9rem; color: var(--gray-800);">
+                <button type="submit" style="background: var(--blue-500); color: #fff; border: none; border-radius: 20px; padding: 6px 14px; font-size: 0.82rem; font-weight: 700; cursor: pointer; flex-shrink: 0;">Search</button>
+            </form>
         </div>
 
         <!-- Horizontal Category Quick Filters -->
