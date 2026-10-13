@@ -5,6 +5,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+    (function() {
+        try {
+            var urlParams = new URLSearchParams(window.location.search);
+            var isStandalone = (
+                (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
+                window.navigator.standalone === true ||
+                (document.referrer && document.referrer.indexOf('android-app://') !== -1) ||
+                urlParams.get('source') === 'pwa' ||
+                sessionStorage.getItem('stallcart_pwa_standalone') === '1'
+            );
+
+            var isPhoneOrTouch = (
+                Math.min(window.screen.width, window.screen.height) <= 768 ||
+                (navigator.maxTouchPoints > 0 && /Android|iPhone|iPod|Mobile/i.test(navigator.userAgent))
+            );
+
+            if (isStandalone) {
+                sessionStorage.setItem('stallcart_pwa_standalone', '1');
+            }
+
+            if (isStandalone && isPhoneOrTouch) {
+                document.documentElement.classList.add('pwa-mobile-standalone');
+                // Enforce mobile viewport even if user toggled 'Desktop site' in browser settings
+                var vp = document.querySelector('meta[name="viewport"]');
+                if (vp) {
+                    vp.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
+                }
+            }
+        } catch(e) {}
+    })();
+    </script>
     <title>{% block title %}{{ site_settings.site_name|default:"StallCart" }}{% endblock %}</title>
     <meta name="description" content="{% block meta_description %}{{ site_settings.meta_description|default:"Shop premium fashion at unbeatable prices" }}{% endblock %}">
 
@@ -634,6 +666,82 @@
      PWA APP INSTALL BANNER & MODALS (SELF-CONTAINED STYLES)
 ══════════════════════════════════════ -->
 <style>
+/* ══════════════════════════════════════════════════════════════
+   PWA STANDALONE MOBILE APP VIEW ENFORCEMENT
+   Guarantees the installed PWA always displays in native mobile app view,
+   even if Chrome has 'Desktop site' checked on the phone!
+══════════════════════════════════════════════════════════════ */
+html.pwa-mobile-standalone body,
+body.pwa-mobile-standalone {
+    padding-bottom: calc(65px + env(safe-area-inset-bottom, 0px)) !important;
+}
+
+html.pwa-mobile-standalone .bottom-nav,
+body.pwa-mobile-standalone .bottom-nav {
+    display: flex !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 1000 !important;
+}
+
+html.pwa-mobile-standalone .mobile-menu-btn,
+body.pwa-mobile-standalone .mobile-menu-btn {
+    display: flex !important;
+}
+
+html.pwa-mobile-standalone .mobile-header-search-btn,
+body.pwa-mobile-standalone .mobile-header-search-btn {
+    display: inline-flex !important;
+}
+
+html.pwa-mobile-standalone .hide-mobile,
+body.pwa-mobile-standalone .hide-mobile {
+    display: none !important;
+}
+
+html.pwa-mobile-standalone .nav-search,
+body.pwa-mobile-standalone .nav-search {
+    display: none !important;
+}
+
+html.pwa-mobile-standalone .nav-menu,
+body.pwa-mobile-standalone .nav-menu {
+    display: none !important;
+}
+
+html.pwa-mobile-standalone .product-grid,
+html.pwa-mobile-standalone .products-grid,
+body.pwa-mobile-standalone .product-grid,
+body.pwa-mobile-standalone .products-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+}
+
+html.pwa-mobile-standalone .collections-grid,
+body.pwa-mobile-standalone .collections-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 10px !important;
+}
+
+html.pwa-mobile-standalone .container,
+body.pwa-mobile-standalone .container {
+    max-width: 100% !important;
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+}
+
+/* Hide install banners inside already-installed PWA */
+html.pwa-mobile-standalone #pwaInstallBanner,
+html.pwa-mobile-standalone #pwaDesktopInstallBtn,
+html.pwa-mobile-standalone #pwaDrawerInstallItem,
+body.pwa-mobile-standalone #pwaInstallBanner,
+body.pwa-mobile-standalone #pwaDesktopInstallBtn,
+body.pwa-mobile-standalone #pwaDrawerInstallItem {
+    display: none !important;
+}
+
 /* PWA Header Install Pill - shown on mobile & desktop */
 .pwa-desktop-btn {
     display: inline-flex !important;
@@ -1814,7 +1922,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
         if (window.navigator.standalone === true) return true;
         if (document.referrer && document.referrer.includes('android-app://')) return true;
+        if (sessionStorage.getItem('stallcart_pwa_standalone') === '1') return true;
+        if (new URLSearchParams(window.location.search).get('source') === 'pwa') return true;
         return false;
+    }
+
+    // Ensure body also gets the mobile standalone class if active
+    if (document.documentElement.classList.contains('pwa-mobile-standalone')) {
+        document.body.classList.add('pwa-mobile-standalone');
     }
 
     // Clean up any stale localStorage blocker from previous test sessions

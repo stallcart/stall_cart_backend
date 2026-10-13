@@ -909,6 +909,9 @@ class PwaAppInstallTests(TestCase):
         self.assertIn('href="/download/app/"', content)
         self.assertIn('Download App', content)
 
+        # Standalone mobile app enforcement styles and script
+        self.assertIn('pwa-mobile-standalone', content)
+
     def test_download_app_and_apk_endpoints(self):
         """Verify /download/app/ renders dedicated app install page and /download/apk/ redirects to it."""
         # /download/app/ renders dedicated download landing page
