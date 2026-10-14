@@ -24,6 +24,32 @@
 
             if (isStandalone) {
                 sessionStorage.setItem('stallcart_pwa_standalone', '1');
+
+                // Route Preservation & Resuming for PWA:
+                // When app is minimized and reopened from home screen (which loads start_url '/?source=pwa'),
+                // resume the active section the user was previously viewing instead of resetting to home!
+                var currentPath = window.location.pathname;
+                var isRootStartUrl = (currentPath === '/' || currentPath === '') && (urlParams.get('source') === 'pwa' || !document.referrer);
+                var savedRoute = localStorage.getItem('stallcart_pwa_active_route');
+
+                if (isRootStartUrl && savedRoute && savedRoute !== '/' && savedRoute !== '/?source=pwa') {
+                    if (savedRoute.startsWith('/') &&
+                        !savedRoute.includes('/accounts/logout') &&
+                        !savedRoute.includes('/payment/') &&
+                        !savedRoute.includes('/download/app')) {
+                        window.location.replace(savedRoute);
+                        return;
+                    }
+                }
+
+                // Update active section
+                if (currentPath &&
+                    !currentPath.includes('/accounts/logout') &&
+                    !currentPath.includes('/payment/') &&
+                    !currentPath.includes('/download/app')) {
+                    var currentFullRoute = window.location.pathname + window.location.search + window.location.hash;
+                    localStorage.setItem('stallcart_pwa_active_route', currentFullRoute);
+                }
             }
 
             if (isStandalone && isPhoneOrTouch) {
@@ -2242,6 +2268,26 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast('🎉 StallCart App installed successfully!', 'success');
         }
     });
+
+    // PWA Section Resume: track active section when app is backgrounded/minimized
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden' && isRunningInstalledApp()) {
+            try {
+                var path = window.location.pathname;
+                if (path && !path.includes('/accounts/logout') && !path.includes('/payment/') && !path.includes('/download/app')) {
+                    localStorage.setItem('stallcart_pwa_active_route', window.location.pathname + window.location.search + window.location.hash);
+                }
+            } catch(e) {}
+        }
+    });
+
+    // Clear saved route when user deliberately taps Home or Brand logo
+    document.addEventListener('click', (e) => {
+        var homeLink = e.target.closest('a.logo, a.footer-logo, .bottom-nav-item[href="/"], a[href="/"]');
+        if (homeLink) {
+            try { localStorage.setItem('stallcart_pwa_active_route', '/'); } catch(e) {}
+        }
+    }, true);
 })();
 </script>
 

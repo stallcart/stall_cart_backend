@@ -6,6 +6,9 @@
   "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
+  "launch_handler": {
+    "client_mode": ["focus-existing", "auto"]
+  },
   "orientation": "portrait-primary",
   "background_color": "#ffffff",
   "theme_color": "#2874f0",

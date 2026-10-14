@@ -271,6 +271,14 @@
 
 </div>
 
+<script>
+window.openStatusModal = window.openStatusModal || function() { document.getElementById('statusModal')?.classList.add('show'); };
+window.openCancelModal = window.openCancelModal || function() { document.getElementById('cancelModal')?.classList.add('show'); };
+window.closeModal = window.closeModal || function() { document.getElementById('statusModal')?.classList.remove('show'); };
+window.closeCancelModal = window.closeCancelModal || function() { document.getElementById('cancelModal')?.classList.remove('show'); };
+window.closeTrackingModal = window.closeTrackingModal || function() { document.getElementById('trackingModal')?.classList.remove('show'); };
+</script>
+
 <!-- ✅ Admin Cancel Order / Items Modal -->
 <div id="cancelModal" class="modal">
     <div class="modal-content" style="max-width: 500px;">
@@ -348,7 +356,9 @@
                     <option value="seller_unresponsive" {% if order.status == 'seller_unresponsive' %}selected{% endif %}>Seller Unresponsive / Cancelled</option>
                 </select>
             </div>
-            <button type="submit" class="btn-primary" style="width: 100%; padding: 12px; font-weight: 700; border-radius: var(--r-md); border: none; cursor: pointer;">Confirm Update</button>
+            <button type="submit" id="adminStatusSubmitBtn" class="btn-primary" style="width: 100%; padding: 12px; font-weight: 700; border-radius: var(--r-md); border: none; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+                <i class="fa fa-check-circle"></i> Confirm Update
+            </button>
         </form>
     </div>
 </div>
@@ -386,12 +396,14 @@
 <script>
 const csrfToken = '{{ csrf_token }}';
 
-// Modal helpers
+// Modal helpers (both global functions and direct event bindings)
 window.openStatusModal = () => {
-    document.getElementById('statusModal').classList.add('show');
+    const modal = document.getElementById('statusModal');
+    if (modal) modal.classList.add('show');
 };
 window.openCancelModal = () => {
-    document.getElementById('cancelModal').classList.add('show');
+    const modal = document.getElementById('cancelModal');
+    if (modal) modal.classList.add('show');
 };
 let currentTargetSellerId = null;
 
@@ -401,16 +413,17 @@ window.openTrackingModal = (courierName = '', trackingNumber = '', sellerId = ''
     const select = document.getElementById('courierNameSelect');
     if (select) select.value = courierName || 'Shiprocket';
     currentTargetSellerId = sellerId || null;
-    document.getElementById('trackingModal').classList.add('show');
+    const modal = document.getElementById('trackingModal');
+    if (modal) modal.classList.add('show');
 };
 window.closeModal = () => {
-    document.getElementById('statusModal').classList.remove('show');
+    document.getElementById('statusModal')?.classList.remove('show');
 };
 window.closeCancelModal = () => {
-    document.getElementById('cancelModal').classList.remove('show');
+    document.getElementById('cancelModal')?.classList.remove('show');
 };
 window.closeTrackingModal = () => {
-    document.getElementById('trackingModal').classList.remove('show');
+    document.getElementById('trackingModal')?.classList.remove('show');
 };
 window.onclick = (e) => {
     const modal = document.getElementById('statusModal');
@@ -421,44 +434,99 @@ window.onclick = (e) => {
     if (e.target === cModal) closeCancelModal();
 };
 
-// Status Update AJAX
+// Status Update AJAX with immediate feedback & multi-click protection
+let isUpdatingStatus = false;
 document.getElementById('statusForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const status = e.target.status.value;
+    if (isUpdatingStatus) return; // Prevent double/triple clicks
+    
+    const submitBtn = document.getElementById('adminStatusSubmitBtn') || e.target.querySelector('button[type="submit"]');
+    const statusSelect = e.target.status;
+    const status = statusSelect ? statusSelect.value : '';
+    
+    if (!status) return;
+    
+    // Check if status is already the current status
+    if (status === '{{ order.status }}') {
+        if (typeof showToast === 'function') {
+            showToast('Order is already in this status.', 'info');
+        } else {
+            alert('Order is already in this status.');
+        }
+        closeModal();
+        return;
+    }
+    
+    isUpdatingStatus = true;
+    const originalBtnText = submitBtn ? submitBtn.innerHTML : 'Confirm Update';
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin" style="margin-right: 6px;"></i> Updating Status...';
+        submitBtn.style.opacity = '0.75';
+        submitBtn.style.pointerEvents = 'none';
+    }
     
     try {
+        const activeCsrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value || csrfToken;
         const res = await fetch(`/orders/admin/order/{{ order.unique_order_id }}/update-status/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
+                'X-CSRFToken': activeCsrf,
+                'X-Requested-With': 'XMLHttpRequest'
             },
             body: JSON.stringify({ status })
         });
-        if (!res.ok) {
-            const err = await res.json();
-            throw new Error(err.error || 'Failed to update order status.');
+        
+        const data = await res.json();
+        if (!res.ok || data.error) {
+            throw new Error(data.error || 'Failed to update order status.');
         }
         
-        showToast('Order status updated successfully', 'success');
-        setTimeout(() => window.location.reload(), 1000);
+        if (submitBtn) {
+            submitBtn.innerHTML = '<i class="fa fa-check" style="margin-right: 6px;"></i> Updated! Refreshing...';
+            submitBtn.style.background = '#16a34a';
+        }
+        
+        if (typeof showToast === 'function') {
+            showToast('Order status updated successfully!', 'success');
+        }
+        setTimeout(() => window.location.reload(), 700);
     } catch (err) {
-        alert(err.message);
+        alert(err.message || 'Error updating order status.');
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnText;
+            submitBtn.style.opacity = '1';
+            submitBtn.style.pointerEvents = 'auto';
+        }
+        isUpdatingStatus = false;
     }
 });
 
-// Tracking Add/Edit AJAX
+// Tracking Add/Edit AJAX with multi-click protection
+let isSavingTracking = false;
 document.getElementById('trackingForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (isSavingTracking) return;
     const tracking_number = document.getElementById('trackingNumberInput').value;
     const courier_name = document.getElementById('courierNameSelect').value;
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    const origText = submitBtn ? submitBtn.innerHTML : 'Save Tracking';
     
+    isSavingTracking = true;
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin" style="margin-right: 6px;"></i> Saving...';
+    }
     try {
-        const res = await fetch(`/orders/seller/order/{{ order.unique_order_id }}/add-tracking/`, {
+        const activeCsrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value || csrfToken;
+        const res = await fetch(`/orders/admin/order/{{ order.unique_order_id }}/update-tracking/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
+                'X-CSRFToken': activeCsrf,
+                'X-Requested-With': 'XMLHttpRequest'
             },
             body: JSON.stringify({ tracking_number, courier_name, seller_id: currentTargetSellerId })
         });
@@ -466,11 +534,17 @@ document.getElementById('trackingForm')?.addEventListener('submit', async (e) =>
             const err = await res.json();
             throw new Error(err.error || 'Failed to update tracking info.');
         }
-        
-        showToast('Tracking info updated successfully', 'success');
-        setTimeout(() => window.location.reload(), 1000);
+        if (typeof showToast === 'function') {
+            showToast('Tracking info updated successfully', 'success');
+        }
+        setTimeout(() => window.location.reload(), 700);
     } catch (err) {
         alert(err.message);
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = origText;
+        }
+        isSavingTracking = false;
     }
 });
 
