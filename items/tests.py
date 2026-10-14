@@ -1912,3 +1912,197 @@ class TemporaryUploadPersistenceTests(TestCase):
         products_sorted = list(response_sort.context['products'])
         self.assertGreaterEqual(len(products_sorted), 2)
         self.assertEqual(products_sorted[0].price, Decimal("500.00"))
+
+
+class AdminSellerManagementTests(TestCase):
+    def setUp(self):
+        from accounts.models import SellerShopAddress
+        self.admin_user = User.objects.create_user(
+            phone="9999999999",
+            password="adminpassword123",
+            role="admin",
+            full_name="Admin Boss",
+            is_staff=True,
+            is_superuser=True
+        )
+        self.customer_user = User.objects.create_user(
+            phone="7777777777",
+            password="customerpassword123",
+            role="customer",
+            full_name="Normal Customer"
+        )
+        self.seller1_user = User.objects.create_user(
+            phone="8888888881",
+            email="alice@example.com",
+            password="alicepassword123",
+            role="seller",
+            full_name="Alice Trader"
+        )
+        self.seller1_profile = SellerProfile.objects.create(
+            user=self.seller1_user,
+            shop_name="Alpha Store",
+            is_verified=False,
+            pan_verification_status="pending"
+        )
+        self.seller1_address = SellerShopAddress.objects.create(
+            seller=self.seller1_profile,
+            shop_name="Alpha Store",
+            shop_phone=self.seller1_user.phone,
+            shop_email=self.seller1_user.email,
+            address_line1="Old Street 1",
+            city="Delhi",
+            state="Delhi",
+            postal_code="110001",
+            country="India"
+        )
+
+        self.seller2_user = User.objects.create_user(
+            phone="8888888882",
+            email="bob@example.com",
+            password="bobpassword123",
+            role="seller",
+            full_name="Bob Vendor"
+        )
+        self.seller2_profile = SellerProfile.objects.create(
+            user=self.seller2_user,
+            shop_name="Beta Fashion",
+            is_verified=True,
+            pan_verification_status="verified"
+        )
+
+    def test_admin_seller_management_redirect(self):
+        self.client.login(phone="9999999999", password="adminpassword123")
+        response = self.client.get(reverse('accounts:admin_seller_management'))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse('items:verify_sellers'), response.url)
+
+    def test_verify_sellers_view_admin_access_and_search(self):
+        self.client.login(phone="9999999999", password="adminpassword123")
+        
+        # All sellers list
+        response = self.client.get(reverse('items:verify_sellers'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Alpha Store")
+        self.assertContains(response, "Beta Fashion")
+
+        # Search by shop name
+        res_search_alpha = self.client.get(reverse('items:verify_sellers') + '?q=Alpha')
+        self.assertEqual(res_search_alpha.status_code, 200)
+        self.assertContains(res_search_alpha, "Alpha Store")
+        self.assertNotContains(res_search_alpha, "Beta Fashion")
+
+        # Search by owner name
+        res_search_bob = self.client.get(reverse('items:verify_sellers') + '?q=Bob')
+        self.assertEqual(res_search_bob.status_code, 200)
+        self.assertContains(res_search_bob, "Beta Fashion")
+        self.assertNotContains(res_search_bob, "Alpha Store")
+
+        # Search by city
+        res_search_city = self.client.get(reverse('items:verify_sellers') + '?q=Delhi')
+        self.assertEqual(res_search_city.status_code, 200)
+        self.assertContains(res_search_city, "Alpha Store")
+
+    def test_non_admin_restricted_access(self):
+        self.client.login(phone="7777777777", password="customerpassword123")
+        
+        # Verify sellers list should redirect non-admins
+        res_list = self.client.get(reverse('items:verify_sellers'))
+        self.assertEqual(res_list.status_code, 302)
+
+        # Seller edit should redirect non-admins
+        res_edit = self.client.get(reverse('items:seller_edit', args=[self.seller1_profile.id]))
+        self.assertEqual(res_edit.status_code, 302)
+
+    def test_seller_edit_view_multi_table_atomic_update(self):
+        self.client.login(phone="9999999999", password="adminpassword123")
+        
+        post_data = {
+            # User table
+            'owner_name': 'Alice Super Trader',
+            'owner_phone': '8888888889',
+            'owner_email': 'alice_new@example.com',
+            'new_password': 'BrandNewPassword123!',
+            'is_active': 'on',
+            # SellerProfile table
+            'shop_name': 'Alpha Grand Mart',
+            'shop_description': 'Finest goods in town',
+            'gst_number': '27ABCDE1234F1Z5',
+            'pan_number': 'ABCDE1234F',
+            'pan_verification_status': 'verified',
+            'pan_rejection_reason': '',
+            'bank_name': 'HDFC Bank',
+            'account_number': '987654321012',
+            'ifsc_code': 'HDFC0001234',
+            'account_holder_name': 'Alice Super Trader',
+            'razorpay_contact_id': 'cont_12345',
+            'razorpay_fund_account_id': 'fa_67890',
+            'is_verified': 'on',
+            # SellerShopAddress table
+            'address_line1': '100 Commercial Blvd',
+            'address_line2': 'Floor 3',
+            'city': 'Mumbai',
+            'state': 'Maharashtra',
+            'postal_code': '400001',
+            'country': 'India',
+            'pickup_instructions': 'Ring bell at entrance',
+        }
+
+        response = self.client.post(reverse('items:seller_edit', args=[self.seller1_profile.id]), data=post_data)
+        self.assertEqual(response.status_code, 302)
+
+        # Verify User table updated
+        self.seller1_user.refresh_from_db()
+        self.assertEqual(self.seller1_user.full_name, 'Alice Super Trader')
+        self.assertEqual(self.seller1_user.phone, '8888888889')
+        self.assertEqual(self.seller1_user.email, 'alice_new@example.com')
+        self.assertTrue(self.seller1_user.check_password('BrandNewPassword123!'))
+
+        # Verify SellerProfile table updated
+        self.seller1_profile.refresh_from_db()
+        self.assertEqual(self.seller1_profile.shop_name, 'Alpha Grand Mart')
+        self.assertEqual(self.seller1_profile.shop_description, 'Finest goods in town')
+        self.assertEqual(self.seller1_profile.gst_number, '27ABCDE1234F1Z5')
+        self.assertEqual(self.seller1_profile.pan_number, 'ABCDE1234F')
+        self.assertEqual(self.seller1_profile.pan_verification_status, 'verified')
+        self.assertEqual(self.seller1_profile.bank_name, 'HDFC Bank')
+        self.assertEqual(self.seller1_profile.account_number, '987654321012')
+        self.assertEqual(self.seller1_profile.ifsc_code, 'HDFC0001234')
+        self.assertEqual(self.seller1_profile.account_holder_name, 'Alice Super Trader')
+        self.assertEqual(self.seller1_profile.razorpay_contact_id, 'cont_12345')
+        self.assertEqual(self.seller1_profile.razorpay_fund_account_id, 'fa_67890')
+        self.assertTrue(self.seller1_profile.is_verified)
+
+        # Verify SellerShopAddress table updated
+        self.seller1_address.refresh_from_db()
+        self.assertEqual(self.seller1_address.shop_name, 'Alpha Grand Mart')
+        self.assertEqual(self.seller1_address.address_line1, '100 Commercial Blvd')
+        self.assertEqual(self.seller1_address.address_line2, 'Floor 3')
+        self.assertEqual(self.seller1_address.city, 'Mumbai')
+        self.assertEqual(self.seller1_address.state, 'Maharashtra')
+        self.assertEqual(self.seller1_address.postal_code, '400001')
+        self.assertEqual(self.seller1_address.pickup_instructions, 'Ring bell at entrance')
+        self.assertTrue(self.seller1_address.is_verified)
+
+    def test_seller_edit_validation_errors(self):
+        self.client.login(phone="9999999999", password="adminpassword123")
+        
+        # Test 1: Duplicate shop name (Beta Fashion already belongs to seller 2)
+        res_dup_shop = self.client.post(reverse('items:seller_edit', args=[self.seller1_profile.id]), data={
+            'owner_name': 'Alice Trader',
+            'owner_phone': self.seller1_user.phone,
+            'shop_name': 'Beta Fashion',
+        })
+        self.assertEqual(res_dup_shop.status_code, 302)
+        self.seller1_profile.refresh_from_db()
+        self.assertNotEqual(self.seller1_profile.shop_name, 'Beta Fashion')
+
+        # Test 2: Duplicate phone number (8888888882 already belongs to seller 2)
+        res_dup_phone = self.client.post(reverse('items:seller_edit', args=[self.seller1_profile.id]), data={
+            'owner_name': 'Alice Trader',
+            'owner_phone': '8888888882',
+            'shop_name': 'Alpha Store',
+        })
+        self.assertEqual(res_dup_phone.status_code, 302)
+        self.seller1_user.refresh_from_db()
+        self.assertNotEqual(self.seller1_user.phone, '8888888882')
+

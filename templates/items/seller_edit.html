@@ -94,6 +94,26 @@
         border-color: var(--gray-200);
     }
 
+    .form-section-header {
+        font-family: 'Syne', sans-serif;
+        font-size: 1.05rem;
+        font-weight: 750;
+        color: var(--gray-850);
+        margin: 28px 0 16px 0;
+        padding-bottom: 8px;
+        border-bottom: 1.5px solid var(--gray-200);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .form-section-header:first-of-type {
+        margin-top: 0;
+    }
+    .form-section-header i {
+        color: var(--blue-500);
+        font-size: 1rem;
+    }
+
     /* Status Selection */
     .status-section {
         background: var(--gray-50);
@@ -366,11 +386,14 @@
             <div class="edit-card">
                 <h3><i class="fa fa-edit"></i> Seller Details</h3>
                 
-                <form method="post" id="sellerEditForm">
+                <form method="post" id="sellerEditForm" enctype="multipart/form-data">
                     {% csrf_token %}
-                    
+
+                    <!-- 1. Store & Owner Account (User + Profile) -->
+                    <div class="form-section-header">
+                        <i class="fa fa-store"></i> <span>Store &amp; Owner Account</span>
+                    </div>
                     <div class="form-grid">
-                        <!-- Shop Name -->
                         <div class="form-group">
                             <label for="shop_name">Shop Name *</label>
                             <input type="text" id="shop_name" name="shop_name" 
@@ -379,44 +402,221 @@
                                    class="form-input"
                                    {% if not is_admin %}disabled{% endif %}>
                         </div>
-                        
-                        <!-- GST Number -->
                         <div class="form-group">
-                            <label for="gst_number">GST Number</label>
-                            <input type="text" id="gst_number" name="gst_number" 
-                                   value="{{ seller.gst_number|default:'' }}"
-                                   placeholder="Enter GST number (optional)"
+                            <label for="owner_name">Owner / Contact Person *</label>
+                            <input type="text" id="owner_name" name="owner_name" 
+                                   value="{{ user.full_name|default:'' }}" required
+                                   placeholder="Full name of seller"
                                    class="form-input"
                                    {% if not is_admin %}disabled{% endif %}>
                         </div>
-                        
-                        <!-- Phone (read-only, from user) -->
                         <div class="form-group">
-                            <label>Phone Number</label>
-                            <input type="text" value="{{ seller.user.phone }}" disabled
-                                   class="form-input">
+                            <label for="owner_phone">Contact Phone (User Login) *</label>
+                            <input type="tel" id="owner_phone" name="owner_phone" 
+                                   value="{{ user.phone }}" required
+                                   placeholder="10-digit mobile number"
+                                   class="form-input"
+                                   {% if not is_admin %}disabled{% endif %}>
                         </div>
-                        
-                        <!-- Contact Owner -->
                         <div class="form-group">
-                            <label>Contact Person</label>
-                            <input type="text" value="{{ seller.user.full_name|default:'N/A' }}" disabled
-                                   class="form-input">
+                            <label for="owner_email">Email Address</label>
+                            <input type="email" id="owner_email" name="owner_email" 
+                                   value="{{ user.email|default:'' }}"
+                                   placeholder="seller@example.com"
+                                   class="form-input"
+                                   {% if not is_admin %}disabled{% endif %}>
                         </div>
-                        
-                        <!-- Description -->
+                        <div class="form-group" style="grid-column: 1 / -1;">
+                            <label for="new_password">Reset Password (Admin Override)</label>
+                            <input type="password" id="new_password" name="new_password" 
+                                   placeholder="Leave blank to keep current password"
+                                   class="form-input" autocomplete="new-password"
+                                   {% if not is_admin %}disabled{% endif %}>
+                            <small style="color:var(--gray-500);font-size:0.8rem;margin-top:4px;">Only fill this if you need to manually change or reset the seller's login password.</small>
+                        </div>
                         <div class="form-group" style="grid-column: 1 / -1;">
                             <label for="shop_description">Shop Description</label>
                             <textarea id="shop_description" name="shop_description" 
                                       placeholder="Describe the shop, products, specialties..."
-                                      class="form-input" style="min-height: 120px;"
+                                      class="form-input" style="min-height: 90px;"
                                       {% if not is_admin %}disabled{% endif %}>{{ seller.shop_description }}</textarea>
                         </div>
                     </div>
+
+                    <!-- 2. KYC, Tax & Identity Compliance -->
+                    <div class="form-section-header">
+                        <i class="fa fa-id-card"></i> <span>Tax &amp; Identity Compliance (GST &amp; PAN)</span>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="gst_number">GST Number (GSTIN)</label>
+                            <input type="text" id="gst_number" name="gst_number" 
+                                   value="{{ seller.gst_number|default:'' }}"
+                                   placeholder="15-character GSTIN (optional)"
+                                   maxlength="15" style="text-transform: uppercase;"
+                                   class="form-input"
+                                   {% if not is_admin %}disabled{% endif %}>
+                        </div>
+                        <div class="form-group">
+                            <label for="pan_number">PAN Number</label>
+                            <input type="text" id="pan_number" name="pan_number" 
+                                   value="{{ seller.pan_number|default:'' }}"
+                                   placeholder="10-character PAN (e.g. ABCDE1234F)"
+                                   maxlength="10" style="text-transform: uppercase;"
+                                   class="form-input"
+                                   {% if not is_admin %}disabled{% endif %}>
+                        </div>
+                        <div class="form-group">
+                            <label for="pan_verification_status">PAN Verification Status</label>
+                            <select id="pan_verification_status" name="pan_verification_status" class="form-input" {% if not is_admin %}disabled{% endif %}>
+                                <option value="pending" {% if seller.pan_verification_status == 'pending' %}selected{% endif %}>⏳ Pending Verification</option>
+                                <option value="verified" {% if seller.pan_verification_status == 'verified' %}selected{% endif %}>✅ Verified</option>
+                                <option value="rejected" {% if seller.pan_verification_status == 'rejected' %}selected{% endif %}>❌ Rejected</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="pan_card_file">PAN Card Document File</label>
+                            {% if seller.pan_card_file %}
+                            <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+                                <a href="{{ seller.pan_card_file.url }}" target="_blank" class="btn-outline btn-sm" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;font-size:0.82rem;padding:6px 12px;border: 1px solid var(--gray-300);border-radius: var(--r-sm);color: var(--blue-600);">
+                                    <i class="fa fa-file-pdf"></i> View Current Uploaded Document
+                                </a>
+                            </div>
+                            {% endif %}
+                            <input type="file" id="pan_card_file" name="pan_card_file" class="form-input" accept="image/*,.pdf" {% if not is_admin %}disabled{% endif %}>
+                        </div>
+                        <div class="form-group" style="grid-column: 1 / -1;">
+                            <label for="pan_rejection_reason">PAN Rejection Reason</label>
+                            <input type="text" id="pan_rejection_reason" name="pan_rejection_reason" 
+                                   value="{{ seller.pan_rejection_reason|default:'' }}"
+                                   placeholder="Reason shown to seller if PAN verification is rejected"
+                                   class="form-input"
+                                   {% if not is_admin %}disabled{% endif %}>
+                        </div>
+                    </div>
+
+                    <!-- 3. Bank Account & Settlement Payouts -->
+                    <div class="form-section-header">
+                        <i class="fa fa-university"></i> <span>Bank Account &amp; Settlement Payouts</span>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="bank_name">Bank Name</label>
+                            <input type="text" id="bank_name" name="bank_name" 
+                                   value="{{ seller.bank_name|default:'' }}"
+                                   placeholder="e.g. State Bank of India, HDFC, ICICI"
+                                   class="form-input"
+                                   {% if not is_admin %}disabled{% endif %}>
+                        </div>
+                        <div class="form-group">
+                            <label for="account_number">Bank Account Number</label>
+                            <input type="text" id="account_number" name="account_number" 
+                                   value="{{ seller.account_number|default:'' }}"
+                                   placeholder="Enter bank account number"
+                                   class="form-input"
+                                   {% if not is_admin %}disabled{% endif %}>
+                        </div>
+                        <div class="form-group">
+                            <label for="ifsc_code">IFSC Code</label>
+                            <input type="text" id="ifsc_code" name="ifsc_code" 
+                                   value="{{ seller.ifsc_code|default:'' }}"
+                                   placeholder="e.g. SBIN0001234"
+                                   maxlength="20" style="text-transform: uppercase;"
+                                   class="form-input"
+                                   {% if not is_admin %}disabled{% endif %}>
+                        </div>
+                        <div class="form-group">
+                            <label for="account_holder_name">Account Holder Name</label>
+                            <input type="text" id="account_holder_name" name="account_holder_name" 
+                                   value="{{ seller.account_holder_name|default:'' }}"
+                                   placeholder="Name exactly as in bank records"
+                                   class="form-input"
+                                   {% if not is_admin %}disabled{% endif %}>
+                        </div>
+                        <div class="form-group">
+                            <label for="razorpay_contact_id">RazorpayX Contact ID</label>
+                            <input type="text" id="razorpay_contact_id" name="razorpay_contact_id" 
+                                   value="{{ seller.razorpay_contact_id|default:'' }}"
+                                   placeholder="cont_..."
+                                   class="form-input"
+                                   {% if not is_admin %}disabled{% endif %}>
+                        </div>
+                        <div class="form-group">
+                            <label for="razorpay_fund_account_id">RazorpayX Fund Account ID</label>
+                            <input type="text" id="razorpay_fund_account_id" name="razorpay_fund_account_id" 
+                                   value="{{ seller.razorpay_fund_account_id|default:'' }}"
+                                   placeholder="fa_..."
+                                   class="form-input"
+                                   {% if not is_admin %}disabled{% endif %}>
+                        </div>
+                    </div>
+
+                    <!-- 4. Shop & Courier Pickup Address -->
+                    <div class="form-section-header">
+                        <i class="fa fa-map-location-dot"></i> <span>Shop &amp; Courier Pickup Address</span>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group" style="grid-column: 1 / -1;">
+                            <label for="address_line1">Address Line 1</label>
+                            <input type="text" id="address_line1" name="address_line1" 
+                                   value="{{ shop_address.address_line1|default:seller.address.address|default:'' }}"
+                                   placeholder="Shop Number, Building Name, Street"
+                                   class="form-input"
+                                   {% if not is_admin %}disabled{% endif %}>
+                        </div>
+                        <div class="form-group" style="grid-column: 1 / -1;">
+                            <label for="address_line2">Address Line 2</label>
+                            <input type="text" id="address_line2" name="address_line2" 
+                                   value="{{ shop_address.address_line2|default:'' }}"
+                                   placeholder="Landmark, Area, Colony (optional)"
+                                   class="form-input"
+                                   {% if not is_admin %}disabled{% endif %}>
+                        </div>
+                        <div class="form-group">
+                            <label for="city">City</label>
+                            <input type="text" id="city" name="city" 
+                                   value="{{ shop_address.city|default:seller.address.city|default:'' }}"
+                                   placeholder="City"
+                                   class="form-input"
+                                   {% if not is_admin %}disabled{% endif %}>
+                        </div>
+                        <div class="form-group">
+                            <label for="state">State</label>
+                            <input type="text" id="state" name="state" 
+                                   value="{{ shop_address.state|default:seller.address.state|default:'' }}"
+                                   placeholder="State"
+                                   class="form-input"
+                                   {% if not is_admin %}disabled{% endif %}>
+                        </div>
+                        <div class="form-group">
+                            <label for="postal_code">Postal Code / PIN Code</label>
+                            <input type="text" id="postal_code" name="postal_code" 
+                                   value="{{ shop_address.postal_code|default:seller.address.postalCode|default:'' }}"
+                                   placeholder="6-digit PIN code"
+                                   maxlength="10"
+                                   class="form-input"
+                                   {% if not is_admin %}disabled{% endif %}>
+                        </div>
+                        <div class="form-group">
+                            <label for="country">Country</label>
+                            <input type="text" id="country" name="country" 
+                                   value="{{ shop_address.country|default:'India' }}"
+                                   class="form-input"
+                                   {% if not is_admin %}disabled{% endif %}>
+                        </div>
+                        <div class="form-group" style="grid-column: 1 / -1;">
+                            <label for="pickup_instructions">Pickup Instructions for Delivery Couriers</label>
+                            <input type="text" id="pickup_instructions" name="pickup_instructions" 
+                                   value="{{ shop_address.pickup_instructions|default:'' }}"
+                                   placeholder="Gate number, contact person for courier dispatch"
+                                   class="form-input"
+                                   {% if not is_admin %}disabled{% endif %}>
+                        </div>
+                    </div>
                     
-                    <!-- Status Controls -->
+                    <!-- 5. Status Controls -->
                     <div class="status-section">
-                        <h4><i class="fa fa-toggle-on"></i> Seller Status</h4>
+                        <h4><i class="fa fa-toggle-on"></i> Seller Status &amp; Privileges</h4>
                         <div class="status-options">
                             <label class="status-option {% if seller.is_verified %}checked-verified{% endif %}" id="verifiedLabel">
                                 <input type="checkbox" id="is_verified" name="is_verified" {% if seller.is_verified %}checked{% endif %} {% if not is_admin %}disabled{% endif %}>
@@ -429,14 +629,14 @@
                         </div>
                         <p style="font-size:0.85rem; color:var(--gray-500); margin:14px 0 0 0; font-weight: 500; display: flex; align-items: center; gap: 6px;">
                             <i class="fa fa-info-circle" style="color: var(--blue-500);"></i> 
-                            Uncheck "Verified" to suspend selling privileges. Uncheck "Active" to deactivate the account.
+                            Unchecking "Verified" suspends selling privileges. Unchecking "Active" deactivates the seller user account.
                         </p>
                     </div>
                     
                     <!-- Form Actions -->
                     <div class="form-actions">
                         <a href="{% url 'items:verify_sellers' %}" class="btn-cancel">
-                            <i class="fa fa-times"></i> Back
+                            <i class="fa fa-arrow-left"></i> Back to Seller List
                         </a>
                         {% if is_admin %}
                             {% if not seller.is_verified and seller.is_active %}
@@ -445,7 +645,7 @@
                             </button>
                             {% endif %}
                             <button type="submit" class="btn-save">
-                                <i class="fa fa-check"></i> Save Changes
+                                <i class="fa fa-check"></i> Save All Changes
                             </button>
                         {% else %}
                             <span style="color:var(--gray-500);font-size:0.9rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;margin-left:12px;"><i class="fa fa-info-circle"></i> Editing is restricted to Admin users.</span>

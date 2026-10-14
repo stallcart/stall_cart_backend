@@ -78,7 +78,7 @@ class SellerProfile(BaseModel):
                 pass
         
         # If the PAN details are updated by the seller, reset status to pending and set is_verified to False
-        if pan_updated:
+        if pan_updated and not getattr(self, '_admin_updating', False):
             self.pan_verification_status = 'pending'
             self.is_verified = False
             self.pan_rejection_reason = None

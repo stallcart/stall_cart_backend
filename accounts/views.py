@@ -1839,6 +1839,15 @@ def admin_user_management(request):
 
 
 @login_required
+def admin_seller_management(request):
+    """Direct alias/redirect from accounts control center to seller info & management"""
+    if not request.user.is_superuser and getattr(request.user, 'role', None) != 'admin':
+        messages.error(request, "🔐 Access Denied: Only administrators can access Seller Control.")
+        return redirect('shop:home')
+    return redirect('items:verify_sellers')
+
+
+@login_required
 def admin_business_dashboard(request):
     if not request.user.is_superuser and getattr(request.user, 'role', None) not in ['admin', 'staff'] and not request.user.is_staff:
         messages.error(request, "🔐 Access Denied: Admin or Staff privileges required.")

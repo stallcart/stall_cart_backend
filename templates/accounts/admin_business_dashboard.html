@@ -492,12 +492,33 @@
                 </div>
             </div>
         </div>
+
+        <!-- Total Sellers KPI -->
+        <a href="{% url 'items:verify_sellers' %}" class="kpi-card blue" style="text-decoration: none; color: inherit; display: block; border-top: 4px solid #6366f1; transition: transform 0.2s ease;">
+            <div class="kpi-header">
+                <span class="kpi-label">Sellers</span>
+                <div class="kpi-icon-box" style="background: rgba(99, 102, 241, 0.15); color: #6366f1;">
+                    <i class="fa fa-store"></i>
+                </div>
+            </div>
+            <div>
+                <div class="kpi-value">{{ total_sellers }}</div>
+                <div class="kpi-footer">
+                    <i class="fa fa-check-circle" style="color: var(--green);"></i>
+                    <span>{{ active_sellers }} active &bull; {{ pending_sellers }} pending review</span>
+                </div>
+            </div>
+        </a>
     </div>
 
     <!-- 2. Control Centre Quick Actions -->
     <div class="control-centre-card">
         <h3><i class="fa fa-screwdriver-wrench"></i> Admin Control Centre</h3>
         <div class="action-buttons-grid">
+            <a href="{% url 'items:verify_sellers' %}" class="quick-action-btn" style="background: #f5f3ff; border: 1.5px solid #ddd6fe;">
+                <i class="fa fa-store" style="color: #6366f1;"></i>
+                <span style="font-weight: 700;">Seller Info &amp; Control</span>
+            </a>
             <a href="{% url 'accounts:admin_user_management' %}" class="quick-action-btn">
                 <i class="fa fa-users-cog"></i>
                 <span>Manage Users & Staff</span>

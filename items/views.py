@@ -1957,14 +1957,14 @@ def delete_seller_review(request, review_id):
 
 @admin_only
 def verify_sellers_view(request):
-    """Admin dashboard for verifying pending sellers"""
+    """Admin dashboard for viewing, searching, and managing all sellers"""
     
-    # Filters
-    status_filter = request.GET.get('status', 'pending')  # pending, verified, rejected, all
-    search_query = request.GET.get('search', '').strip()
+    # Filters - default to 'all' so admin sees all sellers listed
+    status_filter = request.GET.get('status', 'all')  # pending, verified, rejected, all
+    search_query = (request.GET.get('search') or request.GET.get('q') or '').strip()
     
-    # Base queryset
-    sellers = SellerProfile.objects.select_related('user').prefetch_related('products')
+    # Base queryset with relations
+    sellers = SellerProfile.objects.select_related('user', 'shop_address').prefetch_related('products')
     
     # Apply filters
     if status_filter == 'pending':
@@ -1975,36 +1975,56 @@ def verify_sellers_view(request):
         sellers = sellers.filter(is_active=False)
     # 'all' shows everything
     
-    # Search
+    # Comprehensive search across all seller related fields
     if search_query:
         sellers = sellers.filter(
             Q(shop_name__icontains=search_query) |
             Q(user__full_name__icontains=search_query) |
             Q(user__phone__icontains=search_query) |
-            Q(gst_number__icontains=search_query)
-        )
+            Q(user__email__icontains=search_query) |
+            Q(gst_number__icontains=search_query) |
+            Q(pan_number__icontains=search_query) |
+            Q(bank_name__icontains=search_query) |
+            Q(account_number__icontains=search_query) |
+            Q(shop_address__city__icontains=search_query) |
+            Q(shop_address__state__icontains=search_query) |
+            Q(shop_address__postal_code__icontains=search_query)
+        ).distinct()
     
     # Annotate with stats
     sellers = sellers.annotate(
-        product_count=Count('products', filter=Q(products__status='published')),
+        product_count=Count('products', filter=Q(products__status='published'), distinct=True),
         total_orders=Count('products__orderitem', filter=Q(products__orderitem__order__status='Delivered'), distinct=True)
     ).order_by('-created_at')
     
-    # Pagination (simple)
+    total_count = SellerProfile.objects.count()
+    pending_count = SellerProfile.objects.filter(is_verified=False, is_active=True).count()
+    verified_count = SellerProfile.objects.filter(is_verified=True, is_active=True).count()
+    rejected_count = SellerProfile.objects.filter(is_active=False).count()
+
+    # Pagination
+    from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
     page = request.GET.get('page', 1)
-    per_page = 20
-    start_idx = (int(page) - 1) * per_page
-    paginated_sellers = sellers[start_idx:start_idx + per_page]
+    paginator = Paginator(sellers, 15)
+    try:
+        paginated_sellers = paginator.page(page)
+    except PageNotAnInteger:
+        paginated_sellers = paginator.page(1)
+    except EmptyPage:
+        paginated_sellers = paginator.page(paginator.num_pages)
     
     context = {
         'sellers': paginated_sellers,
-        'total_count': sellers.count(),
-        'pending_count': SellerProfile.objects.filter(is_verified=False, is_active=True).count(),
+        'total_count': total_count,
+        'pending_count': pending_count,
+        'admin_verified_sellers': verified_count,
+        'rejected_count': rejected_count,
         'current_filter': status_filter,
         'search_query': search_query,
-        'page': int(page),
-        'has_next': start_idx + per_page < sellers.count(),
-        'has_prev': int(page) > 1,
+        'page': paginated_sellers.number,
+        'has_next': paginated_sellers.has_next(),
+        'has_prev': paginated_sellers.has_previous(),
+        'paginator': paginator,
     }
     
     return render(request, 'items/verify_sellers.html', context)
@@ -2070,25 +2090,59 @@ def verify_seller_action(request, seller_id):
 
 @admin_only
 def seller_detail_api(request, seller_id):
-    """JSON API for seller modal details"""
-    seller = get_object_or_404(SellerProfile, id=seller_id)
+    """JSON API for seller modal details across all related tables"""
+    seller = get_object_or_404(SellerProfile.objects.select_related('user', 'shop_address'), id=seller_id)
+    shop_addr = getattr(seller, 'shop_address', None)
+    
+    addr_line1 = ''
+    addr_city = ''
+    addr_state = ''
+    addr_pincode = ''
+    
+    if shop_addr:
+        addr_line1 = shop_addr.address_line1 or ''
+        addr_city = shop_addr.city or ''
+        addr_state = shop_state = shop_addr.state or ''
+        addr_pincode = shop_addr.postal_code or ''
+    elif isinstance(seller.address, dict):
+        addr_line1 = seller.address.get('address', '')
+        addr_city = seller.address.get('city', '')
+        addr_state = seller.address.get('state', '')
+        addr_pincode = seller.address.get('postalCode', '')
+
     data = {
+        'id': seller.id,
+        'user_id': seller.user.id,
         'shop_name': seller.shop_name,
         'owner_name': seller.user.full_name or seller.user.phone,
-        'phone': seller.user.phone,
-        'gst_number': seller.gst_number,
-        'description': seller.shop_description,
+        'user_phone': seller.user.phone,
+        'user_email': seller.user.email or '',
+        'user_is_active': seller.user.is_active,
+        'phone': seller.phone or seller.user.phone,
+        'gst_number': seller.gst_number or '',
+        'description': seller.shop_description or '',
         'product_count': seller.products.filter(status='published').count(),
         'is_verified': seller.is_verified,
         'is_active': seller.is_active,
-        'pan_number': seller.pan_number,
+        'pan_number': seller.pan_number or '',
         'pan_verification_status': seller.pan_verification_status,
-        'pan_rejection_reason': seller.pan_rejection_reason,
+        'pan_rejection_reason': seller.pan_rejection_reason or '',
         'pan_card_file_url': seller.pan_card_file.url if seller.pan_card_file else None,
-        'bank_name': seller.bank_name,
-        'account_number': seller.account_number,
-        'ifsc_code': seller.ifsc_code,
-        'account_holder_name': seller.account_holder_name,
+        'bank_name': seller.bank_name or '',
+        'account_number': seller.account_number or '',
+        'ifsc_code': seller.ifsc_code or '',
+        'account_holder_name': seller.account_holder_name or '',
+        'razorpay_contact_id': seller.razorpay_contact_id or '',
+        'razorpay_fund_account_id': seller.razorpay_fund_account_id or '',
+        'address_line1': addr_line1,
+        'address_line2': shop_addr.address_line2 if shop_addr else '',
+        'city': addr_city,
+        'state': addr_state,
+        'postal_code': addr_pincode,
+        'country': shop_addr.country if shop_addr else 'India',
+        'pickup_instructions': shop_addr.pickup_instructions if shop_addr else '',
+        'rating': float(seller.rating) if seller.rating else 0.0,
+        'registered_date': seller.created_at.strftime('%b %d, %Y'),
     }
     return JsonResponse(data)    
 
@@ -2096,59 +2150,172 @@ def seller_detail_api(request, seller_id):
 @admin_only
 def seller_edit_view(request, seller_id):
     """
-    Admin-only page to edit seller details AND verify/reject sellers.
-    Shows a form with shop name, description, GST, and status toggles.
+    Admin-only page to view & edit ANY information of a seller across all related tables:
+    - User account (Owner name, Phone, Email, Password reset, Active status)
+    - SellerProfile (Shop name, description, GST, PAN, KYC status, Bank details, Payout IDs, Verified status)
+    - SellerShopAddress (Address lines, City, State, Pincode, Country, Pickup instructions)
     """
-    seller = get_object_or_404(SellerProfile.objects.select_related('user'), id=seller_id)
-    
+    from django.db import transaction
+    from accounts.models import User, SellerShopAddress
+
+    seller = get_object_or_404(SellerProfile.objects.select_related('user', 'shop_address'), id=seller_id)
     is_admin = request.user.is_superuser or getattr(request.user, 'role', None) == 'admin'
     
-    if request.method == 'POST':
-        if not is_admin:
-            messages.error(request, 'Permission denied. Only Admins can edit seller details.')
-            return redirect('items:verify_sellers')
-            
-        # Handle form submission
-        seller.shop_name = request.POST.get('shop_name', seller.shop_name).strip()
-        seller.shop_description = request.POST.get('shop_description', seller.shop_description).strip()
-        seller.gst_number = request.POST.get('gst_number', seller.gst_number).strip() or None
-        
-        # Handle status toggles (checkboxes only send value when checked)
-        seller.is_verified = request.POST.get('is_verified') == 'on'
-        seller.is_active = request.POST.get('is_active') == 'on'
-        
-        # Validate shop name
-        if not seller.shop_name:
-            messages.error(request, 'Shop name is required.')
-            return render(request, 'items/seller_edit.html', {'seller': seller})
-        
-        seller.save()
-        
-        # Show success message with status change info
-        status_msg = []
-        if seller.is_verified and seller.is_active:
-            status_msg.append("✅ Verified & Active")
-        elif seller.is_verified and not seller.is_active:
-            status_msg.append("⚠️ Verified but Inactive")
-        elif not seller.is_verified and seller.is_active:
-            status_msg.append("⏳ Pending Verification")
-        else:
-            status_msg.append("❌ Rejected/Inactive")
-        
-        messages.success(request, f'Seller "{seller.shop_name}" updated. Status: {", ".join(status_msg)}')
+    if not is_admin:
+        messages.error(request, 'Permission denied. Only Admins can edit seller details.')
         return redirect('items:verify_sellers')
-    
-    # GET request: render edit form
-    # Pre-calculate product count for sidebar
+
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
+
+    if request.method == 'POST':
+        try:
+            with transaction.atomic():
+                user = seller.user
+                
+                # 1. Update User Account Information
+                owner_name = request.POST.get('owner_name', '').strip()
+                owner_phone = request.POST.get('owner_phone', '').strip()
+                owner_email = request.POST.get('owner_email', '').strip().lower()
+                new_password = request.POST.get('new_password', '').strip()
+                is_active = request.POST.get('is_active') == 'on'
+
+                if owner_phone and owner_phone != user.phone:
+                    if User.objects.filter(phone=owner_phone).exclude(pk=user.pk).exists():
+                        err = f"Phone number '{owner_phone}' is already registered with another account."
+                        if is_ajax:
+                            return JsonResponse({'status': 'error', 'message': err}, status=400)
+                        messages.error(request, err)
+                        return redirect('items:seller_edit', seller_id=seller.id)
+                    user.phone = owner_phone
+                    seller.phone = owner_phone
+
+                if owner_name:
+                    user.full_name = owner_name
+
+                if owner_email:
+                    if User.objects.filter(email__iexact=owner_email).exclude(pk=user.pk).exists():
+                        err = f"Email '{owner_email}' is already registered with another account."
+                        if is_ajax:
+                            return JsonResponse({'status': 'error', 'message': err}, status=400)
+                        messages.error(request, err)
+                        return redirect('items:seller_edit', seller_id=seller.id)
+                    user.email = owner_email
+                elif 'owner_email' in request.POST:
+                    user.email = None
+
+                if new_password:
+                    user.set_password(new_password)
+                    messages.info(request, "Seller login password has been reset.")
+
+                user.is_active = is_active
+                user.save()
+
+                # 2. Update SellerProfile Information
+                shop_name = request.POST.get('shop_name', '').strip()
+                if not shop_name:
+                    err = 'Shop Name is required.'
+                    if is_ajax:
+                        return JsonResponse({'status': 'error', 'message': err}, status=400)
+                    messages.error(request, err)
+                    return redirect('items:seller_edit', seller_id=seller.id)
+
+                if SellerProfile.objects.filter(shop_name__iexact=shop_name).exclude(pk=seller.pk).exists():
+                    err = f"Shop Name '{shop_name}' is already taken by another seller."
+                    if is_ajax:
+                        return JsonResponse({'status': 'error', 'message': err}, status=400)
+                    messages.error(request, err)
+                    return redirect('items:seller_edit', seller_id=seller.id)
+
+                seller.shop_name = shop_name
+                seller.shop_description = request.POST.get('shop_description', '').strip()
+                seller.gst_number = request.POST.get('gst_number', '').strip().upper() or None
+                seller.pan_number = request.POST.get('pan_number', '').strip().upper() or None
+                
+                pan_status = request.POST.get('pan_verification_status', seller.pan_verification_status)
+                if pan_status in ['pending', 'verified', 'rejected']:
+                    seller.pan_verification_status = pan_status
+                seller.pan_rejection_reason = request.POST.get('pan_rejection_reason', '').strip() or None
+
+                if 'pan_card_file' in request.FILES:
+                    seller.pan_card_file = request.FILES['pan_card_file']
+
+                # Bank details
+                seller.bank_name = request.POST.get('bank_name', '').strip()
+                seller.account_number = request.POST.get('account_number', '').strip()
+                seller.ifsc_code = request.POST.get('ifsc_code', '').strip().upper()
+                seller.account_holder_name = request.POST.get('account_holder_name', '').strip()
+
+                # Razorpay Payout IDs
+                seller.razorpay_contact_id = request.POST.get('razorpay_contact_id', '').strip() or None
+                seller.razorpay_fund_account_id = request.POST.get('razorpay_fund_account_id', '').strip() or None
+
+                # Status
+                is_verified = request.POST.get('is_verified') == 'on'
+                seller.is_verified = is_verified
+                seller.is_active = is_active
+
+                # Sync verification status
+                if seller.is_verified:
+                    seller.pan_verification_status = 'verified'
+                    seller.pan_rejection_reason = None
+                elif seller.pan_verification_status == 'verified' and not seller.is_verified:
+                    seller.pan_verification_status = 'pending'
+
+                seller._admin_updating = True
+                seller.save()
+
+                # 3. Update SellerShopAddress (related table)
+                shop_addr, _ = SellerShopAddress.objects.get_or_create(
+                    seller=seller,
+                    defaults={'shop_name': seller.shop_name, 'shop_phone': user.phone}
+                )
+                shop_addr.shop_name = seller.shop_name
+                shop_addr.shop_phone = seller.phone or user.phone
+                shop_addr.shop_email = user.email or ''
+                shop_addr.address_line1 = request.POST.get('address_line1', '').strip()
+                shop_addr.address_line2 = request.POST.get('address_line2', '').strip()
+                shop_addr.city = request.POST.get('city', '').strip()
+                shop_addr.state = request.POST.get('state', '').strip()
+                shop_addr.postal_code = request.POST.get('postal_code', '').strip()
+                shop_addr.country = request.POST.get('country', 'India').strip() or 'India'
+                shop_addr.gst_number = seller.gst_number or ''
+                shop_addr.pickup_instructions = request.POST.get('pickup_instructions', '').strip()
+                shop_addr.is_verified = seller.is_verified
+                shop_addr.save()
+
+                # Sync address dictionary JSON field
+                seller.address = {
+                    'address': f"{shop_addr.address_line1} {shop_addr.address_line2}".strip(),
+                    'city': shop_addr.city,
+                    'state': shop_addr.state,
+                    'postalCode': shop_addr.postal_code,
+                }
+                seller.save(update_fields=['address'])
+
+            success_msg = f"✅ All seller details for '{seller.shop_name}' have been updated across User, Profile, and Shop Address tables!"
+            if is_ajax:
+                return JsonResponse({'status': 'success', 'message': success_msg})
+
+            messages.success(request, success_msg)
+            return redirect('items:seller_edit', seller_id=seller.id)
+
+        except Exception as e:
+            err_msg = f"Failed to update seller: {str(e)}"
+            if is_ajax:
+                return JsonResponse({'status': 'error', 'message': err_msg}, status=500)
+            messages.error(request, err_msg)
+            return redirect('items:seller_edit', seller_id=seller.id)
+
+    # GET request: render edit form with all related data
     seller.product_count = seller.products.filter(status='published').count()
+    shop_address = getattr(seller, 'shop_address', None)
     
     from orders.models import SellerSettlement, OrderItem
     from django.utils import timezone
     from datetime import timedelta
     
     safety_date = timezone.now() - timedelta(days=10)
-    
-    seller_settlements = SellerSettlement.objects.filter(seller=seller).order_by('-created_at')
+    seller_settlements = SellerSettlement.objects.filter(seller=seller).order_by('-created_at')[:10]
     unsettled_order_items = OrderItem.objects.filter(
         seller=seller,
         order__status='delivered',
@@ -2158,10 +2325,12 @@ def seller_edit_view(request, seller_id):
         settlements__isnull=False
     ).exclude(
         return_requests__status__in=['requested', 'approved', 'completed']
-    ).select_related('order', 'product')
-    
+    ).select_related('order', 'product')[:15]
+
     context = {
         'seller': seller,
+        'user': seller.user,
+        'shop_address': shop_address,
         'seller_settlements': seller_settlements,
         'unsettled_order_items': unsettled_order_items,
         'is_admin': is_admin,
