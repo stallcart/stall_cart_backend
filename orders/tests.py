@@ -2625,3 +2625,181 @@ class HandoverManifestTests(TestCase):
         self.assertIn("AWB_12345", content)
         self.assertIn("Seller Two Shirt", content)
         self.assertIn("AWB_67890", content)
+
+
+class ShiprocketPickupTests(TestCase):
+    def setUp(self):
+        self.admin_user = User.objects.create_superuser(
+            phone="9999999998",
+            password="adminpassword",
+            full_name="Admin Test User"
+        )
+        self.seller_user = User.objects.create_user(
+            phone="8888888887",
+            password="sellerpassword",
+            role="seller",
+            full_name="Seller Test"
+        )
+        self.seller_profile = SellerProfile.objects.create(
+            user=self.seller_user,
+            shop_name="Pickup Test Shop",
+            is_verified=True
+        )
+        self.other_seller_user = User.objects.create_user(
+            phone="7777777776",
+            password="sellerpassword",
+            role="seller",
+            full_name="Other Seller Test"
+        )
+        self.other_seller_profile = SellerProfile.objects.create(
+            user=self.other_seller_user,
+            shop_name="Other Test Shop",
+            is_verified=True
+        )
+        self.customer = User.objects.create_user(
+            phone="6666666665",
+            password="customerpassword",
+            role="customer",
+            full_name="Customer Test"
+        )
+        self.category = Category.objects.create(name="Electronics", commision_percentage=10.0)
+        self.product = Product.objects.create(
+            seller=self.seller_profile,
+            category=self.category,
+            name="Wireless Mouse",
+            price=Decimal("500.00"),
+            stock=20
+        )
+        self.address = {
+            "name": "Customer Test",
+            "phone": "9876543210",
+            "address_line1": "123 Pickup St",
+            "city": "Bangalore",
+            "state": "Karnataka",
+            "postal_code": "560001"
+        }
+        self.order = Order.objects.create(
+            user=self.customer,
+            unique_order_id="ORD-PICKUP-TEST-100",
+            total_amount=Decimal("500.00"),
+            payment_status="paid",
+            payment_method="razorpay",
+            shipping_address=self.address,
+            status="confirmed"
+        )
+        self.order_item = OrderItem.objects.create(
+            order=self.order,
+            product=self.product,
+            seller=self.seller_profile,
+            quantity=1,
+            price=Decimal("500.00"),
+            total=Decimal("500.00"),
+            status="confirmed",
+            tracking_number="AWB-PICKUP-12345",
+            courier_name="Delhivery",
+            shipment_id="SHIP-9999"
+        )
+
+    @mock.patch('delivery.delivery_services.ShiprocketService.generate_pickup')
+    def test_schedule_seller_order_pickup_service_and_idempotency(self, mock_generate_pickup):
+        from delivery.delivery_services import schedule_seller_order_pickup
+        mock_generate_pickup.return_value = {
+            'success': True,
+            'pickup_token_number': 'TOKEN-12345',
+            'pickup_scheduled_date': '2026-10-15 11:00:00'
+        }
+        
+        # 1. First execution schedules pickup
+        success, msg = schedule_seller_order_pickup(self.order, seller=self.seller_profile)
+        self.assertTrue(success)
+        mock_generate_pickup.assert_called_once_with(['SHIP-9999'])
+        
+        self.order_item.refresh_from_db()
+        self.order.refresh_from_db()
+        self.assertTrue(self.order_item.is_pickup_scheduled)
+        self.assertEqual(self.order_item.pickup_token_number, 'TOKEN-12345')
+        self.assertIsNotNone(self.order_item.pickup_scheduled_at)
+        self.assertTrue(self.order.is_pickup_scheduled)
+        self.assertEqual(self.order_item.status, 'processing')
+        
+        # 2. Second execution is idempotent and skips Shiprocket API
+        mock_generate_pickup.reset_mock()
+        success_repeat, msg_repeat = schedule_seller_order_pickup(self.order, seller=self.seller_profile)
+        self.assertTrue(success_repeat)
+        self.assertIn("already", msg_repeat.lower())
+        mock_generate_pickup.assert_not_called()
+
+    @mock.patch('delivery.delivery_services.ShiprocketService.generate_pickup')
+    def test_seller_ready_for_pickup_view(self, mock_generate_pickup):
+        mock_generate_pickup.return_value = {
+            'success': True,
+            'pickup_token_number': 'SELLER-TOKEN-1'
+        }
+        url = reverse('orders:seller_ready_for_pickup', kwargs={'order_id': self.order.unique_order_id})
+        
+        # Login as authorized seller
+        self.client.login(phone="8888888887", password="sellerpassword")
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data.get('status'), 'success')
+        
+        self.order_item.refresh_from_db()
+        self.assertTrue(self.order_item.is_pickup_scheduled)
+
+    @mock.patch('delivery.delivery_services.ShiprocketService.generate_pickup')
+    def test_admin_ready_for_pickup_view(self, mock_generate_pickup):
+        mock_generate_pickup.return_value = {
+            'success': True,
+            'pickup_token_number': 'ADMIN-TOKEN-1'
+        }
+        url = reverse('orders:admin_ready_for_pickup', kwargs={'order_id': self.order.unique_order_id})
+        
+        # Login as Admin
+        self.client.login(phone="9999999998", password="adminpassword")
+        response = self.client.post(
+            url,
+            data=json.dumps({'seller_id': self.seller_profile.id}),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data.get('status'), 'success')
+
+    @mock.patch('delivery.delivery_services.ShiprocketService._get_token', return_value='fake-jwt-token')
+    @mock.patch('delivery.delivery_services.ShiprocketService.get_tracking')
+    @mock.patch('delivery.delivery_services.ShiprocketService.generate_pickup')
+    @mock.patch('requests.get')
+    def test_sync_command_prevents_active_order_auto_cancellation(self, mock_requests_get, mock_generate_pickup, mock_get_tracking, mock_get_token):
+        mock_generate_pickup.return_value = {'success': True, 'pickup_token_number': 'SYNC-TOKEN-1'}
+        # Simulate Shiprocket returning "CANCELED" or "PICKUP CANCELLED"
+        mock_get_tracking.return_value = {
+            'current_status': 'CANCELED',
+            'courier_name': 'Delhivery',
+            'activities': []
+        }
+        mock_resp = mock.MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            'data': [{
+                'channel_order_id': f"{self.order.unique_order_id}-S{self.seller_profile.id}",
+                'awb_code': 'AWB-PICKUP-12345',
+                'courier_name': 'Delhivery',
+                'shipments': [{'id': 'SHIP-9999', 'awb_code': 'AWB-PICKUP-12345'}]
+            }]
+        }
+        mock_requests_get.return_value = mock_resp
+        
+        # Run sync_shiprocket_awb management command
+        call_command('sync_shiprocket_awb')
+        
+        self.order_item.refresh_from_db()
+        self.order.refresh_from_db()
+        
+        # Guard check: Item must NOT be cancelled! It should remain confirmed/processing
+        self.assertNotEqual(self.order_item.status, 'cancelled')
+        self.assertNotEqual(self.order.status, 'cancelled')
+        self.assertIn(self.order_item.status, ['confirmed', 'processing'])
+        # Also pickup should have been scheduled by the command's auto-pickup pass
+        self.assertTrue(self.order_item.is_pickup_scheduled)
+

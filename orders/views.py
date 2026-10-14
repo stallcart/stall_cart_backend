@@ -1719,6 +1719,9 @@ def shiprocket_webhook(request):
                         allow_item_transition = False
                     elif order_item.status in ('cancelled', 'refund_initiated', 'refunded', 'returned'):
                         allow_item_transition = False
+                    elif new_local_status == 'cancelled' and order_item.status in ('confirmed', 'processing', 'shipped', 'out_for_delivery'):
+                        allow_item_transition = False
+                        logger.warning(f"Shiprocket Webhook reported 'cancelled' for active item {order_item.id} on order {order.unique_order_id}. Preventing auto-cancellation and auto-refund loop.")
 
                     if allow_item_transition and order_item.status != new_local_status:
                         old_status = order.status
@@ -1753,6 +1756,9 @@ def shiprocket_webhook(request):
                         allow_order_transition = False
                     elif order.status in ('cancelled', 'refund_initiated', 'refunded', 'returned'):
                         allow_order_transition = False
+                    elif new_local_status == 'cancelled' and order.status in ('confirmed', 'processing', 'shipped', 'out_for_delivery'):
+                        allow_order_transition = False
+                        logger.warning(f"Shiprocket Webhook reported 'cancelled' for active order {order.unique_order_id}. Preventing auto-cancellation and auto-refund loop.")
 
                     if (allow_order_transition and new_local_status != order.status) or tracking_updated:
                         old_status = order.status
@@ -2645,3 +2651,80 @@ def admin_reconcile_refunds_ajax(request):
     except Exception as e:
         logger.error(f"Error running reconcile_refunds command via AJAX: {e}", exc_info=True)
         return JsonResponse({'error': f"Internal error during reconciliation: {str(e)}"}, status=500)
+
+
+@require_POST
+@login_required
+def seller_ready_for_pickup(request, order_id):
+    """
+    Seller: Explicitly trigger 'Ready for Pickup' on Shiprocket for their items in the order.
+    - If already scheduled, returns status info without hitting Shiprocket again.
+    - If not yet scheduled, pushes shipment and generates courier pickup on Shiprocket.
+    """
+    if not (is_seller_or_admin(request.user)):
+        return JsonResponse({'status': 'error', 'message': 'Unauthorized'}, status=403)
+
+    order = get_object_or_404(Order, unique_order_id=order_id)
+
+    # Determine seller profile
+    if request.user.is_superuser or request.user.role == 'admin':
+        seller = None
+    else:
+        if not hasattr(request.user, 'seller_profile'):
+            return JsonResponse({'status': 'error', 'message': 'Seller profile not found.'}, status=403)
+        seller = request.user.seller_profile
+        if not order.items.filter(product__seller=seller).exists():
+            return JsonResponse({'status': 'error', 'message': 'Unauthorized for this order.'}, status=403)
+
+    from delivery.delivery_services import schedule_seller_order_pickup
+    success, msg = schedule_seller_order_pickup(order, seller=seller, force=False)
+
+    if success:
+        first_item = order.items.filter(seller=seller).first() if seller else order.items.first()
+        token = (first_item.pickup_token_number if first_item else order.pickup_token_number) or ""
+        return JsonResponse({
+            'status': 'success',
+            'message': msg,
+            'is_pickup_scheduled': True,
+            'pickup_token_number': token,
+            'order_status': order.get_status_display()
+        })
+    else:
+        return JsonResponse({'status': 'error', 'message': msg}, status=400)
+
+
+@require_POST
+@admin_only
+def admin_ready_for_pickup(request, order_id):
+    """
+    Admin: Trigger 'Ready for Pickup' on Shiprocket for any or all seller shipments in an order.
+    """
+    order = get_object_or_404(Order, unique_order_id=order_id)
+    seller_id = request.POST.get('seller_id') or None
+    if not seller_id:
+        try:
+            body = json.loads(request.body)
+            seller_id = body.get('seller_id')
+        except Exception:
+            pass
+
+    seller = None
+    if seller_id:
+        from items.models import SellerProfile
+        seller = get_object_or_404(SellerProfile, pk=seller_id)
+
+    from delivery.delivery_services import schedule_seller_order_pickup
+    success, msg = schedule_seller_order_pickup(order, seller=seller, force=False)
+
+    if success:
+        first_item = order.items.filter(seller=seller).first() if seller else order.items.first()
+        token = (first_item.pickup_token_number if first_item else order.pickup_token_number) or ""
+        return JsonResponse({
+            'status': 'success',
+            'message': msg,
+            'is_pickup_scheduled': True,
+            'pickup_token_number': token,
+            'order_status': order.get_status_display()
+        })
+    else:
+        return JsonResponse({'status': 'error', 'message': msg}, status=400)

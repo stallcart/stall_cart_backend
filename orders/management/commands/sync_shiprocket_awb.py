@@ -278,6 +278,22 @@ class Command(BaseCommand):
                         except Exception as ex:
                             logger.error(f"Failed to send customer status change notification: {ex}")
 
+                    # Auto-schedule courier pickup if not already scheduled
+                    try:
+                        from delivery.delivery_services import schedule_seller_order_pickup
+                        items_needing_pickup = order.items.filter(seller=seller, is_pickup_scheduled=False).exclude(
+                            status__in=['cancelled', 'returned', 'returned_to_source', 'refund_initiated', 'refunded']
+                        )
+                        if items_needing_pickup.exists():
+                            self.stdout.write(f"  Pickup not yet scheduled for {seller.shop_name} items. Auto-scheduling pickup on Shiprocket...")
+                            pickup_ok, pickup_msg = schedule_seller_order_pickup(order, seller=seller, force=False)
+                            if pickup_ok:
+                                self.stdout.write(self.style.SUCCESS(f"  {pickup_msg}"))
+                            else:
+                                self.stdout.write(self.style.WARNING(f"  {pickup_msg}"))
+                    except Exception as ex_pickup:
+                        logger.warning(f"Failed to auto-schedule pickup during sync for {order.unique_order_id}: {ex_pickup}")
+
                 else:
                     self.stdout.write(f"  Shipment exists in Shiprocket but has no tracking AWB assigned yet.")
 
@@ -385,6 +401,12 @@ class Command(BaseCommand):
                         allow_item_transition = False
                     elif item.status in ('cancelled', 'refund_initiated', 'refunded', 'returned'):
                         allow_item_transition = False
+                    elif new_local_status == 'cancelled' and item.status in ('confirmed', 'processing', 'shipped', 'out_for_delivery'):
+                        allow_item_transition = False
+                        self.stdout.write(self.style.WARNING(
+                            f"  ⚠️ Shiprocket reported 'cancelled' for active item {item.id} on order {item.order.unique_order_id}. "
+                            f"Preventing automatic cancellation and refund loop. Item remains in '{item.status}' for pickup reschedule."
+                        ))
 
                     if new_local_status and allow_item_transition and item.status != new_local_status:
                         old_item_status = item.status

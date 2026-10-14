@@ -476,16 +476,58 @@ class ShiprocketService:
     # ── Generate Pickup Request ────────────────────────────────────────────────
  
     def generate_pickup(self, shipment_ids: list):
-        """Schedule pickup for given shipment IDs."""
+        """Schedule pickup for given shipment IDs with support for already-scheduled states."""
         try:
+            clean_ids = [int(s) for s in shipment_ids if str(s).isdigit()]
+            if not clean_ids:
+                clean_ids = list(shipment_ids)
+
             res = requests.post(
                 f"{SHIPROCKET_API}/courier/generate/pickup",
-                json={"shipment_id": shipment_ids},
+                json={"shipment_id": clean_ids},
                 headers=self._headers(),
-                timeout=10,
+                timeout=15,
             )
-            res.raise_for_status()
-            return {"success": True, "data": res.json()}
+            res_json = {}
+            try:
+                res_json = res.json()
+            except Exception:
+                pass
+
+            if res.status_code in [200, 201]:
+                if res_json.get("pickup_status") == 1 or res_json.get("response", {}).get("status") == "success":
+                    token = res_json.get("response", {}).get("pickup_token_number") or res_json.get("pickup_token_number")
+                    date = res_json.get("response", {}).get("pickup_scheduled_date") or res_json.get("pickup_scheduled_date")
+                    return {
+                        "success": True,
+                        "pickup_token_number": token,
+                        "pickup_scheduled_date": date,
+                        "data": res_json
+                    }
+                else:
+                    msg = str(res_json.get("message") or res_json.get("response", {}).get("data") or "")
+                    if any(w in msg.lower() for w in ["already", "exist", "scheduled", "requested", "generated"]):
+                        token = res_json.get("response", {}).get("pickup_token_number") or res_json.get("pickup_token_number")
+                        return {
+                            "success": True,
+                            "already_scheduled": True,
+                            "pickup_token_number": token,
+                            "message": msg or "Pickup already scheduled",
+                            "data": res_json
+                        }
+                    return {"success": False, "error": msg or "Shiprocket pickup status failed", "data": res_json}
+            else:
+                msg = str(res_json.get("message") or res.text)
+                if any(w in msg.lower() for w in ["already", "exist", "scheduled", "requested", "generated"]):
+                    token = res_json.get("response", {}).get("pickup_token_number") or res_json.get("pickup_token_number")
+                    return {
+                        "success": True,
+                        "already_scheduled": True,
+                        "pickup_token_number": token,
+                        "message": msg or "Pickup already scheduled on Shiprocket",
+                        "data": res_json
+                    }
+                return {"success": False, "error": msg}
         except Exception as e:
             logger.error(f"Shiprocket pickup error: {e}")
             return {"success": False, "error": str(e)}
@@ -729,6 +771,10 @@ def push_seller_items_to_shiprocket(order, seller):
                     new_status=order.status,
                     remarks=f"Reconciled/Healed existing Shiprocket shipment for {seller.shop_name} (AWB: {awb}, Courier: {courier})"
                 )
+                try:
+                    schedule_seller_order_pickup(order, seller=seller, force=False)
+                except Exception as ex_pickup:
+                    logger.warning(f"Auto-schedule pickup during healing failed for order {order.unique_order_id}: {ex_pickup}")
                 return True, None
             else:
                 # If no AWB could be retrieved or assigned, we revert PENDING_PUSH so it can be retried
@@ -780,6 +826,12 @@ def push_seller_items_to_shiprocket(order, seller):
                 new_status=order.status,
                 remarks=f"Automatically pushed {seller.shop_name} items to Shiprocket (AWB: {awb}, Courier: {courier})"
             )
+            # Auto-schedule courier pickup if not already scheduled
+            try:
+                schedule_seller_order_pickup(order, seller=seller, force=False)
+            except Exception as ex_pickup:
+                logger.warning(f"Auto-schedule pickup after push failed for order {order.unique_order_id}: {ex_pickup}")
+
             return True, None
         else:
             err_msg = res.get('error', 'Unknown error')
@@ -823,10 +875,114 @@ def push_seller_items_to_shiprocket(order, seller):
         return False, str(e)
 
 
+def schedule_seller_order_pickup(order, seller=None, force=False):
+    """
+    Schedules courier pickup on Shiprocket for the specified seller items (or all items in order).
+    - If already marked is_pickup_scheduled and not force, skips calling Shiprocket again.
+    - If items do not have AWB / shipment_id yet, auto-pushes to Shiprocket first.
+    - Updates is_pickup_scheduled=True, pickup_scheduled_at, and pickup_token_number.
+    - Records OrderStatusLog and transitions status from confirmed to processing.
+    """
+    from orders.models import OrderStatusLog, OrderItem
+    from django.db import transaction, models
+    from django.utils import timezone
+
+    if seller:
+        items = order.items.filter(seller=seller)
+    else:
+        items = order.items.all()
+
+    if not items.exists():
+        return False, "No items found for this order."
+
+    # Filter out cancelled/returned items
+    active_items = items.exclude(status__in=['cancelled', 'returned', 'returned_to_source', 'refund_initiated', 'refunded'])
+    if not active_items.exists():
+        return False, "All items in this shipment are cancelled or returned."
+
+    # Check if already scheduled (unless force=True)
+    already_scheduled_items = active_items.filter(is_pickup_scheduled=True)
+    if not force and already_scheduled_items.count() == active_items.count():
+        token = already_scheduled_items.first().pickup_token_number or order.pickup_token_number or ""
+        token_info = f" (Token: #{token})" if token else ""
+        return True, f"Pickup has already been scheduled for this shipment{token_info}."
+
+    # Ensure shipment exists on Shiprocket
+    items_lacking_shipment = active_items.filter(models.Q(shipment_id__isnull=True) | models.Q(shipment_id=''))
+    has_tracking = active_items.filter(tracking_number__isnull=False).exclude(tracking_number='').exists()
+    if items_lacking_shipment.exists() or not has_tracking:
+        target_seller = seller or active_items.first().seller
+        pushed, push_err = push_seller_items_to_shiprocket(order, target_seller)
+        if not pushed:
+            return False, f"Could not create Shiprocket shipment: {push_err}"
+        # Reload items
+        if seller:
+            active_items = order.items.filter(seller=seller).exclude(status__in=['cancelled', 'returned', 'returned_to_source', 'refund_initiated', 'refunded'])
+        else:
+            active_items = order.items.exclude(status__in=['cancelled', 'returned', 'returned_to_source', 'refund_initiated', 'refunded'])
+
+    shipment_ids = list(set([str(item.shipment_id) for item in active_items if item.shipment_id]))
+    if not shipment_ids and order.shipment_id:
+        shipment_ids = [str(order.shipment_id)]
+
+    if not shipment_ids:
+        return False, "No Shiprocket shipment ID available to schedule pickup."
+
+    srv = ShiprocketService()
+    res = srv.generate_pickup(shipment_ids)
+
+    if res.get("success"):
+        token = res.get("pickup_token_number") or ""
+        date_str = res.get("pickup_scheduled_date") or ""
+        now = timezone.now()
+
+        with transaction.atomic():
+            update_data = {
+                'is_pickup_scheduled': True,
+                'pickup_scheduled_at': now,
+                'updated_at': now,
+            }
+            if token:
+                update_data['pickup_token_number'] = str(token)
+
+            active_items.update(**update_data)
+
+            # Sync parent order if all active order items are scheduled
+            if not order.items.exclude(status__in=['cancelled', 'returned', 'returned_to_source', 'refund_initiated', 'refunded']).filter(is_pickup_scheduled=False).exists():
+                order.is_pickup_scheduled = True
+                order.pickup_scheduled_at = now
+                if token:
+                    order.pickup_token_number = str(token)
+                order.save(update_fields=['is_pickup_scheduled', 'pickup_scheduled_at', 'pickup_token_number', 'updated_at'])
+
+            # Transition status from confirmed to processing if currently confirmed
+            if order.status == 'confirmed':
+                order.status = 'processing'
+                order.save(update_fields=['status', 'updated_at'])
+                for it in active_items.filter(status='confirmed'):
+                    it.status = 'processing'
+                    it.save(update_fields=['status', 'updated_at'])
+
+            token_display = f" (Pickup Token: #{token})" if token else ""
+            date_display = f" on {date_str}" if date_str else ""
+            remarks = f"📦 Ready for Pickup confirmed on Shiprocket{token_display}{date_display} for {seller.shop_name if seller else 'order'}."
+            OrderStatusLog.objects.create(
+                order=order,
+                old_status=order.status,
+                new_status=order.status,
+                remarks=remarks
+            )
+
+        return True, f"Pickup scheduled successfully on Shiprocket!{token_display}"
+    else:
+        err = res.get("error", "Unknown error")
+        return False, f"Failed to schedule pickup on Shiprocket: {err}"
+
+
 def auto_push_order_to_shiprocket(order):
     """
     Checks if Shiprocket credentials are set, and pushes the order if confirmed.
-    Saves AWB and courier info.
+    Saves AWB, courier info, and automatically schedules pickup if not already scheduled.
     """
     from django.conf import settings
     email = getattr(settings, 'SHIPROCKET_EMAIL', None)
@@ -849,6 +1005,11 @@ def auto_push_order_to_shiprocket(order):
                     continue
                 # Push atomically
                 push_seller_items_to_shiprocket(order, seller)
+                # Auto-schedule pickup if not yet scheduled
+                try:
+                    schedule_seller_order_pickup(order, seller=seller, force=False)
+                except Exception as ex_pickup:
+                    logger.warning(f"Auto-schedule pickup in auto_push failed for order {order.unique_order_id}: {ex_pickup}")
         except Exception as e:
             logger.error(f"Error during auto-pushing order to Shiprocket: {e}", exc_info=True)
 

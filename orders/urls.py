@@ -92,6 +92,11 @@ urlpatterns = [
          views.print_handover_manifest,
          name='print_handover_manifest'),
     
+    # Seller: Ready for Pickup
+    path('seller/order/<str:order_id>/ready-for-pickup/', 
+         seller_or_admin_only(views.seller_ready_for_pickup), 
+         name='seller_ready_for_pickup'),
+    
     # ==================== ✅ ADMIN URLS (Restricted to superusers only) ====================
     
     # Admin: All Orders
@@ -108,6 +113,11 @@ urlpatterns = [
     path('admin/order/<str:order_id>/update-status/', 
          admin_only(views.admin_update_status), 
          name='admin_update_status'),
+
+    # Admin: Ready for Pickup
+    path('admin/order/<str:order_id>/ready-for-pickup/', 
+         admin_only(views.admin_ready_for_pickup), 
+         name='admin_ready_for_pickup'),
     
     # ==================== ✅ WEBHOOKS & API (No auth required) ====================
     

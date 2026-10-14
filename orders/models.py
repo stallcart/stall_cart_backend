@@ -30,6 +30,14 @@ SHIPROCKET_STATUS_MAP = {
     'pickup exception': 'processing',
     'pickup_exception': 'processing',
     'pickup error': 'processing',
+    'pickup cancelled': 'processing',
+    'pickup_cancelled': 'processing',
+    'pickup canceled': 'processing',
+    'pickup_canceled': 'processing',
+    'pickup request cancelled': 'processing',
+    'pickup_request_cancelled': 'processing',
+    'courier cancelled': 'processing',
+    'courier_cancelled': 'processing',
     'pickup': 'shipped',
     'picked up': 'shipped',
     'picked-up': 'shipped',
@@ -167,6 +175,9 @@ class Order(BaseModel):
     estimated_delivery = models.DateField(null=True, blank=True)
     delivered_at = models.DateTimeField(null=True, blank=True)
     shipped_at = models.DateTimeField(null=True, blank=True)
+    is_pickup_scheduled = models.BooleanField(default=False, db_index=True)
+    pickup_scheduled_at = models.DateTimeField(null=True, blank=True)
+    pickup_token_number = models.CharField(max_length=100, blank=True, null=True)
 
     
     # Cancellation & Returns
@@ -531,6 +542,9 @@ class OrderItem(BaseModel):
     shipment_id = models.CharField(max_length=100, blank=True, null=True)
     shipped_at = models.DateTimeField(null=True, blank=True)
     delivered_at = models.DateTimeField(null=True, blank=True)
+    is_pickup_scheduled = models.BooleanField(default=False, db_index=True)
+    pickup_scheduled_at = models.DateTimeField(null=True, blank=True)
+    pickup_token_number = models.CharField(max_length=100, blank=True, null=True)
     
     class Meta:
         ordering = ['id']

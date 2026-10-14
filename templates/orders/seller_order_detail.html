@@ -16,7 +16,15 @@
             <span class="status-badge status-{{ seller_items.0.status }}" style="margin: 0;">
                 {{ seller_items.0.get_status_display }}
             </span>
-            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                {% if seller_items.0.is_pickup_scheduled %}
+                <span class="badge" style="display: inline-flex; align-items: center; gap: 6px; background: #ecfdf5; color: #047857; border: 1.5px solid #a7f3d0; padding: 6px 14px; border-radius: 8px; font-weight: 700; font-size: 0.85rem; height: 36px;" title="Courier pickup has been scheduled on Shiprocket">
+                    <i class="fa fa-calendar-check" style="color: #059669;"></i> Pickup Scheduled{% if seller_items.0.pickup_token_number %} (#{{ seller_items.0.pickup_token_number }}){% endif %}
+                </span>
+                {% elif seller_items.0.status in 'confirmed,processing' %}
+                <button class="btn-primary" id="sellerReadyForPickupBtn" onclick="requestSellerPickup('{{ order.unique_order_id }}')" style="font-size: 0.85rem; padding: 8px 16px; height: 36px; border-radius: 8px; font-weight: 700; background: linear-gradient(135deg, #10b981, #059669); border: none; cursor: pointer; color: white; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(16,185,129,0.3);">
+                    <i class="fa fa-truck-ramp-box"></i> Ready for Pickup
+                </button>
+                {% endif %}
                 {% if seller_items.0.status in 'pending,confirmed,processing,shipped,delivered' %}
                 <button class="btn-primary" onclick="openStatusModal()" style="font-size: 0.85rem; padding: 8px 16px; height: 36px; border-radius: 8px; width: auto; font-weight: 700; border: none; cursor: pointer;">
                     Update Status
@@ -149,6 +157,11 @@
         <p style="margin: 0 0 8px;"><strong>AWB / Tracking Number:</strong> {{ first_item.tracking_number|default:order.tracking_number }}</p>
         {% if first_item.shiprocket_status or order.shiprocket_status %}
         <p style="margin: 0 0 8px;"><strong>Courier Status:</strong> <span style="font-weight: 700; color: #1e3a8a; background: #e0f2fe; padding: 2px 8px; border-radius: 4px; font-size: 0.85rem; display: inline-block;">{{ first_item.shiprocket_status|default:order.shiprocket_status }}</span></p>
+        {% endif %}
+        {% if first_item.is_pickup_scheduled or order.is_pickup_scheduled %}
+        <p style="margin: 0 0 8px;"><strong>Pickup Status:</strong> <span style="font-weight: 700; color: #047857; background: #ecfdf5; padding: 2px 8px; border-radius: 4px; font-size: 0.85rem; display: inline-block;"><i class="fa fa-calendar-check"></i> Scheduled on Shiprocket{% if first_item.pickup_token_number or order.pickup_token_number %} (Token: #{{ first_item.pickup_token_number|default:order.pickup_token_number }}){% endif %}</span></p>
+        {% elif seller_items.0.status in 'confirmed,processing' %}
+        <p style="margin: 0 0 8px;"><strong>Pickup Status:</strong> <span style="font-weight: 600; color: #b45309; background: #fffbeb; padding: 2px 8px; border-radius: 4px; font-size: 0.85rem; display: inline-block;"><i class="fa fa-clock"></i> Not Yet Scheduled</span></p>
         {% endif %}
         {% if order.estimated_delivery %}
         <p style="margin: 0 0 8px;"><strong>Estimated Delivery:</strong> {{ order.estimated_delivery|date:"d M Y" }}</p>
@@ -547,5 +560,44 @@ document.getElementById('cancelForm')?.addEventListener('submit', async (e) => {
         }
     }
 });
+
+async function requestSellerPickup(orderId) {
+    const btn = document.getElementById('sellerReadyForPickupBtn');
+    if (!confirm("Are you sure you want to mark this order Ready for Pickup? This will schedule courier pickup on Shiprocket for your shop location.")) {
+        return;
+    }
+    const origHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Scheduling Pickup...';
+    }
+    try {
+        const res = await fetch(`/orders/seller/order/${orderId}/ready-for-pickup/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        const data = await res.json();
+        if (data.status === 'success' || data.status === 'info') {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert(data.message || 'Failed to schedule pickup.');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = origHtml;
+            }
+        }
+    } catch (err) {
+        alert('Network error while scheduling pickup: ' + err.message);
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = origHtml;
+        }
+    }
+}
 </script>
 {% endblock %}
