@@ -559,7 +559,7 @@
                         <div class="form-group" style="grid-column: 1 / -1;">
                             <label for="address_line1">Address Line 1</label>
                             <input type="text" id="address_line1" name="address_line1" 
-                                   value="{{ shop_address.address_line1|default:seller.address.address|default:'' }}"
+                                   value="{{ shop_address.address_line1|default:'' }}"
                                    placeholder="Shop Number, Building Name, Street"
                                    class="form-input"
                                    {% if not is_admin %}disabled{% endif %}>
@@ -575,7 +575,7 @@
                         <div class="form-group">
                             <label for="city">City</label>
                             <input type="text" id="city" name="city" 
-                                   value="{{ shop_address.city|default:seller.address.city|default:'' }}"
+                                   value="{{ shop_address.city|default:'' }}"
                                    placeholder="City"
                                    class="form-input"
                                    {% if not is_admin %}disabled{% endif %}>
@@ -583,7 +583,7 @@
                         <div class="form-group">
                             <label for="state">State</label>
                             <input type="text" id="state" name="state" 
-                                   value="{{ shop_address.state|default:seller.address.state|default:'' }}"
+                                   value="{{ shop_address.state|default:'' }}"
                                    placeholder="State"
                                    class="form-input"
                                    {% if not is_admin %}disabled{% endif %}>
@@ -591,7 +591,7 @@
                         <div class="form-group">
                             <label for="postal_code">Postal Code / PIN Code</label>
                             <input type="text" id="postal_code" name="postal_code" 
-                                   value="{{ shop_address.postal_code|default:seller.address.postalCode|default:'' }}"
+                                   value="{{ shop_address.postal_code|default:'' }}"
                                    placeholder="6-digit PIN code"
                                    maxlength="10"
                                    class="form-input"

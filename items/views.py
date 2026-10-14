@@ -2309,6 +2309,24 @@ def seller_edit_view(request, seller_id):
     # GET request: render edit form with all related data
     seller.product_count = seller.products.filter(status='published').count()
     shop_address = getattr(seller, 'shop_address', None)
+    if not shop_address:
+        from accounts.models import SellerShopAddress
+        shop_address = SellerShopAddress.objects.filter(seller=seller).first()
+        
+    if not shop_address:
+        seller_addr = seller.address if isinstance(seller.address, dict) else {}
+        from accounts.models import SellerShopAddress
+        shop_address = SellerShopAddress(
+            seller=seller,
+            shop_name=seller.shop_name,
+            shop_phone=seller.phone or (seller.user.phone if hasattr(seller, 'user') else ''),
+            shop_email=seller.user.email if hasattr(seller, 'user') and seller.user.email else '',
+            address_line1=seller_addr.get('address', '') or '',
+            city=seller_addr.get('city', '') or '',
+            state=seller_addr.get('state', '') or '',
+            postal_code=seller_addr.get('postalCode', '') or '',
+            country='India'
+        )
     
     from orders.models import SellerSettlement, OrderItem
     from django.utils import timezone
