@@ -22,40 +22,94 @@
                 (navigator.maxTouchPoints > 0 && (/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)))
             );
 
-            function isExcludedPwaRoute(path) {
-                if (!path || typeof path !== 'string') return true;
-                return (
-                    path.indexOf('/accounts/') === 0 ||
-                    path.indexOf('/payment/') === 0 ||
-                    path.indexOf('/download/app') === 0 ||
-                    path.indexOf('/checkout/') !== -1 ||
-                    path.indexOf('/cart/checkout') !== -1
-                );
+            function getPwaResumeTarget() {
+                var savedRoute = localStorage.getItem('stallcart_pwa_active_route');
+                var savedTime = localStorage.getItem('stallcart_pwa_active_route_time');
+                if (!savedRoute || typeof savedRoute !== 'string' || !savedRoute.startsWith('/')) return null;
+                if (savedRoute === '/' || savedRoute === '/?source=pwa') return null;
+
+                // Max age: 30 minutes
+                if (savedTime && (Date.now() - parseInt(savedTime, 10)) > 30 * 60 * 1000) {
+                    try {
+                        localStorage.removeItem('stallcart_pwa_active_route');
+                        localStorage.removeItem('stallcart_pwa_active_route_time');
+                    } catch(e) {}
+                    return null;
+                }
+
+                // Never resume logout, payment, download page
+                if (savedRoute.indexOf('/accounts/logout') !== -1 ||
+                    savedRoute.indexOf('/payment/') !== -1 ||
+                    savedRoute.indexOf('/download/app') !== -1) {
+                    return null;
+                }
+
+                // If user is verifying forgot password OTP or resetting password, ALWAYS allow resuming!
+                if (savedRoute.indexOf('/accounts/forgot-password/verify') !== -1 ||
+                    savedRoute.indexOf('/accounts/forgot-password/reset') !== -1) {
+                    return savedRoute;
+                }
+
+                // Disallow initial entry forms (login, register, forgot-password step 1) from stale restoring
+                if (savedRoute === '/accounts/forgot-password' ||
+                    savedRoute === '/accounts/forgot-password/' ||
+                    savedRoute.indexOf('/accounts/login') === 0 ||
+                    savedRoute.indexOf('/accounts/register') === 0) {
+                    return null;
+                }
+
+                return savedRoute;
+            }
+
+            function recordPwaActiveRoute(path) {
+                if (!path || typeof path !== 'string') return;
+                if (path.indexOf('/accounts/logout') !== -1 ||
+                    path.indexOf('/payment/') !== -1 ||
+                    path.indexOf('/download/app') !== -1) return;
+
+                if (path === '/accounts/forgot-password' ||
+                    path === '/accounts/forgot-password/' ||
+                    path.indexOf('/accounts/login') === 0 ||
+                    path.indexOf('/accounts/register') === 0) return;
+
+                try {
+                    localStorage.setItem('stallcart_pwa_active_route', window.location.pathname + window.location.search + window.location.hash);
+                    localStorage.setItem('stallcart_pwa_active_route_time', Date.now().toString());
+                } catch(e) {}
             }
 
             if (isStandalone) {
                 sessionStorage.setItem('stallcart_pwa_standalone', '1');
 
-                // Route Preservation & Resuming for PWA:
+                // Route Preservation & Resuming for PWA/iOS WebClip:
                 // When app is minimized and reopened from home screen (which loads start_url '/?source=pwa'),
-                // resume the active section the user was previously viewing instead of resetting to home!
+                // resume the active section or active OTP verification instead of resetting to home/step 1!
                 var currentPath = window.location.pathname;
                 var isRootStartUrl = (currentPath === '/' || currentPath === '') && (urlParams.get('source') === 'pwa' || !document.referrer);
-                var savedRoute = localStorage.getItem('stallcart_pwa_active_route');
 
-                if (isRootStartUrl && savedRoute && savedRoute !== '/' && savedRoute !== '/?source=pwa') {
-                    if (isExcludedPwaRoute(savedRoute)) {
-                        try { localStorage.removeItem('stallcart_pwa_active_route'); } catch(e) {}
-                    } else if (savedRoute.startsWith('/')) {
-                        window.location.replace(savedRoute);
+                if (isRootStartUrl) {
+                    var targetRoute = getPwaResumeTarget();
+                    if (targetRoute) {
+                        window.location.replace(targetRoute);
                         return;
                     }
                 }
 
-                // Update active section (exclude transient auth, payment, and checkout pages)
-                if (currentPath && !isExcludedPwaRoute(currentPath)) {
-                    var currentFullRoute = window.location.pathname + window.location.search + window.location.hash;
-                    localStorage.setItem('stallcart_pwa_active_route', currentFullRoute);
+                // Update active section
+                recordPwaActiveRoute(currentPath);
+
+                // iOS Standalone WebClip Navigation Fix: keep link navigation inside the standalone app
+                if (window.navigator.standalone === true) {
+                    document.addEventListener('click', function(e) {
+                        var a = e.target.closest('a');
+                        if (a && a.href && a.hostname === window.location.hostname && !a.target && !a.hasAttribute('download')) {
+                            var href = a.getAttribute('href');
+                            if (href && !href.startsWith('#') && !href.startsWith('javascript:') && !href.startsWith('tel:') && !href.startsWith('mailto:')) {
+                                e.preventDefault();
+                                window.location.href = a.href;
+                            }
+                        }
+                    }, false);
                 }
             }
 
@@ -2289,14 +2343,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 var path = window.location.pathname;
                 var isExcluded = (
                     !path ||
-                    path.indexOf('/accounts/') === 0 ||
                     path.indexOf('/payment/') === 0 ||
                     path.indexOf('/download/app') === 0 ||
                     path.indexOf('/checkout/') !== -1 ||
-                    path.indexOf('/cart/checkout') !== -1
+                    path.indexOf('/cart/checkout') !== -1 ||
+                    path === '/accounts/forgot-password' ||
+                    path === '/accounts/forgot-password/' ||
+                    path.indexOf('/accounts/login') === 0 ||
+                    path.indexOf('/accounts/register') === 0 ||
+                    path.indexOf('/accounts/logout') !== -1
                 );
                 if (!isExcluded) {
                     localStorage.setItem('stallcart_pwa_active_route', window.location.pathname + window.location.search + window.location.hash);
+                    localStorage.setItem('stallcart_pwa_active_route_time', Date.now().toString());
                 }
             } catch(e) {}
         }

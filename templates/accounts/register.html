@@ -190,7 +190,7 @@
                     <span>Expires in: <strong id="emailExpiryTimer" style="color:#e53935; font-variant-numeric: tabular-nums;">{{ site_settings.otp_expiry_minutes|default:10 }}:00</strong></span>
                 </div>
             </div>
-            <input type="text" id="emailOtp" class="form-input" placeholder="••••••" maxlength="6" style="text-align:center; letter-spacing:8px; font-size: 1.4rem; font-weight: 600; width:100%; box-sizing:border-box; padding:12px; border-radius: 8px; border: 1.5px solid #ddd;">
+            <input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" id="emailOtp" class="form-input" placeholder="••••••" maxlength="6" style="text-align:center; letter-spacing:8px; font-size: 1.4rem; font-weight: 600; width:100%; box-sizing:border-box; padding:12px; border-radius: 8px; border: 1.5px solid #ddd;">
             <div id="emailOtpExpiredMsg" style="display:none; color:#c62828; font-size:0.82rem; text-align:center; margin-top:6px; font-weight:500;">
                 <i class="fa fa-exclamation-circle"></i> OTP has expired. Please click Resend OTP below.
             </div>
@@ -211,7 +211,7 @@
                     <span>Expires in: <strong id="phoneExpiryTimer" style="color:#e53935; font-variant-numeric: tabular-nums;">{{ site_settings.otp_expiry_minutes|default:10 }}:00</strong></span>
                 </div>
             </div>
-            <input type="text" id="phoneOtp" class="form-input" placeholder="••••••" maxlength="6" style="text-align:center; letter-spacing:8px; font-size: 1.4rem; font-weight: 600; width:100%; box-sizing:border-box; padding:12px; border-radius: 8px; border: 1.5px solid #ddd;">
+            <input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" id="phoneOtp" class="form-input" placeholder="••••••" maxlength="6" style="text-align:center; letter-spacing:8px; font-size: 1.4rem; font-weight: 600; width:100%; box-sizing:border-box; padding:12px; border-radius: 8px; border: 1.5px solid #ddd;">
             <div id="phoneOtpExpiredMsg" style="display:none; color:#c62828; font-size:0.82rem; text-align:center; margin-top:6px; font-weight:500;">
                 <i class="fa fa-exclamation-circle"></i> OTP has expired. Please click Resend OTP below.
             </div>
