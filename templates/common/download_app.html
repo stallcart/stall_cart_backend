@@ -337,14 +337,22 @@
                 <i class="fa fa-info-circle" style="font-size: 1.3rem; color: #2563eb; flex-shrink: 0; margin-top: 2px;"></i>
                 <div style="flex: 1;">
                     <strong>Opened from WhatsApp or Social App?</strong><br>
-                    In-app browsers restrict app installation. Tap below to open in your browser for instant 1-tap setup:
-                    <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;">
+                    <span id="inAppNoticeDesc">In-app browsers restrict app installation. Open in your browser for instant setup:</span>
+                    <div id="inAppAndroidBtns" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;">
                         <a href="intent://stallcart.in/download/app/#Intent;action=android.intent.action.VIEW;scheme=https;end" class="btn-chrome-intent" style="background: #2563eb;">
                             <i class="fa fa-compass"></i> Open in Default Browser
                         </a>
                         <a href="intent://stallcart.in/download/app/#Intent;scheme=https;package=com.android.chrome;end" class="btn-chrome-intent" style="background: #059669;">
                             <i class="fab fa-chrome"></i> Open in Google Chrome
                         </a>
+                    </div>
+                    <div id="inAppIosHint" style="display: none; margin-top: 8px; background: #ffffff; padding: 10px 12px; border-radius: 8px; border: 1px solid #bfdbfe;">
+                        <div style="font-weight: 700; color: #1e3a8a; margin-bottom: 4px;">iPhone Setup:</div>
+                        <div style="font-size: 0.78rem; color: #334155; line-height: 1.5;">
+                            1. Tap the <strong>Safari / Compass icon (🧭)</strong> or <strong>(⋯)</strong> in the corner.<br>
+                            2. Select <strong>Open in Safari</strong>.<br>
+                            3. In Safari, tap <strong>Share <i class="fa fa-arrow-up-from-bracket" style="color:#2874f0;"></i></strong> &rarr; <strong>Add to Home Screen</strong>.
+                        </div>
                     </div>
                 </div>
             </div>
@@ -597,7 +605,8 @@ function selectBrowserGuide(guideId) {
 
     var allTabs = document.querySelectorAll('.browser-tab-btn');
     allTabs.forEach(function(t) {
-        if (t.dataset.target === guideId) {
+        var isMatch = t.dataset.target === guideId || (guideId.startsWith('ios') && t.dataset.target === 'iosGuideCard');
+        if (isMatch) {
             t.classList.add('active');
         } else {
             t.classList.remove('active');
@@ -606,12 +615,13 @@ function selectBrowserGuide(guideId) {
 }
 
 function isInsideWebView() {
-    return /WhatsApp|FBAN|FBAV|Instagram/i.test(navigator.userAgent);
+    return /WhatsApp|FBAN|FBAV|Instagram|Line|Twitter|Snapchat/i.test(navigator.userAgent);
 }
 
 function triggerPwaInstall() {
-    if (isInsideWebView()) {
-        // Fallback intent for in-app webview
+    var b = getAppPageBrowserInfo();
+    if (isInsideWebView() && !b.isIos) {
+        // Fallback intent for in-app webview on Android only
         window.location.href = "intent://stallcart.in/download/app/#Intent;action=android.intent.action.VIEW;scheme=https;end";
         return;
     }
@@ -647,6 +657,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isInsideWebView()) {
         const notice = document.getElementById('inAppBrowserNotice');
         if (notice) notice.style.display = 'flex';
+        if (b.isIos) {
+            const androidBtns = document.getElementById('inAppAndroidBtns');
+            const iosHint = document.getElementById('inAppIosHint');
+            if (androidBtns) androidBtns.style.display = 'none';
+            if (iosHint) iosHint.style.display = 'block';
+        }
     } else {
         // Auto-prompt after brief delay if available
         setTimeout(() => {

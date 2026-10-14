@@ -1184,6 +1184,9 @@ body.pwa-mobile-standalone #pwaDrawerInstallItem {
             </div>
         </div>
         <button type="button" id="pwaIosDoneBtn" style="width: 100%; padding: 12px; background: #2874f0; color: #fff; border: none; border-radius: 10px; font-weight: 700; font-size: 14px; cursor: pointer;">Got it</button>
+        <div id="pwaIosBottomHint" style="text-align: center; margin-top: 12px; font-size: 12.5px; color: #2874f0; font-weight: 700;">
+            <i class="fa fa-arrow-down fa-bounce" style="margin-right: 5px;"></i> Look for the Share button in the bottom Safari toolbar
+        </div>
     </div>
 </div>
 
@@ -1966,6 +1969,7 @@ document.addEventListener('DOMContentLoaded', () => {
         var isEdge = /EdgA|EdgiOS|Edg\//i.test(ua);
         var isOpera = /OPR|Opera|OPT/i.test(ua);
         var isBrave = !!(navigator.brave && typeof navigator.brave.isBrave === 'function');
+        var isInApp = /WhatsApp|FBAN|FBAV|Instagram|Line|Twitter|Snapchat/i.test(ua);
         var isChrome = !isSamsung && !isEdge && !isOpera && !isBrave && (/Chrome|CriOS/i.test(ua));
         var isSafari = isIos && !isChrome && !isFirefox && !isEdge && (/Safari/i.test(ua));
 
@@ -1980,6 +1984,7 @@ document.addEventListener('DOMContentLoaded', () => {
             isBrave: isBrave,
             isChrome: isChrome,
             isSafari: isSafari,
+            isInApp: isInApp,
             isDesktop: !isIos && !isAndroid && maxTouch === 0 && window.innerWidth >= 992
         };
     }
@@ -1994,15 +1999,25 @@ document.addEventListener('DOMContentLoaded', () => {
         var titleEl = document.getElementById('pwaIosTitle');
         var subEl = document.getElementById('pwaIosSubtitle');
         var stepsEl = document.getElementById('pwaIosSteps');
+        var hintEl = document.getElementById('pwaIosBottomHint');
         if (!stepsEl) return;
 
-        if (b.isIpad) {
+        if (b.isInApp) {
+            if (titleEl) titleEl.textContent = 'Open in Safari to Install';
+            if (subEl) subEl.textContent = 'Social in-app browsers block adding to Home Screen';
+            stepsEl.innerHTML = 
+                '<div class="pwa-step"><span class="pwa-step-num">1</span><span>Tap the <strong>Safari</strong> icon <i class="fa fa-compass" style="color: #2874f0;"></i> or menu <strong>(⋯)</strong></span></div>' +
+                '<div class="pwa-step"><span class="pwa-step-num">2</span><span>Select <strong>Open in Safari</strong> (or Open in Browser)</span></div>' +
+                '<div class="pwa-step" style="margin-bottom:0;"><span class="pwa-step-num">3</span><span>In Safari, tap <strong>Share</strong> <i class="fa fa-arrow-up-from-bracket" style="color: #2874f0;"></i> &rarr; <strong>Add to Home Screen</strong></span></div>';
+            if (hintEl) hintEl.innerHTML = '<i class="fa fa-compass" style="margin-right: 5px;"></i> Open in Safari first to install on iPhone';
+        } else if (b.isIpad) {
             if (titleEl) titleEl.textContent = 'Install StallCart on iPad';
             if (subEl) subEl.textContent = 'Install as a full-screen tablet app';
             stepsEl.innerHTML = 
                 '<div class="pwa-step"><span class="pwa-step-num">1</span><span>Tap the <strong>Share</strong> button <i class="fa fa-arrow-up-from-bracket" style="color: #2874f0;"></i> at the top of Safari</span></div>' +
                 '<div class="pwa-step"><span class="pwa-step-num">2</span><span>Scroll down and tap <strong>Add to Home Screen</strong> <i class="far fa-plus-square" style="color: #2874f0;"></i></span></div>' +
                 '<div class="pwa-step" style="margin-bottom:0;"><span class="pwa-step-num">3</span><span>Tap <strong>Add</strong> in the top-right corner to finish</span></div>';
+            if (hintEl) hintEl.innerHTML = '<i class="fa fa-arrow-up fa-bounce" style="margin-right: 5px;"></i> Look for the Share icon in the top toolbar';
         } else if (b.isChrome || b.isFirefox || b.isEdge) {
             var bName = b.isChrome ? 'Chrome' : (b.isFirefox ? 'Firefox' : 'Edge');
             if (titleEl) titleEl.textContent = 'Install on iOS (' + bName + ')';
@@ -2011,14 +2026,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 '<div class="pwa-step"><span class="pwa-step-num">1</span><span>Tap the <strong>Share</strong> icon <i class="fa fa-arrow-up-from-bracket" style="color: #2874f0;"></i> or menu <strong>(...)</strong></span></div>' +
                 '<div class="pwa-step"><span class="pwa-step-num">2</span><span>Select <strong>Add to Home Screen</strong> <i class="far fa-plus-square" style="color: #2874f0;"></i></span></div>' +
                 '<div class="pwa-step" style="margin-bottom:0;"><span class="pwa-step-num">3</span><span>Tap <strong>Add</strong> to place StallCart on your home screen</span></div>';
+            if (hintEl) hintEl.innerHTML = '<i class="fa fa-arrow-up-from-bracket" style="margin-right: 5px;"></i> Use Share &rarr; Add to Home Screen in ' + bName;
         } else {
             // iPhone Safari
             if (titleEl) titleEl.textContent = 'Install StallCart on iPhone';
             if (subEl) subEl.textContent = 'Install as a native app on your home screen';
             stepsEl.innerHTML = 
-                '<div class="pwa-step"><span class="pwa-step-num">1</span><span>Tap the <strong>Share</strong> button <i class="fa fa-arrow-up-from-bracket" style="color: #2874f0;"></i> at bottom of Safari</span></div>' +
+                '<div class="pwa-step"><span class="pwa-step-num">1</span><span>Tap the <strong>Share</strong> button <i class="fa fa-arrow-up-from-bracket" style="color: #2874f0;"></i> in the bottom Safari bar</span></div>' +
                 '<div class="pwa-step"><span class="pwa-step-num">2</span><span>Scroll down and tap <strong>Add to Home Screen</strong> <i class="far fa-plus-square" style="color: #2874f0;"></i></span></div>' +
                 '<div class="pwa-step" style="margin-bottom:0;"><span class="pwa-step-num">3</span><span>Tap <strong>Add</strong> in the top-right corner</span></div>';
+            if (hintEl) hintEl.innerHTML = '<i class="fa fa-arrow-down fa-bounce" style="margin-right: 5px;"></i> Look for the Share button in the bottom Safari toolbar';
         }
     }
 
