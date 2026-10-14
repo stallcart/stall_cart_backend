@@ -571,22 +571,45 @@ def forgot_password_view(request):
                 logger.error(f"Dynamic email OTP send failed: {e}")
             print(f"🔑 [EMAIL OTP DEMO] Sent OTP to {recipient} for password reset: {otp_req.otp}")
 
+        # Secure cryptographic signed token (valid for 30 min) for fallback resilience
+        from django.core.signing import TimestampSigner
+        signer = TimestampSigner(salt='stallcart-forgot-password')
+        token = signer.sign(phone)
+
         # Save to session
         request.session['forgot_phone'] = phone
+        request.session['forgot_token'] = token
+        request.session.modified = True
         
         if email_sent:
             messages.success(request, f"OTP sent successfully via SMS to {phone} and email to {recipient}.")
         else:
             messages.success(request, f"OTP sent successfully via SMS to {phone}.")
             
-        return redirect('accounts:forgot_password_verify')
+        from django.urls import reverse
+        return redirect(f"{reverse('accounts:forgot_password_verify')}?token={token}")
         
     return render(request, 'accounts/forgot_password.html')
 
 
 def forgot_password_verify_view(request):
     """Step 2 of forgot password: submit and verify OTP"""
+    from django.core.signing import TimestampSigner, BadSignature, SignatureExpired
+    from django.urls import reverse
+    signer = TimestampSigner(salt='stallcart-forgot-password')
+    token = request.GET.get('token') or request.POST.get('token') or request.session.get('forgot_token')
     phone = request.session.get('forgot_phone')
+
+    # Fallback to cryptographically signed token if session was lost/dropped in mobile/PWA
+    if not phone and token:
+        try:
+            phone = signer.unsign(token, max_age=1800)  # valid for 30 minutes
+            request.session['forgot_phone'] = phone
+            request.session['forgot_token'] = token
+            request.session.modified = True
+        except (BadSignature, SignatureExpired):
+            phone = None
+
     if not phone:
         messages.error(request, "Session expired. Please enter your mobile number again.")
         return redirect('accounts:forgot_password')
@@ -604,6 +627,7 @@ def forgot_password_verify_view(request):
 
     context = {
         'phone': phone,
+        'token': token or '',
         'expires_in_seconds': expires_in_seconds,
         'resend_cooldown_seconds': resend_cooldown_seconds,
         'is_otp_expired': is_otp_expired,
@@ -631,9 +655,14 @@ def forgot_password_verify_view(request):
         otp_req.is_verified = True
         otp_req.save()
         
+        reset_signer = TimestampSigner(salt='stallcart-reset-password')
+        reset_token = reset_signer.sign(phone)
         request.session['forgot_verified'] = True
+        request.session['reset_token'] = reset_token
+        request.session.modified = True
+
         messages.success(request, "OTP verified successfully. Please choose a new password.")
-        return redirect('accounts:forgot_password_reset')
+        return redirect(f"{reverse('accounts:forgot_password_reset')}?token={reset_token}")
         
     return render(request, 'accounts/forgot_password_verify.html', context)
 
@@ -643,7 +672,27 @@ def resend_forgot_password_otp(request):
     if request.method != 'POST':
         return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=405)
     
+    from django.core.signing import TimestampSigner, BadSignature, SignatureExpired
+    signer = TimestampSigner(salt='stallcart-forgot-password')
+    token = request.POST.get('token')
+    if not token and request.content_type.startswith('application/json'):
+        try:
+            import json
+            data = json.loads(request.body)
+            token = data.get('token')
+        except Exception:
+            pass
+
     phone = request.session.get('forgot_phone')
+    if not phone and token:
+        try:
+            phone = signer.unsign(token, max_age=1800)
+            request.session['forgot_phone'] = phone
+            request.session['forgot_token'] = token
+            request.session.modified = True
+        except (BadSignature, SignatureExpired):
+            phone = None
+
     if not phone:
         return JsonResponse({'status': 'error', 'message': 'Session expired. Please enter your mobile number again.'}, status=400)
     
@@ -696,28 +745,55 @@ def resend_forgot_password_otp(request):
 
 def forgot_password_reset_view(request):
     """Step 3 of forgot password: enter new password"""
+    from django.core.signing import TimestampSigner, BadSignature, SignatureExpired
+    reset_signer = TimestampSigner(salt='stallcart-reset-password')
+    token = request.GET.get('token') or request.POST.get('token') or request.session.get('reset_token')
     phone = request.session.get('forgot_phone')
     verified = request.session.get('forgot_verified')
     
+    if not phone and token:
+        try:
+            phone = reset_signer.unsign(token, max_age=1800)
+            request.session['forgot_phone'] = phone
+            request.session.modified = True
+        except (BadSignature, SignatureExpired):
+            phone = None
+
+    # Fallback verification check directly against database OTP log
+    if phone and not verified:
+        from datetime import timedelta
+        from django.utils import timezone
+        has_verified_otp = OTPRequest.objects.filter(
+            phone=phone,
+            purpose='forgot_password',
+            is_verified=True,
+            updated_at__gt=timezone.now() - timedelta(minutes=30)
+        ).exists()
+        if has_verified_otp:
+            verified = True
+            request.session['forgot_verified'] = True
+            request.session.modified = True
+
     if not phone or not verified:
         messages.error(request, "Session expired. Please start over.")
         return redirect('accounts:forgot_password')
         
+    context = {'token': token or ''}
     if request.method == 'POST':
         password = request.POST.get('password')
         confirm_password = request.POST.get('confirm_password')
         
         if not password or not confirm_password:
             messages.error(request, "Both password fields are required.")
-            return render(request, 'accounts/forgot_password_reset.html')
+            return render(request, 'accounts/forgot_password_reset.html', context)
             
         if password != confirm_password:
             messages.error(request, "Passwords do not match.")
-            return render(request, 'accounts/forgot_password_reset.html')
+            return render(request, 'accounts/forgot_password_reset.html', context)
             
         if len(password) < 8:
             messages.error(request, "Password must be at least 8 characters.")
-            return render(request, 'accounts/forgot_password_reset.html')
+            return render(request, 'accounts/forgot_password_reset.html', context)
             
         user = User.objects.filter(phone=phone).first()
         if not user:
@@ -730,11 +806,14 @@ def forgot_password_reset_view(request):
         # Clear session
         request.session.pop('forgot_phone', None)
         request.session.pop('forgot_verified', None)
+        request.session.pop('forgot_token', None)
+        request.session.pop('reset_token', None)
+        request.session.modified = True
         
         messages.success(request, "Password reset successfully! Please login with your new password.")
         return redirect('accounts:login')
         
-    return render(request, 'accounts/forgot_password_reset.html')
+    return render(request, 'accounts/forgot_password_reset.html', context)
 
 # accounts/views.py - Update profile_view function
 

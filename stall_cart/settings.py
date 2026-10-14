@@ -33,6 +33,16 @@ for host in ALLOWED_HOSTS:
     CSRF_TRUSTED_ORIGINS.append(f"https://{domain}")
     CSRF_TRUSTED_ORIGINS.append(f"http://{domain}")
 
+# Session & Cookie Configuration (Mobile/PWA & Web Stability)
+SESSION_COOKIE_AGE = 1209600  # 2 weeks
+SESSION_SAVE_EVERY_REQUEST = True
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE = 'Lax'
+if not DEBUG:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
 INSTALLED_APPS = [
     'colorfield',  # Required dependency for admin_interface
     'admin_interface',

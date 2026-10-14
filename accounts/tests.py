@@ -1375,6 +1375,69 @@ class ResendOTPTests(TestCase):
         self.assertEqual(data_forgot['expiry_minutes'], 15)
         self.assertGreater(data_forgot['expires_in_seconds'], 800)
 
+    def test_forgot_password_flow_with_token_resilience(self):
+        """Verify token allows verification and reset even if session forgot_phone is completely wiped"""
+        from django.core.signing import TimestampSigner
+
+        # 1. Step 1: Submit phone
+        res = self.client.post(reverse('accounts:forgot_password'), {'phone': self.user.phone})
+        self.assertEqual(res.status_code, 302)
+        redirect_url = res.url
+        self.assertIn('token=', redirect_url)
+
+        # Extract token
+        token = redirect_url.split('token=')[1]
+        self.assertTrue(token)
+
+        # Wipe session to simulate mobile app / PWA / safari session drop
+        session = self.client.session
+        session.flush()
+
+        # 2. Step 2: Open verify page with token (GET)
+        verify_url = f"{reverse('accounts:forgot_password_verify')}?token={token}"
+        res_verify_page = self.client.get(verify_url)
+        self.assertEqual(res_verify_page.status_code, 200)
+        self.assertContains(res_verify_page, self.user.phone)
+        self.assertContains(res_verify_page, f'value="{token}"')
+
+        # Wipe session AGAIN before POST
+        session = self.client.session
+        session.flush()
+
+        # Get latest OTP from DB
+        otp_req = OTPRequest.objects.filter(phone=self.user.phone, purpose='forgot_password').latest('created_at')
+
+        # POST verify with token in form data
+        res_verify_post = self.client.post(reverse('accounts:forgot_password_verify'), {
+            'otp': otp_req.otp,
+            'token': token
+        })
+        self.assertEqual(res_verify_post.status_code, 302)
+        reset_redirect_url = res_verify_post.url
+        self.assertIn('token=', reset_redirect_url)
+
+        reset_token = reset_redirect_url.split('token=')[1]
+
+        # Wipe session AGAIN before GET reset page
+        session = self.client.session
+        session.flush()
+
+        res_reset_page = self.client.get(f"{reverse('accounts:forgot_password_reset')}?token={reset_token}")
+        self.assertEqual(res_reset_page.status_code, 200)
+
+        # POST new password
+        res_reset_post = self.client.post(reverse('accounts:forgot_password_reset'), {
+            'password': 'NewSecurePassword123!',
+            'confirm_password': 'NewSecurePassword123!',
+            'token': reset_token
+        })
+        self.assertEqual(res_reset_post.status_code, 302)
+        self.assertIn(reverse('accounts:login'), res_reset_post.url)
+
+        # Verify password changed
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password('NewSecurePassword123!'))
+
 
 
 

@@ -22,6 +22,17 @@
                 (navigator.maxTouchPoints > 0 && (/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)))
             );
 
+            function isExcludedPwaRoute(path) {
+                if (!path || typeof path !== 'string') return true;
+                return (
+                    path.indexOf('/accounts/') === 0 ||
+                    path.indexOf('/payment/') === 0 ||
+                    path.indexOf('/download/app') === 0 ||
+                    path.indexOf('/checkout/') !== -1 ||
+                    path.indexOf('/cart/checkout') !== -1
+                );
+            }
+
             if (isStandalone) {
                 sessionStorage.setItem('stallcart_pwa_standalone', '1');
 
@@ -33,20 +44,16 @@
                 var savedRoute = localStorage.getItem('stallcart_pwa_active_route');
 
                 if (isRootStartUrl && savedRoute && savedRoute !== '/' && savedRoute !== '/?source=pwa') {
-                    if (savedRoute.startsWith('/') &&
-                        !savedRoute.includes('/accounts/logout') &&
-                        !savedRoute.includes('/payment/') &&
-                        !savedRoute.includes('/download/app')) {
+                    if (isExcludedPwaRoute(savedRoute)) {
+                        try { localStorage.removeItem('stallcart_pwa_active_route'); } catch(e) {}
+                    } else if (savedRoute.startsWith('/')) {
                         window.location.replace(savedRoute);
                         return;
                     }
                 }
 
-                // Update active section
-                if (currentPath &&
-                    !currentPath.includes('/accounts/logout') &&
-                    !currentPath.includes('/payment/') &&
-                    !currentPath.includes('/download/app')) {
+                // Update active section (exclude transient auth, payment, and checkout pages)
+                if (currentPath && !isExcludedPwaRoute(currentPath)) {
                     var currentFullRoute = window.location.pathname + window.location.search + window.location.hash;
                     localStorage.setItem('stallcart_pwa_active_route', currentFullRoute);
                 }
@@ -2280,7 +2287,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (document.visibilityState === 'hidden' && isRunningInstalledApp()) {
             try {
                 var path = window.location.pathname;
-                if (path && !path.includes('/accounts/logout') && !path.includes('/payment/') && !path.includes('/download/app')) {
+                var isExcluded = (
+                    !path ||
+                    path.indexOf('/accounts/') === 0 ||
+                    path.indexOf('/payment/') === 0 ||
+                    path.indexOf('/download/app') === 0 ||
+                    path.indexOf('/checkout/') !== -1 ||
+                    path.indexOf('/cart/checkout') !== -1
+                );
+                if (!isExcluded) {
                     localStorage.setItem('stallcart_pwa_active_route', window.location.pathname + window.location.search + window.location.hash);
                 }
             } catch(e) {}
