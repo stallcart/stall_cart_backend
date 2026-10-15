@@ -165,3 +165,112 @@ def execute_campaign_lucky_draw(campaign, executed_by=None):
             logger.error(f"Failed to notify winner {winner.user.phone}: {e}")
 
     return True, created_winners, None
+
+
+def declare_fixed_campaign_winners(campaign, prize_winner_map: dict, executed_by=None):
+    """
+    Directly assigns designated fixed winners to configured campaign prizes,
+    updates participant tickets, marks results as published, sets campaign to 'winners_declared',
+    and immediately sends email + push notifications to each selected winner.
+    
+    Args:
+        campaign: Campaign instance
+        prize_winner_map: dict mapping prize_id (int or str) -> User instance or user_id
+        executed_by: staff user who triggered the action
+        
+    Returns:
+        (success: bool, created_winners: list, error_message: str or None, notification_summary: dict)
+    """
+    from django.db import transaction
+    from django.contrib.auth import get_user_model
+    from common.models import CampaignWinner, CampaignParticipant, CampaignPrize
+    
+    User = get_user_model()
+    prizes = list(campaign.prizes.filter(is_deleted=False).order_by('rank', 'display_order'))
+    if not prizes:
+        return False, [], "No prizes found for this campaign. Please add prizes in Admin first.", {}
+
+    resolved_assignments = []
+    seen_users = set()
+
+    for prize in prizes:
+        winner_val = prize_winner_map.get(prize.id) or prize_winner_map.get(str(prize.id))
+        if not winner_val and prize.fixed_winner:
+            winner_val = prize.fixed_winner
+
+        if not winner_val:
+            return False, [], f"Winner missing for {prize.ordinal_rank} ({prize.title}). Please select a customer for every configured prize.", {}
+
+        # Resolve user
+        if isinstance(winner_val, User):
+            user = winner_val
+        else:
+            try:
+                user = User.objects.get(pk=int(winner_val))
+            except (User.DoesNotExist, ValueError):
+                return False, [], f"Invalid user selected for prize {prize.title}.", {}
+
+        if user.id in seen_users:
+            return False, [], f"User {user.full_name or user.phone} cannot win multiple prizes in the same campaign ({prize.title}). Please select distinct winners for each prize.", {}
+
+        seen_users.add(user.id)
+        resolved_assignments.append((prize, user))
+
+    created_winners = []
+    with transaction.atomic():
+        # Clear any prior winners for these prizes in this campaign
+        campaign.winners.all().delete()
+        campaign.participants.update(is_winner=False)
+
+        for prize, user in resolved_assignments:
+            # Ensure participant record exists
+            participant = CampaignParticipant.objects.filter(campaign=campaign, user=user).first()
+            if not participant:
+                ticket = f"{campaign.slug.upper()[:12]}-{user.id:04d}"
+                participant = CampaignParticipant.objects.create(
+                    campaign=campaign,
+                    user=user,
+                    ticket_number=ticket,
+                    is_eligible=True,
+                    created_by=executed_by or user
+                )
+
+            participant.is_winner = True
+            participant.save(update_fields=['is_winner'])
+
+            winner = CampaignWinner.objects.create(
+                campaign=campaign,
+                prize=prize,
+                participant=participant,
+                user=user,
+                ticket_number=participant.ticket_number or f"{campaign.slug.upper()}-{participant.id}",
+                is_published=True,
+                created_by=executed_by or user
+            )
+
+            # Persist fixed_winner on prize record as well
+            if prize.fixed_winner_id != user.id:
+                prize.fixed_winner = user
+                prize.save(update_fields=['fixed_winner'])
+
+            created_winners.append(winner)
+
+        campaign.status = 'winners_declared'
+        campaign.save(update_fields=['status'])
+
+    # Send notifications (emails and push) to each winner immediately
+    notif_summary = {'emails_sent': 0, 'emails_failed': 0, 'push_sent': 0}
+    for winner in created_winners:
+        try:
+            res = notify_campaign_winner(winner)
+            if res.get('email_sent'):
+                notif_summary['emails_sent'] += 1
+            else:
+                notif_summary['emails_failed'] += 1
+            if res.get('push_sent'):
+                notif_summary['push_sent'] += 1
+        except Exception as e:
+            logger.error(f"Error notifying fixed winner {winner.user.phone}: {e}")
+            notif_summary['emails_failed'] += 1
+
+    return True, created_winners, None, notif_summary

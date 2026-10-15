@@ -483,13 +483,13 @@ class Campaign(BaseModel):
 
     @property
     def is_live(self):
-        """Returns True only if active, not deleted, status is active, and current time is within [start, end]."""
+        """Returns True only if active, not deleted, status is active or winners_declared, and current time is within [start, end]."""
         from django.utils import timezone
         now = timezone.now()
         return bool(
             self.is_active and
             not self.is_deleted and
-            self.status == 'active' and
+            self.status in ['active', 'winners_declared'] and
             self.start_datetime <= now <= self.end_datetime
         )
 
@@ -519,13 +519,13 @@ class Campaign(BaseModel):
 
     @classmethod
     def get_active_campaign(cls):
-        """Retrieves the single currently active live campaign, or None if turned off."""
+        """Retrieves the single currently active live campaign (active or winners_declared), or None if turned off."""
         from django.utils import timezone
         now = timezone.now()
         return cls.objects.filter(
             is_active=True,
             is_deleted=False,
-            status='active',
+            status__in=['active', 'winners_declared'],
             start_datetime__lte=now,
             end_datetime__gte=now
         ).order_by('-start_datetime').first()
@@ -544,7 +544,7 @@ class Campaign(BaseModel):
             return None
 
         active_campaign = cls.get_active_campaign()
-        if not active_campaign:
+        if not active_campaign or active_campaign.status != 'active':
             return None
 
         # Check if user already enrolled
@@ -589,6 +589,14 @@ class CampaignPrize(BaseModel):
     subtitle = models.CharField(max_length=255, blank=True, help_text="e.g. Brand New Smart TV with 1-Year Warranty")
     image = models.ImageField(upload_to='campaigns/prizes/', blank=True, null=True)
     approx_value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="Approx value in INR")
+    fixed_winner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='fixed_prizes',
+        help_text="Designated customer winner for this prize."
+    )
     display_order = models.PositiveIntegerField(default=1)
 
     class Meta:

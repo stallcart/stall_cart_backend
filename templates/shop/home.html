@@ -1637,11 +1637,21 @@
                         <span class="campaign-card-pill">
                             {{ active_campaign.badge_text|default:"🎉 Dandiya Night Special • 17 October 2026" }}
                         </span>
+                        {% if active_campaign.status == 'winners_declared' %}
+                        <span class="campaign-card-live-dot" style="background: rgba(234, 179, 8, 0.25); color: #fde047 !important; border-color: rgba(253, 224, 71, 0.4);">
+                            <i class="fa fa-trophy"></i> Winners Declared
+                        </span>
+                        {% else %}
                         <span class="campaign-card-live-dot"><i class="fa fa-circle"></i> Live Contest</span>
+                        {% endif %}
                     </div>
                     <h3 class="campaign-card-title">{{ active_campaign.title }}</h3>
                     <p class="campaign-card-desc">
+                        {% if active_campaign.status == 'winners_declared' %}
+                        Official Lucky Draw winners have been declared! Check official results now to see the winners.
+                        {% else %}
                         {{ active_campaign.tagline|default:"Register a free customer account & enter the Lucky Draw to win exciting prizes!" }}
+                        {% endif %}
                     </p>
                     <div class="campaign-prizes-preview">
                         {% for prize in active_campaign.homepage_prizes %}
@@ -1661,8 +1671,13 @@
                 </div>
                 <div class="campaign-card-right">
                     <a href="{% url 'common:campaign_detail' active_campaign.slug %}" class="btn-campaign-enter">
+                        {% if active_campaign.status == 'winners_declared' %}
+                        <span>View Winners</span>
+                        <i class="fa fa-trophy"></i>
+                        {% else %}
                         <span>Explore & Enter</span>
                         <i class="fa fa-arrow-right"></i>
+                        {% endif %}
                     </a>
                 </div>
             </div>

@@ -57,6 +57,21 @@
                     <p class="ticket-sub" style="margin: 0; color: #334155;">Festive Lucky Draws are exclusively reserved for StallCart customer accounts. Thank you for partnering with {{ SITE_NAME }}!</p>
                 </div>
             </div>
+            {% elif user_won_record %}
+            <div class="user-ticket-card" style="border-left-color: #f59e0b; background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); box-shadow: 0 8px 24px rgba(245, 158, 11, 0.2);">
+                <div class="ticket-icon" style="background: #f59e0b; color: #ffffff; font-size: 1.6rem;"><i class="fa fa-trophy"></i></div>
+                <div class="ticket-info">
+                    <div class="ticket-label" style="color: #b45309; font-weight: 800; font-size: 0.85rem; letter-spacing: 0.05em; text-transform: uppercase;">
+                        🎉 CONGRATULATIONS! YOU WON A LUCKY DRAW PRIZE!
+                    </div>
+                    <div class="ticket-number" style="font-size: 1.35rem; color: #78350f; font-family: inherit; font-weight: 900; margin: 4px 0;">
+                        {{ user_won_record.prize.ordinal_rank }}: {{ user_won_record.prize.title }}
+                    </div>
+                    <p class="ticket-sub" style="margin: 0; color: #92400e; font-size: 0.95rem; font-weight: 600;">
+                        Registered Mobile: <strong>{{ request.user.phone }}</strong> &bull; Ticket: <strong>{{ user_won_record.ticket_number }}</strong>. Our support team will contact you to arrange prize delivery!
+                    </p>
+                </div>
+            </div>
             {% elif user_participation %}
             <div class="user-ticket-card">
                 <div class="ticket-icon"><i class="fa fa-check-circle"></i></div>
@@ -80,7 +95,7 @@
                 </div>
             </div>
             {% endif %}
-        {% else %}
+        {% elif not winners and campaign.status != 'winners_declared' %}
             <!-- Guest Call to Action -->
             <div class="guest-cta-banner">
                 <div class="cta-text">
@@ -141,7 +156,8 @@
         </div>
         {% endif %}
 
-        <!-- Prizes Showcase -->
+        <!-- Prizes Showcase (Hidden after winners declared) -->
+        {% if not winners and campaign.status != 'winners_declared' %}
         <div class="prizes-section">
             <div class="section-title-wrap">
                 <span class="section-pill">🎁 Grand Prizes</span>
@@ -185,6 +201,7 @@
                 {% endfor %}
             </div>
         </div>
+        {% endif %}
 
         <!-- Rules and Terms -->
         {% if campaign.description %}
@@ -198,7 +215,7 @@
     </div>
 
     <!-- Mobile Floating Sticky CTA Bar (for non-enrolled guests) -->
-    {% if not user.is_authenticated %}
+    {% if not user.is_authenticated and not winners and campaign.status != 'winners_declared' %}
     <div class="mobile-sticky-cta-bar">
         <div class="mobile-cta-content">
             <div class="mobile-cta-text">

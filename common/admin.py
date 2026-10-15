@@ -258,8 +258,9 @@ class SupportEnquiryAdmin(admin.ModelAdmin):
 # ==========================================
 class CampaignPrizeInline(admin.TabularInline):
     model = CampaignPrize
-    extra = 3
-    fields = ('rank', 'title', 'subtitle', 'approx_value', 'image', 'display_order')
+    extra = 1
+    fields = ('rank', 'title', 'subtitle', 'fixed_winner', 'approx_value', 'image', 'display_order')
+    raw_id_fields = ('fixed_winner',)
     ordering = ('rank', 'display_order')
 
 
@@ -439,6 +440,33 @@ class CampaignAdmin(admin.ModelAdmin):
             )
             return HttpResponseRedirect(request.path)
 
+        if request.method == 'POST' and 'declare_fixed_winners' in request.POST:
+            from common.campaign_service import declare_fixed_campaign_winners
+            prize_winner_map = {}
+            for prize in prizes:
+                user_id_val = request.POST.get(f'fixed_winner_{prize.id}')
+                if user_id_val:
+                    prize_winner_map[prize.id] = user_id_val
+                elif prize.fixed_winner_id:
+                    prize_winner_map[prize.id] = prize.fixed_winner_id
+
+            success, created_winners, err, notif_summary = declare_fixed_campaign_winners(
+                campaign, prize_winner_map, executed_by=request.user
+            )
+            if not success:
+                messages.error(request, f"❌ {err}")
+                return HttpResponseRedirect(request.path)
+
+            emails_info = f"{notif_summary.get('emails_sent', 0)} email(s) successfully sent"
+            if notif_summary.get('emails_failed', 0) > 0:
+                emails_info += f" ({notif_summary.get('emails_failed')} without email/failed)"
+
+            messages.success(
+                request,
+                f"🎉 Fixed Winners successfully declared & published for '{campaign.title}'! {emails_info}. Selected winners are now live across the platform."
+            )
+            return HttpResponseRedirect(request.path)
+
         eligible_filter = {
             'is_eligible': True,
             'is_deleted': False,
@@ -450,11 +478,21 @@ class CampaignAdmin(admin.ModelAdmin):
         if campaign.start_datetime:
             eligible_filter['user__created_at__gte'] = campaign.start_datetime
 
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        customer_candidates = User.objects.filter(role='customer', is_active=True).order_by('full_name', 'phone')
+
+        existing_winner_map = {w.prize_id: w.user_id for w in existing_winners}
+        for p in prizes:
+            p.current_winner_user_id = existing_winner_map.get(p.id) or p.fixed_winner_id
+
         context = {
             **self.admin_site.each_context(request),
             'campaign': campaign,
             'prizes': prizes,
             'existing_winners': existing_winners,
+            'existing_winner_map': existing_winner_map,
+            'customer_candidates': customer_candidates,
             'eligible_count': campaign.participants.filter(**eligible_filter).values('user_id').distinct().count(),
             'title': f"Lucky Draw Engine: {campaign.title}",
         }

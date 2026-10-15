@@ -286,10 +286,14 @@ def campaign_detail_view(request, slug):
     winners = campaign.winners.filter(is_published=True, is_deleted=False).select_related('prize', 'user', 'participant')
     
     user_participation = None
+    user_won_record = None
     if request.user.is_authenticated:
         user_participation = CampaignParticipant.objects.filter(
             campaign=campaign, user=request.user, is_deleted=False
         ).first()
+        user_won_record = CampaignWinner.objects.filter(
+            campaign=campaign, user=request.user, is_published=True, is_deleted=False
+        ).select_related('prize').first()
 
     now = timezone.now()
     seconds_remaining = 0
@@ -301,6 +305,7 @@ def campaign_detail_view(request, slug):
         'prizes': prizes,
         'winners': winners,
         'user_participation': user_participation,
+        'user_won_record': user_won_record,
         'seconds_remaining': seconds_remaining,
         'is_live': campaign.is_live,
     }

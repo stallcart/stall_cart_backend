@@ -263,6 +263,84 @@
     </div>
     {% endif %}
 
+    <!-- 🎯 Fixed Winners Selection Card -->
+    <div class="draw-card" style="border-left: 6px solid #16a34a; background: #ffffff; padding: 28px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 15px; margin-bottom: 20px;">
+            <div>
+                <h2 style="margin: 0 0 6px 0; color: #15803d; font-size: 1.4rem; display: flex; align-items: center; gap: 8px;">
+                    <span>🎯 Fixed Winner Selection</span>
+                    <span style="font-size: 0.75rem; background: #dcfce7; color: #166534; padding: 3px 10px; border-radius: 12px; font-weight: 700;">Admin Chosen</span>
+                </h2>
+                <p style="color: #64748b; margin: 0; font-size: 0.92rem;">
+                    Select specific registered customers for each configured prize below. Clicking <strong>Declare Fixed Winners & Send Emails Now</strong> will instantly save them, publish the results, update their account dashboard, and dispatch celebratory notification emails automatically.
+                </p>
+            </div>
+        </div>
+
+        {% if prizes %}
+        <form method="POST" id="fixedWinnersForm" onsubmit="return confirm('Confirm declaring these fixed winners for {{ campaign.title }}? Winner emails will be dispatched immediately and official results published on StallCart.');">
+            {% csrf_token %}
+            <div style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 24px;">
+                {% for p in prizes %}
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.03);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span class="rank-pill {% if p.rank == 1 %}rank-1{% elif p.rank == 2 %}rank-2{% elif p.rank == 3 %}rank-3{% else %}rank-other{% endif %}" style="margin-bottom: 0;">
+                                {% if p.rank == 1 %}🥇 1st Prize{% elif p.rank == 2 %}🥈 2nd Prize{% elif p.rank == 3 %}🥉 3rd Prize{% else %}Rank #{{ p.rank }}{% endif %}
+                            </span>
+                            <strong style="color: #0f172a; font-size: 1.1rem;">{{ p.title }}</strong>
+                            {% if p.approx_value %}<span style="color: #16a34a; font-size: 0.88rem; font-weight: 700;">(₹{{ p.approx_value }})</span>{% endif %}
+                        </div>
+                        {% if p.subtitle %}
+                        <span style="color: #64748b; font-size: 0.88rem;">{{ p.subtitle }}</span>
+                        {% endif %}
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                        <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 280px;">
+                            <input type="text" placeholder="🔍 Quick filter by name/phone..." onkeyup="filterCustomerOptions('{{ p.id }}', this.value)" style="padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.88rem; width: 220px;">
+                            <select name="fixed_winner_{{ p.id }}" id="fixed_winner_{{ p.id }}" style="flex: 1; padding: 9px 12px; border: 1px solid #94a3b8; border-radius: 6px; font-size: 0.92rem; background: #fff;" required>
+                                <option value="">-- Select Customer Winner --</option>
+                                {% for c in customer_candidates %}
+                                <option value="{{ c.id }}" {% if p.current_winner_user_id == c.id %}selected{% endif %}>
+                                    {{ c.full_name|default:"Customer" }} &bull; 📞 {{ c.phone }} {% if c.email %}&bull; ✉️ {{ c.email }}{% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; align-items: center; gap: 15px;">
+                <button type="submit" name="declare_fixed_winners" value="1" class="btn-draw" style="background: linear-gradient(135deg, #16a34a, #15803d); box-shadow: 0 4px 12px rgba(22, 163, 74, 0.35);">
+                    <span>🏆 Declare Fixed Winners & Send Emails Now</span>
+                </button>
+            </div>
+        </form>
+        {% else %}
+        <div style="color: #dc2626; font-weight: 700;">No prizes configured for this campaign.</div>
+        {% endif %}
+    </div>
+
+    <script>
+    function filterCustomerOptions(prizeId, searchText) {
+        const select = document.getElementById('fixed_winner_' + prizeId);
+        if (!select) return;
+        const filter = searchText.toLowerCase().trim();
+        for (let i = 1; i < select.options.length; i++) {
+            const opt = select.options[i];
+            const text = opt.text.toLowerCase();
+            if (!filter || text.includes(filter)) {
+                opt.style.display = '';
+            } else {
+                opt.style.display = 'none';
+            }
+        }
+    }
+    </script>
+
     <!-- Run Lucky Draw Action Card -->
     <div class="draw-card" style="text-align: center; padding: 40px 20px; background: linear-gradient(180deg, #ffffff 0%, #fff1f2 100%);">
         <h2 style="margin: 0 0 10px 0; color: #be123c;">🎲 Random Lucky Draw Generator</h2>
