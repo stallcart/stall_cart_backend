@@ -469,6 +469,7 @@ class Campaign(BaseModel):
     is_active = models.BooleanField(default=True, help_text="Master on/off switch. If False, campaign is completely hidden everywhere.")
     
     show_on_homepage = models.BooleanField(default=True, help_text="Display promotional strip/card on Homepage when live")
+    homepage_prizes_limit = models.PositiveIntegerField(default=3, help_text="Number of top prizes to display in the home page banner strip (e.g. 3, 5). Any remaining prizes will show as '+X More'.")
     show_on_register_page = models.BooleanField(default=True, help_text="Display contest highlight on Sign-up page when live")
     winner_announcement_date = models.DateTimeField(blank=True, null=True, help_text="Optional date when winners will be announced")
 
@@ -502,6 +503,19 @@ class Campaign(BaseModel):
             return 100.0
         count = self.participants_count
         return min(100.0, round((count / self.target_registrations) * 100, 1))
+
+    @property
+    def homepage_prizes(self):
+        """Returns the top prizes configured for homepage display."""
+        limit = self.homepage_prizes_limit if (self.homepage_prizes_limit and self.homepage_prizes_limit > 0) else 3
+        return self.prizes.filter(is_deleted=False).order_by('rank', 'display_order')[:limit]
+
+    @property
+    def remaining_prizes_count(self):
+        """Returns the count of prizes beyond the homepage display limit."""
+        total = self.prizes.filter(is_deleted=False).count()
+        limit = self.homepage_prizes_limit if (self.homepage_prizes_limit and self.homepage_prizes_limit > 0) else 3
+        return max(0, total - limit)
 
     @classmethod
     def get_active_campaign(cls):
@@ -584,6 +598,40 @@ class CampaignPrize(BaseModel):
 
     def __str__(self):
         return f"Rank #{self.rank}: {self.title} ({self.campaign.title})"
+
+    @property
+    def ordinal_rank(self):
+        """Returns ordinal string e.g. 1st, 2nd, 3rd, 4th, 11th, etc."""
+        if 11 <= (self.rank % 100) <= 13:
+            suffix = 'th'
+        else:
+            suffix = {1: 'st', 2: 'nd', 3: 'rd'}.get(self.rank % 10, 'th')
+        return f"{self.rank}{suffix}"
+
+    @property
+    def tag_text(self):
+        """
+        Formatted tag text for homepage pill, e.g. '1st: Mixer Grinder'.
+        Cleanly strips duplicate '1st Prize:' if entered by admin.
+        """
+        t = (self.title or '').strip()
+        import re
+        cleaned = re.sub(r'^(?:\d+(?:st|nd|rd|th)|rank\s*\d+)\s*(?:prize\s*)?[:\-]?\s*', '', t, flags=re.IGNORECASE)
+        if not cleaned:
+            cleaned = t
+        return f"{self.ordinal_rank}: {cleaned}"
+
+    @property
+    def badge_icon(self):
+        """Return icon class and color for ranks"""
+        if self.rank == 1:
+            return {'icon': 'fa fa-trophy', 'color': '#fcd34d'}
+        elif self.rank == 2:
+            return {'icon': 'fa fa-award', 'color': '#cbd5e1'}
+        elif self.rank == 3:
+            return {'icon': 'fa fa-medal', 'color': '#fb923c'}
+        else:
+            return {'icon': 'fa fa-gift', 'color': '#93c5fd'}
 
 
 class CampaignParticipant(BaseModel):

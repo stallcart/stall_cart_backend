@@ -1340,6 +1340,17 @@
     gap: 6px;
     border: 1px solid rgba(255, 255, 255, 0.22);
 }
+.prize-tag-more {
+    background: rgba(255, 255, 255, 0.28);
+    cursor: pointer;
+    text-decoration: none !important;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+.prize-tag-more:hover {
+    background: rgba(255, 255, 255, 0.42);
+    color: #ffffff !important;
+    transform: translateY(-1px);
+}
 .campaign-card-right {
     flex-shrink: 0;
 }
@@ -1633,9 +1644,19 @@
                         {{ active_campaign.tagline|default:"Register a free customer account & enter the Lucky Draw to win exciting prizes!" }}
                     </p>
                     <div class="campaign-prizes-preview">
-                        <span class="prize-tag"><i class="fa fa-trophy" style="color: #fcd34d;"></i> 1st: Mixer Grinder</span>
-                        <span class="prize-tag"><i class="fa fa-award" style="color: #cbd5e1;"></i> 2nd: Hair Straightener</span>
-                        <span class="prize-tag"><i class="fa fa-medal" style="color: #fb923c;"></i> 3rd: Electric Iron</span>
+                        {% for prize in active_campaign.homepage_prizes %}
+                        <span class="prize-tag">
+                            <i class="{{ prize.badge_icon.icon }}" style="color: {{ prize.badge_icon.color }};"></i>
+                            {{ prize.tag_text }}
+                        </span>
+                        {% empty %}
+                        <span class="prize-tag"><i class="fa fa-trophy" style="color: #fcd34d;"></i> Mega Lucky Draw Prizes</span>
+                        {% endfor %}
+                        {% if active_campaign.remaining_prizes_count > 0 %}
+                        <a href="{% url 'common:campaign_detail' active_campaign.slug %}" class="prize-tag prize-tag-more" title="View all prizes">
+                            <i class="fa fa-plus-circle"></i> +{{ active_campaign.remaining_prizes_count }} More
+                        </a>
+                        {% endif %}
                     </div>
                 </div>
                 <div class="campaign-card-right">

@@ -288,8 +288,8 @@ class CampaignAdmin(admin.ModelAdmin):
             'description': 'Set the live contest period (e.g. 17 Oct 00:00 to 18 Oct 23:59) and target account goal.'
         }),
         ('⚙️ Display & Activation Controls', {
-            'fields': ('is_active', 'status', 'show_on_homepage', 'show_on_register_page'),
-            'description': 'Uncheck "Is Active" to immediately hide the campaign everywhere across the site.'
+            'fields': ('is_active', 'status', 'show_on_homepage', 'homepage_prizes_limit', 'show_on_register_page'),
+            'description': 'Configure visibility and specify how many top prizes to display in the home page banner.'
         }),
     )
 
