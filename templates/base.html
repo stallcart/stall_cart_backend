@@ -647,7 +647,7 @@
                         <li><a href="{% url 'shop:home' %}">Shop</a></li>
                         <li><a href="{% url 'items:product_list' %}">All Products</a></li>
                         <li><a href="{% url 'blog:blog_list' %}">Blog</a></li>
-                        <li>
+                        <li class="footer-app-download-link">
                             <a href="{% url 'download_app' %}">
                                 <i class="fa fa-mobile-alt" style="margin-right: 5px; color: var(--blue-500);"></i> Download App
                             </a>
@@ -869,12 +869,15 @@ body.pwa-mobile-standalone #pwaDrawerInstallItem {
     z-index: 998 !important;
     box-sizing: border-box !important;
 }
-@media (min-width: 768px) {
-    .pwa-install-banner {
-        bottom: 24px !important;
-        left: 24px !important;
-        right: auto !important;
-        width: 360px !important;
+@media (min-width: 769px) {
+    .pwa-install-banner,
+    #pwaInstallBanner,
+    .pwa-desktop-btn,
+    #pwaDesktopInstallBtn,
+    .footer-app-download-link {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
     }
 }
 /* Shift chatbot upwards on mobile when PWA banner is active so they never overlap */
@@ -2046,7 +2049,7 @@ document.addEventListener('DOMContentLoaded', () => {
             isChrome: isChrome,
             isSafari: isSafari,
             isInApp: isInApp,
-            isDesktop: !isIos && !isAndroid && maxTouch === 0 && window.innerWidth >= 992
+            isDesktop: (!isIos && !isAndroid && !/Mobi|Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(ua)) || (window.innerWidth > 768 && maxTouch === 0)
         };
     }
 
@@ -2186,18 +2189,21 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.classList.remove('has-pwa-banner');
     }
 
-    // Show install options when in browser tab
+    // Show install options when in browser tab (Mobile only)
     function showInstallOptions() {
         if (isRunningInstalledApp()) {
             hideAllInstallUI();
             return;
         }
 
-        if (drawerItem) drawerItem.style.display = 'block';
-
-        if (desktopBtn) {
-            desktopBtn.style.setProperty('display', 'inline-flex', 'important');
+        var browser = getPwaBrowserInfo();
+        // 🔒 Completely disable app download/install UI on laptop and desktop web views
+        if (browser.isDesktop || window.innerWidth > 768) {
+            hideAllInstallUI();
+            return;
         }
+
+        if (drawerItem) drawerItem.style.display = 'block';
 
         if (banner && !isBannerSnoozed()) {
             banner.style.setProperty('display', 'flex', 'important');
@@ -2208,6 +2214,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Trigger installation across all platforms and browsers
     async function triggerInstallFlow() {
         var browser = getPwaBrowserInfo();
+        if (browser.isDesktop || window.innerWidth > 768) {
+            return;
+        }
 
         if (deferredPrompt) {
             deferredPrompt.prompt();
@@ -2222,13 +2231,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (browser.isIos) {
             updateIosModalContent(browser);
             if (iosModal) iosModal.style.setProperty('display', 'flex', 'important');
-        } else if (browser.isDesktop) {
-            // Desktop: if prompt not ready, redirect to /download/app/ or show address bar hint
-            if (window.location.pathname !== '/download/app/') {
-                window.location.href = "{% url 'download_app' %}";
-            } else {
-                showDesktopInstallHint(browser);
-            }
         } else {
             // Mobile Android / Samsung / Firefox / Edge / Opera / Brave / Other
             updateAndroidModalContent(browser);
@@ -2251,6 +2253,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Intercept Chrome/Android/Desktop beforeinstallprompt
     window.addEventListener('beforeinstallprompt', (e) => {
+        var browser = getPwaBrowserInfo();
+        if (browser.isDesktop || window.innerWidth > 768) {
+            return;
+        }
         e.preventDefault();
         deferredPrompt = e;
         showInstallOptions();
