@@ -179,10 +179,12 @@ def initiate_payout(settlement):
             if settlement.status == 'processed':
                 settlement.send_notification_email()
             return True, f"Payout initiated successfully. Payout ID: {payout_id}"
-        else:
             error_msg = data.get("error", {}).get("description", response.text)
             logger.error(f"RazorpayX payout request failed: {response.status_code} - {response.text}")
             
+            if "requested URL was not found" in str(error_msg).lower():
+                error_msg = "RazorpayX Payouts is not enabled on this Razorpay account (Account 44648726982 is your settlement bank account where incoming customer funds are deposited, but outgoing automated API payouts require a RazorpayX account). Please use 'Direct Transfer / UPI' to settle this seller directly."
+
             from orders.models import SystemActivityLog
             SystemActivityLog.log(
                 event_type='settlement_processed',
@@ -191,7 +193,7 @@ def initiate_payout(settlement):
                 status='failed',
                 metadata=data
             )
-            return False, f"Razorpay API Error: {error_msg}"
+            return False, error_msg
     except Exception as e:
         logger.exception("Error initiating RazorpayX payout")
         from orders.models import SystemActivityLog
