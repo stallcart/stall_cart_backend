@@ -179,6 +179,7 @@ def initiate_payout(settlement):
             if settlement.status == 'processed':
                 settlement.send_notification_email()
             return True, f"Payout initiated successfully. Payout ID: {payout_id}"
+        else:
             error_msg = data.get("error", {}).get("description", response.text)
             logger.error(f"RazorpayX payout request failed: {response.status_code} - {response.text}")
             
