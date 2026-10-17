@@ -2243,6 +2243,35 @@ def admin_trigger_payout_ajax(request, settlement_id):
         if settlement.payment_reference and settlement.status != 'failed':
             return JsonResponse({'status': 'error', 'message': f'Settlement {settlement.settlement_id} already has a payment reference ({settlement.payment_reference}). Repayout is prevented.'}, status=400)
             
+        try:
+            req_data = json.loads(request.body) if request.body else {}
+        except Exception:
+            req_data = {}
+        simulate = req_data.get('simulate') is True or request.GET.get('simulate') == '1'
+
+        if simulate:
+            from django.utils import timezone
+            import uuid
+            payout_id = f"pout_test_{uuid.uuid4().hex[:14]}"
+            settlement.status = 'processed'
+            settlement.razorpay_payout_id = payout_id
+            settlement.payment_reference = payout_id
+            settlement.settled_at = timezone.now()
+            settlement.save()
+            
+            from orders.models import SystemActivityLog
+            SystemActivityLog.log(
+                event_type='settlement_processed',
+                description=f"Simulated RazorpayX payout of ₹{settlement.amount} for seller {settlement.seller.shop_name} (Settlement ID: {settlement.settlement_id}). Test Payout ID: {payout_id}.",
+                settlement=settlement,
+                status='success'
+            )
+            settlement.send_notification_email()
+            return JsonResponse({
+                'status': 'success',
+                'message': f"✅ [TEST MODE] Razorpay payout simulated successfully! Payout ID: {payout_id}. Email dispatched to seller."
+            })
+
         from .razorpayx_service import initiate_payout
         success, msg = initiate_payout(settlement)
         

@@ -801,6 +801,9 @@
                                             <button type="button" class="btn-outline open-direct-transfer-btn" data-settlement-id="{{ sett.id }}" data-settlement-code="{{ sett.settlement_id }}" data-amount="{{ sett.amount }}" style="padding: 6px 12px; font-size: 0.78rem; width: auto; border: 1.5px solid #2874f0; color: #2874f0; background: white; font-weight: 700; cursor: pointer; border-radius: 6px;" title="Settle via Direct Bank Transfer, IMPS, NEFT, or UPI">
                                                 <i class="fa fa-university" style="margin-right: 4px;"></i> Direct Transfer / UPI
                                             </button>
+                                            <button type="button" class="btn-outline test-payout-btn" data-settlement-id="{{ sett.id }}" data-settlement-code="{{ sett.settlement_id }}" data-amount="{{ sett.amount }}" style="padding: 6px 10px; font-size: 0.75rem; width: auto; border: 1px dashed #6b7280; color: #4b5563; background: #f3f4f6; font-weight: 600; cursor: pointer; border-radius: 6px;" title="Test and simulate automated Razorpay payout lifecycle">
+                                                <i class="fa fa-vial" style="margin-right: 4px;"></i> Test Payout
+                                            </button>
                                         </div>
                                         {% else %}
                                         <span style="color: var(--gray-500); font-size: 0.85rem; font-weight: 600;">Pending Admin</span>
@@ -1300,6 +1303,51 @@ document.addEventListener('DOMContentLoaded', function() {
                 alert('Error: ' + err.message);
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fa fa-undo"></i> Reset to Pending';
+            }
+        });
+    });
+
+    // Test / Simulation Payout Handler
+    document.querySelectorAll('.test-payout-btn').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const settlementId = btn.getAttribute('data-settlement-id');
+            const settlementCode = btn.getAttribute('data-settlement-code') || '';
+            const amount = btn.getAttribute('data-amount') || '';
+            
+            if (!confirm(`Run Test / Simulation Payout for ${settlementCode} (₹${amount})?\n\nThis tests the entire automated Razorpay payout workflow:\n• Generates a Razorpay Payout ID (pout_test_...)\n• Marks settlement as Processed\n• Dispatches settlement breakdown email to seller\n• Enables double-payout locking\n\nYou can reset it back to Pending at any time using "Reset to Pending".`)) {
+                return;
+            }
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Testing...';
+            
+            try {
+                const res = await fetch(`/orders/admin/settlement/${settlementId}/payout/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({ simulate: true })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    if (typeof window.showToast === 'function') {
+                        window.showToast(data.message, 'success');
+                    } else {
+                        alert(data.message);
+                    }
+                    setTimeout(() => window.location.reload(), 800);
+                } else {
+                    alert(data.message || 'Test payout failed.');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa fa-vial"></i> Test Payout';
+                }
+            } catch (err) {
+                alert('Error: ' + err.message);
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa fa-vial"></i> Test Payout';
             }
         });
     });
