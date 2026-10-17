@@ -99,11 +99,20 @@ def update_task_status(request, task_id):
             task.save()
             
             if new_status and new_status != old_status:
+                now = timezone.now()
                 order.status = new_status
-                order.status_updated_at = timezone.now()
+                order.status_updated_at = now
                 if new_status == 'delivered':
-                    order.delivered_at = timezone.now()
+                    order.delivered_at = now
                 order.save()
+
+                for item in order.items.all():
+                    item.status = new_status
+                    if new_status == 'shipped' and not item.shipped_at:
+                        item.shipped_at = now
+                    elif new_status == 'delivered' and not item.delivered_at:
+                        item.delivered_at = now
+                    item.save(update_fields=['status', 'shipped_at', 'delivered_at', 'updated_at'])
                 
                 changed_by = request.user if request.user.is_authenticated else (task.partner.user if task.partner else None)
                 OrderStatusLog.objects.create(

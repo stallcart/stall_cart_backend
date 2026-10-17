@@ -281,9 +281,7 @@ class Command(BaseCommand):
                     # Auto-schedule courier pickup if not already scheduled
                     try:
                         from delivery.delivery_services import schedule_seller_order_pickup
-                        items_needing_pickup = order.items.filter(seller=seller, is_pickup_scheduled=False).exclude(
-                            status__in=['cancelled', 'returned', 'returned_to_source', 'refund_initiated', 'refunded']
-                        )
+                        items_needing_pickup = order.items.filter(seller=seller, is_pickup_scheduled=False, status__in=['confirmed', 'processing'])
                         if items_needing_pickup.exists():
                             self.stdout.write(f"  Pickup not yet scheduled for {seller.shop_name} items. Auto-scheduling pickup on Shiprocket...")
                             pickup_ok, pickup_msg = schedule_seller_order_pickup(order, seller=seller, force=False)

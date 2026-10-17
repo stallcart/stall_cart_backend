@@ -31,14 +31,16 @@
                 {{ order.get_status_display }}
             </span>
             <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
-                {% if order.is_pickup_scheduled %}
-                <span class="badge" style="display: inline-flex; align-items: center; gap: 6px; background: #ecfdf5; color: #047857; border: 1.5px solid #a7f3d0; padding: 6px 14px; border-radius: var(--r-md); font-weight: 700; font-size: 0.85rem; height: 36px;" title="Courier pickup has been scheduled on Shiprocket">
-                    <i class="fa fa-calendar-check" style="color: #059669;"></i> Pickup Scheduled{% if order.pickup_token_number %} (#{{ order.pickup_token_number }}){% endif %}
-                </span>
-                {% elif order.status in 'confirmed,processing' %}
-                <button class="btn-primary" id="adminReadyForPickupBtn" onclick="requestAdminPickup('{{ order.unique_order_id }}', null, this)" style="font-size: 0.85rem; padding: 8px 16px; border-radius: var(--r-md); border: none; cursor: pointer; font-weight: 700; height: 36px; display: inline-flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #10b981, #059669); color: white; gap: 6px; box-shadow: 0 4px 12px rgba(16,185,129,0.3);">
-                    <i class="fa fa-truck-ramp-box"></i> Ready for Pickup
-                </button>
+                {% if order.status in 'confirmed,processing' %}
+                    {% if order.is_pickup_scheduled %}
+                    <span class="badge" style="display: inline-flex; align-items: center; gap: 6px; background: #ecfdf5; color: #047857; border: 1.5px solid #a7f3d0; padding: 6px 14px; border-radius: var(--r-md); font-weight: 700; font-size: 0.85rem; height: 36px;" title="Courier pickup has been scheduled on Shiprocket">
+                        <i class="fa fa-calendar-check" style="color: #059669;"></i> Pickup Scheduled{% if order.pickup_token_number %} (#{{ order.pickup_token_number }}){% endif %}
+                    </span>
+                    {% else %}
+                    <button class="btn-primary" id="adminReadyForPickupBtn" onclick="requestAdminPickup('{{ order.unique_order_id }}', null, this)" style="font-size: 0.85rem; padding: 8px 16px; border-radius: var(--r-md); border: none; cursor: pointer; font-weight: 700; height: 36px; display: inline-flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #10b981, #059669); color: white; gap: 6px; box-shadow: 0 4px 12px rgba(16,185,129,0.3);">
+                        <i class="fa fa-truck-ramp-box"></i> Ready for Pickup
+                    </button>
+                    {% endif %}
                 {% endif %}
                 <button class="btn-primary" onclick="openStatusModal()" style="font-size: 0.85rem; padding: 8px 16px; border-radius: var(--r-md); border: none; cursor: pointer; font-weight: 700; height: 36px; display: inline-flex; align-items: center; justify-content: center;">
                     Update Status
@@ -113,14 +115,16 @@
                                         </button>
                                     {% endif %}
                                     
-                                    {% if first_item.is_pickup_scheduled %}
-                                        <span style="font-size: 0.75rem; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 3px 8px; border-radius: 4px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;" title="Pickup scheduled{% if first_item.pickup_scheduled_at %} at {{ first_item.pickup_scheduled_at|date:'d M Y, h:i A' }}{% endif %}">
-                                            <i class="fa fa-calendar-check" style="color: #059669;"></i> Pickup Scheduled{% if first_item.pickup_token_number %} (#{{ first_item.pickup_token_number }}){% endif %}
-                                        </span>
-                                    {% elif order.status in 'confirmed,processing' or first_item.tracking_number %}
-                                        <button type="button" class="btn-primary" onclick="requestAdminPickup('{{ order.unique_order_id }}', '{{ seller_group.grouper.id }}', this)" style="font-size: 0.75rem; padding: 4px 10px; height: 26px; border-radius: 6px; border: none; cursor: pointer; background: linear-gradient(135deg, #10b981, #059669); color: white; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">
-                                            <i class="fa fa-truck-ramp-box"></i> Ready for Pickup
-                                        </button>
+                                    {% if order.status in 'confirmed,processing' and first_item.status in 'confirmed,processing' %}
+                                        {% if first_item.is_pickup_scheduled %}
+                                            <span style="font-size: 0.75rem; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 3px 8px; border-radius: 4px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;" title="Pickup scheduled{% if first_item.pickup_scheduled_at %} at {{ first_item.pickup_scheduled_at|date:'d M Y, h:i A' }}{% endif %}">
+                                                <i class="fa fa-calendar-check" style="color: #059669;"></i> Pickup Scheduled{% if first_item.pickup_token_number %} (#{{ first_item.pickup_token_number }}){% endif %}
+                                            </span>
+                                        {% else %}
+                                            <button type="button" class="btn-primary" onclick="requestAdminPickup('{{ order.unique_order_id }}', '{{ seller_group.grouper.id }}', this)" style="font-size: 0.75rem; padding: 4px 10px; height: 26px; border-radius: 6px; border: none; cursor: pointer; background: linear-gradient(135deg, #10b981, #059669); color: white; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">
+                                                <i class="fa fa-truck-ramp-box"></i> Ready for Pickup
+                                            </button>
+                                        {% endif %}
                                     {% endif %}
                                 {% endwith %}
                             </div>

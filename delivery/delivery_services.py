@@ -895,10 +895,16 @@ def schedule_seller_order_pickup(order, seller=None, force=False):
     if not items.exists():
         return False, "No items found for this order."
 
-    # Filter out cancelled/returned items
-    active_items = items.exclude(status__in=['cancelled', 'returned', 'returned_to_source', 'refund_initiated', 'refunded'])
+    if order.status in ['shipped', 'out_for_delivery', 'delivered']:
+        return False, f"Order is already {order.get_status_display()}. Courier pickup cannot be scheduled."
+
+    if items.filter(status__in=['shipped', 'out_for_delivery', 'delivered']).exists():
+        return False, "Items in this shipment have already been dispatched or delivered."
+
+    # Filter only items awaiting pickup (confirmed or processing)
+    active_items = items.filter(status__in=['confirmed', 'processing'])
     if not active_items.exists():
-        return False, "All items in this shipment are cancelled or returned."
+        return False, "All items in this shipment are either cancelled, returned, or already fulfilled."
 
     # Check if already scheduled (unless force=True)
     already_scheduled_items = active_items.filter(is_pickup_scheduled=True)

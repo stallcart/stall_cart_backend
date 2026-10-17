@@ -100,14 +100,16 @@
                     <div class="order-status-badge badge-{{ order_group.list.0.status }}">
                         {{ order_group.list.0.get_status_display }}
                     </div>
-                    {% if order_group.list.0.is_pickup_scheduled %}
-                        <span style="font-size: 0.75rem; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 2px 8px; border-radius: 4px; font-weight: 700;">
-                            <i class="fa fa-calendar-check"></i> Pickup Scheduled{% if order_group.list.0.pickup_token_number %} (#{{ order_group.list.0.pickup_token_number }}){% endif %}
-                        </span>
-                    {% elif order_group.list.0.status in 'confirmed,processing' %}
-                        <span style="font-size: 0.75rem; background: #fffbeb; color: #b45309; border: 1px solid #fde68a; padding: 2px 8px; border-radius: 4px; font-weight: 600;">
-                            <i class="fa fa-clock"></i> Pickup Pending
-                        </span>
+                    {% if order_group.grouper.status in 'confirmed,processing' and order_group.list.0.status in 'confirmed,processing' %}
+                        {% if order_group.list.0.is_pickup_scheduled %}
+                            <span style="font-size: 0.75rem; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 2px 8px; border-radius: 4px; font-weight: 700;">
+                                <i class="fa fa-calendar-check"></i> Pickup Scheduled{% if order_group.list.0.pickup_token_number %} (#{{ order_group.list.0.pickup_token_number }}){% endif %}
+                            </span>
+                        {% else %}
+                            <span style="font-size: 0.75rem; background: #fffbeb; color: #b45309; border: 1px solid #fde68a; padding: 2px 8px; border-radius: 4px; font-weight: 600;">
+                                <i class="fa fa-clock"></i> Pickup Pending
+                            </span>
+                        {% endif %}
                     {% endif %}
                 </div>
             </div>

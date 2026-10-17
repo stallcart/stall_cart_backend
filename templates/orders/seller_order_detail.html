@@ -16,14 +16,16 @@
             <span class="status-badge status-{{ seller_items.0.status }}" style="margin: 0;">
                 {{ seller_items.0.get_status_display }}
             </span>
-                {% if seller_items.0.is_pickup_scheduled %}
-                <span class="badge" style="display: inline-flex; align-items: center; gap: 6px; background: #ecfdf5; color: #047857; border: 1.5px solid #a7f3d0; padding: 6px 14px; border-radius: 8px; font-weight: 700; font-size: 0.85rem; height: 36px;" title="Courier pickup has been scheduled on Shiprocket">
-                    <i class="fa fa-calendar-check" style="color: #059669;"></i> Pickup Scheduled{% if seller_items.0.pickup_token_number %} (#{{ seller_items.0.pickup_token_number }}){% endif %}
-                </span>
-                {% elif seller_items.0.status in 'confirmed,processing' %}
-                <button class="btn-primary" id="sellerReadyForPickupBtn" onclick="requestSellerPickup('{{ order.unique_order_id }}')" style="font-size: 0.85rem; padding: 8px 16px; height: 36px; border-radius: 8px; font-weight: 700; background: linear-gradient(135deg, #10b981, #059669); border: none; cursor: pointer; color: white; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(16,185,129,0.3);">
-                    <i class="fa fa-truck-ramp-box"></i> Ready for Pickup
-                </button>
+                {% if order.status in 'confirmed,processing' and seller_items.0.status in 'confirmed,processing' %}
+                    {% if seller_items.0.is_pickup_scheduled %}
+                    <span class="badge" style="display: inline-flex; align-items: center; gap: 6px; background: #ecfdf5; color: #047857; border: 1.5px solid #a7f3d0; padding: 6px 14px; border-radius: 8px; font-weight: 700; font-size: 0.85rem; height: 36px;" title="Courier pickup has been scheduled on Shiprocket">
+                        <i class="fa fa-calendar-check" style="color: #059669;"></i> Pickup Scheduled{% if seller_items.0.pickup_token_number %} (#{{ seller_items.0.pickup_token_number }}){% endif %}
+                    </span>
+                    {% else %}
+                    <button class="btn-primary" id="sellerReadyForPickupBtn" onclick="requestSellerPickup('{{ order.unique_order_id }}')" style="font-size: 0.85rem; padding: 8px 16px; height: 36px; border-radius: 8px; font-weight: 700; background: linear-gradient(135deg, #10b981, #059669); border: none; cursor: pointer; color: white; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(16,185,129,0.3);">
+                        <i class="fa fa-truck-ramp-box"></i> Ready for Pickup
+                    </button>
+                    {% endif %}
                 {% endif %}
                 {% if seller_items.0.status in 'pending,confirmed,processing,shipped,delivered' %}
                 <button class="btn-primary" onclick="openStatusModal()" style="font-size: 0.85rem; padding: 8px 16px; height: 36px; border-radius: 8px; width: auto; font-weight: 700; border: none; cursor: pointer;">
@@ -158,7 +160,9 @@
         {% if first_item.shiprocket_status or order.shiprocket_status %}
         <p style="margin: 0 0 8px;"><strong>Courier Status:</strong> <span style="font-weight: 700; color: #1e3a8a; background: #e0f2fe; padding: 2px 8px; border-radius: 4px; font-size: 0.85rem; display: inline-block;">{{ first_item.shiprocket_status|default:order.shiprocket_status }}</span></p>
         {% endif %}
-        {% if first_item.is_pickup_scheduled or order.is_pickup_scheduled %}
+        {% if order.status in 'shipped,out_for_delivery,delivered' or seller_items.0.status in 'shipped,out_for_delivery,delivered' %}
+        <p style="margin: 0 0 8px;"><strong>Pickup Status:</strong> <span style="font-weight: 700; color: #047857; background: #ecfdf5; padding: 2px 8px; border-radius: 4px; font-size: 0.85rem; display: inline-block;"><i class="fa fa-check-circle"></i> Picked Up by Courier{% if first_item.pickup_token_number or order.pickup_token_number %} (Token: #{{ first_item.pickup_token_number|default:order.pickup_token_number }}){% endif %}</span></p>
+        {% elif first_item.is_pickup_scheduled or order.is_pickup_scheduled %}
         <p style="margin: 0 0 8px;"><strong>Pickup Status:</strong> <span style="font-weight: 700; color: #047857; background: #ecfdf5; padding: 2px 8px; border-radius: 4px; font-size: 0.85rem; display: inline-block;"><i class="fa fa-calendar-check"></i> Scheduled on Shiprocket{% if first_item.pickup_token_number or order.pickup_token_number %} (Token: #{{ first_item.pickup_token_number|default:order.pickup_token_number }}){% endif %}</span></p>
         {% elif seller_items.0.status in 'confirmed,processing' %}
         <p style="margin: 0 0 8px;"><strong>Pickup Status:</strong> <span style="font-weight: 600; color: #b45309; background: #fffbeb; padding: 2px 8px; border-radius: 4px; font-size: 0.85rem; display: inline-block;"><i class="fa fa-clock"></i> Not Yet Scheduled</span></p>

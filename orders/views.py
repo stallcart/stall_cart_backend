@@ -2665,6 +2665,8 @@ def seller_ready_for_pickup(request, order_id):
         return JsonResponse({'status': 'error', 'message': 'Unauthorized'}, status=403)
 
     order = get_object_or_404(Order, unique_order_id=order_id)
+    if order.status in ['shipped', 'out_for_delivery', 'delivered', 'cancelled', 'returned', 'returned_to_source', 'refund_initiated', 'refunded']:
+        return JsonResponse({'status': 'error', 'message': f'Cannot schedule pickup for an order that is {order.get_status_display()}.'}, status=400)
 
     # Determine seller profile
     if request.user.is_superuser or request.user.role == 'admin':
@@ -2675,6 +2677,10 @@ def seller_ready_for_pickup(request, order_id):
         seller = request.user.seller_profile
         if not order.items.filter(product__seller=seller).exists():
             return JsonResponse({'status': 'error', 'message': 'Unauthorized for this order.'}, status=403)
+
+    items = order.items.filter(seller=seller) if seller else order.items.all()
+    if not items.filter(status__in=['confirmed', 'processing']).exists():
+        return JsonResponse({'status': 'error', 'message': 'No items in this order are awaiting courier pickup.'}, status=400)
 
     from delivery.delivery_services import schedule_seller_order_pickup
     success, msg = schedule_seller_order_pickup(order, seller=seller, force=False)
@@ -2700,6 +2706,9 @@ def admin_ready_for_pickup(request, order_id):
     Admin: Trigger 'Ready for Pickup' on Shiprocket for any or all seller shipments in an order.
     """
     order = get_object_or_404(Order, unique_order_id=order_id)
+    if order.status in ['shipped', 'out_for_delivery', 'delivered', 'cancelled', 'returned', 'returned_to_source', 'refund_initiated', 'refunded']:
+        return JsonResponse({'status': 'error', 'message': f'Cannot schedule pickup for an order that is {order.get_status_display()}.'}, status=400)
+
     seller_id = request.POST.get('seller_id') or None
     if not seller_id:
         try:
@@ -2712,6 +2721,10 @@ def admin_ready_for_pickup(request, order_id):
     if seller_id:
         from items.models import SellerProfile
         seller = get_object_or_404(SellerProfile, pk=seller_id)
+
+    items = order.items.filter(seller=seller) if seller else order.items.all()
+    if not items.filter(status__in=['confirmed', 'processing']).exists():
+        return JsonResponse({'status': 'error', 'message': 'No items in this order are awaiting courier pickup.'}, status=400)
 
     from delivery.delivery_services import schedule_seller_order_pickup
     success, msg = schedule_seller_order_pickup(order, seller=seller, force=False)
