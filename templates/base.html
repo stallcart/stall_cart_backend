@@ -308,10 +308,10 @@
             {% if show_admin_verify_link %}
                 <a href="{% url 'items:verify_sellers' %}"
                 class="nav-link nav-icon-btn"
-                title="Verify Sellers"
+                title="{% if admin_pending_sellers > 0 %}Verify Sellers ({{ admin_pending_sellers }} Pending){% else %}Seller Management{% endif %}"
                 style="position:relative;">
-                    <i class="fa fa-user-check" style="{% if admin_pending_sellers > 0 %}color:var(--amber);{% endif %}"></i>
-                    <span class="hide-mobile">Verify</span>
+                    <i class="fa fa-store" style="{% if admin_pending_sellers > 0 %}color:var(--amber);{% endif %}"></i>
+                    <span class="hide-mobile">{% if admin_pending_sellers > 0 %}Verify Sellers{% else %}Sellers{% endif %}</span>
                     
                     {% if admin_pending_sellers > 0 %}
                         <span class="cart-badge" 

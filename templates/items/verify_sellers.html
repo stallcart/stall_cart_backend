@@ -668,7 +668,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             
             if (res.ok) {
-                const data = await res.json();
+                const isSellerVerified = Boolean(data.is_verified === true || data.is_verified === 'true' || data.pan_verification_status === 'verified');
                 document.getElementById('modalSellerName').textContent = data.shop_name || 'Seller';
                 body.innerHTML = `
                     <div class="seller-detail-row"><strong>Shop Name</strong><span>${data.shop_name || 'N/A'}</span></div>
@@ -699,7 +699,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="seller-detail-row"><strong>City / State / PIN</strong><span>${[data.city, data.state, data.postal_code].filter(Boolean).join(', ') || 'N/A'}</span></div>
                     
                     <div class="seller-detail-row" style="margin-top:10px;"><strong>Products</strong><span>${data.product_count || 0} Published</span></div>
-                    <div class="seller-detail-row"><strong>Status</strong><span>${data.is_verified ? 'Verified' : (data.is_active ? 'Pending' : 'Rejected')}</span></div>
+                    <div class="seller-detail-row"><strong>Status</strong><span>${isSellerVerified ? '<span style="color:var(--green);font-weight:700;"><i class="fa fa-check-circle"></i> Verified</span>' : (data.is_active ? '<span style="color:var(--amber);font-weight:700;"><i class="fa fa-clock"></i> Pending Review</span>' : '<span style="color:var(--red);font-weight:700;"><i class="fa fa-times-circle"></i> Inactive</span>')}</span></div>
                     <div class="seller-detail-row" style="flex-direction:column;align-items:flex-start;padding-top:14px;">
                         <strong style="margin-bottom:6px;">Description</strong>
                         <span style="color:var(--gray-600);line-height:1.5;font-size:0.9rem;">${data.description || 'No description provided'}</span>
@@ -712,15 +712,15 @@ document.addEventListener('DOMContentLoaded', function() {
                         </a>
                     </div>
                     <div class="modal-footer" style="display:flex;gap:12px;margin-top:12px;border-top:1px solid var(--gray-200);padding-top:16px;">
-                        ${!data.is_verified ? `
-                            <button class="btn-primary" style="background:#2e7d32;flex:1;margin:0;border:none;color:white;cursor:pointer;padding:10px 16px;border-radius:6px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;" onclick="triggerSellerAction(${sellerId}, 'verify')"><i class="fa fa-check"></i> Verify Seller</button>
+                        ${!isSellerVerified ? `
+                            <button class="btn-primary" style="background:#2e7d32;flex:1;margin:0;border:none;color:white;cursor:pointer;padding:10px 16px;border-radius:6px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;" onclick="triggerSellerAction(event, ${sellerId}, 'verify')"><i class="fa fa-check"></i> Verify Seller</button>
                         ` : `
                             <div style="background:#ecfdf5;color:#047857;border:1.5px solid #a7f3d0;flex:1;padding:10px 16px;border-radius:6px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;">
                                 <i class="fa fa-check-circle" style="color:#059669;"></i> Seller is Verified
                             </div>
                         `}
-                        <button class="btn-primary" style="background:#c62828;flex:1;margin:0;border:none;color:white;cursor:pointer;padding:10px 16px;border-radius:6px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;" onclick="triggerSellerAction(${sellerId}, 'reject')">
-                            <i class="fa fa-ban"></i> ${data.is_verified ? 'Revoke / Reject' : 'Reject Seller'}
+                        <button class="btn-primary" style="background:#c62828;flex:1;margin:0;border:none;color:white;cursor:pointer;padding:10px 16px;border-radius:6px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;" onclick="triggerSellerAction(event, ${sellerId}, 'reject')">
+                            <i class="fa fa-ban"></i> ${isSellerVerified ? 'Revoke / Reject' : 'Reject Seller'}
                         </button>
                     </div>
                     ` : `
@@ -737,7 +737,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
     
-    window.triggerSellerAction = async function(sellerId, action) {
+    window.triggerSellerAction = async function(evt, sellerId, action) {
         let reason = '';
         if (action === 'reject') {
             reason = prompt("Please enter the rejection reason:");
@@ -748,10 +748,12 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
-        const btn = event?.currentTarget || this;
-        const originalText = btn.innerHTML;
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Processing...';
+        const btn = evt?.currentTarget || (evt?.target ? evt.target.closest('button') : null) || document.activeElement;
+        const originalText = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Processing...';
+        }
         
         try {
             const res = await fetch(`/items/admin/verify-sellers/${sellerId}/action/`, {
@@ -771,13 +773,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.location.reload();
             } else {
                 alert(result.message || 'Operation failed.');
-                btn.disabled = false;
-                btn.innerHTML = originalText;
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                }
             }
         } catch (err) {
             alert('Network error: ' + err.message);
-            btn.disabled = false;
-            btn.innerHTML = originalText;
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
         }
     };
     

@@ -102,14 +102,25 @@ class SellerProfile(BaseModel):
             self.pan_verification_status = 'verified'
         
         # Ensure status consistency
-        if self.pan_verification_status == 'verified':
+        if self.is_verified:
+            self.pan_verification_status = 'verified'
+            self.pan_rejection_reason = None
+        elif self.pan_verification_status == 'verified':
             self.is_verified = True
             self.pan_rejection_reason = None
-        elif self.pan_verification_status in ['pending', 'rejected']:
+        elif self.pan_verification_status in ['pending', 'rejected'] and not self.is_verified:
             self.is_verified = False
             
         # Save first
         super().save(*args, **kwargs)
+
+        # Synchronize user is_verified
+        if self.is_verified and self.user_id:
+            try:
+                from accounts.models import User as AuthUser
+                AuthUser.objects.filter(pk=self.user_id, is_verified=False).update(is_verified=True)
+            except Exception:
+                pass
         
         # Send emails on changes
         if pan_updated or (is_new and self.pan_number):

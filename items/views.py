@@ -2046,8 +2046,10 @@ def verify_seller_action(request, seller_id):
         
         if action == 'verify':
             seller.pan_verification_status = 'verified'
+            seller.pan_rejection_reason = None
             seller.is_verified = True
             seller.is_active = True
+            seller._admin_updating = True
             seller.save()
 
             if seller.user:
@@ -2272,6 +2274,10 @@ def seller_edit_view(request, seller_id):
 
                 seller._admin_updating = True
                 seller.save()
+
+                user.is_verified = seller.is_verified
+                user.is_active = is_active
+                user.save(update_fields=['is_verified', 'is_active', 'updated_at'])
 
                 # 3. Update SellerShopAddress (related table)
                 shop_addr, _ = SellerShopAddress.objects.get_or_create(
