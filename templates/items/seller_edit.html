@@ -763,7 +763,7 @@
                                 <th style="text-align: right;">Net Payout</th>
                                 <th style="text-align: right;">Commission</th>
                                 <th style="text-align: center;">Status</th>
-                                <th>Payout ID</th>
+                                <th>Reference / Payout ID</th>
                                 <th style="text-align: center;">Action</th>
                             </tr>
                         </thead>
@@ -778,7 +778,12 @@
                                         {{ sett.get_status_display }}
                                     </span>
                                 </td>
-                                <td style="font-family: monospace; font-size: 0.8rem; color: var(--gray-600);">{{ sett.razorpay_payout_id|default:"—" }}</td>
+                                <td style="font-family: monospace; font-size: 0.8rem; color: var(--gray-700);">
+                                    {{ sett.razorpay_payout_id|default:sett.payment_reference|default:"—" }}
+                                    {% if sett.settled_at %}
+                                    <span style="display:block; font-size:0.7rem; color:var(--gray-450); font-family:sans-serif;">{{ sett.settled_at|date:"M d, Y H:i" }}</span>
+                                    {% endif %}
+                                </td>
                                 <td style="text-align: center;">
                                     {% if sett.status == 'processed' or sett.settled_at or sett.razorpay_payout_id or sett.payment_reference and sett.status != 'failed' %}
                                     <span style="color: var(--green); font-size: 0.85rem; font-weight: 700;"><i class="fa fa-check-circle"></i> Settled</span>
