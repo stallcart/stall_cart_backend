@@ -2034,7 +2034,13 @@ def verify_sellers_view(request):
 @admin_only
 def verify_seller_action(request, seller_id):
     """AJAX endpoint to verify/reject a seller"""
-    if not request.user.is_superuser and getattr(request.user, 'role', None) != 'admin':
+    is_adm = (
+        request.user.is_superuser or 
+        request.user.is_staff or 
+        getattr(request.user, 'role', None) in ['admin', 'staff'] or 
+        getattr(request.user, 'is_admin', False)
+    )
+    if not is_adm:
         return JsonResponse({'status': 'error', 'message': 'Permission denied. Only Admins can verify/reject sellers.'}, status=403)
         
     try:
@@ -2170,7 +2176,12 @@ def seller_edit_view(request, seller_id):
     from accounts.models import User, SellerShopAddress
 
     seller = get_object_or_404(SellerProfile.objects.select_related('user', 'shop_address'), id=seller_id)
-    is_admin = request.user.is_superuser or getattr(request.user, 'role', None) == 'admin'
+    is_admin = (
+        request.user.is_superuser or 
+        request.user.is_staff or 
+        getattr(request.user, 'role', None) in ['admin', 'staff'] or 
+        getattr(request.user, 'is_admin', False)
+    )
     
     if not is_admin:
         messages.error(request, 'Permission denied. Only Admins can edit seller details.')

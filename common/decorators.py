@@ -90,10 +90,18 @@ def seller_only(view_func):
     return _wrapped_view
 
 def admin_only(view_func):
-    """Restrict view to superusers or staff members"""
+    """Restrict view to superusers, staff members, or users with admin/staff role"""
     @wraps(view_func)
     def _wrapped_view(request, *args, **kwargs):
-        if not request.user.is_authenticated or not (request.user.is_superuser or request.user.is_staff):
+        is_adm = (
+            request.user.is_authenticated and (
+                request.user.is_superuser or 
+                request.user.is_staff or 
+                getattr(request.user, 'role', '') in ['admin', 'staff'] or 
+                getattr(request.user, 'is_admin', False)
+            )
+        )
+        if not is_adm:
             if _is_json_request(request):
                 return JsonResponse({'error': '🔐 Admin/Staff access required.'}, status=403)
             messages.error(request, "🔐 Admin/Staff access required.")

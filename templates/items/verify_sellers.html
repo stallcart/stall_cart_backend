@@ -576,7 +576,7 @@
                 
                 <!-- Actions -->
                 <div class="seller-actions">
-                    {% if request.user.is_superuser or request.user.role == 'admin' %}
+                    {% if request.user.is_admin or request.user.is_superuser or request.user.is_staff or request.user.role == 'admin' %}
                     <a href="{% url 'items:seller_edit' seller.id %}" class="btn-edit" style="text-decoration:none;">
                         <i class="fa fa-pencil-alt"></i> Edit Seller
                     </a>
@@ -660,7 +660,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         openModal(sellerModal);
         
-        const isUserAdmin = {% if request.user.is_superuser or request.user.role == 'admin' %}true{% else %}false{% endif %};
+        const isUserAdmin = {% if request.user.is_admin or request.user.is_superuser or request.user.is_staff or request.user.role == 'admin' %}true{% else %}false{% endif %};
         
         try {
             const res = await fetch(`/items/admin/api/seller/${sellerId}/`, {
@@ -668,6 +668,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             
             if (res.ok) {
+                const data = await res.json();
                 const isSellerVerified = Boolean(data.is_verified === true || data.is_verified === 'true' || data.pan_verification_status === 'verified');
                 document.getElementById('modalSellerName').textContent = data.shop_name || 'Seller';
                 body.innerHTML = `
