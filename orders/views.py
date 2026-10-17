@@ -2262,9 +2262,16 @@ def admin_mark_settlement_paid_ajax(request, settlement_id):
     except Exception:
         data = request.POST
     
+    payment_mode = (data.get('payment_mode') or 'Direct Bank Transfer / UPI').strip()
     reference = (data.get('payment_reference') or '').strip()
+    notes = (data.get('notes') or '').strip()
+
     if not reference:
-        reference = f"MANUAL-{timezone.now().strftime('%Y%m%d%H%M%S')}"
+        mode_prefix = 'UPI' if 'UPI' in payment_mode.upper() else 'BANK'
+        reference = f"{mode_prefix}-{timezone.now().strftime('%Y%m%d%H%M%S')}"
+    elif payment_mode and not any(reference.upper().startswith(p) for p in ['UPI-', 'IMPS-', 'NEFT-', 'RTGS-', 'CASH-', 'MANUAL-']):
+        mode_clean = payment_mode.split()[0].upper()
+        reference = f"{mode_clean}-{reference}"
 
     with transaction.atomic():
         settlement = SellerSettlement.objects.select_for_update().filter(id=settlement_id).first()
@@ -2289,9 +2296,12 @@ def admin_mark_settlement_paid_ajax(request, settlement_id):
         settlement.save()
         
         from orders.models import SystemActivityLog
+        log_desc = f"Admin {request.user.phone} marked settlement {settlement.settlement_id} as paid (₹{settlement.amount}) via {payment_mode} for {settlement.seller.shop_name}. Ref: {reference}."
+        if notes:
+            log_desc += f" Note: {notes}"
         SystemActivityLog.log(
             event_type='settlement_processed',
-            description=f"Admin {request.user.phone} marked settlement {settlement.settlement_id} as manually paid (₹{settlement.amount}) for {settlement.seller.shop_name}. Ref: {reference}.",
+            description=log_desc,
             settlement=settlement,
             status='success'
         )
@@ -2300,7 +2310,43 @@ def admin_mark_settlement_paid_ajax(request, settlement_id):
         
     return JsonResponse({
         'status': 'success',
-        'message': f'Settlement {settlement.settlement_id} marked as Paid successfully!'
+        'message': f'Settlement {settlement.settlement_id} marked as Paid successfully ({reference})!'
+    })
+
+
+@login_required
+@admin_only
+@require_POST
+def admin_revert_settlement_ajax(request, settlement_id):
+    """Admin: Revert a settlement back to pending state so it can be re-triggered via Razorpay or paid via another method."""
+    from django.db import transaction
+    from .models import SystemActivityLog
+    
+    with transaction.atomic():
+        settlement = SellerSettlement.objects.select_for_update().filter(id=settlement_id).first()
+        if not settlement:
+            return JsonResponse({'status': 'error', 'message': 'Settlement not found'}, status=404)
+
+        prev_status = settlement.status
+        prev_ref = settlement.payment_reference
+        
+        settlement.status = 'pending'
+        settlement.settled_at = None
+        settlement.payment_reference = None
+        settlement.razorpay_payout_id = None
+        settlement.email_sent = False
+        settlement.save()
+
+        SystemActivityLog.log(
+            event_type='settlement_reverted',
+            description=f"Admin {request.user.phone} reverted settlement {settlement.settlement_id} (was {prev_status}, ref {prev_ref}) back to pending.",
+            settlement=settlement,
+            status='info'
+        )
+
+    return JsonResponse({
+        'status': 'success',
+        'message': f"Settlement {settlement.settlement_id} has been reset to Pending. You can now pay via Razorpay or Direct Bank Transfer."
     })
 
 

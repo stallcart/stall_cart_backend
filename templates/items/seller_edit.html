@@ -787,14 +787,19 @@
                                 <td style="text-align: center;">
                                     {% if sett.status == 'processed' or sett.settled_at or sett.razorpay_payout_id or sett.payment_reference and sett.status != 'failed' %}
                                     <span style="color: var(--green); font-size: 0.85rem; font-weight: 700;"><i class="fa fa-check-circle"></i> Settled</span>
+                                    {% if is_admin %}
+                                    <button type="button" class="revert-settlement-btn" data-settlement-id="{{ sett.id }}" data-settlement-code="{{ sett.settlement_id }}" style="display:block; margin:4px auto 0; background:none; border:none; color:var(--gray-400); font-size:0.68rem; cursor:pointer; text-decoration:underline;" title="Reset this settlement back to Pending state">
+                                        <i class="fa fa-undo"></i> Reset to Pending
+                                    </button>
+                                    {% endif %}
                                     {% else %}
                                         {% if is_admin %}
                                         <div style="display: inline-flex; gap: 6px; align-items: center; justify-content: center; flex-wrap: wrap;">
-                                            <button type="button" class="btn-save trigger-payout-btn" data-settlement-id="{{ sett.id }}" style="padding: 6px 12px; font-size: 0.78rem; width: auto; background: linear-gradient(135deg, var(--green), #059669); border: none; box-shadow: 0 4px 10px rgba(16,185,129,0.25); cursor: pointer;" title="Trigger automated payout via RazorpayX">
+                                            <button type="button" class="btn-save trigger-payout-btn" data-settlement-id="{{ sett.id }}" data-settlement-code="{{ sett.settlement_id }}" data-amount="{{ sett.amount }}" style="padding: 6px 12px; font-size: 0.78rem; width: auto; background: linear-gradient(135deg, var(--green), #059669); border: none; box-shadow: 0 4px 10px rgba(16,185,129,0.25); cursor: pointer;" title="Trigger automated payout via Razorpay">
                                                 <i class="fa fa-bolt" style="margin-right: 4px;"></i> Razorpay Payout
                                             </button>
-                                            <button type="button" class="btn-outline manual-settle-btn" data-settlement-id="{{ sett.id }}" data-settlement-code="{{ sett.settlement_id }}" data-amount="{{ sett.amount }}" style="padding: 6px 12px; font-size: 0.78rem; width: auto; border: 1.5px solid #2874f0; color: #2874f0; background: white; font-weight: 700; cursor: pointer; border-radius: 6px;" title="Mark settlement as paid with UTR / Reference ID">
-                                                <i class="fa fa-check" style="margin-right: 4px;"></i> Mark Paid
+                                            <button type="button" class="btn-outline open-direct-transfer-btn" data-settlement-id="{{ sett.id }}" data-settlement-code="{{ sett.settlement_id }}" data-amount="{{ sett.amount }}" style="padding: 6px 12px; font-size: 0.78rem; width: auto; border: 1.5px solid #2874f0; color: #2874f0; background: white; font-weight: 700; cursor: pointer; border-radius: 6px;" title="Settle via Direct Bank Transfer, IMPS, NEFT, or UPI">
+                                                <i class="fa fa-university" style="margin-right: 4px;"></i> Direct Transfer / UPI
                                             </button>
                                         </div>
                                         {% else %}
@@ -872,6 +877,98 @@
                     </button>
                     <button type="submit" class="btn-danger" style="width:auto;padding:10px 20px;">
                         <i class="fa fa-times-circle"></i> Confirm Reject
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Direct Transfer / UPI Payout Modal -->
+<div id="directTransferModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="directTransferTitle">
+    <div class="modal-content" style="max-width: 520px;">
+        <div class="modal-header-bar">
+            <div style="display:flex;align-items:center;gap:10px;">
+                <div style="width:36px;height:36px;border-radius:var(--r-md);background:linear-gradient(135deg,var(--blue-500),#1d4ed8);display:flex;align-items:center;justify-content:center;color:#fff;font-size:1rem;">
+                    <i class="fa fa-university"></i>
+                </div>
+                <div>
+                    <h3 id="directTransferTitle" style="font-size:1.15rem;font-weight:700;color:var(--gray-900);margin:0 0 2px;">
+                        Direct Bank Transfer / UPI Payout
+                    </h3>
+                    <p style="font-size:0.8rem;color:var(--gray-500);margin:0;">
+                        Record direct payment for settlement <span id="dtSettlementCode" style="font-weight:700;color:var(--blue-600);"></span>
+                    </p>
+                </div>
+            </div>
+            <button class="modal-close" id="closeDirectTransferModal" aria-label="Close">
+                <i class="fa fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" style="padding: 24px;">
+            <!-- Seller Bank Quick Reference Card -->
+            <div style="background: var(--gray-50); border: 1.5px solid var(--gray-200); border-radius: var(--r-md); padding: 14px 16px; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: var(--gray-500); letter-spacing: 0.5px;">Seller Payment Details</span>
+                    <span id="dtAmountBadge" style="font-size: 0.95rem; font-weight: 800; color: var(--green); background: #e8fdf0; padding: 2px 10px; border-radius: 12px;">₹0.00</span>
+                </div>
+                <div style="font-size: 0.88rem; color: var(--gray-800); display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                    <div><strong>A/C Holder:</strong> <span>{{ seller.account_holder_name|default:seller.shop_name }}</span></div>
+                    <div><strong>Bank:</strong> <span>{{ seller.bank_name|default:"Not set" }}</span></div>
+                    <div>
+                        <strong>A/C No:</strong> <span style="font-family:monospace;font-weight:700;">{{ seller.account_number|default:"Not set" }}</span>
+                        {% if seller.account_number %}
+                        <button type="button" onclick="navigator.clipboard.writeText('{{ seller.account_number }}'); alert('Account number copied!');" style="background:none;border:none;cursor:pointer;color:var(--blue-500);padding:0 4px;" title="Copy A/C Number"><i class="fa fa-copy"></i></button>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <strong>IFSC:</strong> <span style="font-family:monospace;font-weight:700;">{{ seller.ifsc_code|default:"Not set" }}</span>
+                        {% if seller.ifsc_code %}
+                        <button type="button" onclick="navigator.clipboard.writeText('{{ seller.ifsc_code }}'); alert('IFSC copied!');" style="background:none;border:none;cursor:pointer;color:var(--blue-500);padding:0 4px;" title="Copy IFSC"><i class="fa fa-copy"></i></button>
+                        {% endif %}
+                    </div>
+                    <div style="grid-column: span 2;"><strong>UPI / Phone:</strong> <span style="font-family:monospace;font-weight:600;">{{ seller.user.phone }}</span></div>
+                </div>
+            </div>
+
+            <form id="directTransferForm">
+                <input type="hidden" id="dtSettlementId" value="">
+                
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label for="dtPaymentMode" style="font-weight: 600; color: var(--gray-700); margin-bottom: 6px; display: block;">
+                        Payment Mode / Channel *
+                    </label>
+                    <select id="dtPaymentMode" class="form-input" style="width: 100%;">
+                        <option value="UPI">UPI (Google Pay / PhonePe / Paytm / BHIM)</option>
+                        <option value="IMPS">IMPS (Instant Bank Transfer)</option>
+                        <option value="NEFT">NEFT (Electronic Bank Transfer)</option>
+                        <option value="RTGS">RTGS (High Value Transfer)</option>
+                        <option value="CASH">Cash / Offline Handover</option>
+                        <option value="OTHER">Other / Cheque</option>
+                    </select>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label for="dtReference" style="font-weight: 600; color: var(--gray-700); margin-bottom: 6px; display: block;">
+                        Transaction UTR / Reference ID
+                    </label>
+                    <input type="text" id="dtReference" class="form-input" placeholder="e.g. UPI Ref / Bank UTR No. (leave empty to auto-generate)" style="width: 100%;">
+                    <small style="color: var(--gray-400); display: block; margin-top: 4px;">If left blank, a unique reference ID will be generated automatically.</small>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label for="dtNotes" style="font-weight: 600; color: var(--gray-700); margin-bottom: 6px; display: block;">
+                        Internal Note / Remarks <small style="color:var(--gray-400);font-weight:400;">(optional)</small>
+                    </label>
+                    <input type="text" id="dtNotes" class="form-input" placeholder="e.g. Paid directly to seller account" style="width: 100%;">
+                </div>
+
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button type="button" class="btn-outline" id="cancelDirectTransferBtn" style="padding: 10px 18px;">
+                        Cancel
+                    </button>
+                    <button type="submit" id="confirmDirectTransferBtn" class="btn-primary" style="background: linear-gradient(135deg, var(--green), #059669); padding: 10px 22px;">
+                        <i class="fa fa-check-circle" style="margin-right: 6px;"></i> Confirm Payout &amp; Settle
                     </button>
                 </div>
             </form>
@@ -1021,10 +1118,95 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // Direct Transfer Modal Handlers
+    const dtModal = document.getElementById('directTransferModal');
+    const closeDtBtn = document.getElementById('closeDirectTransferModal');
+    const cancelDtBtn = document.getElementById('cancelDirectTransferBtn');
+    const dtForm = document.getElementById('directTransferForm');
+
+    function openDirectTransferModal(settlementId, settlementCode, amount) {
+        document.getElementById('dtSettlementId').value = settlementId;
+        document.getElementById('dtSettlementCode').textContent = settlementCode;
+        document.getElementById('dtAmountBadge').textContent = '₹' + parseFloat(amount || 0).toFixed(2);
+        document.getElementById('dtReference').value = '';
+        document.getElementById('dtNotes').value = '';
+        dtModal?.classList.add('show');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeDirectTransferModal() {
+        dtModal?.classList.remove('show');
+        document.body.style.overflow = '';
+    }
+
+    closeDtBtn?.addEventListener('click', closeDirectTransferModal);
+    cancelDtBtn?.addEventListener('click', closeDirectTransferModal);
+    dtModal?.addEventListener('click', (e) => { if (e.target === dtModal) closeDirectTransferModal(); });
+
+    document.querySelectorAll('.open-direct-transfer-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const settlementId = btn.getAttribute('data-settlement-id');
+            const settlementCode = btn.getAttribute('data-settlement-code') || '';
+            const amount = btn.getAttribute('data-amount') || '';
+            openDirectTransferModal(settlementId, settlementCode, amount);
+        });
+    });
+
+    // Submit Direct Transfer
+    dtForm?.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const settlementId = document.getElementById('dtSettlementId').value;
+        const paymentMode = document.getElementById('dtPaymentMode').value;
+        const reference = document.getElementById('dtReference').value.trim();
+        const notes = document.getElementById('dtNotes').value.trim();
+
+        const submitBtn = document.getElementById('confirmDirectTransferBtn');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Processing...';
+
+        try {
+            const res = await fetch(`/orders/admin/settlement/${settlementId}/mark-paid/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    payment_mode: paymentMode,
+                    payment_reference: reference,
+                    notes: notes
+                })
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                closeDirectTransferModal();
+                if (typeof window.showToast === 'function') {
+                    window.showToast(data.message, 'success');
+                } else {
+                    alert(data.message);
+                }
+                setTimeout(() => window.location.reload(), 800);
+            } else {
+                alert(data.message || 'Failed to record direct payment.');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
+        } catch (err) {
+            alert('Error: ' + err.message);
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        }
+    });
+
+    // Razorpay Payout Trigger with fallback
     const triggerBtns = document.querySelectorAll('.trigger-payout-btn');
     triggerBtns.forEach(btn => {
         btn.addEventListener('click', async function() {
             const settlementId = btn.getAttribute('data-settlement-id');
+            const settlementCode = btn.getAttribute('data-settlement-code') || '';
+            const amount = btn.getAttribute('data-amount') || '';
             const actionContainer = btn.closest('div');
             if (actionContainer) {
                 actionContainer.querySelectorAll('button').forEach(b => b.disabled = true);
@@ -1032,7 +1214,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 btn.disabled = true;
             }
             const originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Payout...';
+            btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Razorpay...';
             
             try {
                 const res = await fetch(`/orders/admin/settlement/${settlementId}/payout/`, {
@@ -1046,14 +1228,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 if (data.status === 'success') {
                     if (typeof window.showToast === 'function') {
-                        window.showToast(data.message || 'Payout processed successfully!', 'success');
+                        window.showToast(data.message || 'Razorpay payout processed successfully!', 'success');
+                    } else {
+                        alert(data.message || 'Razorpay payout processed successfully!');
                     }
                     setTimeout(() => window.location.reload(), 800);
                 } else {
-                    if (typeof window.showToast === 'function') {
-                        window.showToast(data.message || 'Failed to trigger payout', 'error');
-                    } else {
-                        alert(data.message || 'Failed to trigger payout');
+                    const errMsg = data.message || 'Razorpay payout failed.';
+                    const tryDirect = confirm(`⚠️ Razorpay Payout Notice:\n\n${errMsg}\n\nWould you like to settle this via Direct Bank Transfer / UPI instead?`);
+                    if (tryDirect) {
+                        openDirectTransferModal(settlementId, settlementCode, amount);
                     }
                     if (actionContainer) {
                         actionContainer.querySelectorAll('button').forEach(b => b.disabled = false);
@@ -1064,6 +1248,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             } catch (err) {
                 console.error('Error triggering payout:', err);
+                const tryDirect = confirm(`⚠️ Razorpay Request Error:\n\n${err.message}\n\nWould you like to settle this via Direct Bank Transfer / UPI instead?`);
+                if (tryDirect) {
+                    openDirectTransferModal(settlementId, settlementCode, amount);
+                }
                 if (actionContainer) {
                     actionContainer.querySelectorAll('button').forEach(b => b.disabled = false);
                 } else {
@@ -1074,34 +1262,26 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    const manualSettleBtns = document.querySelectorAll('.manual-settle-btn');
-    manualSettleBtns.forEach(btn => {
+    // Revert Settlement to Pending
+    document.querySelectorAll('.revert-settlement-btn').forEach(btn => {
         btn.addEventListener('click', async function() {
             const settlementId = btn.getAttribute('data-settlement-id');
             const settlementCode = btn.getAttribute('data-settlement-code') || '';
-            const amount = btn.getAttribute('data-amount') || '';
             
-            const ref = prompt(`Mark settlement ${settlementCode} (₹${amount}) as Paid:\n\nEnter Bank UTR / Transaction Reference ID (optional, or press OK to generate automatically):`);
-            if (ref === null) return; // user cancelled
-
-            const actionContainer = btn.closest('div');
-            if (actionContainer) {
-                actionContainer.querySelectorAll('button').forEach(b => b.disabled = true);
-            } else {
-                btn.disabled = true;
+            if (!confirm(`Are you sure you want to reset settlement ${settlementCode} back to Pending?\n\nThis will clear its settled status and reference so you can re-process it via Razorpay or another method.`)) {
+                return;
             }
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving...';
-
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Resetting...';
+            
             try {
-                const res = await fetch(`/orders/admin/settlement/${settlementId}/mark-paid/`, {
+                const res = await fetch(`/orders/admin/settlement/${settlementId}/revert/`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
                         'X-CSRFToken': '{{ csrf_token }}',
                         'X-Requested-With': 'XMLHttpRequest'
-                    },
-                    body: JSON.stringify({ payment_reference: ref.trim() })
+                    }
                 });
                 const data = await res.json();
                 if (data.status === 'success') {
@@ -1110,24 +1290,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     } else {
                         alert(data.message);
                     }
-                    setTimeout(() => window.location.reload(), 800);
+                    setTimeout(() => window.location.reload(), 600);
                 } else {
-                    alert(data.message || 'Failed to mark settlement as paid.');
-                    if (actionContainer) {
-                        actionContainer.querySelectorAll('button').forEach(b => b.disabled = false);
-                    } else {
-                        btn.disabled = false;
-                    }
-                    btn.innerHTML = originalText;
+                    alert(data.message || 'Failed to revert settlement');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa fa-undo"></i> Reset to Pending';
                 }
             } catch (err) {
                 alert('Error: ' + err.message);
-                if (actionContainer) {
-                    actionContainer.querySelectorAll('button').forEach(b => b.disabled = false);
-                } else {
-                    btn.disabled = false;
-                }
-                btn.innerHTML = originalText;
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa fa-undo"></i> Reset to Pending';
             }
         });
     });
