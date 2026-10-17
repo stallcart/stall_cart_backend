@@ -2354,6 +2354,10 @@ def seller_edit_view(request, seller_id):
     ).exclude(
         settlements__isnull=False
     ).exclude(
+        status__in=['cancelled', 'rto', 'rto_in_transit', 'rto_delivered', 'returned', 'failed']
+    ).exclude(
+        order__status__in=['cancelled', 'failed']
+    ).exclude(
         return_requests__status__in=[
             'requested', 'approved', 'pickup_scheduled', 'picked_up', 
             'received', 'refund_initiated', 'completed'

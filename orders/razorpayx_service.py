@@ -83,7 +83,31 @@ def create_razorpay_fund_account(seller_profile):
     return None
 
 def initiate_payout(settlement):
-    """Initiate payout via RazorpayX."""
+    """Initiate payout via RazorpayX with strict repayout / double-settlement protection."""
+    # Ensure latest state from database
+    if getattr(settlement, 'pk', None):
+        try:
+            settlement.refresh_from_db()
+        except Exception:
+            pass
+
+    # 1. Strict anti-repayout validation
+    if settlement.status == 'processed':
+        logger.warning(f"Repayout prevented: Settlement {settlement.settlement_id} is already processed.")
+        return False, f"Settlement {settlement.settlement_id} is already marked as processed/paid. Repayout is prevented."
+
+    if settlement.settled_at is not None:
+        logger.warning(f"Repayout prevented: Settlement {settlement.settlement_id} has settled_at timestamp {settlement.settled_at}.")
+        return False, f"Settlement {settlement.settlement_id} was already settled on {settlement.settled_at.strftime('%Y-%m-%d %H:%M')}. Repayout is prevented."
+
+    if settlement.razorpay_payout_id:
+        logger.warning(f"Repayout prevented: Settlement {settlement.settlement_id} already has razorpay_payout_id {settlement.razorpay_payout_id}.")
+        return False, f"Payout has already been initiated for this settlement (Payout ID: {settlement.razorpay_payout_id}). Repayout is prevented."
+
+    if settlement.payment_reference and settlement.status != 'failed':
+        logger.warning(f"Repayout prevented: Settlement {settlement.settlement_id} already has payment reference {settlement.payment_reference}.")
+        return False, f"Settlement {settlement.settlement_id} already has a payment reference ({settlement.payment_reference}). Repayout is prevented."
+
     key_id, key_secret, account_number = get_razorpayx_credentials()
     if not key_id or not key_secret:
         logger.error("Razorpay API credentials (KEY_ID / KEY_SECRET) not configured.")
@@ -96,9 +120,6 @@ def initiate_payout(settlement):
             "Please add RAZORPAYX_ACCOUNT_NUMBER to .env (from your RazorpayX dashboard > Banking Accounts), "
             "or use 'Mark Paid' to settle manually."
         )
-
-    if settlement.razorpay_payout_id:
-        return False, "Payout has already been initiated for this settlement."
 
     seller = settlement.seller
     if not seller.account_number or not seller.ifsc_code:
@@ -128,6 +149,7 @@ def initiate_payout(settlement):
     }
 
     try:
+        from django.utils import timezone
         response = requests.post(url, json=payload, auth=(key_id, key_secret), timeout=10)
         data = response.json()
         if response.status_code in (200, 201):
@@ -140,6 +162,7 @@ def initiate_payout(settlement):
             else:
                 # Keep status as processed if it went through or queued
                 settlement.status = "processed"
+                settlement.settled_at = timezone.now()
             
             settlement.payment_reference = payout_id
             settlement.save()

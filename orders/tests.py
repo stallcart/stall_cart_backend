@@ -1044,6 +1044,97 @@ class SellerSettlementAndBankDetailsTests(TestCase):
             self.assertIn(self.item, settlement.order_items.all())
             self.assertNotIn(recent_item, settlement.order_items.all())
 
+    def test_initiate_payout_repayout_protection(self):
+        """Verify initiate_payout blocks repayout when already processed, settled, or payout initiated."""
+        from orders.models import SellerSettlement
+        from orders.razorpayx_service import initiate_payout
+        from unittest import mock
+
+        sett = SellerSettlement.objects.create(
+            seller=self.seller_profile,
+            status="processed",
+            amount=Decimal("100.00")
+        )
+        
+        with mock.patch("requests.post") as mock_req:
+            success, msg = initiate_payout(sett)
+            self.assertFalse(success)
+            self.assertIn("already marked as processed/paid", msg)
+            mock_req.assert_not_called()
+
+        # Test case with razorpay_payout_id
+        sett2 = SellerSettlement.objects.create(
+            seller=self.seller_profile,
+            status="pending",
+            razorpay_payout_id="pout_prev_12345",
+            amount=Decimal("100.00")
+        )
+        with mock.patch("requests.post") as mock_req:
+            success, msg = initiate_payout(sett2)
+            self.assertFalse(success)
+            self.assertIn("Payout has already been initiated", msg)
+            mock_req.assert_not_called()
+
+    def test_admin_endpoints_repayout_protection(self):
+        """Verify admin trigger-payout and mark-paid endpoints strictly reject repayout on already settled settlements."""
+        from orders.models import SellerSettlement
+        self.client.login(phone="9999999999", password="adminpassword")
+
+        sett = SellerSettlement.objects.create(
+            seller=self.seller_profile,
+            status="processed",
+            amount=Decimal("100.00")
+        )
+
+        # 1. Trigger Razorpay payout on already processed settlement
+        res1 = self.client.post(
+            reverse('orders:admin_trigger_payout_ajax', args=[sett.id]),
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest"
+        )
+        self.assertEqual(res1.status_code, 400)
+        self.assertIn("already processed/paid", res1.json().get('message', ''))
+
+        # 2. Mark Paid on already processed settlement
+        res2 = self.client.post(
+            reverse('orders:admin_mark_settlement_paid_ajax', args=[sett.id]),
+            data=json.dumps({"payment_reference": "UTR12345"}),
+            content_type="application/json",
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest"
+        )
+        self.assertEqual(res2.status_code, 400)
+        self.assertIn("already marked as processed/paid", res2.json().get('message', ''))
+
+    def test_items_in_settlement_never_resettled(self):
+        """Verify items already in any settlement cannot be re-settled automatically or manually."""
+        from django.core.management import call_command
+        from orders.models import SellerSettlement
+        from unittest import mock
+
+        # Add item to existing settlement
+        existing_settlement = SellerSettlement.objects.create(
+            seller=self.seller_profile,
+            status="processed"
+        )
+        existing_settlement.order_items.add(self.item)
+
+        # 1. Try creating another settlement manually via admin
+        self.client.login(phone="9999999999", password="adminpassword")
+        res = self.client.post(
+            reverse('orders:admin_create_settlement_ajax', args=[self.seller_profile.id]),
+            data=json.dumps({"order_item_ids": [self.item.id]}),
+            content_type="application/json",
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest"
+        )
+        self.assertEqual(res.status_code, 400)
+        self.assertIn("None of the selected order items are eligible", res.json().get('message', ''))
+
+        # 2. Try running auto_settle_sellers
+        initial_settlement_count = SellerSettlement.objects.count()
+        with mock.patch('orders.management.commands.auto_settle_sellers.initiate_payout') as mock_payout:
+            call_command("auto_settle_sellers")
+            mock_payout.assert_not_called()
+            self.assertEqual(SellerSettlement.objects.count(), initial_settlement_count)
+
 
 
 

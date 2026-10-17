@@ -40,6 +40,10 @@ class Command(BaseCommand):
         ).exclude(
             settlements__isnull=False
         ).exclude(
+            status__in=['cancelled', 'rto', 'rto_in_transit', 'rto_delivered', 'returned', 'failed']
+        ).exclude(
+            order__status__in=['cancelled', 'failed']
+        ).exclude(
             return_requests__status__in=[
                 'requested', 'approved', 'pickup_scheduled', 'picked_up', 
                 'received', 'refund_initiated', 'completed'
@@ -70,6 +74,10 @@ class Command(BaseCommand):
                         id__in=item_ids
                     ).exclude(
                         settlements__isnull=False
+                    ).exclude(
+                        status__in=['cancelled', 'rto', 'rto_in_transit', 'rto_delivered', 'returned', 'failed']
+                    ).exclude(
+                        order__status__in=['cancelled', 'failed']
                     ))
                     
                     if not locked_items:
@@ -83,6 +91,14 @@ class Command(BaseCommand):
                     )
                     # Add items to the settlement
                     settlement.order_items.add(*locked_items)
+
+                # Ensure fresh instance from DB with updated amounts from m2m_changed
+                settlement.refresh_from_db()
+
+                # Guard: Ensure settlement has not been processed or settled concurrently
+                if settlement.status == 'processed' or settlement.settled_at or settlement.razorpay_payout_id:
+                    self.stdout.write(self.style.WARNING(f"  Settlement {settlement.settlement_id} is already processed/settled. Skipping payout."))
+                    continue
 
                 # Now trigger the payout
                 success, msg = initiate_payout(settlement)

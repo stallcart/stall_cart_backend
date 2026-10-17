@@ -151,16 +151,17 @@ class SellerSettlementAdmin(BaseModelAdmin):
         errors = []
         
         for settlement in queryset:
-            if settlement.status != 'processed' or not settlement.razorpay_payout_id:
-                success, msg = initiate_payout(settlement)
-                if success:
-                    success_count += 1
-                else:
-                    fail_count += 1
-                    errors.append(f"{settlement.settlement_id}: {msg}")
+            if settlement.status == 'processed' or settlement.settled_at or settlement.razorpay_payout_id or (settlement.payment_reference and settlement.status != 'failed'):
+                fail_count += 1
+                errors.append(f"{settlement.settlement_id}: Already processed/settled. Repayout skipped.")
+                continue
+
+            success, msg = initiate_payout(settlement)
+            if success:
+                success_count += 1
             else:
                 fail_count += 1
-                errors.append(f"{settlement.settlement_id}: Already processed.")
+                errors.append(f"{settlement.settlement_id}: {msg}")
                 
         if success_count > 0:
             self.message_user(request, f"Successfully initiated {success_count} RazorpayX payout(s).", level='SUCCESS')

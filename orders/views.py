@@ -2223,15 +2223,25 @@ def confirm_rto_refund(request, order_id):
 @user_passes_test(lambda u: u.is_superuser)
 @require_POST
 def admin_trigger_payout_ajax(request, settlement_id):
-    """Trigger RazorpayX payout for a settlement."""
+    """Trigger RazorpayX payout for a settlement with strict anti-repayout checks."""
     from django.db import transaction
     with transaction.atomic():
         settlement = SellerSettlement.objects.select_for_update().filter(id=settlement_id).first()
         if not settlement:
             return JsonResponse({'status': 'error', 'message': 'Settlement not found'}, status=404)
         
+        # Prevent duplicate payout
+        if settlement.status == 'processed':
+            return JsonResponse({'status': 'error', 'message': f'Settlement {settlement.settlement_id} is already processed/paid. Repayout is prevented.'}, status=400)
+
+        if settlement.settled_at is not None:
+            return JsonResponse({'status': 'error', 'message': f'Settlement {settlement.settlement_id} was already settled on {settlement.settled_at.strftime("%Y-%m-%d %H:%M")}. Repayout is prevented.'}, status=400)
+        
         if settlement.razorpay_payout_id:
-            return JsonResponse({'status': 'error', 'message': 'Payout has already been initiated for this settlement.'}, status=400)
+            return JsonResponse({'status': 'error', 'message': f'Payout has already been initiated for this settlement (Payout ID: {settlement.razorpay_payout_id}). Repayout is prevented.'}, status=400)
+
+        if settlement.payment_reference and settlement.status != 'failed':
+            return JsonResponse({'status': 'error', 'message': f'Settlement {settlement.settlement_id} already has a payment reference ({settlement.payment_reference}). Repayout is prevented.'}, status=400)
             
         from .razorpayx_service import initiate_payout
         success, msg = initiate_payout(settlement)
@@ -2245,12 +2255,8 @@ def admin_trigger_payout_ajax(request, settlement_id):
 @admin_only
 @require_POST
 def admin_mark_settlement_paid_ajax(request, settlement_id):
-    """Admin: Mark a settlement as manually paid / settled with reference / UTR ID."""
+    """Admin: Mark a settlement as manually paid / settled with reference / UTR ID with strict anti-repayout checks."""
     from django.db import transaction
-    settlement = get_object_or_404(SellerSettlement, id=settlement_id)
-    if settlement.status == 'processed':
-        return JsonResponse({'status': 'error', 'message': 'Settlement is already marked as processed.'}, status=400)
-    
     try:
         data = json.loads(request.body)
     except Exception:
@@ -2261,6 +2267,22 @@ def admin_mark_settlement_paid_ajax(request, settlement_id):
         reference = f"MANUAL-{timezone.now().strftime('%Y%m%d%H%M%S')}"
 
     with transaction.atomic():
+        settlement = SellerSettlement.objects.select_for_update().filter(id=settlement_id).first()
+        if not settlement:
+            return JsonResponse({'status': 'error', 'message': 'Settlement not found'}, status=404)
+
+        if settlement.status == 'processed':
+            return JsonResponse({'status': 'error', 'message': f'Settlement {settlement.settlement_id} is already marked as processed/paid. Repayout is prevented.'}, status=400)
+
+        if settlement.settled_at is not None:
+            return JsonResponse({'status': 'error', 'message': f'Settlement {settlement.settlement_id} was already settled on {settlement.settled_at.strftime("%Y-%m-%d %H:%M")}. Repayout is prevented.'}, status=400)
+
+        if settlement.razorpay_payout_id:
+            return JsonResponse({'status': 'error', 'message': f'Settlement {settlement.settlement_id} already has an active RazorpayX payout ({settlement.razorpay_payout_id}). Repayout is prevented.'}, status=400)
+
+        if settlement.payment_reference and settlement.status != 'failed':
+            return JsonResponse({'status': 'error', 'message': f'Settlement {settlement.settlement_id} already has payment reference ({settlement.payment_reference}). Repayout is prevented.'}, status=400)
+
         settlement.status = 'processed'
         settlement.payment_reference = reference
         settlement.settled_at = timezone.now()
@@ -2317,6 +2339,10 @@ def admin_create_settlement_ajax(request, seller_id):
             Q(delivered_at__lte=safety_date) | Q(order__delivered_at__lte=safety_date)
         ).exclude(
             settlements__isnull=False
+        ).exclude(
+            status__in=['cancelled', 'rto', 'rto_in_transit', 'rto_delivered', 'returned', 'failed']
+        ).exclude(
+            order__status__in=['cancelled', 'failed']
         ).exclude(
             return_requests__status__in=[
                 'requested', 'approved', 'pickup_scheduled', 'picked_up', 

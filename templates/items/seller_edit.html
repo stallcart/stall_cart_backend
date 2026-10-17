@@ -780,7 +780,9 @@
                                 </td>
                                 <td style="font-family: monospace; font-size: 0.8rem; color: var(--gray-600);">{{ sett.razorpay_payout_id|default:"—" }}</td>
                                 <td style="text-align: center;">
-                                    {% if sett.status == 'pending' or sett.status == 'failed' %}
+                                    {% if sett.status == 'processed' or sett.settled_at or sett.razorpay_payout_id or sett.payment_reference and sett.status != 'failed' %}
+                                    <span style="color: var(--green); font-size: 0.85rem; font-weight: 700;"><i class="fa fa-check-circle"></i> Settled</span>
+                                    {% else %}
                                         {% if is_admin %}
                                         <div style="display: inline-flex; gap: 6px; align-items: center; justify-content: center; flex-wrap: wrap;">
                                             <button type="button" class="btn-save trigger-payout-btn" data-settlement-id="{{ sett.id }}" style="padding: 6px 12px; font-size: 0.78rem; width: auto; background: linear-gradient(135deg, var(--green), #059669); border: none; box-shadow: 0 4px 10px rgba(16,185,129,0.25); cursor: pointer;" title="Trigger automated payout via RazorpayX">
@@ -793,8 +795,6 @@
                                         {% else %}
                                         <span style="color: var(--gray-500); font-size: 0.85rem; font-weight: 600;">Pending Admin</span>
                                         {% endif %}
-                                    {% else %}
-                                    <span style="color: var(--green); font-size: 0.85rem; font-weight: 700;"><i class="fa fa-check-circle"></i> Settled</span>
                                     {% endif %}
                                 </td>
                             </tr>
@@ -1020,7 +1020,12 @@ document.addEventListener('DOMContentLoaded', function() {
     triggerBtns.forEach(btn => {
         btn.addEventListener('click', async function() {
             const settlementId = btn.getAttribute('data-settlement-id');
-            btn.disabled = true;
+            const actionContainer = btn.closest('div');
+            if (actionContainer) {
+                actionContainer.querySelectorAll('button').forEach(b => b.disabled = true);
+            } else {
+                btn.disabled = true;
+            }
             const originalText = btn.innerHTML;
             btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Payout...';
             
@@ -1045,12 +1050,20 @@ document.addEventListener('DOMContentLoaded', function() {
                     } else {
                         alert(data.message || 'Failed to trigger payout');
                     }
-                    btn.disabled = false;
+                    if (actionContainer) {
+                        actionContainer.querySelectorAll('button').forEach(b => b.disabled = false);
+                    } else {
+                        btn.disabled = false;
+                    }
                     btn.innerHTML = originalText;
                 }
             } catch (err) {
                 console.error('Error triggering payout:', err);
-                btn.disabled = false;
+                if (actionContainer) {
+                    actionContainer.querySelectorAll('button').forEach(b => b.disabled = false);
+                } else {
+                    btn.disabled = false;
+                }
                 btn.innerHTML = originalText;
             }
         });
@@ -1066,7 +1079,12 @@ document.addEventListener('DOMContentLoaded', function() {
             const ref = prompt(`Mark settlement ${settlementCode} (₹${amount}) as Paid:\n\nEnter Bank UTR / Transaction Reference ID (optional, or press OK to generate automatically):`);
             if (ref === null) return; // user cancelled
 
-            btn.disabled = true;
+            const actionContainer = btn.closest('div');
+            if (actionContainer) {
+                actionContainer.querySelectorAll('button').forEach(b => b.disabled = true);
+            } else {
+                btn.disabled = true;
+            }
             const originalText = btn.innerHTML;
             btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving...';
 
@@ -1090,12 +1108,20 @@ document.addEventListener('DOMContentLoaded', function() {
                     setTimeout(() => window.location.reload(), 800);
                 } else {
                     alert(data.message || 'Failed to mark settlement as paid.');
-                    btn.disabled = false;
+                    if (actionContainer) {
+                        actionContainer.querySelectorAll('button').forEach(b => b.disabled = false);
+                    } else {
+                        btn.disabled = false;
+                    }
                     btn.innerHTML = originalText;
                 }
             } catch (err) {
                 alert('Error: ' + err.message);
-                btn.disabled = false;
+                if (actionContainer) {
+                    actionContainer.querySelectorAll('button').forEach(b => b.disabled = false);
+                } else {
+                    btn.disabled = false;
+                }
                 btn.innerHTML = originalText;
             }
         });
