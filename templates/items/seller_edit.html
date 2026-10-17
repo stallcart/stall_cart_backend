@@ -782,9 +782,14 @@
                                 <td style="text-align: center;">
                                     {% if sett.status == 'pending' or sett.status == 'failed' %}
                                         {% if is_admin %}
-                                        <button type="button" class="btn-save trigger-payout-btn" data-settlement-id="{{ sett.id }}" style="padding: 8px 14px; font-size: 0.8rem; width: auto; background: linear-gradient(135deg, var(--green), #059669); border: none; box-shadow: 0 4px 10px rgba(16,185,129,0.25);">
-                                            <i class="fa fa-money-bill-wave" style="margin-right: 4px;"></i> Payout
-                                        </button>
+                                        <div style="display: inline-flex; gap: 6px; align-items: center; justify-content: center; flex-wrap: wrap;">
+                                            <button type="button" class="btn-save trigger-payout-btn" data-settlement-id="{{ sett.id }}" style="padding: 6px 12px; font-size: 0.78rem; width: auto; background: linear-gradient(135deg, var(--green), #059669); border: none; box-shadow: 0 4px 10px rgba(16,185,129,0.25); cursor: pointer;" title="Trigger automated payout via RazorpayX">
+                                                <i class="fa fa-bolt" style="margin-right: 4px;"></i> Razorpay Payout
+                                            </button>
+                                            <button type="button" class="btn-outline manual-settle-btn" data-settlement-id="{{ sett.id }}" data-settlement-code="{{ sett.settlement_id }}" data-amount="{{ sett.amount }}" style="padding: 6px 12px; font-size: 0.78rem; width: auto; border: 1.5px solid #2874f0; color: #2874f0; background: white; font-weight: 700; cursor: pointer; border-radius: 6px;" title="Mark settlement as paid with UTR / Reference ID">
+                                                <i class="fa fa-check" style="margin-right: 4px;"></i> Mark Paid
+                                            </button>
+                                        </div>
                                         {% else %}
                                         <span style="color: var(--gray-500); font-size: 0.85rem; font-weight: 600;">Pending Admin</span>
                                         {% endif %}
@@ -1045,6 +1050,51 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             } catch (err) {
                 console.error('Error triggering payout:', err);
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        });
+    });
+
+    const manualSettleBtns = document.querySelectorAll('.manual-settle-btn');
+    manualSettleBtns.forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const settlementId = btn.getAttribute('data-settlement-id');
+            const settlementCode = btn.getAttribute('data-settlement-code') || '';
+            const amount = btn.getAttribute('data-amount') || '';
+            
+            const ref = prompt(`Mark settlement ${settlementCode} (₹${amount}) as Paid:\n\nEnter Bank UTR / Transaction Reference ID (optional, or press OK to generate automatically):`);
+            if (ref === null) return; // user cancelled
+
+            btn.disabled = true;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving...';
+
+            try {
+                const res = await fetch(`/orders/admin/settlement/${settlementId}/mark-paid/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({ payment_reference: ref.trim() })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    if (typeof window.showToast === 'function') {
+                        window.showToast(data.message, 'success');
+                    } else {
+                        alert(data.message);
+                    }
+                    setTimeout(() => window.location.reload(), 800);
+                } else {
+                    alert(data.message || 'Failed to mark settlement as paid.');
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                }
+            } catch (err) {
+                alert('Error: ' + err.message);
                 btn.disabled = false;
                 btn.innerHTML = originalText;
             }

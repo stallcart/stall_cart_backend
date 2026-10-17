@@ -6,8 +6,8 @@ from decimal import Decimal
 logger = logging.getLogger(__name__)
 
 def get_razorpayx_credentials():
-    key_id = getattr(settings, 'RAZORPAY_KEY_ID', None)
-    key_secret = getattr(settings, 'RAZORPAY_KEY_SECRET', None)
+    key_id = getattr(settings, 'RAZORPAYX_KEY_ID', None) or getattr(settings, 'RAZORPAY_KEY_ID', None)
+    key_secret = getattr(settings, 'RAZORPAYX_KEY_SECRET', None) or getattr(settings, 'RAZORPAY_KEY_SECRET', None)
     account_number = getattr(settings, 'RAZORPAYX_ACCOUNT_NUMBER', None)
     return key_id, key_secret, account_number
 
@@ -15,7 +15,7 @@ def create_razorpay_contact(seller_profile):
     """Create a contact for the seller in RazorpayX."""
     key_id, key_secret, _ = get_razorpayx_credentials()
     if not key_id or not key_secret:
-        logger.error("Razorpay credentials not configured.")
+        logger.error("Razorpay API credentials not configured.")
         return None
 
     url = "https://api.razorpay.com/v1/contacts"
@@ -85,19 +85,30 @@ def create_razorpay_fund_account(seller_profile):
 def initiate_payout(settlement):
     """Initiate payout via RazorpayX."""
     key_id, key_secret, account_number = get_razorpayx_credentials()
-    if not key_id or not key_secret or not account_number:
-        logger.error("RazorpayX credentials or Account Number not configured.")
-        return False, "RazorpayX not fully configured in settings."
+    if not key_id or not key_secret:
+        logger.error("Razorpay API credentials (KEY_ID / KEY_SECRET) not configured.")
+        return False, "Razorpay API credentials are not configured in settings."
+
+    if not account_number:
+        logger.warning("RAZORPAYX_ACCOUNT_NUMBER is not configured in settings/.env.")
+        return False, (
+            "RazorpayX Account Number is not configured. "
+            "Please add RAZORPAYX_ACCOUNT_NUMBER to .env (from your RazorpayX dashboard > Banking Accounts), "
+            "or use 'Mark Paid' to settle manually."
+        )
 
     if settlement.razorpay_payout_id:
         return False, "Payout has already been initiated for this settlement."
 
     seller = settlement.seller
+    if not seller.account_number or not seller.ifsc_code:
+        return False, f"Seller '{seller.shop_name}' is missing Bank Account Number or IFSC Code. Please update seller bank details first."
+
     fund_account_id = seller.razorpay_fund_account_id
     if not fund_account_id:
         fund_account_id = create_razorpay_fund_account(seller)
         if not fund_account_id:
-            return False, "Could not setup Fund Account for the seller. Make sure bank details are valid."
+            return False, f"Could not create RazorpayX Fund Account for seller '{seller.shop_name}'. Check bank details."
 
     amount_in_paise = int(settlement.amount * Decimal('100'))
     if amount_in_paise <= 0:

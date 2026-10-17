@@ -24,22 +24,30 @@ class Command(BaseCommand):
         self.stdout.write("Starting StallCart Automatic Seller Settlements & Payouts...")
         self.stdout.write("=" * 60)
 
-        # 10 days safety window
+        # 10 days safety window (after delivery)
         safety_date = timezone.now() - timedelta(days=10)
 
-        # Find eligible order items
+        # Find eligible order items:
+        # - Delivered at least 10 days ago (past the 7-day return window)
+        # - Not returned and no active return request
+        # - Not already in any settlement
+        from django.db.models import Q
         eligible_items = OrderItem.objects.filter(
-            order__status='delivered',
-            order__delivered_at__lte=safety_date,
+            Q(status='delivered') | Q(order__status='delivered'),
             is_returned=False
+        ).filter(
+            Q(delivered_at__lte=safety_date) | Q(order__delivered_at__lte=safety_date)
         ).exclude(
             settlements__isnull=False
         ).exclude(
-            return_requests__status__in=['requested', 'approved', 'completed']
-        ).select_related('seller', 'product')
+            return_requests__status__in=[
+                'requested', 'approved', 'pickup_scheduled', 'picked_up', 
+                'received', 'refund_initiated', 'completed'
+            ]
+        ).select_related('seller', 'product', 'order')
 
         if not eligible_items.exists():
-            self.stdout.write("No eligible order items found for auto-settlement.")
+            self.stdout.write("No eligible order items found for auto-settlement (10 days past delivery with no returns).")
             return
 
         self.stdout.write(f"Found {eligible_items.count()} order item(s) eligible for settlement.")
@@ -81,7 +89,7 @@ class Command(BaseCommand):
                 if success:
                     self.stdout.write(self.style.SUCCESS(f"  Successfully processed payout for {seller.shop_name}: {msg}"))
                 else:
-                    self.stdout.write(self.style.ERROR(f"  Failed to process payout for {seller.shop_name}: {msg}"))
+                    self.stdout.write(self.style.WARNING(f"  Created pending settlement {settlement.settlement_id} for {seller.shop_name}. Payout pending: {msg}"))
             except Exception as e:
                 self.stdout.write(self.style.ERROR(f"  Error processing settlement for {seller.shop_name}: {e}"))
                 logger.error(f"Auto-settlement error for seller {seller.id}: {e}", exc_info=True)

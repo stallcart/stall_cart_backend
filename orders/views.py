@@ -2242,6 +2242,47 @@ def admin_trigger_payout_ajax(request, settlement_id):
 
 
 @login_required
+@admin_only
+@require_POST
+def admin_mark_settlement_paid_ajax(request, settlement_id):
+    """Admin: Mark a settlement as manually paid / settled with reference / UTR ID."""
+    from django.db import transaction
+    settlement = get_object_or_404(SellerSettlement, id=settlement_id)
+    if settlement.status == 'processed':
+        return JsonResponse({'status': 'error', 'message': 'Settlement is already marked as processed.'}, status=400)
+    
+    try:
+        data = json.loads(request.body)
+    except Exception:
+        data = request.POST
+    
+    reference = (data.get('payment_reference') or '').strip()
+    if not reference:
+        reference = f"MANUAL-{timezone.now().strftime('%Y%m%d%H%M%S')}"
+
+    with transaction.atomic():
+        settlement.status = 'processed'
+        settlement.payment_reference = reference
+        settlement.settled_at = timezone.now()
+        settlement.save()
+        
+        from orders.models import SystemActivityLog
+        SystemActivityLog.log(
+            event_type='settlement_processed',
+            description=f"Admin {request.user.phone} marked settlement {settlement.settlement_id} as manually paid (₹{settlement.amount}) for {settlement.seller.shop_name}. Ref: {reference}.",
+            settlement=settlement,
+            status='success'
+        )
+        
+        settlement.send_notification_email()
+        
+    return JsonResponse({
+        'status': 'success',
+        'message': f'Settlement {settlement.settlement_id} marked as Paid successfully!'
+    })
+
+
+@login_required
 @user_passes_test(lambda u: u.is_superuser)
 @require_POST
 def admin_create_settlement_ajax(request, seller_id):
@@ -2265,16 +2306,22 @@ def admin_create_settlement_ajax(request, seller_id):
     safety_date = timezone.now() - timedelta(days=10)
     
     with transaction.atomic():
+        from django.db.models import Q
         items = OrderItem.objects.select_for_update().filter(
             id__in=order_item_ids,
             seller=seller,
-            order__status='delivered',
-            order__delivered_at__lte=safety_date,
             is_returned=False
+        ).filter(
+            Q(status='delivered') | Q(order__status='delivered')
+        ).filter(
+            Q(delivered_at__lte=safety_date) | Q(order__delivered_at__lte=safety_date)
         ).exclude(
             settlements__isnull=False
         ).exclude(
-            return_requests__status__in=['requested', 'approved', 'completed']
+            return_requests__status__in=[
+                'requested', 'approved', 'pickup_scheduled', 'picked_up', 
+                'received', 'refund_initiated', 'completed'
+            ]
         )
         
         if not items.exists():

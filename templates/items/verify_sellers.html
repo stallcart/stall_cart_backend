@@ -712,8 +712,16 @@ document.addEventListener('DOMContentLoaded', function() {
                         </a>
                     </div>
                     <div class="modal-footer" style="display:flex;gap:12px;margin-top:12px;border-top:1px solid var(--gray-200);padding-top:16px;">
-                        <button class="btn-primary" style="background:#2e7d32;flex:1;margin:0;border:none;color:white;cursor:pointer;padding:10px 16px;border-radius:4px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;" onclick="triggerSellerAction(${sellerId}, 'verify')"><i class="fa fa-check"></i> Verify Seller</button>
-                        <button class="btn-primary" style="background:#c62828;flex:1;margin:0;border:none;color:white;cursor:pointer;padding:10px 16px;border-radius:4px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;" onclick="triggerSellerAction(${sellerId}, 'reject')"><i class="fa fa-times"></i> Reject Seller</button>
+                        ${!data.is_verified ? `
+                            <button class="btn-primary" style="background:#2e7d32;flex:1;margin:0;border:none;color:white;cursor:pointer;padding:10px 16px;border-radius:6px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;" onclick="triggerSellerAction(${sellerId}, 'verify')"><i class="fa fa-check"></i> Verify Seller</button>
+                        ` : `
+                            <div style="background:#ecfdf5;color:#047857;border:1.5px solid #a7f3d0;flex:1;padding:10px 16px;border-radius:6px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;">
+                                <i class="fa fa-check-circle" style="color:#059669;"></i> Seller is Verified
+                            </div>
+                        `}
+                        <button class="btn-primary" style="background:#c62828;flex:1;margin:0;border:none;color:white;cursor:pointer;padding:10px 16px;border-radius:6px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;" onclick="triggerSellerAction(${sellerId}, 'reject')">
+                            <i class="fa fa-ban"></i> ${data.is_verified ? 'Revoke / Reject' : 'Reject Seller'}
+                        </button>
                     </div>
                     ` : `
                     <div class="modal-footer" style="display:flex;justify-content:center;margin-top:24px;border-top:1px solid var(--gray-200);padding-top:16px;color:var(--gray-500);font-size:0.9rem;font-weight:600;">

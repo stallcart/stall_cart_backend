@@ -153,11 +153,16 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 # ═══════════════════════════════════════════════════════════
-# PAYMENT: RAZORPAY
+# PAYMENT: RAZORPAY & RAZORPAYX (Payouts)
 # ═══════════════════════════════════════════════════════════
 RAZORPAY_KEY_ID = env('RAZORPAY_KEY_ID', default='rzp_test_XXX')
 RAZORPAY_KEY_SECRET = env('RAZORPAY_KEY_SECRET', default='XXX')
 RAZORPAY_WEBHOOK_SECRET = env('RAZORPAY_WEBHOOK_SECRET', default='XXX')
+
+# RazorpayX Payouts & Banking
+RAZORPAYX_KEY_ID = env('RAZORPAYX_KEY_ID', default=RAZORPAY_KEY_ID)
+RAZORPAYX_KEY_SECRET = env('RAZORPAYX_KEY_SECRET', default=RAZORPAY_KEY_SECRET)
+RAZORPAYX_ACCOUNT_NUMBER = env('RAZORPAYX_ACCOUNT_NUMBER', default=None)
 
 # ═══════════════════════════════════════════════════════════
 # LOGGING CONFIGURATION

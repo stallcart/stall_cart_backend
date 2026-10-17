@@ -2049,6 +2049,11 @@ def verify_seller_action(request, seller_id):
             seller.is_verified = True
             seller.is_active = True
             seller.save()
+
+            if seller.user:
+                seller.user.is_verified = True
+                seller.user.is_active = True
+                seller.user.save(update_fields=['is_verified', 'is_active', 'updated_at'])
             
             # Send welcome email using dynamic template
             try:
@@ -2073,6 +2078,10 @@ def verify_seller_action(request, seller_id):
             seller.is_verified = False
             seller.is_active = False
             seller.save()
+
+            if seller.user:
+                seller.user.is_verified = False
+                seller.user.save(update_fields=['is_verified', 'updated_at'])
             
             return JsonResponse({
                 'status': 'success',
@@ -2334,15 +2343,21 @@ def seller_edit_view(request, seller_id):
     
     safety_date = timezone.now() - timedelta(days=10)
     seller_settlements = SellerSettlement.objects.filter(seller=seller).order_by('-created_at')[:10]
+    from django.db.models import Q
     unsettled_order_items = OrderItem.objects.filter(
         seller=seller,
-        order__status='delivered',
-        order__delivered_at__lte=safety_date,
         is_returned=False
+    ).filter(
+        Q(status='delivered') | Q(order__status='delivered')
+    ).filter(
+        Q(delivered_at__lte=safety_date) | Q(order__delivered_at__lte=safety_date)
     ).exclude(
         settlements__isnull=False
     ).exclude(
-        return_requests__status__in=['requested', 'approved', 'completed']
+        return_requests__status__in=[
+            'requested', 'approved', 'pickup_scheduled', 'picked_up', 
+            'received', 'refund_initiated', 'completed'
+        ]
     ).select_related('order', 'product')[:15]
 
     context = {
