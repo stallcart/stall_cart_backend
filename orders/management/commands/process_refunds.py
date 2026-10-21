@@ -78,8 +78,22 @@ class Command(BaseCommand):
                     else:
                         self.stdout.write(self.style.ERROR(f"  Failed: Razorpay client not initialized or missing payment ID for Order {order.unique_order_id}."))
                 except Exception as e:
-                    self.stdout.write(self.style.ERROR(f"  Razorpay refund API call failed for Order {order.unique_order_id}: {e}"))
-                    logger.error(f"Razorpay refund error for Order {order.unique_order_id}: {e}", exc_info=True)
+                    err_str = str(e).lower()
+                    if "already" in err_str and "refund" in err_str:
+                        self.stdout.write(self.style.WARNING(f"  Order {order.unique_order_id} was already refunded on Razorpay. Marking as refunded."))
+                        order.payment_status = 'refunded'
+                        order.status = 'refunded'
+                        order.refund_amount = order.total_amount
+                        order.save(update_fields=['payment_status', 'status', 'refund_amount', 'updated_at'])
+                        OrderStatusLog.objects.create(
+                            order=order,
+                            old_status='refund_initiated',
+                            new_status='refunded',
+                            remarks="💰 Reconciled with Razorpay: Payment was already fully refunded."
+                        )
+                    else:
+                        self.stdout.write(self.style.ERROR(f"  Razorpay refund API call failed for Order {order.unique_order_id}: {e}"))
+                        logger.error(f"Razorpay refund error for Order {order.unique_order_id}: {e}", exc_info=True)
 
         # 2. Wallet Refunds
         with transaction.atomic():
