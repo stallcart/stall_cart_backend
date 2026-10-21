@@ -270,14 +270,12 @@ class Command(BaseCommand):
                             metadata={'awb': awb_code, 'courier': courier_name, 'shiprocket_order_id': sr_order.get("order_id") if sr_order else None}
                         )
 
-                        # Send AWB Assignment notification email
-                        context = {
-                            "order_id": f"{order.unique_order_id} (Seller: {seller.shop_name})",
-                            "tracking_number": awb_code,
-                            "courier_name": courier_name,
-                            "admin_order_url": f"https://stallcart.in/orders/admin/order/{order.unique_order_id}/"
-                        }
-                        send_dynamic_email('awb_assigned_notification', recipient_list, context)
+                        # Send AWB Assignment notification email and FCM to Seller
+                        try:
+                            from common.notification_service import notify_seller_awb_assigned
+                            notify_seller_awb_assigned(order, seller, awb_code, courier_name)
+                        except Exception as ex:
+                            logger.error(f"Failed to notify seller of AWB assignment: {ex}")
                         
                         # Trigger customer app notifications
                         try:

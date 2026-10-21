@@ -271,7 +271,7 @@ DEFAULT_TEMPLATES = {
         'description': "Email sent to seller when their profile is verified by an admin"
     },
     'seller_new_order': {
-        'subject': "StallCart Seller - New Order {{ order_id }} Received",
+        'subject': "StallCart Seller - New Order {{ order_id }} Received (Prepare for Pickup)",
         'body': _base_email_wrapper(
             "StallCart - New Order Received",
             "🛍️ New Order Alert",
@@ -288,11 +288,100 @@ DEFAULT_TEMPLATES = {
                 <strong>Shipping Address:</strong><br>{{ shipping_address }}
               </div>
             </div>
+            <div style="background: #fffbeb; border: 1px solid #fef3c7; border-radius: 12px; padding: 14px 18px; margin: 18px 0;">
+              <div style="font-weight: 800; font-size: 13px; color: #92400e; margin-bottom: 4px;">📦 Action Required for Pickup:</div>
+              <p style="font-size: 13px; color: #78350f; line-height: 1.5; margin: 0;">
+                Please pack and label the items securely. Once packed, open your order in the seller dashboard and click <strong>"Ready for Pickup"</strong> to schedule courier pickup.
+              </p>
+            </div>
             <div style="text-align: center;">
-              <a href="https://stallcart.in/accounts/profile/" class="btn-primary">View & Process Order &rarr;</a>
+              <a href="{{ seller_order_url|default:'https://stallcart.in/accounts/profile/' }}" class="btn-primary">View Order & Prepare for Pickup &rarr;</a>
             </div>"""
         ),
         'description': "Email notification sent to seller when a customer orders their products"
+    },
+    'awb_assigned_notification': {
+        'subject': "StallCart Seller - AWB {{ tracking_number }} Assigned for Order {{ order_id }} (Prepare for Pickup)",
+        'body': _base_email_wrapper(
+            "StallCart - AWB Generated",
+            "🏷️ Courier AWB Assigned",
+            "AWB Generated - Prepare Parcel",
+            "Order #{{ order_id }}",
+            """<div class="greeting">Hello {{ seller_name }},</div>
+            <p style="font-size: 14px; color: #334155; line-height: 1.6; margin: 0 0 14px 0;">
+              A courier tracking AWB has been successfully assigned to Order <strong>#{{ order_id }}</strong>.
+            </p>
+            <div class="info-box">
+              <table class="detail-table">
+                <tr><td class="lbl">Order ID</td><td class="val">#{{ order_id }}</td></tr>
+                <tr><td class="lbl">Courier Partner</td><td class="val">{{ courier_name }}</td></tr>
+                <tr><td class="lbl">Tracking AWB</td><td class="val" style="color: #2563eb; font-family: monospace; font-size: 15px;">{{ tracking_number }}</td></tr>
+              </table>
+            </div>
+            <div class="highlight-badge" style="text-align: left; background: #eff6ff; border: 1px solid #bfdbfe;">
+              <div style="font-weight: 800; font-size: 13px; color: #1e40af; margin-bottom: 6px;">📋 Next Steps to Complete:</div>
+              <ol style="font-size: 13px; color: #1e3a8a; line-height: 1.6; margin: 0; padding-left: 20px;">
+                <li>Pack your products in sturdy packaging.</li>
+                <li>Label the parcel clearly with <strong>AWB: {{ tracking_number }}</strong> and Order #{{ order_id }}.</li>
+                <li>Click <strong>"Ready for Pickup"</strong> on your seller dashboard so {{ courier_name }} will dispatch a courier agent to pick it up.</li>
+              </ol>
+            </div>
+            <div style="text-align: center;">
+              <a href="{{ seller_order_url|default:'https://stallcart.in/accounts/profile/' }}" class="btn-primary">Open Order & Schedule Pickup &rarr;</a>
+            </div>"""
+        ),
+        'description': "Email sent to seller when AWB is generated, instructing them to pack and mark Ready for Pickup"
+    },
+    'seller_pickup_scheduled': {
+        'subject': "StallCart Seller - Courier Pickup Scheduled for Order {{ order_id }}",
+        'body': _base_email_wrapper(
+            "StallCart - Pickup Scheduled",
+            "🚚 Pickup Scheduled",
+            "Courier Pickup Confirmed",
+            "Order #{{ order_id }}",
+            """<div class="greeting">Hello {{ seller_name }},</div>
+            <p style="font-size: 14px; color: #334155; line-height: 1.6; margin: 0 0 14px 0;">
+              Courier pickup has been successfully scheduled for Order <strong>#{{ order_id }}</strong> on Shiprocket!
+            </p>
+            <div class="info-box">
+              <table class="detail-table">
+                <tr><td class="lbl">Order ID</td><td class="val">#{{ order_id }}</td></tr>
+                <tr><td class="lbl">Pickup Token</td><td class="val" style="color: #059669; font-weight: 900;">#{{ pickup_token }}</td></tr>
+                {% if courier_name %}<tr><td class="lbl">Courier Partner</td><td class="val">{{ courier_name }}</td></tr>{% endif %}
+                {% if tracking_number %}<tr><td class="lbl">Tracking AWB</td><td class="val">{{ tracking_number }}</td></tr>{% endif %}
+                {% if pickup_date %}<tr><td class="lbl">Scheduled Date</td><td class="val">{{ pickup_date }}</td></tr>{% endif %}
+              </table>
+            </div>
+            <p style="font-size: 13px; color: #475569; line-height: 1.5; margin: 16px 0 0 0;">
+              Please ensure the packed and labeled parcel is kept ready at your registered shop pickup location. Hand over the parcel to the visiting courier executive when they arrive.
+            </p>"""
+        ),
+        'description': "Email sent to seller when courier pickup is successfully scheduled on Shiprocket"
+    },
+    'admin_seller_awb_alert': {
+        'subject': "⚠️ StallCart Alert - Manual AWB Update Needed for Order {{ order_id }}",
+        'body': _base_email_wrapper(
+            "StallCart Alert",
+            "⚠️ Attention Needed",
+            "AWB Assignment Pending",
+            "Order #{{ order_id }}",
+            """<div class="greeting">Hello {{ seller_name }},</div>
+            <p style="font-size: 14px; color: #334155; line-height: 1.6; margin: 0 0 14px 0;">
+              Order <strong>#{{ order_id }}</strong> has been registered on Shiprocket, but courier AWB assignment is currently pending.
+            </p>
+            <div class="info-box">
+              <table class="detail-table">
+                <tr><td class="lbl">Order ID</td><td class="val">#{{ order_id }}</td></tr>
+                <tr><td class="lbl">Status</td><td class="val">{{ status }}</td></tr>
+                <tr><td class="lbl">Pickup Location</td><td class="val">{{ pickup_location }}</td></tr>
+                <tr><td class="lbl">Customer</td><td class="val">{{ customer_name }}</td></tr>
+              </table>
+            </div>
+            <div style="text-align: center;">
+              <a href="{{ admin_order_url|default:'https://stallcart.in/orders/admin/' }}" class="btn-primary">View Order Details &rarr;</a>
+            </div>"""
+        ),
+        'description': "Alert email sent when shipment exists on Shiprocket but AWB assignment requires manual review"
     },
     'seller_order_status_update': {
         'subject': "StallCart Seller - Order {{ order_id }} Update: {{ status }}",

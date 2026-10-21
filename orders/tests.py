@@ -3146,5 +3146,55 @@ class AddressLengthNormalizationTests(TestCase):
         self.assertTrue(any(c.isdigit() for c in addr["address_line1"]))
         self.assertEqual(addr["phone"], "9111122222")
 
+    @mock.patch('common.notification_service.send_to_user')
+    @mock.patch('common.email_service.send_dynamic_email')
+    def test_seller_pickup_preparation_notifications(self, mock_send_email, mock_send_fcm):
+        from accounts.models import User
+        from items.models import SellerProfile
+        from orders.models import Order
+        from common.notification_service import notify_seller_awb_assigned, notify_seller_pickup_scheduled
+
+        seller_user = User.objects.create_user(phone="9888877777", email="seller@test.com", password="password", role="seller")
+        seller_profile = SellerProfile.objects.create(user=seller_user, shop_name="Test Store")
+        order = Order.objects.create(
+            user=seller_user,
+            unique_order_id="ORD-TEST-NOTIF-1",
+            total_amount=Decimal("500.00"),
+            payment_status="pending",
+            payment_method="cod",
+            shipping_address={"name": "Cust", "phone": "9999999999", "address_line1": "123 Test St", "city": "Varanasi", "postal_code": "221005"}
+        )
+        mock_send_email.return_value = True
+        mock_send_fcm.reset_mock()
+        mock_send_email.reset_mock()
+
+        # 1. Test AWB assigned notification
+        notify_seller_awb_assigned(order, seller_profile, "AWB-TEST-999", "Shadowfax")
+        # Assert FCM sent with pickup preparation message
+        mock_send_fcm.assert_called_once()
+        fcm_payload = mock_send_fcm.call_args[0][1]
+        self.assertIn("AWB Assigned", fcm_payload.title)
+        self.assertIn("Ready for Pickup", fcm_payload.body)
+        self.assertIn("/orders/seller/order/", fcm_payload.click_action)
+
+        # Assert email sent
+        mock_send_email.assert_called_once()
+        template_name = mock_send_email.call_args[0][0]
+        self.assertEqual(template_name, "awb_assigned_notification")
+
+        # 2. Test Pickup scheduled notification
+        mock_send_fcm.reset_mock()
+        mock_send_email.reset_mock()
+        notify_seller_pickup_scheduled(order, seller_profile, "TOKEN-999", "2026-10-22")
+        mock_send_fcm.assert_called_once()
+        fcm_pickup_payload = mock_send_fcm.call_args[0][1]
+        self.assertIn("Pickup Scheduled", fcm_pickup_payload.title)
+        self.assertIn("TOKEN-999", fcm_pickup_payload.body)
+
+        mock_send_email.assert_called_once()
+        pickup_tpl = mock_send_email.call_args[0][0]
+        self.assertEqual(pickup_tpl, "seller_pickup_scheduled")
+
+
 
 

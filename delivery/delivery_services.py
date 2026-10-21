@@ -893,6 +893,14 @@ def push_seller_items_to_shiprocket(order, seller):
                     new_status=order.status,
                     remarks=f"Reconciled/Healed existing Shiprocket shipment for {seller.shop_name} (AWB: {awb}, Courier: {courier})"
                 )
+
+                # Notify seller of AWB assignment to prepare for pickup
+                try:
+                    from common.notification_service import notify_seller_awb_assigned
+                    notify_seller_awb_assigned(order, seller, awb, courier)
+                except Exception as ex:
+                    logger.error(f"Failed to notify seller of AWB assignment: {ex}")
+
                 return True, None
             else:
                 # If no AWB could be retrieved or assigned, we revert PENDING_PUSH so it can be retried
@@ -944,6 +952,14 @@ def push_seller_items_to_shiprocket(order, seller):
                 new_status=order.status,
                 remarks=f"Automatically pushed {seller.shop_name} items to Shiprocket (AWB: {awb}, Courier: {courier})"
             )
+
+            # Notify seller of AWB assignment to prepare for pickup
+            try:
+                from common.notification_service import notify_seller_awb_assigned
+                notify_seller_awb_assigned(order, seller, awb, courier)
+            except Exception as ex:
+                logger.error(f"Failed to notify seller of AWB assignment: {ex}")
+
             return True, None
         else:
             err_msg = res.get('error', 'Unknown error')
@@ -1090,6 +1106,14 @@ def schedule_seller_order_pickup(order, seller=None, force=False):
                 new_status=order.status,
                 remarks=remarks
             )
+
+        # Notify seller and customer of scheduled pickup
+        try:
+            from common.notification_service import notify_seller_pickup_scheduled, notify_order_status_change
+            notify_seller_pickup_scheduled(order, seller, token, date_str)
+            notify_order_status_change(order, 'confirmed', 'processing')
+        except Exception as ex:
+            logger.error(f"Failed to send pickup notifications: {ex}")
 
         return True, f"Pickup scheduled successfully on Shiprocket!{token_display}"
     else:

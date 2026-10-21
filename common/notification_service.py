@@ -171,8 +171,8 @@ def notify_order_placed(order):
         sellers = list(User.objects.filter(role='seller', seller_profile__id__in=seller_ids))
         for seller in sellers:
             seller_payload = NotificationPayload(
-                title='📦 New Order Received!',
-                body=f'A new order #{order.unique_order_id} has been placed containing your products. Please process it.',
+                title='📦 New Order Received - Prepare for Pickup!',
+                body=f'New order #{order.unique_order_id} received. Please pack items securely and prepare for courier pickup.',
                 click_action=f'/orders/seller/order/{order.unique_order_id}/',
                 tag=f'order-{order.id}-seller',
                 data={'order_id': str(order.id), 'event': 'order_placed'}
@@ -500,6 +500,7 @@ def send_order_placed_email_sellers(order) -> bool:
                     'order_id': order.unique_order_id,
                     'items_list': seller_items_str,
                     'shipping_address': shipping_address_str,
+                    'seller_order_url': f"https://stallcart.in/orders/seller/order/{order.unique_order_id}/",
                 }
             )
             if sent:
@@ -700,3 +701,111 @@ def send_status_email_sellers(log_entry) -> bool:
         else:
             SystemActivityLog.log('email_sent', f"Skip sending status update ({log_entry.new_status}) email to seller {seller.seller_profile.shop_name}: email address not found.", order=order, status='failed')
     return success
+
+
+def notify_seller_awb_assigned(order, seller, awb_code, courier_name):
+    """
+    Called when an AWB has been generated for a seller's order items.
+    Sends in-app push notification (FCM) and email to the seller
+    instructing them to pack the products and prepare for pickup.
+    """
+    from common.email_service import send_dynamic_email
+    from orders.models import SystemActivityLog
+    import logging
+    logger = logging.getLogger(__name__)
+
+    if not order or not seller:
+        return
+
+    seller_user = getattr(seller, 'user', None)
+    seller_name = (seller_user.full_name if seller_user else None) or seller.shop_name or "Seller"
+    order_url = f"https://stallcart.in/orders/seller/order/{order.unique_order_id}/"
+
+    # 1. FCM In-App Push Notification
+    if seller_user:
+        try:
+            payload = NotificationPayload(
+                title='🏷️ AWB Assigned - Prepare for Pickup!',
+                body=f'AWB #{awb_code} ({courier_name}) generated for Order #{order.unique_order_id}. Please pack items and click Ready for Pickup.',
+                click_action=f'/orders/seller/order/{order.unique_order_id}/',
+                tag=f'order-{order.id}-awb',
+                data={'order_id': str(order.id), 'event': 'awb_assigned', 'awb': str(awb_code), 'courier': str(courier_name)}
+            )
+            send_to_user(seller_user, payload)
+        except Exception as e:
+            logger.error(f"[FCM] Failed to notify seller {seller.id} of AWB assignment: {e}")
+
+    # 2. Email Notification to Seller
+    recipient_emails = []
+    if seller_user and seller_user.email:
+        recipient_emails.append(seller_user.email.strip())
+
+    if recipient_emails:
+        try:
+            context = {
+                'seller_name': seller_name,
+                'order_id': order.unique_order_id,
+                'tracking_number': str(awb_code),
+                'courier_name': str(courier_name or 'Shiprocket'),
+                'seller_order_url': order_url,
+                'admin_order_url': f"https://stallcart.in/orders/admin/order/{order.unique_order_id}/"
+            }
+            sent = send_dynamic_email('awb_assigned_notification', recipient_emails, context)
+            if sent:
+                SystemActivityLog.log('email_sent', f"AWB assignment ({awb_code}) email sent to seller {seller.shop_name} at {', '.join(recipient_emails)}.", order=order)
+            else:
+                SystemActivityLog.log('email_sent', f"Failed to send AWB assignment email to seller {seller.shop_name}.", order=order, status='failed')
+        except Exception as e:
+            logger.error(f"Failed to send AWB assignment email to seller: {e}")
+
+
+def notify_seller_pickup_scheduled(order, seller, pickup_token, pickup_date=None):
+    """
+    Called when courier pickup has been scheduled with Shiprocket.
+    Sends FCM notification and email to the seller confirming the scheduled pickup.
+    """
+    from common.email_service import send_dynamic_email
+    from orders.models import SystemActivityLog
+    import logging
+    logger = logging.getLogger(__name__)
+
+    if not order:
+        return
+
+    seller_user = getattr(seller, 'user', None) if seller else None
+    seller_name = (seller_user.full_name if seller_user else None) or (seller.shop_name if seller else "Seller")
+    order_url = f"https://stallcart.in/orders/seller/order/{order.unique_order_id}/"
+    token_str = str(pickup_token or order.pickup_token_number or "")
+    courier_str = str(order.courier_name or "Courier")
+
+    # 1. FCM Notification to Seller
+    if seller_user:
+        try:
+            payload = NotificationPayload(
+                title='🚚 Courier Pickup Scheduled!',
+                body=f'Pickup token #{token_str} generated for Order #{order.unique_order_id}. Please keep parcel ready for courier handover.',
+                click_action=f'/orders/seller/order/{order.unique_order_id}/',
+                tag=f'order-{order.id}-pickup',
+                data={'order_id': str(order.id), 'event': 'pickup_scheduled', 'token': token_str}
+            )
+            send_to_user(seller_user, payload)
+        except Exception as e:
+            logger.error(f"[FCM] Failed to notify seller {seller.id} of scheduled pickup: {e}")
+
+    # 2. Email Notification to Seller
+    if seller_user and seller_user.email:
+        try:
+            context = {
+                'seller_name': seller_name,
+                'order_id': order.unique_order_id,
+                'pickup_token': token_str,
+                'courier_name': courier_str,
+                'tracking_number': order.tracking_number or "",
+                'pickup_date': str(pickup_date or "Today / Next Business Day"),
+                'seller_order_url': order_url,
+            }
+            sent = send_dynamic_email('seller_pickup_scheduled', [seller_user.email.strip()], context)
+            if sent:
+                SystemActivityLog.log('email_sent', f"Pickup scheduled email sent to seller {seller_name} (Token: #{token_str}).", order=order)
+        except Exception as e:
+            logger.error(f"Failed to send pickup scheduled email to seller: {e}")
