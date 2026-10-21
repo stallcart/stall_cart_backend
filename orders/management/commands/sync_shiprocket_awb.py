@@ -334,12 +334,14 @@ class Command(BaseCommand):
 
         # ── PART 2: Sync Delivery Statuses ─────────────────────────────────────
         terminal_statuses = [
-            'delivered', 'cancelled', 'returned', 'returned_to_source', 
+            'delivered', 'cancelled', 'returned', 
             'courier_failed_pickup', 'seller_unresponsive', 'refund_initiated', 'refunded'
         ]
         
         active_tracked_items = OrderItem.objects.exclude(
             status__in=terminal_statuses
+        ).exclude(
+            status='returned_to_source', order__payment_status='refunded'
         ).filter(
             tracking_number__isnull=False
         ).exclude(tracking_number='')
@@ -395,6 +397,8 @@ class Command(BaseCommand):
                     
                     if item.status == 'delivered':
                         allow_item_transition = False
+                    elif new_local_status == 'delivered':
+                        allow_item_transition = item.status not in ('cancelled', 'refund_initiated', 'refunded')
                     elif current_rank and target_rank and target_rank < current_rank:
                         allow_item_transition = False
                     elif item.status in ('cancelled', 'refund_initiated', 'refunded', 'returned'):
@@ -405,6 +409,12 @@ class Command(BaseCommand):
                             f"  ⚠️ Shiprocket reported 'cancelled' for active item {item.id} on order {item.order.unique_order_id}. "
                             f"Preventing automatic cancellation and refund loop. Item remains in '{item.status}' for pickup reschedule."
                         ))
+                    elif new_local_status == 'returned_to_source' and item.status in ('shipped', 'out_for_delivery'):
+                        if sr_status.lower() not in ('rto delivered', 'rto_delivered', 'rto acknowledged', 'rto_acknowledged'):
+                            allow_item_transition = False
+                            self.stdout.write(self.style.WARNING(
+                                f"  ⚠️ Shiprocket reported '{sr_status}' for item {item.id}. Keeping active in '{item.status}' for next-day reattempt."
+                            ))
 
                     if new_local_status and allow_item_transition and item.status != new_local_status:
                         old_item_status = item.status

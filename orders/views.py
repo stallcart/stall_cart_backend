@@ -149,9 +149,22 @@ def sync_shiprocket_tracking(order):
     """
     shiprocket_tracking = None
     terminal_statuses = (
-        'delivered', 'cancelled', 'returned', 'returned_to_source',
+        'delivered', 'cancelled', 'returned',
         'refund_initiated', 'refunded', 'courier_failed_pickup', 'seller_unresponsive'
     )
+    # If order is returned_to_source AND already refunded, don't sync
+    if order.status == 'returned_to_source' and (order.payment_status == 'refunded' or order.status in ('refund_initiated', 'refunded')):
+        return None
+
+    status_ranks = {
+        'pending': 1,
+        'confirmed': 2,
+        'processing': 3,
+        'shipped': 4,
+        'out_for_delivery': 5,
+        'delivered': 6,
+    }
+
     from delivery.delivery_services import ShiprocketService
     from orders.models import OrderStatusLog, OrderItem
     from django.utils import timezone
@@ -175,7 +188,26 @@ def sync_shiprocket_tracking(order):
                     if item.shiprocket_status != sr_status:
                         item.shiprocket_status = sr_status
                         item_updated = True
-                    if new_local_status and item.status != new_local_status:
+
+                    allow_item_transition = True
+                    current_rank = status_ranks.get(item.status)
+                    target_rank = status_ranks.get(new_local_status)
+
+                    if item.status == 'delivered':
+                        allow_item_transition = False
+                    elif new_local_status == 'delivered':
+                        allow_item_transition = item.status not in ('cancelled', 'refund_initiated', 'refunded')
+                    elif current_rank and target_rank and target_rank < current_rank:
+                        allow_item_transition = False
+                    elif item.status in ('cancelled', 'refund_initiated', 'refunded', 'returned'):
+                        allow_item_transition = False
+                    elif new_local_status == 'cancelled' and item.status in ('confirmed', 'processing', 'shipped', 'out_for_delivery'):
+                        allow_item_transition = False
+                    elif new_local_status == 'returned_to_source' and item.status in ('shipped', 'out_for_delivery'):
+                        if sr_status.lower() not in ('rto delivered', 'rto_delivered', 'rto acknowledged', 'rto_acknowledged'):
+                            allow_item_transition = False
+
+                    if new_local_status and allow_item_transition and item.status != new_local_status:
                         item.status = new_local_status
                         if new_local_status == 'delivered':
                             item.delivered_at = timezone.now()
@@ -185,12 +217,32 @@ def sync_shiprocket_tracking(order):
                     if item_updated:
                         item.save()
 
-                if new_local_status and new_local_status != order.status:
+                # Order-level transition check
+                allow_order_transition = True
+                curr_order_rank = status_ranks.get(order.status)
+                target_order_rank = status_ranks.get(new_local_status)
+
+                if order.status == 'delivered':
+                    allow_order_transition = False
+                elif new_local_status == 'delivered':
+                    allow_order_transition = order.status not in ('cancelled', 'refund_initiated', 'refunded')
+                elif curr_order_rank and target_order_rank and target_order_rank < curr_order_rank:
+                    allow_order_transition = False
+                elif order.status in ('cancelled', 'refund_initiated', 'refunded', 'returned'):
+                    allow_order_transition = False
+                elif new_local_status == 'cancelled' and order.status in ('confirmed', 'processing', 'shipped', 'out_for_delivery'):
+                    allow_order_transition = False
+                elif new_local_status == 'returned_to_source' and order.status in ('shipped', 'out_for_delivery'):
+                    if sr_status.lower() not in ('rto delivered', 'rto_delivered', 'rto acknowledged', 'rto_acknowledged'):
+                        allow_order_transition = False
+
+                if new_local_status and allow_order_transition and new_local_status != order.status:
                     old_status = order.status
                     order.status = new_local_status
                     if new_local_status == 'delivered':
                         order.delivered_at = timezone.now()
-                    order.save(update_fields=['status', 'delivered_at', 'updated_at'])
+                    order.shiprocket_status = sr_status
+                    order.save(update_fields=['status', 'delivered_at', 'shiprocket_status', 'updated_at'])
                     
                     # Create status change log
                     OrderStatusLog.objects.create(
@@ -199,6 +251,9 @@ def sync_shiprocket_tracking(order):
                         new_status=new_local_status,
                         remarks=f"Automatic synchronization from Shiprocket (Status: {sr_status})"
                     )
+                elif order.shiprocket_status != sr_status:
+                    order.shiprocket_status = sr_status
+                    order.save(update_fields=['shiprocket_status', 'updated_at'])
         except Exception as e:
             logger.warning(f"Shiprocket live status synchronization failed for order {order.id}: {e}")
             
@@ -238,7 +293,26 @@ def sync_shiprocket_tracking(order):
                     if item.shiprocket_status != sr_status:
                         item.shiprocket_status = sr_status
                         item_updated = True
-                    if new_local_status and item.status != new_local_status:
+
+                    allow_item_transition = True
+                    current_rank = status_ranks.get(item.status)
+                    target_rank = status_ranks.get(new_local_status)
+
+                    if item.status == 'delivered':
+                        allow_item_transition = False
+                    elif new_local_status == 'delivered':
+                        allow_item_transition = item.status not in ('cancelled', 'refund_initiated', 'refunded')
+                    elif current_rank and target_rank and target_rank < current_rank:
+                        allow_item_transition = False
+                    elif item.status in ('cancelled', 'refund_initiated', 'refunded', 'returned'):
+                        allow_item_transition = False
+                    elif new_local_status == 'cancelled' and item.status in ('confirmed', 'processing', 'shipped', 'out_for_delivery'):
+                        allow_item_transition = False
+                    elif new_local_status == 'returned_to_source' and item.status in ('shipped', 'out_for_delivery'):
+                        if sr_status.lower() not in ('rto delivered', 'rto_delivered', 'rto acknowledged', 'rto_acknowledged'):
+                            allow_item_transition = False
+
+                    if new_local_status and allow_item_transition and item.status != new_local_status:
                         item.status = new_local_status
                         if new_local_status == 'delivered':
                             item.delivered_at = timezone.now()
@@ -1715,6 +1789,8 @@ def shiprocket_webhook(request):
                     
                     if order_item.status == 'delivered':
                         allow_item_transition = False
+                    elif new_local_status == 'delivered':
+                        allow_item_transition = order_item.status not in ('cancelled', 'refund_initiated', 'refunded')
                     elif current_rank and target_rank and target_rank < current_rank:
                         allow_item_transition = False
                     elif order_item.status in ('cancelled', 'refund_initiated', 'refunded', 'returned'):
@@ -1722,6 +1798,10 @@ def shiprocket_webhook(request):
                     elif new_local_status == 'cancelled' and order_item.status in ('confirmed', 'processing', 'shipped', 'out_for_delivery'):
                         allow_item_transition = False
                         logger.warning(f"Shiprocket Webhook reported 'cancelled' for active item {order_item.id} on order {order.unique_order_id}. Preventing auto-cancellation and auto-refund loop.")
+                    elif new_local_status == 'returned_to_source' and order_item.status in ('shipped', 'out_for_delivery'):
+                        if sr_status.lower() not in ('rto delivered', 'rto_delivered', 'rto acknowledged', 'rto_acknowledged'):
+                            allow_item_transition = False
+                            logger.info(f"Shiprocket Webhook reported '{sr_status}' for item {order_item.id}. Keeping active in '{order_item.status}' for reattempt.")
 
                     if allow_item_transition and order_item.status != new_local_status:
                         old_status = order.status
@@ -1752,6 +1832,8 @@ def shiprocket_webhook(request):
                     
                     if order.status == 'delivered':
                         allow_order_transition = False
+                    elif new_local_status == 'delivered':
+                        allow_order_transition = order.status not in ('cancelled', 'refund_initiated', 'refunded')
                     elif current_order_rank and target_order_rank and target_order_rank < current_order_rank:
                         allow_order_transition = False
                     elif order.status in ('cancelled', 'refund_initiated', 'refunded', 'returned'):
@@ -1759,6 +1841,10 @@ def shiprocket_webhook(request):
                     elif new_local_status == 'cancelled' and order.status in ('confirmed', 'processing', 'shipped', 'out_for_delivery'):
                         allow_order_transition = False
                         logger.warning(f"Shiprocket Webhook reported 'cancelled' for active order {order.unique_order_id}. Preventing auto-cancellation and auto-refund loop.")
+                    elif new_local_status == 'returned_to_source' and order.status in ('shipped', 'out_for_delivery'):
+                        if sr_status.lower() not in ('rto delivered', 'rto_delivered', 'rto acknowledged', 'rto_acknowledged'):
+                            allow_order_transition = False
+                            logger.info(f"Shiprocket Webhook reported '{sr_status}' for order {order.unique_order_id}. Keeping active in '{order.status}' for reattempt.")
 
                     if (allow_order_transition and new_local_status != order.status) or tracking_updated:
                         old_status = order.status

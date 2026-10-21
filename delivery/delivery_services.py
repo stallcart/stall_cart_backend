@@ -15,7 +15,8 @@ def repair_address(addr, order=None):
     """
     Attempts to repair missing fields in the address dictionary
     by extracting them from other fields or looking up the user's default address.
-    Also cleans up phone numbers, postal codes, names, and country fields.
+    Also cleans up phone numbers, postal codes, names, and country fields,
+    removes newlines, strips repeated contact info, and enforces Shiprocket's 190-character limit.
     """
     if not isinstance(addr, dict):
         addr = {}
@@ -31,10 +32,12 @@ def repair_address(addr, order=None):
         elif addr.get("zip"):
             addr["postal_code"] = addr["zip"]
 
-    # Clean up keys and values
+    # Clean up keys and values (strip newlines, tabs, and excess whitespace)
     for k, v in list(addr.items()):
         if isinstance(v, str):
-            addr[k] = v.strip()
+            clean_v = re.sub(r"[\r\n\t]+", " ", v)
+            clean_v = re.sub(r"\s+", " ", clean_v).strip()
+            addr[k] = clean_v
 
     # 1. If user is present and we have missing critical fields, try to get them from their active addresses
     if order and order.user and (not addr.get("postal_code") or not addr.get("city") or not addr.get("state") or not addr.get("name") or not addr.get("phone")):
@@ -64,7 +67,22 @@ def repair_address(addr, order=None):
     if not addr.get("phone") and order and order.user:
         addr["phone"] = order.user.phone
 
-    # 3. Clean up state if it got contaminated with pincode (e.g. "Uttar Pradesh - 221005" or "UP – 221001")
+    # 3. Clean up phone number to contain only the last 10 digits
+    if addr.get("phone"):
+        phone_digits = "".join(c for c in str(addr["phone"]) if c.isdigit())
+        if len(phone_digits) >= 10:
+            addr["phone"] = phone_digits[-10:]
+        else:
+            addr["phone"] = phone_digits
+
+    # 4. Strip phone numbers erroneously appended to address lines (e.g. 'Mob: 9876543210')
+    for k in ["address_line1", "address_line2"]:
+        if addr.get(k):
+            val = str(addr[k])
+            val = re.sub(r"(?i)\s*(?:mob(?:ile)?|ph(?:one)?|contact)?[:\s\-]*\d{10}\s*$", "", val).strip()
+            addr[k] = val
+
+    # 5. Clean up state if it got contaminated with pincode (e.g. "Uttar Pradesh - 221005" or "UP – 221001")
     if addr.get("state"):
         state_val = str(addr["state"])
         for separator in ["-", "–"]:
@@ -76,39 +94,64 @@ def repair_address(addr, order=None):
                     addr["state"] = parts[0].strip()
                     break
 
-    # 4. Try to extract postal code (6-digit pincode for India) from any address fields if still missing
+    # 6. Try to extract postal code (6-digit pincode for India) from any address fields if still missing
     if not addr.get("postal_code"):
         full_text = " ".join([str(addr.get(k, "")) for k in ["address_line1", "address_line2", "city", "state"] if addr.get(k)])
         pincode_match = re.search(r"\b\d{6}\b", full_text)
         if pincode_match:
             addr["postal_code"] = pincode_match.group(0)
 
-    # 5. Clean up phone number to contain only the last 10 digits
-    if addr.get("phone"):
-        phone_digits = "".join(c for c in str(addr["phone"]) if c.isdigit())
-        if len(phone_digits) >= 10:
-            addr["phone"] = phone_digits[-10:]
-        else:
-            addr["phone"] = phone_digits
-
-    # 6. Clean up postal code to contain only digits
+    # 7. Clean up postal code to contain only digits
     if addr.get("postal_code"):
-        addr["postal_code"] = "".join(c for c in str(addr["postal_code"]) if c.isdigit()).strip()
+        addr["postal_code"] = "".join(c for c in str(addr["postal_code"]) if c.isdigit()).strip()[:6]
 
-    # 7. Default country to India if missing
+    # 8. Default country to India if missing
     if not addr.get("country"):
         addr["country"] = "India"
 
-    # 8. Ensure address_line1 contains at least one digit (Shiprocket requires house/flat/road number)
-    if addr.get("address_line1"):
-        addr_line = str(addr["address_line1"])
-        if not any(c.isdigit() for c in addr_line):
-            addr["address_line1"] = f"House No. 1, {addr_line}"
+    # 9. Clear duplicate address_line2 if it's identical or substring of address_line1
+    l1 = addr.get("address_line1", "").strip()
+    l2 = addr.get("address_line2", "").strip()
+    if l2 and (l2.lower() == l1.lower() or l2.lower() in l1.lower()):
+        addr["address_line2"] = ""
+        l2 = ""
+
+    # 10. Ensure address_line1 contains at least one digit (Shiprocket requires house/flat/road number)
+    if l1 and not any(c.isdigit() for c in l1):
+        l1 = f"House No. 1, {l1}"
+
+    # 11. Strictly enforce Shiprocket's 190 characters limit per address line
+    if len(l1) > 190:
+        # Smart split line1 at punctuation or whitespace near 180 chars
+        split_point = 180
+        for delim in [',', ';', ' ']:
+            idx = l1[:185].rfind(delim)
+            if idx > 80:
+                split_point = idx + (1 if delim != ' ' else 0)
+                break
+        overflow = l1[split_point:].strip()
+        l1 = l1[:split_point].strip()
+        if not l2:
+            l2 = overflow[:190]
+        else:
+            combined_l2 = f"{overflow} {l2}".strip()
+            l2 = combined_l2[:190]
+
+    addr["address_line1"] = l1[:190].strip()
+    addr["address_line2"] = l2[:190].strip()
+
+    # Cap names, city, state, country to safe lengths
+    addr["name"] = addr.get("name", "Customer")[:50].strip()
+    addr["city"] = addr.get("city", "")[:50].strip()
+    addr["state"] = addr.get("state", "")[:50].strip()
+    addr["country"] = addr.get("country", "India")[:50].strip()
 
     # Clean up keys and values again after any edits
     for k, v in list(addr.items()):
         if isinstance(v, str):
-            addr[k] = v.strip()
+            clean_v = re.sub(r"[\r\n\t]+", " ", v)
+            clean_v = re.sub(r"\s+", " ", clean_v).strip()
+            addr[k] = clean_v
             
     return addr
 
@@ -208,34 +251,39 @@ class ShiprocketService:
         else:
             payload_order_id = order.unique_order_id
  
+        clean_line1 = str(addr.get("address_line1", "")).strip()[:190]
+        clean_line2 = str(addr.get("address_line2", "")).strip()[:190]
+        if clean_line2 == clean_line1:
+            clean_line2 = ""
+
         order_payload = {
             "order_id": payload_order_id,
             "order_date": order.created_at.strftime("%Y-%m-%d %H:%M"),
             "channel_id": getattr(settings, "SHIPROCKET_CHANNEL_ID", ""),
             "pickup_location": pickup_loc_name,
             
-            "billing_customer_name": first_name,
-            "billing_last_name": last_name,
-            "billing_address": addr.get("address_line1", ""),
-            "billing_address_2": addr.get("address_line2", ""),
-            "billing_city": addr.get("city", ""),
-            "billing_pincode": addr.get("postal_code", ""),
-            "billing_state": addr.get("state", ""),
-            "billing_country": addr.get("country", "India"),
-            "billing_email": email_val,
-            "billing_phone": addr.get("phone", ""),
+            "billing_customer_name": first_name[:50],
+            "billing_last_name": last_name[:50],
+            "billing_address": clean_line1,
+            "billing_address_2": clean_line2,
+            "billing_city": str(addr.get("city", ""))[:50].strip(),
+            "billing_pincode": str(addr.get("postal_code", ""))[:6].strip(),
+            "billing_state": str(addr.get("state", ""))[:50].strip(),
+            "billing_country": str(addr.get("country", "India"))[:50].strip(),
+            "billing_email": email_val[:100],
+            "billing_phone": str(addr.get("phone", ""))[-10:],
             
             "shipping_is_billing": True,
-            "shipping_customer_name": first_name,
-            "shipping_last_name": last_name,
-            "shipping_address": addr.get("address_line1", ""),
-            "shipping_address_2": addr.get("address_line2", ""),
-            "shipping_city": addr.get("city", ""),
-            "shipping_pincode": addr.get("postal_code", ""),
-            "shipping_state": addr.get("state", ""),
-            "shipping_country": addr.get("country", "India"),
-            "shipping_email": email_val,
-            "shipping_phone": addr.get("phone", ""),
+            "shipping_customer_name": first_name[:50],
+            "shipping_last_name": last_name[:50],
+            "shipping_address": clean_line1,
+            "shipping_address_2": clean_line2,
+            "shipping_city": str(addr.get("city", ""))[:50].strip(),
+            "shipping_pincode": str(addr.get("postal_code", ""))[:6].strip(),
+            "shipping_state": str(addr.get("state", ""))[:50].strip(),
+            "shipping_country": str(addr.get("country", "India"))[:50].strip(),
+            "shipping_email": email_val[:100],
+            "shipping_phone": str(addr.get("phone", ""))[-10:],
             
             "order_items": [
                 {

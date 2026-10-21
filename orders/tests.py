@@ -2085,6 +2085,11 @@ class ShiprocketStatusTrackingTests(TestCase):
 
     def test_shiprocket_canceled_spelling_transition(self):
         """Test that Shiprocket 'Canceled' (single l) maps to local 'cancelled' status."""
+        self.order.status = "pending"
+        self.order.save()
+        self.item.status = "pending"
+        self.item.save()
+
         # Test Webhook
         url = reverse('orders:shiprocket_webhook')
         payload = {
@@ -2102,9 +2107,9 @@ class ShiprocketStatusTrackingTests(TestCase):
         self.assertEqual(self.order.shiprocket_status, "Canceled")
 
         # Test Sync command
-        self.order.status = "confirmed"
+        self.order.status = "pending"
         self.order.save()
-        self.item.status = "confirmed"
+        self.item.status = "pending"
         self.item.save()
         
         from unittest import mock
@@ -2135,6 +2140,80 @@ class ShiprocketStatusTrackingTests(TestCase):
 
             # Verify cancel_shipment was called with the order ID list
             mock_cancel.assert_called_once_with(["SR_ORDER_123"])
+
+    def test_rto_initiated_ndr_keeps_out_for_delivery_and_delivers_next_day(self):
+        """Failed delivery attempt or in-flight RTO keeps order active in out_for_delivery and transitions to delivered on next-day reattempt."""
+        self.order.status = "out_for_delivery"
+        self.order.save()
+        self.item.status = "out_for_delivery"
+        self.item.save()
+
+        # Step 1: Courier fails attempt and flags "RTO Initiated"
+        url = reverse('orders:shiprocket_webhook')
+        payload = {
+            "awb": "SR998877",
+            "current_status": "RTO Initiated"
+        }
+        response = self.client.post(
+            url,
+            data=json.dumps(payload),
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.order.refresh_from_db()
+        self.item.refresh_from_db()
+
+        # Must NOT transition prematurely to returned_to_source
+        self.assertEqual(self.order.status, "out_for_delivery")
+        self.assertEqual(self.item.status, "out_for_delivery")
+        self.assertEqual(self.order.shiprocket_status, "RTO Initiated")
+        self.assertEqual(self.item.shiprocket_status, "RTO Initiated")
+
+        # Step 2: Next day courier reattempts and delivers successfully
+        payload_delivered = {
+            "awb": "SR998877",
+            "current_status": "Delivered"
+        }
+        res2 = self.client.post(
+            url,
+            data=json.dumps(payload_delivered),
+            content_type="application/json"
+        )
+        self.assertEqual(res2.status_code, 200)
+        self.order.refresh_from_db()
+        self.item.refresh_from_db()
+
+        # Order must now be successfully delivered
+        self.assertEqual(self.order.status, "delivered")
+        self.assertEqual(self.item.status, "delivered")
+        self.assertIsNotNone(self.order.delivered_at)
+
+    def test_address_repair_sanitizes_long_address_and_newlines(self):
+        """Test repair_address sanitizes newlines, strips appended phone, and enforces <= 190 char limits."""
+        from delivery.delivery_services import repair_address
+        raw_addr = {
+            "name": "Anjali singh",
+            "phone": "6394977948",
+            "city": "Varanasi",
+            "state": "Uttar Pradesh",
+            "postal_code": "221005",
+            "country": "India",
+            "address_line1": "B-31/35 KH. Bhogabeer sankat mochan sankat mochan hanuman mandir, purani gali , malviya siksha niketan iinter college malviya siksha niketan inter college Varanasi - 221005 Uttar Pradesh\n\nMob: 6394977948",
+            "address_line2": "B-31/35 KH. Bhogabeer sankat mochan sankat mochan hanuman mandir, purani gali , malviya siksha niketan iinter college malviya siksha niketan inter college Varanasi - 221005 Uttar Pradesh\n\nMob: 6394977948"
+        }
+
+        repaired = repair_address(raw_addr)
+
+        self.assertLessEqual(len(repaired["address_line1"]), 190)
+        self.assertLessEqual(len(repaired["address_line2"]), 190)
+        self.assertNotIn("\n", repaired["address_line1"])
+        self.assertNotIn("\r", repaired["address_line1"])
+        self.assertNotIn("Mob: 6394977948", repaired["address_line1"])
+        # Duplicate address_line2 should be empty
+        self.assertEqual(repaired["address_line2"], "")
+        self.assertEqual(repaired["phone"], "6394977948")
+        self.assertEqual(repaired["postal_code"], "221005")
+
 
 
 class SystemActivityLogTests(TestCase):
