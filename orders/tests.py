@@ -2982,3 +2982,93 @@ class ShiprocketPickupTests(TestCase):
             self.order_item.refresh_from_db()
             self.assertTrue(self.order_item.is_pickup_scheduled)
 
+    @mock.patch('delivery.delivery_services.ShiprocketService._get_token', return_value='fake-jwt-token')
+    @mock.patch('delivery.delivery_services.ShiprocketService.get_tracking')
+    @mock.patch('delivery.delivery_services.ShiprocketService._assign_awb')
+    @mock.patch('delivery.delivery_services.ShiprocketService.create_shipment')
+    @mock.patch('requests.get')
+    def test_sync_command_auto_assigns_missing_awb_without_duplicate(self, mock_requests_get, mock_create_shipment, mock_assign_awb, mock_get_tracking, mock_get_token):
+        """
+        When an order exists on Shiprocket but lacks an AWB:
+        - sync_shiprocket_awb must call _assign_awb on the existing shipment
+        - It must NOT call create_shipment (strictly ensuring no duplicate shipment/AWB)
+        - It updates tracking_number locally and preserves status as confirmed
+        """
+        # Clear tracking on order_item
+        self.order_item.tracking_number = None
+        self.order_item.courier_name = None
+        self.order_item.shipment_id = None
+        self.order_item.shiprocket_order_id = None
+        self.order_item.status = 'confirmed'
+        self.order_item.save()
+
+        # Shiprocket returns existing order WITHOUT awb_code
+        mock_resp = mock.MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            'data': [{
+                'id': 88801,
+                'order_id': 88801,
+                'channel_order_id': f"{self.order.unique_order_id}-S{self.seller_profile.id}",
+                'awb_code': None,
+                'courier_name': None,
+                'shipments': [{'id': 'SHIP-EXISTING-1', 'shipment_id': 'SHIP-EXISTING-1', 'awb_code': None}]
+            }]
+        }
+        mock_requests_get.return_value = mock_resp
+
+        mock_get_tracking.return_value = {'current_status': None}
+
+        # Mock _assign_awb returning new AWB for the existing shipment
+        mock_assign_awb.return_value = {
+            'awb_code': 'AWB-AUTO-HEALED-777',
+            'courier_name': 'Shadowfax',
+            'courier_id': 12
+        }
+
+        call_command('sync_shiprocket_awb')
+
+        self.order_item.refresh_from_db()
+        self.order.refresh_from_db()
+
+        # 1. _assign_awb was called for existing shipment
+        mock_assign_awb.assert_called_once_with('SHIP-EXISTING-1')
+        # 2. create_shipment was NEVER called (preventing duplicates!)
+        mock_create_shipment.assert_not_called()
+        # 3. Item tracking details were properly updated
+        self.assertEqual(self.order_item.tracking_number, 'AWB-AUTO-HEALED-777')
+        self.assertEqual(self.order_item.courier_name, 'Shadowfax')
+        self.assertEqual(self.order_item.shipment_id, 'SHIP-EXISTING-1')
+        # 4. Item remains confirmed (pickup not scheduled yet)
+        self.assertEqual(self.order_item.status, 'confirmed')
+
+    @mock.patch('delivery.delivery_services.ShiprocketService._get_token', return_value='fake-jwt-token')
+    @mock.patch('delivery.delivery_services.ShiprocketService.get_tracking')
+    @mock.patch('delivery.delivery_services.push_seller_items_to_shiprocket')
+    @mock.patch('requests.get')
+    def test_sync_command_pushes_missing_order_to_shiprocket(self, mock_requests_get, mock_push_seller_items, mock_get_tracking, mock_get_token):
+        """
+        When an order does not exist on Shiprocket at all:
+        - sync_shiprocket_awb calls push_seller_items_to_shiprocket
+        - push_seller_items_to_shiprocket creates shipment and assigns AWB atomically
+        """
+        # Clear tracking on order_item
+        self.order_item.tracking_number = None
+        self.order_item.courier_name = None
+        self.order_item.save()
+
+        # Shiprocket returns empty list (order not found)
+        mock_resp = mock.MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {'data': []}
+        mock_requests_get.return_value = mock_resp
+
+        mock_get_tracking.return_value = {'current_status': None}
+        mock_push_seller_items.return_value = (True, None)
+
+        call_command('sync_shiprocket_awb')
+
+        # push_seller_items_to_shiprocket was called to safely create shipment and assign AWB
+        mock_push_seller_items.assert_called_once_with(self.order, self.seller_profile)
+
+

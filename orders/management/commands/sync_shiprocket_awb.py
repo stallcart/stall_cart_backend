@@ -77,7 +77,7 @@ class Command(BaseCommand):
         from orders.models import OrderItem
         active_items = OrderItem.objects.filter(
             order__status__in=['confirmed', 'processing']
-        )
+        ).exclude(status__in=['cancelled', 'returned'])
         
         # Get distinct (order_id, seller_id) pairs
         distinct_pairs = list(active_items.values_list('order_id', 'seller_id').distinct())
@@ -93,7 +93,9 @@ class Command(BaseCommand):
                 continue
 
             # Check if this shipment currently has a tracking number assigned locally
-            seller_items = order.items.filter(seller=seller)
+            seller_items = order.items.filter(seller=seller).exclude(status__in=['cancelled', 'returned'])
+            if not seller_items.exists():
+                continue
             has_local_tracking = seller_items.exclude(tracking_number__isnull=True).exclude(tracking_number='').exists()
 
             self.stdout.write(f"Checking Order {order.unique_order_id} - Seller {seller.shop_name} (has local tracking: {has_local_tracking})...")
@@ -188,13 +190,24 @@ class Command(BaseCommand):
                 awb_code = sr_order.get("awb_code") or sr_order.get("awb")
                 courier_name = sr_order.get("courier_name")
                 
-                # Check nested shipments array if flat fields are empty
-                if not awb_code:
-                    shipments = sr_order.get("shipments", [])
-                    if shipments:
-                        first_shipment = shipments[0]
+                sr_shipment_id = None
+                shipments = sr_order.get("shipments", [])
+                if shipments:
+                    first_shipment = shipments[0]
+                    if not awb_code:
                         awb_code = first_shipment.get("awb_code") or first_shipment.get("awb")
+                    if not courier_name:
                         courier_name = first_shipment.get("courier_name") or first_shipment.get("courier_company_name")
+                    sr_shipment_id = first_shipment.get("id") or first_shipment.get("shipment_id")
+
+                # If shipment exists on Shiprocket but lacks AWB, auto-assign AWB now
+                if not awb_code and sr_shipment_id:
+                    self.stdout.write(f"  Shipment {sr_shipment_id} exists on Shiprocket but lacks AWB. Attempting auto-assignment...")
+                    awb_data = srv._assign_awb(sr_shipment_id)
+                    if awb_data and awb_data.get("awb_code"):
+                        awb_code = awb_data.get("awb_code")
+                        courier_name = awb_data.get("courier_name") or courier_name
+                        self.stdout.write(self.style.SUCCESS(f"  Auto-assigned AWB: {awb_code} ({courier_name})"))
 
                 # Setup recipient list (Sellers & Admin)
                 recipient_list = []
@@ -214,16 +227,11 @@ class Command(BaseCommand):
                     self.stdout.write(self.style.SUCCESS(f"  AWB detected: {awb_code} ({courier_name}). Updating database..."))
 
                     # Update order items of this seller if they don't match the Shiprocket AWB
-                    items_to_update = order.items.filter(seller=seller).exclude(tracking_number=awb_code)
+                    items_to_update = order.items.filter(seller=seller).exclude(status__in=['cancelled', 'returned']).exclude(tracking_number=awb_code)
                     
                     if items_to_update.exists() or order.tracking_number != awb_code:
                         first_item = items_to_update.first()
                         old_item_status = first_item.status if first_item else (order.items.filter(seller=seller).first().status if order.items.filter(seller=seller).exists() else 'confirmed')
-                        
-                        sr_shipment_id = None
-                        shipments = sr_order.get("shipments", [])
-                        if shipments:
-                            sr_shipment_id = shipments[0].get("id") or shipments[0].get("shipment_id")
 
                         if items_to_update.exists():
                             items_to_update.update(
@@ -231,7 +239,6 @@ class Command(BaseCommand):
                                 courier_name=courier_name,
                                 shiprocket_order_id=sr_order.get("order_id"),
                                 shipment_id=sr_shipment_id,
-                                status='processing',
                                 updated_at=timezone.now()
                             )
 
@@ -274,7 +281,8 @@ class Command(BaseCommand):
                         
                         # Trigger customer app notifications
                         try:
-                            notify_order_status_change(order, old_status, order.status)
+                            if old_status != order.status:
+                                notify_order_status_change(order, old_status, order.status)
                         except Exception as ex:
                             logger.error(f"Failed to send customer status change notification: {ex}")
 

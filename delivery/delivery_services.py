@@ -742,19 +742,23 @@ def push_seller_items_to_shiprocket(order, seller):
             if not items.exists():
                 return False, "No items found for this seller."
 
+            active_items = items.exclude(status__in=['cancelled', 'returned'])
+            if not active_items.exists():
+                return False, "All items for this seller are cancelled or returned."
+
             # Check if already pushed or currently being pushed
-            has_real_tracking = items.filter(tracking_number__isnull=False).exclude(tracking_number='').exists()
-            has_real_sr_id = items.filter(shiprocket_order_id__isnull=False).exclude(shiprocket_order_id='').exclude(shiprocket_order_id='PENDING_PUSH').exists()
+            has_real_tracking = active_items.filter(tracking_number__isnull=False).exclude(tracking_number='').exists()
+            has_real_sr_id = active_items.filter(shiprocket_order_id__isnull=False).exclude(shiprocket_order_id='').exclude(shiprocket_order_id='PENDING_PUSH').exists()
             
             # Check if there is an active push in progress
-            is_pending = items.filter(shiprocket_order_id='PENDING_PUSH').exists()
+            is_pending = active_items.filter(shiprocket_order_id='PENDING_PUSH').exists()
             if is_pending:
                 five_minutes_ago = timezone.now() - timedelta(minutes=5)
                 # Check if the lock has expired
-                expired_pending = items.filter(shiprocket_order_id='PENDING_PUSH', updated_at__lt=five_minutes_ago)
+                expired_pending = active_items.filter(shiprocket_order_id='PENDING_PUSH', updated_at__lt=five_minutes_ago)
                 if expired_pending.exists():
                     logger.warning(f"Push lock for seller {seller.id} on order {order.unique_order_id} expired. Re-attempting push.")
-                    items.filter(shiprocket_order_id='PENDING_PUSH').update(shiprocket_order_id=None, updated_at=timezone.now())
+                    active_items.filter(shiprocket_order_id='PENDING_PUSH').update(shiprocket_order_id=None, updated_at=timezone.now())
                 else:
                     logger.info(f"Seller {seller.id} items of order {order.unique_order_id} are currently being pushed. Skipping.")
                     return False, "Push in progress"
@@ -763,8 +767,8 @@ def push_seller_items_to_shiprocket(order, seller):
                 logger.info(f"Seller {seller.id} items of order {order.unique_order_id} are already pushed. Skipping.")
                 return True, None
 
-            # Mark all items as PENDING_PUSH to lock other threads
-            items.update(shiprocket_order_id='PENDING_PUSH', updated_at=timezone.now())
+            # Mark all active items as PENDING_PUSH to lock other threads
+            active_items.update(shiprocket_order_id='PENDING_PUSH', updated_at=timezone.now())
     except Exception as e:
         logger.error(f"Failed to acquire Shiprocket push lock: {e}")
         return False, f"Lock acquisition error: {e}"
@@ -828,7 +832,7 @@ def push_seller_items_to_shiprocket(order, seller):
                 return False, f"Shipment {shipment_id} exists on Shiprocket but lacks an AWB."
 
         # Shipment does not exist yet. Create it (use queryset without select_for_update).
-        api_items = order.items.filter(seller=seller)
+        api_items = order.items.filter(seller=seller).exclude(status__in=['cancelled', 'returned'])
         res = srv.create_shipment(order, seller=seller, items=api_items)
         
         success = res.get('success') and res.get('awb')
