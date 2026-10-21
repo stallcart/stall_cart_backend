@@ -2970,6 +2970,15 @@ class ShiprocketPickupTests(TestCase):
         self.assertNotEqual(self.order_item.status, 'cancelled')
         self.assertNotEqual(self.order.status, 'cancelled')
         self.assertIn(self.order_item.status, ['confirmed', 'processing'])
-        # Also pickup should have been scheduled by the command's auto-pickup pass
-        self.assertTrue(self.order_item.is_pickup_scheduled)
+        # AWB is assigned and ready for pickup (pickup is scheduled when Ready for Pickup is clicked)
+        self.assertEqual(self.order_item.tracking_number, 'AWB-PICKUP-12345')
+        self.assertFalse(self.order_item.is_pickup_scheduled)
+
+        # When seller/admin clicks Ready for Pickup:
+        with mock.patch('delivery.delivery_services.ShiprocketService.generate_pickup') as mock_gen:
+            mock_gen.return_value = {'success': True, 'pickup_token_number': 'TOKEN-99'}
+            from delivery.delivery_services import schedule_seller_order_pickup
+            schedule_seller_order_pickup(self.order, seller=self.seller_profile)
+            self.order_item.refresh_from_db()
+            self.assertTrue(self.order_item.is_pickup_scheduled)
 

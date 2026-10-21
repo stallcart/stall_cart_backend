@@ -819,10 +819,6 @@ def push_seller_items_to_shiprocket(order, seller):
                     new_status=order.status,
                     remarks=f"Reconciled/Healed existing Shiprocket shipment for {seller.shop_name} (AWB: {awb}, Courier: {courier})"
                 )
-                try:
-                    schedule_seller_order_pickup(order, seller=seller, force=False)
-                except Exception as ex_pickup:
-                    logger.warning(f"Auto-schedule pickup during healing failed for order {order.unique_order_id}: {ex_pickup}")
                 return True, None
             else:
                 # If no AWB could be retrieved or assigned, we revert PENDING_PUSH so it can be retried
@@ -874,12 +870,6 @@ def push_seller_items_to_shiprocket(order, seller):
                 new_status=order.status,
                 remarks=f"Automatically pushed {seller.shop_name} items to Shiprocket (AWB: {awb}, Courier: {courier})"
             )
-            # Auto-schedule courier pickup if not already scheduled
-            try:
-                schedule_seller_order_pickup(order, seller=seller, force=False)
-            except Exception as ex_pickup:
-                logger.warning(f"Auto-schedule pickup after push failed for order {order.unique_order_id}: {ex_pickup}")
-
             return True, None
         else:
             err_msg = res.get('error', 'Unknown error')
@@ -1057,13 +1047,8 @@ def auto_push_order_to_shiprocket(order):
                 seller = SellerProfile.objects.filter(pk=seller_id).first()
                 if not seller:
                     continue
-                # Push atomically
+                # Push atomically to create shipment and assign AWB (pickup is scheduled when Ready for Pickup is clicked)
                 push_seller_items_to_shiprocket(order, seller)
-                # Auto-schedule pickup if not yet scheduled
-                try:
-                    schedule_seller_order_pickup(order, seller=seller, force=False)
-                except Exception as ex_pickup:
-                    logger.warning(f"Auto-schedule pickup in auto_push failed for order {order.unique_order_id}: {ex_pickup}")
         except Exception as e:
             logger.error(f"Error during auto-pushing order to Shiprocket: {e}", exc_info=True)
 
