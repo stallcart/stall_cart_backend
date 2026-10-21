@@ -120,7 +120,23 @@ def repair_address(addr, order=None):
     if l1 and not any(c.isdigit() for c in l1):
         l1 = f"House No. 1, {l1}"
 
-    # 11. Strictly enforce Shiprocket's 190 characters limit per address line
+    # 11. Normalize address length: Shiprocket strictly requires min 10 characters for address
+    if len(l1) < 10:
+        if l2 and len(f"{l1}, {l2}") >= 10:
+            l1 = f"{l1}, {l2}".strip()
+            l2 = ""
+        else:
+            city_hint = str(addr.get("city", "")).strip()
+            if city_hint:
+                l1 = f"{l1}, Main Road, {city_hint}".strip()
+            else:
+                l1 = f"{l1}, Main Market Road".strip()
+
+    # Re-verify digit presence after expansion
+    if not any(c.isdigit() for c in l1):
+        l1 = f"House No. 1, {l1}"
+
+    # 12. Strictly enforce Shiprocket's 190 characters limit per address line
     if len(l1) > 190:
         # Smart split line1 at punctuation or whitespace near 180 chars
         split_point = 180
@@ -132,19 +148,43 @@ def repair_address(addr, order=None):
         overflow = l1[split_point:].strip()
         l1 = l1[:split_point].strip()
         if not l2:
-            l2 = overflow[:190]
+            l2 = overflow
         else:
-            combined_l2 = f"{overflow} {l2}".strip()
-            l2 = combined_l2[:190]
+            l2 = f"{overflow} {l2}".strip()
+
+    # Normalize address_line2 length (max 190 chars)
+    if len(l2) > 190:
+        split_point2 = 180
+        for delim in [',', ';', ' ']:
+            idx2 = l2[:185].rfind(delim)
+            if idx2 > 80:
+                split_point2 = idx2 + (1 if delim != ' ' else 0)
+                break
+        l2 = l2[:split_point2].strip()
 
     addr["address_line1"] = l1[:190].strip()
     addr["address_line2"] = l2[:190].strip()
 
-    # Cap names, city, state, country to safe lengths
-    addr["name"] = addr.get("name", "Customer")[:50].strip()
-    addr["city"] = addr.get("city", "")[:50].strip()
-    addr["state"] = addr.get("state", "")[:50].strip()
-    addr["country"] = addr.get("country", "India")[:50].strip()
+    # Cap names, city, state, country to safe lengths (min 2 chars, max 50 chars)
+    name_val = str(addr.get("name", "")).strip()
+    if len(name_val) < 2:
+        name_val = "Customer"
+    addr["name"] = name_val[:50].strip()
+
+    city_val = str(addr.get("city", "")).strip()
+    if len(city_val) < 2:
+        city_val = "Varanasi"
+    addr["city"] = city_val[:50].strip()
+
+    state_val = str(addr.get("state", "")).strip()
+    if len(state_val) < 2:
+        state_val = "Uttar Pradesh"
+    addr["state"] = state_val[:50].strip()
+
+    country_val = str(addr.get("country", "")).strip()
+    if not country_val:
+        country_val = "India"
+    addr["country"] = country_val[:50].strip()
 
     # Clean up keys and values again after any edits
     for k, v in list(addr.items()):
@@ -426,18 +466,48 @@ class ShiprocketService:
             
         # Ensure address contains at least one digit (Shiprocket requires house/flat/road number)
         address_line = (shop_addr.address_line1 or "").strip()
+        address_2 = (shop_addr.address_line2 or "").strip()
         if not any(c.isdigit() for c in address_line):
             address_line = f"Shop No. 1, {address_line}"
+
+        # Address length normalization for addpickup API (Min 10, Max 80 chars)
+        if len(address_line) < 10:
+            if address_2 and len(f"{address_line}, {address_2}") >= 10:
+                address_line = f"{address_line}, {address_2}".strip()
+                address_2 = ""
+            else:
+                city_hint = str(shop_addr.city or "").strip()
+                address_line = f"{address_line}, Market Road, {city_hint}".strip()
+
+        if not any(c.isdigit() for c in address_line):
+            address_line = f"Shop No. 1, {address_line}"
+
+        if len(address_line) > 80:
+            split_idx = address_line[:78].rfind(' ')
+            if split_idx > 40:
+                overflow_pickup = address_line[split_idx:].strip()
+                address_line = address_line[:split_idx].strip()
+            else:
+                overflow_pickup = address_line[80:].strip()
+                address_line = address_line[:80].strip()
+            address_2 = f"{overflow_pickup} {address_2}".strip()
+
+        address_line = address_line[:80].strip()
+        address_2 = address_2[:80].strip()
+
+        shop_name = str(shop_addr.shop_name or seller.shop_name or "Seller").strip()
+        if len(shop_name) < 2:
+            shop_name = "Seller Shop"
             
         payload = {
             "pickup_location": nickname[:36],  # Max 36 chars
-            "name": (shop_addr.shop_name or seller.shop_name or "Seller")[:40],
+            "name": shop_name[:40],
             "email": shop_addr.shop_email or seller.user.email or "seller@stallcart.in",
             "phone": clean_phone,
-            "address": address_line[:80],  # Max 80 chars
-            "address_2": shop_addr.address_line2[:80] if shop_addr.address_line2 else "",
-            "city": shop_addr.city[:50].strip(),
-            "state": shop_addr.state[:50].strip(),
+            "address": address_line[:80],  # Min 10, Max 80 chars
+            "address_2": address_2[:80],
+            "city": (shop_addr.city or "Varanasi")[:50].strip(),
+            "state": (shop_addr.state or "Uttar Pradesh")[:50].strip(),
             "pin_code": clean_pincode,
             "pincode": clean_pincode,
             "country": shop_addr.country or "India"

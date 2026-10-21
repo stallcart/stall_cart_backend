@@ -3072,3 +3072,79 @@ class ShiprocketPickupTests(TestCase):
         mock_push_seller_items.assert_called_once_with(self.order, self.seller_profile)
 
 
+class AddressLengthNormalizationTests(TestCase):
+    """Verify address length normalization (min 10 chars, max 190 chars, safe subfields)."""
+
+    def test_short_address_expansion(self):
+        from delivery.delivery_services import repair_address
+        # Extremely short address (e.g. 5 chars)
+        short_addr = {
+            "name": "A",
+            "phone": "9876543210",
+            "address_line1": "Flat 1",
+            "city": "Varanasi",
+            "state": "UP",
+            "postal_code": "221005"
+        }
+        normalized = repair_address(short_addr)
+        # 1. Must be at least 10 chars
+        self.assertGreaterEqual(len(normalized["address_line1"]), 10)
+        # 2. Must be <= 190 chars
+        self.assertLessEqual(len(normalized["address_line1"]), 190)
+        # 3. Must contain at least one digit
+        self.assertTrue(any(c.isdigit() for c in normalized["address_line1"]))
+        # 4. Name and city safe
+        self.assertGreaterEqual(len(normalized["name"]), 2)
+        self.assertEqual(normalized["city"], "Varanasi")
+
+    def test_long_address_splitting(self):
+        from delivery.delivery_services import repair_address
+        # Extremely long address (> 190 chars)
+        long_line = "House 101, Super Mega Long Residency Boulevard, Block D, Apartment 405, Beside Golden Temple, Near Metro Station Junction, Landmark Park Avenue, Varanasi City Center, Uttar Pradesh, India - 221005"
+        long_addr = {
+            "name": "Super Long Customer Name Exceeding Normal Fifty Characters Limit Because Customer Added Many Titles",
+            "phone": "+91 98765 43210 (Contact after 5 PM)",
+            "address_line1": long_line * 2,
+            "address_line2": "Additional details that are also quite lengthy " * 5,
+            "city": "Varanasi",
+            "state": "Uttar Pradesh",
+            "postal_code": "221005"
+        }
+        normalized = repair_address(long_addr)
+        # 1. address_line1 must be <= 190 chars
+        self.assertLessEqual(len(normalized["address_line1"]), 190)
+        self.assertGreaterEqual(len(normalized["address_line1"]), 10)
+        # 2. address_line2 must be <= 190 chars
+        self.assertLessEqual(len(normalized["address_line2"]), 190)
+        # 3. Name must be <= 50 chars
+        self.assertLessEqual(len(normalized["name"]), 50)
+        # 4. Phone must be exactly 10 digits
+        self.assertEqual(len(normalized["phone"]), 10)
+        self.assertTrue(normalized["phone"].isdigit())
+
+    def test_order_model_auto_normalizes_shipping_address_on_save(self):
+        from accounts.models import User
+        from orders.models import Order
+        user = User.objects.create_user(phone="9111122222", password="password123")
+        order = Order.objects.create(
+            user=user,
+            total_amount=Decimal("100.00"),
+            payment_status="pending",
+            payment_method="cod",
+            shipping_address={
+                "name": "V",
+                "phone": "+91 91111 22222",
+                "address_line1": "Shop 1",  # 6 chars (too short!)
+                "city": "Varanasi",
+                "state": "UP",
+                "postal_code": "221005"
+            }
+        )
+        order.refresh_from_db()
+        addr = order.shipping_address
+        self.assertGreaterEqual(len(addr["address_line1"]), 10)
+        self.assertTrue(any(c.isdigit() for c in addr["address_line1"]))
+        self.assertEqual(addr["phone"], "9111122222")
+
+
+

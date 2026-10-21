@@ -284,6 +284,14 @@ class Order(BaseModel):
             if self.can_be_refunded or (self.payment_method == 'wallet' and self.payment_status == 'paid'):
                 self.status = 'refund_initiated'
                 
+        # Normalize shipping address format and lengths
+        if self.shipping_address and isinstance(self.shipping_address, dict):
+            try:
+                from delivery.delivery_services import repair_address
+                self.shipping_address = repair_address(self.shipping_address, self)
+            except Exception:
+                pass
+
         is_new_order = is_new
         super().save(*args, **kwargs)
         
