@@ -198,6 +198,432 @@
         display: block;
     }
 }
+
+/* ── Premier Seller Storefront Banner Styles ── */
+.seller-store-banner {
+    background: radial-gradient(120% 120% at 50% 0%, #1e1b4b 0%, #0f172a 55%, #020617 100%);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 22px;
+    padding: 30px 32px;
+    margin-bottom: 24px;
+    color: #ffffff;
+    box-shadow: 0 20px 45px -10px rgba(15, 23, 42, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05);
+    position: relative;
+    overflow: hidden;
+}
+
+.ambient-glow {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+}
+.ambient-glow.glow-1 {
+    right: -60px;
+    top: -60px;
+    width: 280px;
+    height: 280px;
+    background: radial-gradient(circle, rgba(99, 102, 241, 0.22) 0%, transparent 70%);
+}
+.ambient-glow.glow-2 {
+    left: 20%;
+    bottom: -80px;
+    width: 220px;
+    height: 220px;
+    background: radial-gradient(circle, rgba(16, 185, 129, 0.14) 0%, transparent 70%);
+}
+
+.store-hero-layout {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 24px;
+}
+
+.store-identity-col {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    max-width: 720px;
+    flex: 1 1 300px;
+}
+
+.store-avatar-wrap {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.store-avatar-box {
+    width: 68px;
+    height: 68px;
+    border-radius: 20px;
+    background: linear-gradient(135deg, #4f46e5 0%, #2563eb 50%, #06b6d4 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.85rem;
+    color: #fff;
+    font-weight: 900;
+    box-shadow: 0 8px 24px rgba(37, 99, 235, 0.45);
+    border: 2px solid rgba(255, 255, 255, 0.25);
+    text-transform: uppercase;
+    font-family: 'Syne', sans-serif;
+}
+
+.store-avatar-verified {
+    position: absolute;
+    bottom: -4px;
+    right: -4px;
+    background: #10b981;
+    color: #ffffff;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    border: 2px solid #0f172a;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.5);
+}
+
+.store-title-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+}
+
+.store-title-h1 {
+    margin: 0;
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: -0.02em;
+    font-family: 'Syne', sans-serif;
+    line-height: 1.25;
+}
+
+.store-verified-pill {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.25) 0%, rgba(5, 150, 105, 0.35) 100%);
+    color: #34d399;
+    font-size: 0.75rem;
+    font-weight: 800;
+    padding: 4px 12px;
+    border-radius: 20px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid rgba(52, 211, 153, 0.4);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.store-bio-text {
+    margin: 0 0 14px 0;
+    color: #94a3b8;
+    font-size: 0.92rem;
+    line-height: 1.55;
+    max-width: 620px;
+}
+
+.store-trust-grid {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    font-size: 0.82rem;
+}
+
+.store-trust-pill {
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 6px 12px;
+    border-radius: 12px;
+    color: #f1f5f9;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.store-actions-col {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 14px;
+    flex-shrink: 0;
+}
+
+.store-recruitment-pill {
+    background: rgba(99, 102, 241, 0.18);
+    border: 1px solid rgba(165, 180, 252, 0.3);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #c7d2fe;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
+}
+
+.store-btn-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.store-whatsapp-btn {
+    background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+    color: #ffffff;
+    text-decoration: none;
+    padding: 11px 18px;
+    border-radius: 12px;
+    font-weight: 800;
+    font-size: 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 6px 18px rgba(37, 211, 102, 0.35);
+    transition: transform 0.2s;
+}
+
+.store-copy-btn {
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    padding: 11px 18px;
+    border-radius: 12px;
+    font-weight: 800;
+    font-size: 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+    backdrop-filter: blur(8px);
+}
+
+.store-all-btn {
+    background: transparent;
+    color: #94a3b8;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 11px 16px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.84rem;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: color 0.2s;
+}
+
+.seller-recruitment-cta-box {
+    margin-top: 40px;
+    background: linear-gradient(135deg, #0b1120 0%, #1e1b4b 60%, #311042 100%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 20px;
+    padding: 32px 28px;
+    color: #fff;
+    box-shadow: 0 16px 36px -10px rgba(15, 23, 42, 0.4);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.seller-recruitment-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.12);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    padding: 4px 10px;
+    border-radius: 999px;
+    margin-bottom: 12px;
+}
+
+.seller-recruitment-cta-box h3 {
+    font-size: 22px;
+    font-weight: 800;
+    margin: 0 0 8px;
+    color: #ffffff;
+    letter-spacing: -0.02em;
+}
+
+.seller-recruitment-cta-box p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.55;
+    color: #cbd5e1;
+}
+
+.seller-recruitment-cta-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 14px;
+    padding: 12px 24px;
+    border-radius: 12px;
+    text-decoration: none;
+    box-shadow: 0 8px 20px -4px rgba(99, 102, 241, 0.5);
+    transition: all 0.2s ease;
+}
+
+/* Mobile responsive adjustments for storefront */
+@media (max-width: 768px) {
+    .seller-store-banner {
+        padding: 18px 14px;
+        border-radius: 16px;
+        margin-bottom: 18px;
+    }
+
+    .store-hero-layout {
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .store-identity-col {
+        gap: 12px;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .store-avatar-box {
+        width: 50px;
+        height: 50px;
+        font-size: 1.35rem;
+        border-radius: 12px;
+    }
+
+    .store-avatar-verified {
+        width: 18px;
+        height: 18px;
+        font-size: 0.65rem;
+    }
+
+    .store-title-h1 {
+        font-size: 1.3rem;
+    }
+
+    .store-verified-pill {
+        font-size: 0.68rem;
+        padding: 3px 8px;
+    }
+
+    .store-bio-text {
+        font-size: 0.82rem;
+        line-height: 1.48;
+        margin-bottom: 12px;
+    }
+
+    .store-trust-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+        width: 100%;
+    }
+
+    .store-trust-pill {
+        padding: 6px 8px;
+        font-size: 0.72rem;
+        justify-content: center;
+        text-align: center;
+        border-radius: 8px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .store-actions-col {
+        width: 100%;
+        align-items: stretch;
+        gap: 8px;
+    }
+
+    .store-recruitment-pill {
+        width: 100%;
+        justify-content: center;
+        text-align: center;
+        padding: 8px 10px;
+        font-size: 0.78rem;
+        box-sizing: border-box;
+    }
+
+    .store-btn-group {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        width: 100%;
+    }
+
+    .store-whatsapp-btn {
+        grid-column: span 1;
+        padding: 11px 8px;
+        font-size: 0.8rem;
+        box-sizing: border-box;
+    }
+
+    .store-copy-btn {
+        grid-column: span 1;
+        padding: 11px 8px;
+        font-size: 0.8rem;
+        box-sizing: border-box;
+    }
+
+    .store-all-btn {
+        grid-column: span 2;
+        padding: 9px;
+        font-size: 0.78rem;
+        text-align: center;
+        box-sizing: border-box;
+    }
+
+    .seller-recruitment-cta-box {
+        padding: 20px 14px;
+        border-radius: 14px;
+        margin-top: 24px;
+        gap: 14px;
+    }
+
+    .seller-recruitment-cta-box h3 {
+        font-size: 1.15rem;
+    }
+
+    .seller-recruitment-cta-box p {
+        font-size: 0.82rem;
+        line-height: 1.48;
+    }
+
+    .seller-recruitment-btn-wrap {
+        width: 100%;
+    }
+
+    .seller-recruitment-cta-btn {
+        width: 100%;
+        justify-content: center;
+        box-sizing: border-box;
+    }
+}
 </style>
 {% endblock %}
 
@@ -205,76 +631,69 @@
 <section class="section-wrap">
     <div class="container">
 
-        <!-- Header & Search -->
-        <div class="section-row" style="margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+        {% if current_seller %}
+        <!-- Store Navigation Breadcrumb on Mobile/Desktop -->
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; font-size: 0.85rem; color: var(--gray-500);">
             <div>
-                <h2 class="section-title">
-                    <i class="fa fa-box-open" style="color: var(--blue-500); margin-right: 8px;"></i>
-                    Products<span class="accent"></span>
-                </h2>
-                <p class="section-subtitle">{{ products|length }} item{{ products|length|pluralize }} found</p>
+                <a href="/" style="color: inherit; text-decoration: none;"><i class="fa fa-home"></i> Home</a> &nbsp;/&nbsp; 
+                <a href="{% url 'items:product_list' %}" style="color: inherit; text-decoration: none;">All Stores</a> &nbsp;/&nbsp; 
+                <span style="color: var(--gray-900); font-weight: 700;">{{ current_seller.shop_name }}</span>
             </div>
-            <!-- Search bar on Product List -->
-            <form method="get" action="{% url 'items:product_list' %}" style="display: flex; align-items: center; background: #ffffff; border: 1.5px solid var(--gray-200); border-radius: 30px; padding: 4px 6px 4px 14px; width: 100%; max-width: 380px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); box-sizing: border-box; overflow: hidden; min-width: 0;">
-                {% if request.GET.sort %}<input type="hidden" name="sort" value="{{ request.GET.sort }}">{% endif %}
-                {% if current_seller %}<input type="hidden" name="seller" value="{{ current_seller.slug }}">{% endif %}
-                <i class="fa fa-search" style="color: var(--gray-400); margin-right: 8px; font-size: 0.9rem; flex-shrink: 0;"></i>
-                <input type="search" name="search" id="catalogSearchInput" placeholder="Search products, sellers, brands…" value="{{ request.GET.search|default:'' }}" style="border: none; outline: none; background: transparent; width: 100%; min-width: 0; flex: 1 1 auto; font-size: 0.9rem; color: var(--gray-800); padding: 4px 0;">
-                <button type="submit" style="background: var(--blue-500); color: #fff; border: none; border-radius: 20px; padding: 6px 14px; font-size: 0.82rem; font-weight: 700; cursor: pointer; flex-shrink: 0; white-space: nowrap;">Search</button>
-            </form>
+            <a href="{% url 'items:product_list' %}" style="color: var(--blue-600); text-decoration: none; font-weight: 700; font-size: 0.82rem; display: inline-flex; align-items: center; gap: 4px;">
+                <i class="fa fa-arrow-left"></i> Browse All Stores
+            </a>
         </div>
 
-        {% if current_seller %}
         <!-- Premier Seller Storefront Hero Banner -->
-        <div class="seller-store-banner" style="background: radial-gradient(120% 120% at 50% 0%, #1e1b4b 0%, #0f172a 55%, #020617 100%); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 22px; padding: 30px 32px; margin-bottom: 28px; color: #ffffff; box-shadow: 0 20px 45px -10px rgba(15, 23, 42, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05); position: relative; overflow: hidden;">
+        <div class="seller-store-banner">
             <!-- Ambient Luxury Glow -->
-            <div style="position: absolute; right: -60px; top: -60px; width: 280px; height: 280px; background: radial-gradient(circle, rgba(99, 102, 241, 0.2) 0%, transparent 70%); border-radius: 50%; pointer-events: none;"></div>
-            <div style="position: absolute; left: 20%; bottom: -80px; width: 220px; height: 220px; background: radial-gradient(circle, rgba(16, 185, 129, 0.12) 0%, transparent 70%); border-radius: 50%; pointer-events: none;"></div>
+            <div class="ambient-glow glow-1"></div>
+            <div class="ambient-glow glow-2"></div>
 
-            <div style="position: relative; z-index: 1; display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 24px;">
+            <div class="store-hero-layout">
                 <!-- Left: Seller Identity -->
-                <div style="display: flex; align-items: flex-start; gap: 20px; max-width: 720px;">
+                <div class="store-identity-col">
                     <!-- Shop Brand Emblem -->
-                    <div style="position: relative; flex-shrink: 0;">
-                        <div style="width: 68px; height: 68px; border-radius: 20px; background: linear-gradient(135deg, #4f46e5 0%, #2563eb 50%, #06b6d4 100%); display: flex; align-items: center; justify-content: center; font-size: 1.85rem; color: #fff; font-weight: 900; box-shadow: 0 8px 24px rgba(37, 99, 235, 0.45); border: 2px solid rgba(255, 255, 255, 0.25); text-transform: uppercase; font-family: 'Syne', sans-serif;">
+                    <div class="store-avatar-wrap">
+                        <div class="store-avatar-box">
                             {{ current_seller.shop_name|slice:":2" }}
                         </div>
                         {% if current_seller.is_verified %}
-                        <div style="position: absolute; bottom: -4px; right: -4px; background: #10b981; color: #ffffff; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; border: 2px solid #0f172a; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.5);" title="Verified StallCart Seller">
+                        <div class="store-avatar-verified" title="Verified StallCart Seller">
                             <i class="fa fa-check"></i>
                         </div>
                         {% endif %}
                     </div>
 
                     <!-- Shop Details -->
-                    <div>
-                        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px;">
-                            <h1 style="margin: 0; font-size: 1.75rem; font-weight: 800; color: #ffffff; letter-spacing: -0.02em; font-family: 'Syne', sans-serif;">
+                    <div class="store-info-content">
+                        <div class="store-title-row">
+                            <h1 class="store-title-h1">
                                 {{ current_seller.shop_name }}
                             </h1>
                             {% if current_seller.is_verified %}
-                                <span style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.25) 0%, rgba(5, 150, 105, 0.35) 100%); color: #34d399; font-size: 0.75rem; font-weight: 800; padding: 4px 12px; border-radius: 20px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid rgba(52, 211, 153, 0.4); text-transform: uppercase; letter-spacing: 0.05em;">
+                                <span class="store-verified-pill">
                                     <i class="fa fa-certificate"></i> Verified Store
                                 </span>
                             {% endif %}
                         </div>
 
-                        <p style="margin: 0 0 14px 0; color: #94a3b8; font-size: 0.92rem; line-height: 1.55; max-width: 620px;">
+                        <p class="store-bio-text">
                             {{ current_seller.shop_description|default:"Welcome to our official flagship storefront on StallCart. Discover authentic premium products delivered with secure packaging and rapid courier dispatch." }}
                         </p>
 
                         <!-- Trust Metrics Grid -->
-                        <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap; font-size: 0.82rem;">
-                            <span style="background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.1); padding: 5px 12px; border-radius: 12px; color: #f1f5f9; display: inline-flex; align-items: center; gap: 6px;">
-                                <i class="fa fa-star" style="color: #fbbf24;"></i> <strong style="color: #ffffff;">{{ current_seller.rating|default:"5.0" }}</strong> / 5.0 Rating
+                        <div class="store-trust-grid">
+                            <span class="store-trust-pill">
+                                <i class="fa fa-star" style="color: #fbbf24;"></i> <strong style="color: #ffffff;">{{ current_seller.rating|default:"5.0" }}</strong> / 5.0
                             </span>
-                            <span style="background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.1); padding: 5px 12px; border-radius: 12px; color: #f1f5f9; display: inline-flex; align-items: center; gap: 6px;">
-                                <i class="fa fa-boxes" style="color: #60a5fa;"></i> <strong style="color: #ffffff;">{{ page_obj.paginator.count }}</strong> Original Product{{ page_obj.paginator.count|pluralize }}
+                            <span class="store-trust-pill">
+                                <i class="fa fa-boxes" style="color: #60a5fa;"></i> <strong style="color: #ffffff;">{{ page_obj.paginator.count }}</strong> Product{{ page_obj.paginator.count|pluralize }}
                             </span>
-                            <span style="background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.1); padding: 5px 12px; border-radius: 12px; color: #f1f5f9; display: inline-flex; align-items: center; gap: 6px;">
+                            <span class="store-trust-pill">
                                 <i class="fa fa-shipping-fast" style="color: #34d399;"></i> Fast Dispatch
                             </span>
-                            <span style="background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.1); padding: 5px 12px; border-radius: 12px; color: #f1f5f9; display: inline-flex; align-items: center; gap: 6px;">
+                            <span class="store-trust-pill">
                                 <i class="fa fa-shield-alt" style="color: #a78bfa;"></i> Buyer Protected
                             </span>
                         </div>
@@ -282,20 +701,19 @@
                 </div>
 
                 <!-- Right: Sharing Controls & Seller Acquisition Pill -->
-                <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 14px; flex-shrink: 0;">
+                <div class="store-actions-col">
                     <!-- Prospective Seller Acquisition Pill -->
-                    <a href="{% url 'accounts:register' %}?role=seller" 
-                       style="background: rgba(99, 102, 241, 0.18); border: 1px solid rgba(165, 180, 252, 0.3); padding: 6px 14px; border-radius: 20px; font-size: 0.78rem; font-weight: 700; color: #c7d2fe; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s; box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);">
+                    <a href="{% url 'accounts:register' %}?role=seller" class="store-recruitment-pill">
                         <i class="fa fa-rocket" style="color: #fbbf24;"></i> Want your own store? <span style="text-decoration: underline;">Sell on StallCart &rarr;</span>
                     </a>
 
                     <!-- Share Action Buttons -->
-                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <div class="store-btn-group">
                         <!-- WhatsApp Share -->
                         <a href="https://api.whatsapp.com/send?text=Check%20out%20products%20from%20{{ current_seller.shop_name|urlencode }}%20on%20StallCart%3A%20{{ canonical_store_url|urlencode }}" 
                            target="_blank" 
                            rel="noopener"
-                           style="background: linear-gradient(135deg, #25D366 0%, #128C7E 100%); color: #ffffff; text-decoration: none; padding: 11px 18px; border-radius: 12px; font-weight: 800; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 6px 18px rgba(37, 211, 102, 0.35); transition: transform 0.2s;"
+                           class="store-whatsapp-btn"
                            title="Share Storefront on WhatsApp">
                             <i class="fab fa-whatsapp" style="font-size: 1.15rem;"></i> Share Store
                         </a>
@@ -303,21 +721,40 @@
                         <!-- Copy Bio Link Button -->
                         <button type="button" 
                                 onclick="copyStoreLink(this, '{{ canonical_store_url }}')" 
-                                style="background: rgba(255, 255, 255, 0.12); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.25); padding: 11px 18px; border-radius: 12px; font-weight: 800; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; transition: background 0.2s; backdrop-filter: blur(8px);"
+                                class="store-copy-btn"
                                 title="Copy Store Link for Instagram / Social Bio">
                             <i class="fa fa-link"></i> Copy Bio Link
                         </button>
 
                         <!-- Clear filter to browse all stores -->
-                        <a href="{% url 'items:product_list' %}" 
-                           style="background: transparent; color: #94a3b8; border: 1px solid rgba(255, 255, 255, 0.15); padding: 11px 16px; border-radius: 12px; font-weight: 600; font-size: 0.84rem; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; transition: color 0.2s;">
+                        <a href="{% url 'items:product_list' %}" class="store-all-btn">
                             <i class="fa fa-th-large"></i> All Stores
                         </a>
                     </div>
                 </div>
             </div>
         </div>
-        {% elif matched_seller %}
+        {% endif %}
+
+        <!-- Header & Search -->
+        <div class="section-row" style="margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+            <div>
+                <h2 class="section-title" style="font-size: 1.25rem;">
+                    <i class="fa fa-box-open" style="color: var(--blue-500); margin-right: 8px;"></i>
+                    {% if current_seller %}Store Products{% else %}Products{% endif %}<span class="accent"></span>
+                </h2>
+                <p class="section-subtitle">{{ products|length }} item{{ products|length|pluralize }} found</p>
+            </div>
+            <!-- Search bar on Product List -->
+            <form method="get" action="{% if current_seller %}{% url 'seller_storefront_direct' current_seller.slug %}{% else %}{% url 'items:product_list' %}{% endif %}" style="display: flex; align-items: center; background: #ffffff; border: 1.5px solid var(--gray-200); border-radius: 30px; padding: 4px 6px 4px 14px; width: 100%; max-width: 380px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); box-sizing: border-box; overflow: hidden; min-width: 0;">
+                {% if request.GET.sort %}<input type="hidden" name="sort" value="{{ request.GET.sort }}">{% endif %}
+                <i class="fa fa-search" style="color: var(--gray-400); margin-right: 8px; font-size: 0.9rem; flex-shrink: 0;"></i>
+                <input type="search" name="search" id="catalogSearchInput" placeholder="{% if current_seller %}Search in {{ current_seller.shop_name }}…{% else %}Search products, sellers, brands…{% endif %}" value="{{ request.GET.search|default:'' }}" style="border: none; outline: none; background: transparent; width: 100%; min-width: 0; flex: 1 1 auto; font-size: 0.9rem; color: var(--gray-800); padding: 4px 0;">
+                <button type="submit" style="background: var(--blue-500); color: #fff; border: none; border-radius: 20px; padding: 6px 14px; font-size: 0.82rem; font-weight: 700; cursor: pointer; flex-shrink: 0; white-space: nowrap;">Search</button>
+            </form>
+        </div>
+
+        {% if matched_seller and not current_seller %}
         <!-- Search matched seller alert -->
         <div class="seller-matched-banner" style="background: #eff6ff; border: 1.5px solid #bfdbfe; border-radius: 14px; padding: 16px 20px; margin-bottom: 22px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.05);">
             <div style="display: flex; align-items: center; gap: 14px;">
@@ -663,20 +1100,20 @@
 
         {% if current_seller %}
         <!-- Premier Seller Recruitment CTA for Storefront Visitors -->
-        <div style="margin-top: 40px; background: linear-gradient(135deg, #0b1120 0%, #1e1b4b 60%, #311042 100%); border: 1px solid rgba(255,255,255,0.12); border-radius: 20px; padding: 32px 28px; color: #fff; box-shadow: 0 16px 36px -10px rgba(15,23,42,0.4); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 20px;">
+        <div class="seller-recruitment-cta-box">
             <div style="max-width: 620px;">
-                <div style="display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #38bdf8; background: rgba(56,189,248,0.12); border: 1px solid rgba(56,189,248,0.3); padding: 4px 10px; border-radius: 999px; margin-bottom: 12px;">
+                <div class="seller-recruitment-badge">
                     <i class="fa fa-rocket"></i> Sell on StallCart
                 </div>
-                <h3 style="font-size: 22px; font-weight: 800; margin: 0 0 8px; color: #ffffff; letter-spacing: -0.02em;">
+                <h3>
                     Want to launch your own online storefront like {{ current_seller.shop_name }}?
                 </h3>
-                <p style="margin: 0; font-size: 14px; line-height: 1.55; color: #cbd5e1;">
+                <p>
                     List your products, share your personal store link on your Instagram bio & WhatsApp, and reach thousands of verified buyers with automated Shiprocket logistics.
                 </p>
             </div>
-            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-                <a href="{% url 'accounts:register' %}?role=seller" style="display: inline-flex; align-items: center; gap: 8px; background: linear-gradient(135deg, #6366f1, #4f46e5); color: #ffffff; font-weight: 700; font-size: 14px; padding: 12px 24px; border-radius: 12px; text-decoration: none; box-shadow: 0 8px 20px -4px rgba(99,102,241,0.5); transition: all 0.2s ease;">
+            <div class="seller-recruitment-btn-wrap">
+                <a href="{% url 'accounts:register' %}?role=seller" class="seller-recruitment-cta-btn">
                     <i class="fa fa-store"></i> Start Selling Free <i class="fa fa-arrow-right" style="font-size: 11px;"></i>
                 </a>
             </div>
