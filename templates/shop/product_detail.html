@@ -382,9 +382,6 @@
                     <span class="seller-rating"><i class="fa fa-star"></i> {{ product.seller.rating }}/5.0</span>
                 </div>
                 <p>{{ product.seller.shop_description|default:"Premium quality products delivered with care." }}</p>
-                <div class="seller-meta">
-                    <span><i class="fa fa-map-marker-alt"></i> {{ product.seller.address.city|default:"India" }}</span>
-                </div>
                 <div class="seller-stats">
                     <span><strong>{{ product.seller.products.count }}</strong> Products</span>
                     <span><strong>98%</strong> Positive Ratings</span>

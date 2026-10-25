@@ -2182,7 +2182,8 @@ class SellerStorefrontAndSearchTests(TestCase):
         self.assertEqual(len(product_names), 2)
         self.assertEqual(res.context['current_seller'], self.seller1)
         self.assertContains(res, "Jaiswal Vastralay")
-        self.assertContains(res, "Varanasi, Uttar Pradesh")
+        # Ensure seller physical address is NOT exposed to customers
+        self.assertNotContains(res, "Varanasi, Uttar Pradesh")
 
     def test_search_by_seller_name(self):
         """Searching for 'jaiswal' returns all products of Jaiswal Vastralay even if title doesn't contain 'jaiswal'."""

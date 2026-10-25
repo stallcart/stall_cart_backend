@@ -244,9 +244,6 @@
                         {{ current_seller.shop_description|default:"Welcome to our official store on StallCart. Browse our complete collection with fast shipping and 100% original quality." }}
                     </p>
                     <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap; font-size: 0.82rem; color: #cbd5e1;">
-                        {% if seller_location %}
-                            <span><i class="fa fa-map-marker-alt" style="color: #ef4444; margin-right: 5px;"></i>{{ seller_location }}</span>
-                        {% endif %}
                         <span><i class="fa fa-star" style="color: #f59e0b; margin-right: 5px;"></i>{{ current_seller.rating|default:"5.0" }} Rating</span>
                         <span><i class="fa fa-boxes" style="color: #60a5fa; margin-right: 5px;"></i>{{ page_obj.paginator.count }} Product{{ page_obj.paginator.count|pluralize }}</span>
                     </div>
