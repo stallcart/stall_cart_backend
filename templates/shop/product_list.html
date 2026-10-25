@@ -292,7 +292,7 @@
                     <!-- Share Action Buttons -->
                     <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                         <!-- WhatsApp Share -->
-                        <a href="https://api.whatsapp.com/send?text=Explore%20our%20collection%20on%20StallCart!%20Visit%20my%20store%20{{ current_seller.shop_name|urlencode }}%3A%20{{ request.build_absolute_uri|urlencode }}" 
+                        <a href="https://api.whatsapp.com/send?text=Check%20out%20products%20from%20{{ current_seller.shop_name|urlencode }}%20on%20StallCart%3A%20{{ canonical_store_url|urlencode }}" 
                            target="_blank" 
                            rel="noopener"
                            style="background: linear-gradient(135deg, #25D366 0%, #128C7E 100%); color: #ffffff; text-decoration: none; padding: 11px 18px; border-radius: 12px; font-weight: 800; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 6px 18px rgba(37, 211, 102, 0.35); transition: transform 0.2s;"
@@ -302,7 +302,7 @@
                         
                         <!-- Copy Bio Link Button -->
                         <button type="button" 
-                                onclick="copyStoreLink(this, '{{ request.build_absolute_uri }}')" 
+                                onclick="copyStoreLink(this, '{{ canonical_store_url }}')" 
                                 style="background: rgba(255, 255, 255, 0.12); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.25); padding: 11px 18px; border-radius: 12px; font-weight: 800; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; transition: background 0.2s; backdrop-filter: blur(8px);"
                                 title="Copy Store Link for Instagram / Social Bio">
                             <i class="fa fa-link"></i> Copy Bio Link
@@ -329,7 +329,7 @@
                     <div style="font-size: 1.1rem; font-weight: 800; color: #0f172a;">{{ matched_seller.shop_name }}</div>
                 </div>
             </div>
-            <a href="{% url 'items:seller_storefront' matched_seller.slug %}" class="btn-primary" style="background: #2563eb; color: #fff; text-decoration: none; padding: 9px 18px; border-radius: 8px; font-weight: 700; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 2px 8px rgba(37,99,235,0.25);">
+            <a href="{% url 'seller_storefront_direct' matched_seller.slug %}" class="btn-primary" style="background: #2563eb; color: #fff; text-decoration: none; padding: 9px 18px; border-radius: 8px; font-weight: 700; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 2px 8px rgba(37,99,235,0.25);">
                 <i class="fa fa-store"></i> View Storefront &rarr;
             </a>
         </div>
@@ -338,12 +338,12 @@
         <!-- Horizontal Category Quick Filters -->
         <div class="category-scroll-wrapper" style="margin-bottom: 24px;">
             <div class="category-scroll-container" style="display: flex; gap: 12px; overflow-x: auto; padding: 4px 4px 12px; scrollbar-width: none;">
-                <a href="{% url 'items:product_list' %}{% if current_seller %}?seller={{ current_seller.slug }}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}{% elif request.GET.sort %}?sort={{ request.GET.sort }}{% endif %}" class="category-quick-card {% if not selected_categories %}active{% endif %}">
+                <a href="{% if current_seller %}{% url 'seller_storefront_direct' current_seller.slug %}{% if request.GET.sort %}?sort={{ request.GET.sort }}{% endif %}{% else %}{% url 'items:product_list' %}{% if request.GET.sort %}?sort={{ request.GET.sort }}{% endif %}{% endif %}" class="category-quick-card {% if not selected_categories %}active{% endif %}">
                     <div class="category-quick-icon" style="font-size: 1rem; line-height: 1; display: flex; align-items: center; justify-content: center; color: var(--gray-500);"><i class="fa fa-shopping-bag"></i></div>
                     <span class="category-quick-name">All Shop</span>
                 </a>
                 {% for cat in categories %}
-                <a href="{% url 'items:product_list' %}?category={{ cat.slug }}{% if current_seller %}&seller={{ current_seller.slug }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}" 
+                <a href="{% if current_seller %}{% url 'seller_storefront_direct' current_seller.slug %}?category={{ cat.slug }}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}{% else %}{% url 'items:product_list' %}?category={{ cat.slug }}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}{% endif %}" 
                    class="category-quick-card {% if cat.slug in selected_categories %}active{% endif %}">
                     <div class="category-quick-icon" style="width: 20px; height: 20px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; background: var(--gray-50); flex-shrink: 0;">
                         {% if cat.icon %}
@@ -575,7 +575,7 @@
                             <div class="product-info">
                                 <div class="product-seller">
                                     <i class="fa fa-store" style="margin-right: 4px; font-size: 0.72rem; color: var(--blue-500);"></i>
-                                    <a href="{% url 'items:seller_storefront' product.seller.slug %}" style="color: inherit; text-decoration: none;" title="Visit {{ product.seller.shop_name }} Storefront">
+                                    <a href="{% url 'seller_storefront_direct' product.seller.slug %}" style="color: inherit; text-decoration: none;" title="Visit {{ product.seller.shop_name }} Storefront">
                                         {{ product.seller.shop_name|truncatechars:22 }}
                                     </a>
                                 </div>

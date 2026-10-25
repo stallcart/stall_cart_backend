@@ -1219,16 +1219,40 @@ def product_list(request, seller_identifier=None):
     if seller_param:
         from django.utils.text import slugify
         seller_param_str = str(seller_param).strip()
+
+        # 1. If seller_param is a numeric database ID (e.g. seller=20 or /store/20/)
+        # Safely resolve seller and redirect to canonical slug storefront so sequential database ID is NEVER exposed in production!
         if seller_param_str.isdigit():
             current_seller = SellerProfile.objects.filter(id=int(seller_param_str)).first()
+            if current_seller:
+                query_dict = request.GET.copy()
+                query_dict.pop('seller', None)
+                query_dict.pop('seller_id', None)
+                target_url = current_seller.get_store_url()
+                if query_dict:
+                    target_url = f"{target_url}?{query_dict.urlencode()}"
+                return redirect(target_url)
+
+        # 2. Match by shop_name or slug
         if not current_seller:
             current_seller = SellerProfile.objects.filter(shop_name__iexact=seller_param_str).first()
         if not current_seller:
+            candidate_name = seller_param_str.replace('-', ' ').replace('_', ' ')
+            current_seller = SellerProfile.objects.filter(shop_name__iexact=candidate_name).first()
+        if not current_seller:
             param_slug = slugify(seller_param_str)
             for sp in SellerProfile.objects.filter(is_active=True):
-                if slugify(sp.shop_name) == param_slug:
+                if sp.slug == param_slug or slugify(sp.shop_name) == param_slug:
                     current_seller = sp
                     break
+
+        # 3. If accessed on /products/?seller=<slug> or /items/products/?seller=<slug> without filters, redirect to clean /store/<slug>/
+        if current_seller and seller_identifier is None and not category_slugs and not genders and not min_price and not max_price and not search:
+            sort_param = request.GET.get('sort')
+            target_url = current_seller.get_store_url()
+            if sort_param:
+                target_url = f"{target_url}?sort={sort_param}"
+            return redirect(target_url)
 
     show_gender_filter = True
     if category_slugs:
@@ -1318,6 +1342,12 @@ def product_list(request, seller_identifier=None):
     except EmptyPage:
         page_obj = paginator.page(paginator.num_pages)
 
+    canonical_store_url = ""
+    if current_seller:
+        canonical_store_url = request.build_absolute_uri(current_seller.get_store_url())
+    elif matched_seller:
+        canonical_store_url = request.build_absolute_uri(matched_seller.get_store_url())
+
     context = {
         'products': page_obj.object_list,
         'page_obj': page_obj,
@@ -1334,6 +1364,7 @@ def product_list(request, seller_identifier=None):
         'current_seller': current_seller,
         'matched_seller': matched_seller,
         'seller_location': seller_location,
+        'canonical_store_url': canonical_store_url,
         'top_sellers': top_sellers,
         'search': search,
     }

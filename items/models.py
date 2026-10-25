@@ -203,14 +203,22 @@ class SellerProfile(BaseModel):
     @property
     def slug(self):
         from django.utils.text import slugify
-        return slugify(self.shop_name) or str(self.id)
+        s = slugify(self.shop_name)
+        if s:
+            return s
+        # Safe obfuscated alphanumeric fallback code (never expose sequential database ID)
+        import hashlib
+        return f"sc-{hashlib.md5(f'{self.id}-{self.shop_name}'.encode()).hexdigest()[:8]}"
 
     def get_store_url(self):
         from django.urls import reverse
         try:
-            return reverse('items:seller_storefront', kwargs={'seller_identifier': self.slug})
+            return reverse('seller_storefront_direct', kwargs={'seller_identifier': self.slug})
         except Exception:
-            return f"/products/?seller={self.slug}"
+            try:
+                return reverse('items:seller_storefront', kwargs={'seller_identifier': self.slug})
+            except Exception:
+                return f"/store/{self.slug}/"
 
     def __str__(self):
         return f"{self.shop_name} ({self.user.phone})"

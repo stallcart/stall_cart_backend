@@ -495,13 +495,13 @@
                             </div>
                         </div>
                         <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                            <a href="{% url 'items:seller_storefront' seller_profile.slug %}" target="_blank" class="btn-outline btn-sm" style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none;">
+                            <a href="{% url 'seller_storefront_direct' seller_profile.slug %}" target="_blank" class="btn-outline btn-sm" style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none;">
                                 <i class="fa fa-external-link-alt"></i> View Store
                             </a>
-                            <a href="https://api.whatsapp.com/send?text=Explore%20our%20products%20on%20StallCart!%20Visit%20our%20store%20{{ seller_profile.shop_name|urlencode }}%3A%20{{ request.scheme }}%3A%2F%2F{{ request.get_host }}{% url 'items:seller_storefront' seller_profile.slug %}" target="_blank" rel="noopener" class="btn-sm" style="background: #25D366; color: #fff; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; border-radius: 6px; font-weight: 700; padding: 6px 14px;">
+                            <a href="https://api.whatsapp.com/send?text=Check%20out%20products%20from%20{{ seller_profile.shop_name|urlencode }}%20on%20StallCart%3A%20{{ request.scheme }}%3A%2F%2F{{ request.get_host }}{% url 'seller_storefront_direct' seller_profile.slug %}" target="_blank" rel="noopener" class="btn-sm" style="background: #25D366; color: #fff; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; border-radius: 6px; font-weight: 700; padding: 6px 14px;">
                                 <i class="fab fa-whatsapp"></i> WhatsApp
                             </a>
-                            <button type="button" onclick="navigator.clipboard.writeText('{{ request.scheme }}://{{ request.get_host }}{% url 'items:seller_storefront' seller_profile.slug %}').then(()=>{ alert('Storefront link copied!'); });" class="btn-outline btn-sm" style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+                            <button type="button" onclick="navigator.clipboard.writeText('{{ request.scheme }}://{{ request.get_host }}{% url 'seller_storefront_direct' seller_profile.slug %}').then(()=>{ alert('Storefront link copied!'); });" class="btn-outline btn-sm" style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
                                 <i class="fa fa-copy"></i> Copy Link
                             </button>
                         </div>

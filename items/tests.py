@@ -2152,30 +2152,39 @@ class SellerStorefrontAndSearchTests(TestCase):
             price=Decimal("999.00"), stock=15, status="published"
         )
 
-    def test_filter_by_seller_id(self):
-        """Filtering by ?seller=<id> returns only products of that seller."""
+    def test_filter_by_seller_id_redirects_to_slug(self):
+        """Filtering by numeric ID ?seller=<id> redirects to canonical slug URL to protect sequential IDs in production."""
         url = reverse('items:product_list')
         res = self.client.get(f"{url}?seller={self.seller1.id}")
-        self.assertEqual(res.status_code, 200)
-        product_names = [p.name for p in res.context['products']]
+        self.assertEqual(res.status_code, 302)
+        self.assertEqual(res.url, f"/store/{self.seller1.slug}/")
+
+        # Following redirect successfully loads seller's products without hampering data
+        res_followed = self.client.get(f"{url}?seller={self.seller1.id}", follow=True)
+        self.assertEqual(res_followed.status_code, 200)
+        product_names = [p.name for p in res_followed.context['products']]
         self.assertIn("Banarasi Silk Saree", product_names)
         self.assertIn("Kanjeevaram Pattu Saree", product_names)
         self.assertNotIn("Cotton Kurta Set", product_names)
-        self.assertEqual(res.context['current_seller'], self.seller1)
+        self.assertEqual(res_followed.context['current_seller'], self.seller1)
 
-    def test_filter_by_seller_slug(self):
-        """Filtering by ?seller=jaiswal-vastralay returns only products of that seller."""
+    def test_filter_by_seller_slug_redirects_to_storefront(self):
+        """Visiting ?seller=jaiswal-vastralay redirects to clean canonical /store/<slug>/."""
         url = reverse('items:product_list')
-        res = self.client.get(f"{url}?seller=jaiswal-vastralay")
-        self.assertEqual(res.status_code, 200)
-        product_names = [p.name for p in res.context['products']]
+        res = self.client.get(f"{url}?seller={self.seller1.slug}")
+        self.assertEqual(res.status_code, 302)
+        self.assertEqual(res.url, f"/store/{self.seller1.slug}/")
+
+        res_followed = self.client.get(f"{url}?seller={self.seller1.slug}", follow=True)
+        self.assertEqual(res_followed.status_code, 200)
+        product_names = [p.name for p in res_followed.context['products']]
         self.assertEqual(len(product_names), 2)
         self.assertIn("Banarasi Silk Saree", product_names)
         self.assertNotIn("Cotton Kurta Set", product_names)
-        self.assertEqual(res.context['current_seller'], self.seller1)
+        self.assertEqual(res_followed.context['current_seller'], self.seller1)
 
     def test_seller_storefront_route(self):
-        """Visiting /store/<slug>/ directly renders seller's storefront."""
+        """Visiting /store/<slug>/ directly renders seller's storefront with premier share buttons."""
         res = self.client.get(f"/store/{self.seller1.slug}/")
         self.assertEqual(res.status_code, 200)
         product_names = [p.name for p in res.context['products']]
@@ -2184,6 +2193,8 @@ class SellerStorefrontAndSearchTests(TestCase):
         self.assertContains(res, "Jaiswal Vastralay")
         # Ensure seller physical address is NOT exposed to customers
         self.assertNotContains(res, "Varanasi, Uttar Pradesh")
+        # Ensure canonical share text is present
+        self.assertContains(res, "Check%20out%20products%20from%20Jaiswal%20Vastralay%20on%20StallCart")
 
     def test_search_by_seller_name(self):
         """Searching for 'jaiswal' returns all products of Jaiswal Vastralay even if title doesn't contain 'jaiswal'."""
@@ -2211,7 +2222,7 @@ class SellerStorefrontAndSearchTests(TestCase):
         detail_url = reverse('items:product_detail', kwargs={'slug': self.p1.slug})
         res = self.client.get(detail_url)
         self.assertEqual(res.status_code, 200)
-        expected_storefront_path = reverse('items:seller_storefront', kwargs={'seller_identifier': self.seller1.slug})
+        expected_storefront_path = reverse('seller_storefront_direct', kwargs={'seller_identifier': self.seller1.slug})
         self.assertContains(res, expected_storefront_path)
         self.assertContains(res, "Jaiswal Vastralay")
 
