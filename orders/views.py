@@ -955,6 +955,13 @@ def seller_orders(request):
     if status_filter:
         order_items = order_items.filter(status=status_filter)
         
+    pending_count = order_items.filter(status='pending').count()
+    delivered_count = order_items.filter(status='delivered').count()
+    pending_returns = ReturnRequest.objects.filter(
+        order_item__product__seller=seller,
+        status__in=['requested', 'approved', 'pickup_scheduled', 'picked_up', 'received']
+    ).select_related('order_item__product', 'order_item__order', 'order_item__variant').order_by('-created_at')
+
     order_items = order_items.prefetch_related('settlements')
 
     # Financial Summary
