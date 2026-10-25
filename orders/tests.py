@@ -1309,13 +1309,13 @@ class SellerSettlementAndBankDetailsTests(TestCase):
             content_type="application/json"
         )
         self.assertEqual(res.status_code, 400)
-        self.assertIn("returned, cancelled", res.json().get('message', ''))
+        self.assertIn("returned", res.json().get('message', ''))
 
         # Also verify admin_order_detail page renders correctly with no payout due
         detail_url = reverse('orders:admin_order_detail', args=[self.order.unique_order_id])
         res_detail = self.client.get(detail_url)
         self.assertEqual(res_detail.status_code, 200)
-        self.assertContains(res_detail, "No Payout Due (Returned / Cancelled)")
+        self.assertContains(res_detail, "No Payout Due (RTO / Refunded / Not Picked)")
         self.assertNotContains(res_detail, "Settle & Pay Seller")
 
     def test_partial_return_order_settlement_only_pays_delivered_item(self):
@@ -1388,6 +1388,97 @@ class SellerSettlementAndBankDetailsTests(TestCase):
             content_type="application/json"
         )
         self.assertEqual(res.status_code, 400)
+
+    def test_rto_and_not_picked_and_refund_initiated_payout_protection(self):
+        """RTO, not picked, and refund initiated statuses are strictly ineligible for seller payouts."""
+        # 1. RTO
+        self.item.status = 'returned_to_source'
+        self.item.save()
+        self.assertTrue(self.item.is_return_or_cancelled)
+        self.assertEqual(self.item.payout_status, 'cancelled')
+        self.assertEqual(self.item.seller_earnings, Decimal('0.00'))
+
+        # 2. Courier failed pickup
+        self.item.status = 'courier_failed_pickup'
+        self.item.save()
+        self.assertTrue(self.item.is_return_or_cancelled)
+        self.assertEqual(self.item.payout_status, 'cancelled')
+
+        # 3. Seller unresponsive
+        self.item.status = 'seller_unresponsive'
+        self.item.save()
+        self.assertTrue(self.item.is_return_or_cancelled)
+        self.assertEqual(self.item.payout_status, 'cancelled')
+
+        # 4. Refund initiated
+        self.item.status = 'refund_initiated'
+        self.item.save()
+        self.assertTrue(self.item.is_return_or_cancelled)
+        self.assertEqual(self.item.payout_status, 'cancelled')
+
+        # 5. Shiprocket RTO status
+        self.item.status = 'shipped'
+        self.item.shiprocket_status = 'RTO INITIATED'
+        self.item.save()
+        self.assertTrue(self.item.is_return_or_cancelled)
+        self.assertEqual(self.item.payout_status, 'cancelled')
+
+        # 6. Order payment_status refunded
+        self.item.shiprocket_status = None
+        self.order.payment_status = 'refunded'
+        self.order.save()
+        self.assertTrue(self.item.is_return_or_cancelled)
+        self.assertEqual(self.item.payout_status, 'cancelled')
+
+    def test_in_transit_and_not_shipped_payout_status(self):
+        """Shipped items are in_transit, pending items are not_shipped (both not due until delivery)."""
+        # Shipped item
+        self.order.status = 'shipped'
+        self.order.save()
+        self.item.status = 'shipped'
+        self.item.save()
+        self.assertFalse(self.item.is_return_or_cancelled)
+        self.assertEqual(self.item.payout_status, 'in_transit')
+
+        # Pending item
+        self.order.status = 'pending'
+        self.order.save()
+        self.item.status = 'pending'
+        self.item.save()
+        self.assertFalse(self.item.is_return_or_cancelled)
+        self.assertEqual(self.item.payout_status, 'not_shipped')
+
+    def test_admin_settle_optional_override_and_custom_amount(self):
+        """Admin can optionally override settlement with custom amount even for special dispute/settlement cases."""
+        self.item.status = 'returned_to_source'
+        self.item.save()
+
+        self.client.login(phone="9999999999", password="adminpassword")
+        url = reverse('orders:admin_settle_order_seller_ajax', args=[self.order.unique_order_id, self.seller_profile.id])
+        
+        # Without override, it is rejected
+        res1 = self.client.post(
+            url,
+            data=json.dumps({"payment_method": "manual", "payment_reference": "UTR-OVERRIDE"}),
+            content_type="application/json"
+        )
+        self.assertEqual(res1.status_code, 400)
+
+        # With override and custom amount (e.g. shipping compensation), admin can optionally settle
+        res2 = self.client.post(
+            url,
+            data=json.dumps({
+                "payment_method": "manual",
+                "payment_reference": "UTR-OVERRIDE-OK",
+                "override": True,
+                "custom_amount": "50.00"
+            }),
+            content_type="application/json"
+        )
+        self.assertEqual(res2.status_code, 200)
+        settlement = SellerSettlement.objects.filter(seller=self.seller_profile).latest('id')
+        self.assertEqual(settlement.amount, Decimal('50.00'))
+        self.assertEqual(settlement.status, 'processed')
 
 
 class BackgroundJobAndEmailSyncTests(TestCase):

@@ -154,7 +154,9 @@
                                         {% endif %}
                                         • Status: <span class="badge" style="padding: 2px 6px; font-size: 0.7rem; border-radius: 4px;">{{ item.get_status_display }}</span>
                                         {% if item.is_return_or_cancelled %}
-                                            <span class="badge" style="background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: 700; margin-left: 4px;"><i class="fa fa-undo"></i> No Payout (Returned/Cancelled)</span>
+                                            <span class="badge" style="background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: 700; margin-left: 4px;"><i class="fa fa-undo"></i> No Payout (RTO / Refunded / Not Picked)</span>
+                                        {% elif item.status != 'delivered' %}
+                                            <span class="badge" style="background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: 600; margin-left: 4px;"><i class="fa fa-clock"></i> Payout upon Delivery</span>
                                         {% endif %}
                                         {% if item.shiprocket_status %}
                                             • Courier Status: <span style="font-weight: 700; color: #1e3a8a;">{{ item.shiprocket_status }}</span>
@@ -186,7 +188,7 @@
                                 <div style="font-size: 0.75rem; color: var(--gray-500); margin-top: 2px;">
                                     Sales: ₹{{ seller_summary.gross_total|floatformat:2 }} | Comm: -₹{{ seller_summary.commission|floatformat:2 }} | <strong style="color: {% if seller_summary.net_payout > 0 %}#047857{% else %}var(--gray-500){% endif %};">Net Payout: ₹{{ seller_summary.net_payout|floatformat:2 }}</strong>
                                     {% if seller_summary.has_returned_items %}
-                                        <span style="color: #dc2626; font-weight: 600; margin-left: 4px;">({{ seller_summary.returned_items_count }} returned/cancelled excluded)</span>
+                                        <span style="color: #dc2626; font-weight: 600; margin-left: 4px;">({{ seller_summary.returned_items_count }} RTO/refunded/cancelled excluded)</span>
                                     {% endif %}
                                 </div>
                             </div>
@@ -216,12 +218,39 @@
                                 {% elif seller_summary.status == 'cancelled' or seller_summary.net_payout <= 0 %}
                                     <div style="text-align: right;">
                                         <span style="font-size: 0.78rem; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; padding: 4px 10px; border-radius: 6px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;">
-                                            <i class="fa fa-ban"></i> No Payout Due (Returned / Cancelled)
+                                            <i class="fa fa-ban"></i> No Payout Due (RTO / Refunded / Not Picked)
                                         </span>
                                         <div style="font-size: 0.72rem; color: var(--gray-500); margin-top: 2px;">
-                                            Item(s) returned or cancelled — ₹0.00 payable
+                                            Item(s) RTO, refunded, or not picked — ₹0.00 payable
                                         </div>
                                     </div>
+                                    <button type="button" class="btn-outline" onclick="openOrderSettleSellerModal('{{ seller_group.grouper.id }}', '{{ seller_group.grouper.shop_name|escapejs }}', '0.00', '{{ seller_group.grouper.bank_name|escapejs }}', '{{ seller_group.grouper.account_number|escapejs }}', '{{ seller_group.grouper.ifsc_code|escapejs }}', '{{ seller_group.grouper.beneficiary_name|escapejs }}', true)" style="font-size: 0.72rem; padding: 4px 8px; border-radius: 4px; border: 1px dashed var(--gray-300); color: var(--gray-600); background: white; cursor: pointer;" title="Optional admin settlement override">
+                                        Optional Settle
+                                    </button>
+                                {% elif seller_summary.status == 'in_transit' %}
+                                    <div style="text-align: right;">
+                                        <span style="font-size: 0.78rem; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 4px 10px; border-radius: 6px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;">
+                                            <i class="fa fa-truck"></i> In Transit (Payable on Delivery)
+                                        </span>
+                                        <div style="font-size: 0.72rem; color: var(--gray-500); margin-top: 2px;">
+                                            Est. Payout: <strong>₹{{ seller_summary.net_payout|floatformat:2 }}</strong>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn-outline" onclick="openOrderSettleSellerModal('{{ seller_group.grouper.id }}', '{{ seller_group.grouper.shop_name|escapejs }}', '{{ seller_summary.net_payout }}', '{{ seller_group.grouper.bank_name|escapejs }}', '{{ seller_group.grouper.account_number|escapejs }}', '{{ seller_group.grouper.ifsc_code|escapejs }}', '{{ seller_group.grouper.beneficiary_name|escapejs }}')" style="font-size: 0.75rem; padding: 6px 12px; height: 30px; border-radius: 6px; border: 1.5px solid var(--gray-300); background: white; color: var(--gray-700); font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;" title="Items are currently in transit. Settle early at admin discretion.">
+                                        <i class="fa fa-money-bill-wave"></i> Settle Early (Optional)
+                                    </button>
+                                {% elif seller_summary.status == 'not_shipped' %}
+                                    <div style="text-align: right;">
+                                        <span style="font-size: 0.78rem; background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; padding: 4px 10px; border-radius: 6px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;">
+                                            <i class="fa fa-box"></i> Not Shipped / Preparing
+                                        </span>
+                                        <div style="font-size: 0.72rem; color: var(--gray-500); margin-top: 2px;">
+                                            Est. Payout: <strong>₹{{ seller_summary.net_payout|floatformat:2 }}</strong> (Due on Delivery)
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn-outline" onclick="openOrderSettleSellerModal('{{ seller_group.grouper.id }}', '{{ seller_group.grouper.shop_name|escapejs }}', '{{ seller_summary.net_payout }}', '{{ seller_group.grouper.bank_name|escapejs }}', '{{ seller_group.grouper.account_number|escapejs }}', '{{ seller_group.grouper.ifsc_code|escapejs }}', '{{ seller_group.grouper.beneficiary_name|escapejs }}')" style="font-size: 0.75rem; padding: 6px 12px; height: 30px; border-radius: 6px; border: 1.5px solid var(--gray-300); background: white; color: var(--gray-700); font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;" title="Order not yet delivered. Settle early at admin discretion.">
+                                        <i class="fa fa-money-bill-wave"></i> Settle (Optional)
+                                    </button>
                                 {% else %}
                                     <span style="font-size: 0.75rem; background: #fffbeb; color: #d97706; padding: 4px 8px; border-radius: 4px; font-weight: 700;">
                                         Due: ₹{{ seller_summary.net_payout|floatformat:2 }}
@@ -482,15 +511,22 @@ window.closeSettleAllModal = window.closeSettleAllModal || function() { document
         <form id="orderSettleSellerForm" style="padding: 24px; margin: 0;">
             {% csrf_token %}
             <input type="hidden" id="orderSettleSellerId">
+            <input type="hidden" id="orderSettleIsOverride" value="false">
 
             <div style="background: var(--gray-50); border: 1.5px solid var(--gray-200); border-radius: var(--r-md); padding: 14px; margin-bottom: 18px;">
                 <div style="font-size: 0.78rem; text-transform: uppercase; font-weight: 700; color: var(--gray-500);">Seller / Vendor</div>
                 <div id="orderSettleShopName" style="font-size: 1.1rem; font-weight: 800; color: var(--gray-900); margin-top: 2px;"></div>
                 <div id="orderSettleBankDetails" style="font-size: 0.82rem; color: var(--gray-600); margin-top: 4px;"></div>
-                <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--gray-200); display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-size: 0.85rem; font-weight: 700; color: var(--gray-700);">Net Payout for Order:</span>
-                    <span id="orderSettleAmount" style="font-size: 1.3rem; font-weight: 800; color: #059669; font-family: 'Syne', sans-serif;"></span>
+                <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--gray-200); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                    <span style="font-size: 0.85rem; font-weight: 700; color: var(--gray-700);">Payout Amount:</span>
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                        <span style="font-size: 1.1rem; font-weight: 800; color: #059669;">₹</span>
+                        <input type="number" step="0.01" id="orderSettleAmountInput" style="width: 110px; font-size: 1.15rem; font-weight: 800; color: #059669; font-family: 'Syne', sans-serif; border: 1.5px solid var(--gray-300); border-radius: 6px; padding: 2px 8px; text-align: right; background: white;">
+                    </div>
                 </div>
+                <small style="color: var(--gray-500); display: block; font-size: 0.72rem; margin-top: 6px;">
+                    <i class="fa fa-info-circle"></i> Items RTO, refunded, or not picked do not require payout. Amount is editable for optional settlement or override.
+                </small>
             </div>
 
             <div style="margin-bottom: 16px;">
@@ -621,14 +657,16 @@ window.closeCancelModal = () => {
 window.closeTrackingModal = () => {
     document.getElementById('trackingModal')?.classList.remove('show');
 };
-window.openOrderSettleSellerModal = (sellerId, shopName, netAmount, bankName, acNo, ifsc, beneficiary) => {
+window.openOrderSettleSellerModal = (sellerId, shopName, netAmount, bankName, acNo, ifsc, beneficiary, isOverride = false) => {
     try {
         const idInput = document.getElementById('orderSettleSellerId');
         if (idInput) idInput.value = sellerId;
+        const overrideInput = document.getElementById('orderSettleIsOverride');
+        if (overrideInput) overrideInput.value = isOverride ? 'true' : 'false';
         const shopElem = document.getElementById('orderSettleShopName');
         if (shopElem) shopElem.innerText = shopName || 'Seller';
-        const amtElem = document.getElementById('orderSettleAmount');
-        if (amtElem) amtElem.innerText = '₹' + (parseFloat(netAmount) || 0).toFixed(2);
+        const amtInput = document.getElementById('orderSettleAmountInput');
+        if (amtInput) amtInput.value = (parseFloat(netAmount) || 0).toFixed(2);
         
         let bankDesc = '⚠️ Bank Details Not Configured';
         if (bankName && String(bankName).trim()) {
@@ -906,6 +944,8 @@ async function requestAdminPickup(orderId, sellerId, btnElem) {
 document.getElementById('orderSettleSellerForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const sellerId = document.getElementById('orderSettleSellerId').value;
+    const isOverride = document.getElementById('orderSettleIsOverride')?.value === 'true';
+    const customAmount = document.getElementById('orderSettleAmountInput')?.value;
     const method = document.querySelector('input[name="order_settle_method"]:checked')?.value || 'manual';
     const utr = document.getElementById('orderSettleUtrInput').value.trim();
     const simulate = document.getElementById('orderSettleSimulate').checked;
@@ -924,7 +964,9 @@ document.getElementById('orderSettleSellerForm')?.addEventListener('submit', asy
             body: JSON.stringify({
                 payment_method: method,
                 payment_reference: utr,
-                simulate: simulate
+                simulate: simulate,
+                custom_amount: customAmount,
+                override: isOverride
             })
         });
         const data = await res.json();

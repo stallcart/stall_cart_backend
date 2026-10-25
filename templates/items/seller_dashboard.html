@@ -315,13 +315,20 @@
                                     </div>
                                 {% elif item.payout_status == 'in_transit' %}
                                     <div style="display: inline-flex; flex-direction: column; align-items: center; gap: 3px;">
-                                        <span style="font-size: 0.75rem; background: #f1f5f9; color: #475569; border: 1.5px solid #cbd5e1; padding: 4px 10px; border-radius: 6px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px;">
-                                            <i class="fa fa-truck" style="color: #64748b;"></i> Due on Delivery
+                                        <span style="font-size: 0.75rem; background: #eff6ff; color: #1d4ed8; border: 1.5px solid #bfdbfe; padding: 4px 10px; border-radius: 6px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px;">
+                                            <i class="fa fa-truck" style="color: #2563eb;"></i> Due on Delivery
                                         </span>
-                                        <span style="font-size: 0.68rem; color: var(--gray-400);">Delivery in progress</span>
+                                        <span style="font-size: 0.68rem; color: #3b82f6;">Shipped / In Transit</span>
+                                    </div>
+                                {% elif item.payout_status == 'not_shipped' %}
+                                    <div style="display: inline-flex; flex-direction: column; align-items: center; gap: 3px;">
+                                        <span style="font-size: 0.75rem; background: #f8fafc; color: #64748b; border: 1.5px solid #cbd5e1; padding: 4px 10px; border-radius: 6px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px;">
+                                            <i class="fa fa-box" style="color: #64748b;"></i> Pending Delivery
+                                        </span>
+                                        <span style="font-size: 0.68rem; color: var(--gray-400);">Not Shipped Yet</span>
                                     </div>
                                 {% else %}
-                                    <span style="font-size: 0.75rem; background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; padding: 4px 10px; border-radius: 6px; font-weight: 600;">
+                                    <span style="font-size: 0.75rem; background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; padding: 4px 10px; border-radius: 6px; font-weight: 600;" title="RTO, returned, cancelled, or not picked">
                                         No Payout
                                     </span>
                                 {% endif %}

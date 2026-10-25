@@ -1608,6 +1608,7 @@ def admin_order_detail(request, order_id):
         pending_items = [it for it in s_items if it.payout_status == 'pending']
         due_items = [it for it in payable_items if it.payout_status == 'due']
         in_transit_items = [it for it in payable_items if it.payout_status == 'in_transit']
+        not_shipped_items = [it for it in payable_items if it.payout_status == 'not_shipped']
         
         latest_sett = None
         for it in s_items:
@@ -1621,15 +1622,16 @@ def admin_order_detail(request, order_id):
         elif len(pending_items) > 0:
             payout_status = 'pending'
         elif len(returned_or_cancelled_items) == len(s_items) or (net_payout <= Decimal('0.00') and len(settled_items) == 0):
-            payout_status = 'cancelled'  # No payout due: all items returned or cancelled
+            payout_status = 'cancelled'  # No payout due: all items returned, RTO, not picked, or cancelled
         elif len(due_items) > 0:
-            payout_status = 'due'
+            payout_status = 'due'  # Delivered items awaiting payout
             unsettled_sellers_count += 1
         elif len(in_transit_items) > 0:
-            payout_status = 'in_transit'
+            payout_status = 'in_transit'  # Shipped / In transit (payable after delivery)
+        elif len(not_shipped_items) > 0:
+            payout_status = 'not_shipped'  # Not yet shipped or picked
         else:
-            payout_status = 'due'
-            unsettled_sellers_count += 1
+            payout_status = 'cancelled'
             
         has_bank = bool(seller.bank_name and seller.account_number and seller.ifsc_code)
         
@@ -3051,6 +3053,8 @@ def admin_settle_order_seller_ajax(request, order_id, seller_id):
     reference = (data.get('payment_reference') or '').strip()
     notes = (data.get('notes') or '').strip()
     simulate = data.get('simulate') is True or request.GET.get('simulate') == '1'
+    allow_override = data.get('override') is True
+    custom_amount_str = data.get('custom_amount')
 
     with transaction.atomic():
         # Select items for this seller in this order that are not returned, not cancelled/failed
@@ -3062,20 +3066,20 @@ def admin_settle_order_seller_ajax(request, order_id, seller_id):
         )
         items = [it for it in raw_items if not it.is_return_or_cancelled]
 
-        if not items:
+        if not items and not allow_override:
             return JsonResponse({
                 'status': 'error',
-                'message': f'Cannot settle: All items for {seller.shop_name} in this order have been returned, cancelled, or are undergoing return.'
+                'message': f'Cannot settle: All items for {seller.shop_name} in this order are RTO, returned, not picked, or cancelled. No amount is due to seller.'
             }, status=400)
 
         # Check if already settled
         unsettled_items = []
-        for it in items:
+        for it in (items if items else raw_items):
             if it.latest_settlement and it.latest_settlement.status == 'processed':
                 continue
             unsettled_items.append(it)
 
-        if not unsettled_items:
+        if not unsettled_items and not allow_override:
             return JsonResponse({
                 'status': 'error',
                 'message': f'All items for {seller.shop_name} in this order are already settled or cancelled.'
@@ -3093,10 +3097,20 @@ def admin_settle_order_seller_ajax(request, order_id, seller_id):
             seller=seller,
             status='pending'
         )
-        settlement.order_items.add(*unsettled_items)
-        settlement.refresh_from_db()
+        if unsettled_items:
+            settlement.order_items.add(*unsettled_items)
+            settlement.refresh_from_db()
 
-        if settlement.amount <= Decimal('0.00'):
+        if custom_amount_str is not None and str(custom_amount_str).strip() != '':
+            try:
+                custom_amt = Decimal(str(custom_amount_str))
+                if custom_amt >= Decimal('0.00'):
+                    settlement.amount = custom_amt
+                    settlement.save(update_fields=['amount'])
+            except Exception:
+                pass
+
+        if settlement.amount <= Decimal('0.00') and not allow_override:
             transaction.set_rollback(True)
             return JsonResponse({
                 'status': 'error',

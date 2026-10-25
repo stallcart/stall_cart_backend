@@ -165,7 +165,7 @@
                             </span>
                         {% elif item.payout_status == 'due' %}
                             <span style="font-size: 0.72rem; background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; padding: 2px 7px; border-radius: 4px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">
-                                <i class="fa fa-hourglass-half"></i> Due from Admin
+                                <i class="fa fa-hourglass-half"></i> Due from Admin (Delivered)
                             </span>
                         {% elif item.payout_status == 'pending' %}
                             <span style="font-size: 0.72rem; background: #fef3c7; color: #92400e; border: 1px solid #fde68a; padding: 2px 7px; border-radius: 4px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">
@@ -175,9 +175,13 @@
                             <span style="font-size: 0.72rem; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; padding: 2px 7px; border-radius: 4px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
                                 <i class="fa fa-truck"></i> Due on Delivery
                             </span>
+                        {% elif item.payout_status == 'not_shipped' %}
+                            <span style="font-size: 0.72rem; background: #f8fafc; color: #64748b; border: 1px solid #cbd5e1; padding: 2px 7px; border-radius: 4px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+                                <i class="fa fa-box"></i> Pending Delivery
+                            </span>
                         {% else %}
-                            <span style="font-size: 0.72rem; background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; padding: 2px 7px; border-radius: 4px; font-weight: 600;">
-                                Cancelled
+                            <span style="font-size: 0.72rem; background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; padding: 2px 7px; border-radius: 4px; font-weight: 600;" title="RTO, returned, cancelled, or not picked">
+                                <i class="fa fa-ban"></i> No Payout
                             </span>
                         {% endif %}
                     </div>

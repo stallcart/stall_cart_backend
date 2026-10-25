@@ -577,7 +577,8 @@ class OrderItem(BaseModel):
     @property
     def is_return_or_cancelled(self):
         """
-        True if item is returned, cancelled, or has an active/pending/approved return request.
+        True if item is returned, cancelled, RTO, not picked (courier failed / seller unresponsive),
+        refund initiated/refunded, or has an active/pending/approved return request.
         Such items are ineligible for seller payout.
         """
         if self.is_returned:
@@ -586,6 +587,12 @@ class OrderItem(BaseModel):
             return True
         if self.order_id and self.order.status in ('cancelled', 'returned', 'returned_to_source', 'refund_initiated', 'refunded'):
             return True
+        if self.order_id and self.order.payment_status == 'refunded':
+            return True
+        if self.shiprocket_status:
+            sr = str(self.shiprocket_status).lower()
+            if any(term in sr for term in ('rto', 'cancelled', 'canceled', 'undelivered', 'failed pickup', 'pickup failed')):
+                return True
         try:
             if hasattr(self, '_prefetched_objects_cache') and 'return_requests' in self._prefetched_objects_cache:
                 for req in self.return_requests.all():
@@ -677,8 +684,9 @@ class OrderItem(BaseModel):
         - 'received': Admin has processed & paid out this item.
         - 'pending': Item is in a pending settlement batch awaiting payout.
         - 'due': Item is delivered, not yet settled, payout is due from admin.
-        - 'in_transit': Item is active/in transit, earnings expected upon delivery.
-        - 'cancelled': Item was cancelled, returned, or refunded (no payout).
+        - 'in_transit': Item is shipped/in transit, earnings expected upon delivery.
+        - 'not_shipped': Item is pending, confirmed, processing, or not yet picked.
+        - 'cancelled': Item was cancelled, returned, RTO, not picked, or refund initiated (no payout).
         - 'failed': Settlement payout failed.
         """
         if self.is_return_or_cancelled:
@@ -693,21 +701,24 @@ class OrderItem(BaseModel):
             elif settlement.status == 'failed':
                 return 'failed'
                 
-        if self.status == 'delivered':
+        if self.status == 'delivered' or (self.order_id and self.order.status == 'delivered'):
             return 'due'
-        return 'in_transit'
+        elif self.status in ('shipped', 'out_for_delivery') or (self.order_id and self.order.status in ('shipped', 'out_for_delivery')):
+            return 'in_transit'
+        return 'not_shipped'
 
     @property
     def payout_status_display(self):
         status_map = {
             'received': 'Received (Settled)',
             'pending': 'Pending Payout',
-            'due': 'Due from Admin',
-            'in_transit': 'In Progress / Due upon Delivery',
-            'cancelled': 'Cancelled / Refunded',
+            'due': 'Due from Admin (Delivered)',
+            'in_transit': 'In Transit (Due on Delivery)',
+            'not_shipped': 'Not Shipped (Pending Fulfillment)',
+            'cancelled': 'No Payout (RTO / Refunded / Not Picked)',
             'failed': 'Payout Failed',
         }
-        return status_map.get(self.payout_status, 'Due')
+        return status_map.get(self.payout_status, 'No Payout')
 
 
 
