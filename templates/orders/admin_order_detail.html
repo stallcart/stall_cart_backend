@@ -340,6 +340,8 @@ window.openCancelModal = window.openCancelModal || function() { document.getElem
 window.closeModal = window.closeModal || function() { document.getElementById('statusModal')?.classList.remove('show'); };
 window.closeCancelModal = window.closeCancelModal || function() { document.getElementById('cancelModal')?.classList.remove('show'); };
 window.closeTrackingModal = window.closeTrackingModal || function() { document.getElementById('trackingModal')?.classList.remove('show'); };
+window.closeOrderSettleSellerModal = window.closeOrderSettleSellerModal || function() { document.getElementById('orderSettleSellerModal')?.classList.remove('show'); };
+window.closeSettleAllModal = window.closeSettleAllModal || function() { document.getElementById('settleAllModal')?.classList.remove('show'); };
 </script>
 
 <!-- ✅ Admin Cancel Order / Items Modal -->
@@ -450,6 +452,9 @@ window.closeTrackingModal = window.closeTrackingModal || function() { document.g
             </div>
             <button type="submit" class="btn-primary" style="width: 100%; padding: 12px; font-weight: 700; border-radius: var(--r-md); border: none; cursor: pointer;">Save Tracking</button>
         </form>
+    </div>
+</div>
+
 <!-- ✅ Admin Settle Single Seller Modal -->
 <div id="orderSettleSellerModal" class="modal">
     <div class="modal-content" style="max-width: 480px;">
@@ -602,15 +607,35 @@ window.closeTrackingModal = () => {
     document.getElementById('trackingModal')?.classList.remove('show');
 };
 window.openOrderSettleSellerModal = (sellerId, shopName, netAmount, bankName, acNo, ifsc, beneficiary) => {
-    document.getElementById('orderSettleSellerId').value = sellerId;
-    document.getElementById('orderSettleShopName').innerText = shopName;
-    document.getElementById('orderSettleAmount').innerText = '₹' + parseFloat(netAmount).toFixed(2);
-    const bankDesc = bankName ? `${bankName} • A/C: ••••${acNo.slice(-4)} • IFSC: ${ifsc}` : '⚠️ Bank Details Not Configured';
-    document.getElementById('orderSettleBankDetails').innerText = bankDesc;
-    document.getElementById('orderSettleUtrInput').value = '';
-    toggleOrderSettleMethod('manual');
-    const modal = document.getElementById('orderSettleSellerModal');
-    if (modal) modal.classList.add('show');
+    try {
+        const idInput = document.getElementById('orderSettleSellerId');
+        if (idInput) idInput.value = sellerId;
+        const shopElem = document.getElementById('orderSettleShopName');
+        if (shopElem) shopElem.innerText = shopName || 'Seller';
+        const amtElem = document.getElementById('orderSettleAmount');
+        if (amtElem) amtElem.innerText = '₹' + (parseFloat(netAmount) || 0).toFixed(2);
+        
+        let bankDesc = '⚠️ Bank Details Not Configured';
+        if (bankName && String(bankName).trim()) {
+            const masked = acNo ? '••••' + String(acNo).slice(-4) : 'N/A';
+            bankDesc = `${bankName} • A/C: ${masked} • IFSC: ${ifsc || 'N/A'}`;
+        }
+        const bankElem = document.getElementById('orderSettleBankDetails');
+        if (bankElem) bankElem.innerText = bankDesc;
+        
+        const utrInput = document.getElementById('orderSettleUtrInput');
+        if (utrInput) utrInput.value = '';
+        
+        if (typeof toggleOrderSettleMethod === 'function') {
+            toggleOrderSettleMethod('manual');
+        }
+        const modal = document.getElementById('orderSettleSellerModal');
+        if (modal) modal.classList.add('show');
+    } catch (err) {
+        console.error('Error opening settlement modal:', err);
+        const modal = document.getElementById('orderSettleSellerModal');
+        if (modal) modal.classList.add('show');
+    }
 };
 window.closeOrderSettleSellerModal = () => {
     document.getElementById('orderSettleSellerModal')?.classList.remove('show');
