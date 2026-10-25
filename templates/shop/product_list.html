@@ -225,54 +225,96 @@
         </div>
 
         {% if current_seller %}
-        <!-- Seller Storefront Header Card -->
-        <div class="seller-store-banner" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius: 18px; padding: 24px 28px; margin-bottom: 24px; color: #ffffff; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
-            <div style="display: flex; align-items: center; gap: 18px;">
-                <div style="width: 58px; height: 58px; border-radius: 16px; background: linear-gradient(135deg, #2563eb, #3b82f6); display: flex; align-items: center; justify-content: center; font-size: 1.6rem; color: #fff; font-weight: 800; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35); flex-shrink: 0;">
-                    <i class="fa fa-store"></i>
-                </div>
-                <div>
-                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 4px;">
-                        <h2 style="margin: 0; font-size: 1.55rem; font-weight: 800; color: #ffffff; letter-spacing: -0.01em;">{{ current_seller.shop_name }}</h2>
+        <!-- Premier Seller Storefront Hero Banner -->
+        <div class="seller-store-banner" style="background: radial-gradient(120% 120% at 50% 0%, #1e1b4b 0%, #0f172a 55%, #020617 100%); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 22px; padding: 30px 32px; margin-bottom: 28px; color: #ffffff; box-shadow: 0 20px 45px -10px rgba(15, 23, 42, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05); position: relative; overflow: hidden;">
+            <!-- Ambient Luxury Glow -->
+            <div style="position: absolute; right: -60px; top: -60px; width: 280px; height: 280px; background: radial-gradient(circle, rgba(99, 102, 241, 0.2) 0%, transparent 70%); border-radius: 50%; pointer-events: none;"></div>
+            <div style="position: absolute; left: 20%; bottom: -80px; width: 220px; height: 220px; background: radial-gradient(circle, rgba(16, 185, 129, 0.12) 0%, transparent 70%); border-radius: 50%; pointer-events: none;"></div>
+
+            <div style="position: relative; z-index: 1; display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 24px;">
+                <!-- Left: Seller Identity -->
+                <div style="display: flex; align-items: flex-start; gap: 20px; max-width: 720px;">
+                    <!-- Shop Brand Emblem -->
+                    <div style="position: relative; flex-shrink: 0;">
+                        <div style="width: 68px; height: 68px; border-radius: 20px; background: linear-gradient(135deg, #4f46e5 0%, #2563eb 50%, #06b6d4 100%); display: flex; align-items: center; justify-content: center; font-size: 1.85rem; color: #fff; font-weight: 900; box-shadow: 0 8px 24px rgba(37, 99, 235, 0.45); border: 2px solid rgba(255, 255, 255, 0.25); text-transform: uppercase; font-family: 'Syne', sans-serif;">
+                            {{ current_seller.shop_name|slice:":2" }}
+                        </div>
                         {% if current_seller.is_verified %}
-                            <span style="background: rgba(16, 185, 129, 0.2); color: #34d399; font-size: 0.75rem; font-weight: 700; padding: 4px 10px; border-radius: 20px; display: inline-flex; align-items: center; gap: 5px; border: 1px solid rgba(52, 211, 153, 0.3);">
-                                <i class="fa fa-check-circle"></i> Verified Seller
-                            </span>
+                        <div style="position: absolute; bottom: -4px; right: -4px; background: #10b981; color: #ffffff; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; border: 2px solid #0f172a; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.5);" title="Verified StallCart Seller">
+                            <i class="fa fa-check"></i>
+                        </div>
                         {% endif %}
                     </div>
-                    <p style="margin: 0 0 6px 0; color: #94a3b8; font-size: 0.88rem; max-width: 650px;">
-                        {{ current_seller.shop_description|default:"Welcome to our official store on StallCart. Browse our complete collection with fast shipping and 100% original quality." }}
-                    </p>
-                    <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap; font-size: 0.82rem; color: #cbd5e1;">
-                        <span><i class="fa fa-star" style="color: #f59e0b; margin-right: 5px;"></i>{{ current_seller.rating|default:"5.0" }} Rating</span>
-                        <span><i class="fa fa-boxes" style="color: #60a5fa; margin-right: 5px;"></i>{{ page_obj.paginator.count }} Product{{ page_obj.paginator.count|pluralize }}</span>
+
+                    <!-- Shop Details -->
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px;">
+                            <h1 style="margin: 0; font-size: 1.75rem; font-weight: 800; color: #ffffff; letter-spacing: -0.02em; font-family: 'Syne', sans-serif;">
+                                {{ current_seller.shop_name }}
+                            </h1>
+                            {% if current_seller.is_verified %}
+                                <span style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.25) 0%, rgba(5, 150, 105, 0.35) 100%); color: #34d399; font-size: 0.75rem; font-weight: 800; padding: 4px 12px; border-radius: 20px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid rgba(52, 211, 153, 0.4); text-transform: uppercase; letter-spacing: 0.05em;">
+                                    <i class="fa fa-certificate"></i> Verified Store
+                                </span>
+                            {% endif %}
+                        </div>
+
+                        <p style="margin: 0 0 14px 0; color: #94a3b8; font-size: 0.92rem; line-height: 1.55; max-width: 620px;">
+                            {{ current_seller.shop_description|default:"Welcome to our official flagship storefront on StallCart. Discover authentic premium products delivered with secure packaging and rapid courier dispatch." }}
+                        </p>
+
+                        <!-- Trust Metrics Grid -->
+                        <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap; font-size: 0.82rem;">
+                            <span style="background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.1); padding: 5px 12px; border-radius: 12px; color: #f1f5f9; display: inline-flex; align-items: center; gap: 6px;">
+                                <i class="fa fa-star" style="color: #fbbf24;"></i> <strong style="color: #ffffff;">{{ current_seller.rating|default:"5.0" }}</strong> / 5.0 Rating
+                            </span>
+                            <span style="background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.1); padding: 5px 12px; border-radius: 12px; color: #f1f5f9; display: inline-flex; align-items: center; gap: 6px;">
+                                <i class="fa fa-boxes" style="color: #60a5fa;"></i> <strong style="color: #ffffff;">{{ page_obj.paginator.count }}</strong> Original Product{{ page_obj.paginator.count|pluralize }}
+                            </span>
+                            <span style="background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.1); padding: 5px 12px; border-radius: 12px; color: #f1f5f9; display: inline-flex; align-items: center; gap: 6px;">
+                                <i class="fa fa-shipping-fast" style="color: #34d399;"></i> Fast Dispatch
+                            </span>
+                            <span style="background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.1); padding: 5px 12px; border-radius: 12px; color: #f1f5f9; display: inline-flex; align-items: center; gap: 6px;">
+                                <i class="fa fa-shield-alt" style="color: #a78bfa;"></i> Buyer Protected
+                            </span>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Share & Action Controls -->
-            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                <!-- WhatsApp Share Button -->
-                <a href="https://api.whatsapp.com/send?text=Check%20out%20products%20from%20{{ current_seller.shop_name|urlencode }}%20on%20StallCart%3A%20{{ request.build_absolute_uri|urlencode }}" 
-                   target="_blank" 
-                   rel="noopener"
-                   style="background: #25D366; color: #ffffff; text-decoration: none; padding: 10px 18px; border-radius: 10px; font-weight: 700; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 14px rgba(37, 211, 102, 0.3); transition: transform 0.2s;"
-                   title="Share Store on WhatsApp">
-                    <i class="fab fa-whatsapp" style="font-size: 1.15rem;"></i> Share Store
-                </a>
-                
-                <!-- Copy Link Button -->
-                <button type="button" 
-                        onclick="copyStoreLink(this, '{{ request.build_absolute_uri }}')" 
-                        style="background: rgba(255, 255, 255, 0.12); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.2); padding: 10px 16px; border-radius: 10px; font-weight: 700; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; transition: background 0.2s;">
-                    <i class="fa fa-copy"></i> Copy Link
-                </button>
+                <!-- Right: Sharing Controls & Seller Acquisition Pill -->
+                <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 14px; flex-shrink: 0;">
+                    <!-- Prospective Seller Acquisition Pill -->
+                    <a href="{% url 'accounts:register' %}?role=seller" 
+                       style="background: rgba(99, 102, 241, 0.18); border: 1px solid rgba(165, 180, 252, 0.3); padding: 6px 14px; border-radius: 20px; font-size: 0.78rem; font-weight: 700; color: #c7d2fe; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s; box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);">
+                        <i class="fa fa-rocket" style="color: #fbbf24;"></i> Want your own store? <span style="text-decoration: underline;">Sell on StallCart &rarr;</span>
+                    </a>
 
-                <!-- View All Products link to clear seller filter -->
-                <a href="{% url 'items:product_list' %}" 
-                   style="background: transparent; color: #94a3b8; border: 1px solid #475569; padding: 10px 16px; border-radius: 10px; font-weight: 600; font-size: 0.85rem; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; transition: color 0.2s;">
-                    <i class="fa fa-times"></i> All Stores
-                </a>
+                    <!-- Share Action Buttons -->
+                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                        <!-- WhatsApp Share -->
+                        <a href="https://api.whatsapp.com/send?text=Explore%20our%20collection%20on%20StallCart!%20Visit%20my%20store%20{{ current_seller.shop_name|urlencode }}%3A%20{{ request.build_absolute_uri|urlencode }}" 
+                           target="_blank" 
+                           rel="noopener"
+                           style="background: linear-gradient(135deg, #25D366 0%, #128C7E 100%); color: #ffffff; text-decoration: none; padding: 11px 18px; border-radius: 12px; font-weight: 800; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 6px 18px rgba(37, 211, 102, 0.35); transition: transform 0.2s;"
+                           title="Share Storefront on WhatsApp">
+                            <i class="fab fa-whatsapp" style="font-size: 1.15rem;"></i> Share Store
+                        </a>
+                        
+                        <!-- Copy Bio Link Button -->
+                        <button type="button" 
+                                onclick="copyStoreLink(this, '{{ request.build_absolute_uri }}')" 
+                                style="background: rgba(255, 255, 255, 0.12); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.25); padding: 11px 18px; border-radius: 12px; font-weight: 800; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; transition: background 0.2s; backdrop-filter: blur(8px);"
+                                title="Copy Store Link for Instagram / Social Bio">
+                            <i class="fa fa-link"></i> Copy Bio Link
+                        </button>
+
+                        <!-- Clear filter to browse all stores -->
+                        <a href="{% url 'items:product_list' %}" 
+                           style="background: transparent; color: #94a3b8; border: 1px solid rgba(255, 255, 255, 0.15); padding: 11px 16px; border-radius: 12px; font-weight: 600; font-size: 0.84rem; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; transition: color 0.2s;">
+                            <i class="fa fa-th-large"></i> All Stores
+                        </a>
+                    </div>
+                </div>
             </div>
         </div>
         {% elif matched_seller %}
@@ -618,6 +660,28 @@
                 </div><!-- /.shop-catalog-content -->
             </div><!-- /.shop-layout -->
         </form>
+
+        {% if current_seller %}
+        <!-- Premier Seller Recruitment CTA for Storefront Visitors -->
+        <div style="margin-top: 40px; background: linear-gradient(135deg, #0b1120 0%, #1e1b4b 60%, #311042 100%); border: 1px solid rgba(255,255,255,0.12); border-radius: 20px; padding: 32px 28px; color: #fff; box-shadow: 0 16px 36px -10px rgba(15,23,42,0.4); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 20px;">
+            <div style="max-width: 620px;">
+                <div style="display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #38bdf8; background: rgba(56,189,248,0.12); border: 1px solid rgba(56,189,248,0.3); padding: 4px 10px; border-radius: 999px; margin-bottom: 12px;">
+                    <i class="fa fa-rocket"></i> Sell on StallCart
+                </div>
+                <h3 style="font-size: 22px; font-weight: 800; margin: 0 0 8px; color: #ffffff; letter-spacing: -0.02em;">
+                    Want to launch your own online storefront like {{ current_seller.shop_name }}?
+                </h3>
+                <p style="margin: 0; font-size: 14px; line-height: 1.55; color: #cbd5e1;">
+                    List your products, share your personal store link on your Instagram bio & WhatsApp, and reach thousands of verified buyers with automated Shiprocket logistics.
+                </p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <a href="{% url 'accounts:register' %}?role=seller" style="display: inline-flex; align-items: center; gap: 8px; background: linear-gradient(135deg, #6366f1, #4f46e5); color: #ffffff; font-weight: 700; font-size: 14px; padding: 12px 24px; border-radius: 12px; text-decoration: none; box-shadow: 0 8px 20px -4px rgba(99,102,241,0.5); transition: all 0.2s ease;">
+                    <i class="fa fa-store"></i> Start Selling Free <i class="fa fa-arrow-right" style="font-size: 11px;"></i>
+                </a>
+            </div>
+        </div>
+        {% endif %}
 
     </div>
 </section>
