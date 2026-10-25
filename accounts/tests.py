@@ -1439,5 +1439,21 @@ class ResendOTPTests(TestCase):
         self.assertTrue(self.user.check_password('NewSecurePassword123!'))
 
 
+class RoleSelectionRegistrationTests(TestCase):
+    def test_register_page_role_seller(self):
+        """When ?role=seller is present in query string, the seller role is selected by default."""
+        from django.urls import reverse
+        res = self.client.get(f"{reverse('accounts:register')}?role=seller")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.context['form']['user_role'].value(), 'seller')
+        seller_radio = [r for r in res.context['form']['user_role'] if r.data['value'] == 'seller'][0]
+        self.assertTrue(seller_radio.data['selected'])
 
-
+    def test_register_page_default_customer(self):
+        """When no role is passed, customer is default."""
+        from django.urls import reverse
+        res = self.client.get(reverse('accounts:register'))
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.context['form']['user_role'].value(), 'customer')
+        customer_radio = [r for r in res.context['form']['user_role'] if r.data['value'] == 'customer'][0]
+        self.assertTrue(customer_radio.data['selected'])

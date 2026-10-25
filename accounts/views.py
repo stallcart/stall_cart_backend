@@ -420,7 +420,11 @@ def register_view(request):
         form = UserRegistrationForm(request.POST)
         form.add_error(None, "OTP Verification is required to create an account. Please enable JavaScript to verify.")
     else:
-        form = UserRegistrationForm()
+        role_param = request.GET.get('role', '').lower().strip()
+        initial = {}
+        if role_param in ['seller', 'customer']:
+            initial['user_role'] = role_param
+        form = UserRegistrationForm(initial=initial)
     
     return render(request, 'accounts/register.html', {'form': form})
 @login_required

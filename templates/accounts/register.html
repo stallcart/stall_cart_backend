@@ -246,10 +246,28 @@ document.addEventListener('DOMContentLoaded', () => {
         alert(`${type.toUpperCase()}: ${msg}`);
     }
     
+    function updateRoleSelectionVisuals() {
+        roleRadios.forEach(radio => {
+            const label = radio.closest('.role-option');
+            if (label) {
+                if (radio.checked) {
+                    label.classList.add('selected');
+                    label.style.borderColor = 'var(--primary-color, #2874f0)';
+                    label.style.background = '#f0f5ff';
+                } else {
+                    label.classList.remove('selected');
+                    label.style.borderColor = '#ddd';
+                    label.style.background = '#fff';
+                }
+            }
+        });
+    }
+    
     // Toggle seller fields based on role selection
     function toggleSellerFields() {
         const isSeller = document.querySelector('input[name="user_role"]:checked')?.value === 'seller';
         sellerFields.style.display = isSeller ? 'block' : 'none';
+        updateRoleSelectionVisuals();
         
         // Toggle required attribute for seller fields
         const sellerInputs = sellerFields.querySelectorAll('input, textarea');
@@ -260,6 +278,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 input.required = false;
             }
         });
+    }
+
+    // Check URL parameters for role (e.g. ?role=seller)
+    const urlParams = new URLSearchParams(window.location.search);
+    const roleParam = urlParams.get('role')?.toLowerCase();
+    if (roleParam === 'seller' || roleParam === 'customer') {
+        const targetRadio = document.querySelector(`input[name="user_role"][value="${roleParam}"]`);
+        if (targetRadio) {
+            targetRadio.checked = true;
+        }
     }
     
     // Add event listeners to role radios
