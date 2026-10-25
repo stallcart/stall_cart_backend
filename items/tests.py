@@ -2233,3 +2233,108 @@ class SellerStorefrontAndSearchTests(TestCase):
         self.assertEqual(store_res.context['current_seller'], self.seller1)
 
 
+class SellerDashboardOrdersAndFinancialsTests(TestCase):
+    def setUp(self):
+        from orders.models import Order, OrderItem, SellerSettlement
+        self.seller_user = User.objects.create_user(
+            phone="9988776655", password="password123", role="seller", full_name="Fin Seller"
+        )
+        self.seller_profile = SellerProfile.objects.create(
+            user=self.seller_user, shop_name="Fin Store", is_verified=True,
+            bank_name="HDFC Bank", account_number="1234567890", ifsc_code="HDFC0001234",
+            account_holder_name="Fin Seller"
+        )
+        self.category = Category.objects.create(name="Electronics", commision_percentage=10.0)
+        self.product = Product.objects.create(
+            seller=self.seller_profile, category=self.category, name="Smart Gadget",
+            price=Decimal("1000.00"), stock=50, status="published"
+        )
+        self.order = Order.objects.create(
+            unique_order_id="ORD-TEST-001", payment_method="razorpay", payment_status="paid",
+            status="delivered", total_amount=Decimal("4000.00")
+        )
+
+        # Item 1: Delivered & Settled (Paid by admin)
+        # Price 1000, qty 1, 10% commission = 100, net = 900
+        self.item1 = OrderItem.objects.create(
+            order=self.order, product=self.product, seller=self.seller_profile,
+            quantity=1, price=Decimal("1000.00"), total=Decimal("1000.00"), status="delivered"
+        )
+        self.settlement_done = SellerSettlement.objects.create(
+            seller=self.seller_profile, status="processed", payment_reference="UTR-PAID-999"
+        )
+        self.settlement_done.order_items.add(self.item1)
+
+        # Item 2: Delivered & Pending Settlement (Due from admin)
+        self.item2 = OrderItem.objects.create(
+            order=self.order, product=self.product, seller=self.seller_profile,
+            quantity=1, price=Decimal("1000.00"), total=Decimal("1000.00"), status="delivered"
+        )
+        self.settlement_pending = SellerSettlement.objects.create(
+            seller=self.seller_profile, status="pending"
+        )
+        self.settlement_pending.order_items.add(self.item2)
+
+        # Item 3: Delivered & Unsettled (Due from admin, no batch yet)
+        self.item3 = OrderItem.objects.create(
+            order=self.order, product=self.product, seller=self.seller_profile,
+            quantity=1, price=Decimal("1000.00"), total=Decimal("1000.00"), status="delivered"
+        )
+
+        # Item 4: In Transit (shipped)
+        self.item4 = OrderItem.objects.create(
+            order=self.order, product=self.product, seller=self.seller_profile,
+            quantity=1, price=Decimal("1000.00"), total=Decimal("1000.00"), status="shipped"
+        )
+
+        # Item 5: Cancelled
+        self.item5 = OrderItem.objects.create(
+            order=self.order, product=self.product, seller=self.seller_profile,
+            quantity=1, price=Decimal("1000.00"), total=Decimal("1000.00"), status="cancelled"
+        )
+
+    def test_order_item_payout_status_properties(self):
+        """Test OrderItem payout_status and latest_settlement properties."""
+        self.assertEqual(self.item1.payout_status, "received")
+        self.assertEqual(self.item1.payout_status_display, "Received (Settled)")
+        self.assertEqual(self.item1.latest_settlement, self.settlement_done)
+
+        self.assertEqual(self.item2.payout_status, "pending")
+        self.assertEqual(self.item2.payout_status_display, "Pending Payout")
+
+        self.assertEqual(self.item3.payout_status, "due")
+        self.assertEqual(self.item3.payout_status_display, "Due from Admin")
+
+        self.assertEqual(self.item4.payout_status, "in_transit")
+        self.assertEqual(self.item5.payout_status, "cancelled")
+
+    def test_seller_dashboard_view_financials_and_payouts(self):
+        """Seller dashboard accurately computes received, due, and total net profit."""
+        self.client.force_login(self.seller_user)
+        dashboard_url = reverse('items:seller_dashboard')
+        res = self.client.get(dashboard_url)
+        self.assertEqual(res.status_code, 200)
+
+        finance_stats = res.context['finance_stats']
+        # Item 1 net = 900
+        self.assertEqual(finance_stats['amount_received'], Decimal("900.00"))
+        # Item 2 net (900) + Item 3 net (900) = 1800
+        self.assertEqual(finance_stats['amount_due'], Decimal("1800.00"))
+        # Total profit = 900 + 1800 = 2700
+        self.assertEqual(finance_stats['total_profit'], Decimal("2700.00"))
+        # In transit = 900
+        self.assertEqual(finance_stats['in_transit_profit'], Decimal("900.00"))
+
+        # Verify HTML contains all key elements
+        content = res.content.decode('utf-8')
+        self.assertIn("Total Net Profit", content)
+        self.assertIn("Received from Admin", content)
+        self.assertIn("Due from Admin", content)
+        self.assertIn("In-Transit Pipeline", content)
+        self.assertIn("Orders & Item Profits", content)
+        self.assertIn("Admin Settlements", content)
+        self.assertIn("Paid by Admin", content)
+        self.assertIn("Due from Admin", content)
+        self.assertIn("UTR-PAID-999", content)
+
+

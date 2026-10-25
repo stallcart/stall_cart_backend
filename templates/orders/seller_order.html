@@ -11,7 +11,7 @@
             <h2><i class="fa fa-box" style="margin-right: 8px;"></i>Orders Received</h2>
             <p class="text-muted">Manage fulfillment for your products</p>
         </div>
-        <div class="stats-row">
+        <div class="stats-row" style="flex-wrap: wrap;">
             <div class="stat-card">
                 <span>{{ order_items.count }}</span>
                 <small>Total Items</small>
@@ -23,6 +23,18 @@
             <div class="stat-card success">
                 <span>{{ delivered_count|default:"0" }}</span>
                 <small>Delivered</small>
+            </div>
+            <div class="stat-card" style="border-left: 3px solid #2563eb;">
+                <span style="color: #2563eb;">₹{{ total_profit|floatformat:2 }}</span>
+                <small>Total Profit</small>
+            </div>
+            <div class="stat-card success" style="border-left: 3px solid #10b981;">
+                <span style="color: #059669;">₹{{ amount_received|floatformat:2 }}</span>
+                <small>Received from Admin</small>
+            </div>
+            <div class="stat-card warning" style="border-left: 3px solid #f59e0b;">
+                <span style="color: #d97706;">₹{{ amount_due|floatformat:2 }}</span>
+                <small>Due from Admin</small>
             </div>
         </div>
     </div>
@@ -140,12 +152,35 @@
                 <div class="item-price" style="text-align: right;">
                     <div style="font-weight: 700; color: #2874f0;">₹{{ item.total|floatformat:2 }}</div>
                     {% if item.status == 'delivered' %}
-                        <div style="font-size: 0.75rem; color: #2e7d32; font-weight: 600;">Earnings: ₹{{ item.seller_earnings|floatformat:2 }}</div>
+                        <div style="font-size: 0.75rem; color: #2e7d32; font-weight: 600;">Profit: ₹{{ item.seller_earnings|floatformat:2 }}</div>
                     {% elif item.status == 'cancelled' %}
-                        <div style="font-size: 0.75rem; color: #c62828;">Earnings: ₹0.00</div>
+                        <div style="font-size: 0.75rem; color: #c62828;">Profit: ₹0.00</div>
                     {% else %}
-                        <div style="font-size: 0.75rem; color: #666; font-style: italic;">Est. Earnings: ₹{{ item.seller_earnings|floatformat:2 }}</div>
+                        <div style="font-size: 0.75rem; color: #666; font-style: italic;">Est. Profit: ₹{{ item.seller_earnings|floatformat:2 }}</div>
                     {% endif %}
+                    <div style="margin-top: 6px;">
+                        {% if item.payout_status == 'received' %}
+                            <span style="font-size: 0.72rem; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 2px 7px; border-radius: 4px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;" title="Settlement {{ item.latest_settlement.settlement_id }}{% if item.latest_settlement.payment_reference %} | Ref: {{ item.latest_settlement.payment_reference }}{% endif %}">
+                                <i class="fa fa-check-circle"></i> Received from Admin
+                            </span>
+                        {% elif item.payout_status == 'due' %}
+                            <span style="font-size: 0.72rem; background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; padding: 2px 7px; border-radius: 4px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">
+                                <i class="fa fa-hourglass-half"></i> Due from Admin
+                            </span>
+                        {% elif item.payout_status == 'pending' %}
+                            <span style="font-size: 0.72rem; background: #fef3c7; color: #92400e; border: 1px solid #fde68a; padding: 2px 7px; border-radius: 4px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">
+                                <i class="fa fa-clock"></i> Payout Processing
+                            </span>
+                        {% elif item.payout_status == 'in_transit' %}
+                            <span style="font-size: 0.72rem; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; padding: 2px 7px; border-radius: 4px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+                                <i class="fa fa-truck"></i> Due on Delivery
+                            </span>
+                        {% else %}
+                            <span style="font-size: 0.72rem; background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; padding: 2px 7px; border-radius: 4px; font-weight: 600;">
+                                Cancelled
+                            </span>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
             {% endfor %}

@@ -630,6 +630,59 @@ class OrderItem(BaseModel):
             return f"https://tracking.delhivery.com/{self.tracking_number}"
         return f"https://shiprocket.co/tracking/{self.tracking_number}"
 
+    @property
+    def latest_settlement(self):
+        """Returns the most relevant settlement for this item."""
+        if hasattr(self, '_prefetched_objects_cache') and 'settlements' in self._prefetched_objects_cache:
+            settls = self.settlements.all()
+            for s in settls:
+                if s.status == 'processed':
+                    return s
+            for s in settls:
+                if s.status == 'pending':
+                    return s
+            return settls[0] if settls else None
+        return self.settlements.order_by('-created_at').first()
+
+    @property
+    def payout_status(self):
+        """
+        Calculates settlement payout status from admin:
+        - 'received': Admin has processed & paid out this item.
+        - 'pending': Item is in a pending settlement batch awaiting payout.
+        - 'due': Item is delivered, not yet settled, payout is due from admin.
+        - 'in_transit': Item is active/in transit, earnings expected upon delivery.
+        - 'cancelled': Item was cancelled, returned, or refunded (no payout).
+        - 'failed': Settlement payout failed.
+        """
+        if self.status in ('cancelled', 'returned', 'returned_to_source', 'refund_initiated', 'refunded', 'courier_failed_pickup', 'seller_unresponsive') or self.is_returned:
+            return 'cancelled'
+            
+        settlement = self.latest_settlement
+        if settlement:
+            if settlement.status == 'processed':
+                return 'received'
+            elif settlement.status == 'pending':
+                return 'pending'
+            elif settlement.status == 'failed':
+                return 'failed'
+                
+        if self.status == 'delivered':
+            return 'due'
+        return 'in_transit'
+
+    @property
+    def payout_status_display(self):
+        status_map = {
+            'received': 'Received (Settled)',
+            'pending': 'Pending Payout',
+            'due': 'Due from Admin',
+            'in_transit': 'In Progress / Due upon Delivery',
+            'cancelled': 'Cancelled / Refunded',
+            'failed': 'Payout Failed',
+        }
+        return status_map.get(self.payout_status, 'Due')
+
 
 
 class OrderStatusLog(BaseModel):

@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
+from decimal import Decimal
 from django.db.models import F, Avg, Count, Q, Sum, ProtectedError
 from .models import *
 from .forms import *
@@ -378,28 +379,94 @@ def seller_dashboard(request):
         paginated_products = paginator.page(paginator.num_pages)
 
     try:
-        from orders.models import OrderItem
-        recent_orders = (
+        from orders.models import OrderItem, SellerSettlement
+        raw_seller_order_items = (
             OrderItem.objects
-            .filter(
-                product__seller=seller,
-                order__status__in=['Pending', 'Processing', 'Out for Delivery']
-            )
-            .select_related('order', 'product')
-            .order_by('-order__created_at')[:10]
+            .filter(Q(seller=seller) | Q(product__seller=seller))
+            .distinct()
+            .select_related('order', 'order__user', 'product', 'product__category', 'variant')
+            .prefetch_related('settlements')
+            .order_by('-order__created_at')
         )
-    except Exception:
-        recent_orders = []
+        all_order_items = list(raw_seller_order_items)
+
+        # Financial Calculations:
+        # 1. Settled / Received from Admin
+        amount_received = SellerSettlement.objects.filter(
+            seller=seller, status='processed'
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+
+        # 2. In Payout Process (Admin initiated pending settlement batch)
+        pending_settlements_amount = SellerSettlement.objects.filter(
+            seller=seller, status='pending'
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+
+        # 3. Delivered items awaiting settlement batch
+        unsettled_delivered_items = [
+            it for it in all_order_items 
+            if it.status == 'delivered' and not it.is_returned and it.payout_status == 'due'
+        ]
+        unsettled_delivered_amount = sum((it.seller_earnings for it in unsettled_delivered_items), Decimal('0.00'))
+
+        # Total Amount Due from Admin
+        amount_due = pending_settlements_amount + unsettled_delivered_amount
+
+        # Total Net Profit (Earned from delivered orders)
+        total_profit = amount_received + amount_due
+
+        # In-Transit Expected Profit
+        in_transit_items = [
+            it for it in all_order_items 
+            if it.payout_status == 'in_transit' and not it.is_returned
+        ]
+        in_transit_profit = sum((it.seller_earnings for it in in_transit_items), Decimal('0.00'))
+
+        total_gross_delivered = sum((it.total for it in all_order_items if it.status == 'delivered' and not it.is_returned), Decimal('0.00'))
+        total_commission_delivered = sum((it.commission_amount for it in all_order_items if it.status == 'delivered' and not it.is_returned), Decimal('0.00'))
+
+        settlements = list(SellerSettlement.objects.filter(seller=seller).order_by('-created_at')[:50])
+
+        finance_stats = {
+            'total_profit': total_profit,
+            'amount_received': amount_received,
+            'amount_due': amount_due,
+            'in_transit_profit': in_transit_profit,
+            'total_gross_delivered': total_gross_delivered,
+            'total_commission_delivered': total_commission_delivered,
+            'total_orders_count': len(set(it.order_id for it in all_order_items)),
+            'total_items_count': len(all_order_items),
+            'delivered_items_count': len([it for it in all_order_items if it.status == 'delivered']),
+            'pending_items_count': len(in_transit_items),
+        }
+        seller_order_items = all_order_items
+    except Exception as e:
+        finance_stats = {
+            'total_profit': Decimal('0.00'),
+            'amount_received': Decimal('0.00'),
+            'amount_due': Decimal('0.00'),
+            'in_transit_profit': Decimal('0.00'),
+            'total_gross_delivered': Decimal('0.00'),
+            'total_commission_delivered': Decimal('0.00'),
+            'total_orders_count': 0,
+            'total_items_count': 0,
+            'delivered_items_count': 0,
+            'pending_items_count': 0,
+        }
+        seller_order_items = []
+        settlements = []
 
     has_bank_details = bool(seller.bank_name and seller.account_number and seller.ifsc_code and seller.account_holder_name)
 
     context = {
-        'seller':        seller,
-        'products':      paginated_products,
-        'stats':         stats,
-        'recent_orders': recent_orders,
-        'categories':    Category.objects.filter(is_active=True),
-        'has_bank_details': has_bank_details,
+        'seller':             seller,
+        'products':           paginated_products,
+        'stats':              stats,
+        'finance_stats':      finance_stats,
+        'seller_order_items': seller_order_items,
+        'settlements':        settlements,
+        'recent_orders':      seller_order_items[:10],
+        'categories':         Category.objects.filter(is_active=True),
+        'has_bank_details':   has_bank_details,
         'filters': {
             'search':   search,
             'status':   status,

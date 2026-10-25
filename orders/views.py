@@ -955,18 +955,37 @@ def seller_orders(request):
     if status_filter:
         order_items = order_items.filter(status=status_filter)
         
-    pending_count = order_items.filter(status='pending').count()
-    delivered_count = order_items.filter(status='delivered').count()
-    pending_returns = ReturnRequest.objects.filter(
-        order_item__product__seller=seller,
-        status__in=['requested', 'approved', 'pickup_scheduled', 'picked_up', 'received']
-    ).select_related('order_item__product', 'order_item__order', 'order_item__variant').order_by('-created_at')
+    order_items = order_items.prefetch_related('settlements')
 
-    context = {'order_items': order_items, 'seller': seller, 'filters': request.GET.dict(),
-            'pending_count': pending_count,
-            'delivered_count': delivered_count,
-            'pending_returns': pending_returns,
-            }
+    # Financial Summary
+    amount_received = SellerSettlement.objects.filter(
+        seller=seller, status='processed'
+    ).aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
+
+    pending_settlements_amount = SellerSettlement.objects.filter(
+        seller=seller, status='pending'
+    ).aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
+
+    all_seller_items = list(OrderItem.objects.filter(product__seller=seller).prefetch_related('settlements'))
+    unsettled_delivered = [
+        it for it in all_seller_items 
+        if it.status == 'delivered' and not it.is_returned and it.payout_status == 'due'
+    ]
+    unsettled_delivered_amount = sum((it.seller_earnings for it in unsettled_delivered), Decimal('0.00'))
+    amount_due = pending_settlements_amount + unsettled_delivered_amount
+    total_profit = amount_received + amount_due
+
+    context = {
+        'order_items':      order_items,
+        'seller':           seller,
+        'filters':          request.GET.dict(),
+        'pending_count':    pending_count,
+        'delivered_count':  delivered_count,
+        'pending_returns':  pending_returns,
+        'amount_received':  amount_received,
+        'amount_due':       amount_due,
+        'total_profit':     total_profit,
+    }
     return render(request, 'orders/seller_order.html', context)
 
 @login_required
