@@ -296,6 +296,14 @@
                     <i class="fa fa-clipboard-list"></i>
                     <span class="hide-mobile">Manage Orders</span>
                 </a>
+                {% if user.is_superuser or user.is_staff %}
+                    <a href="{% url 'orders:admin_settlements_dashboard' %}"
+                       class="nav-link {% if request.resolver_match.url_name == 'admin_settlements_dashboard' %}active{% endif %}"
+                       title="Seller Settlements & Payouts">
+                        <i class="fa fa-money-bill-wave" style="color: #059669;"></i>
+                        <span class="hide-mobile">Payouts</span>
+                    </a>
+                {% endif %}
             {% else %}
                 <a href="{% url 'items:product_list' %}"
                    class="nav-link {% if request.resolver_match.url_name == 'product_list' %}active{% endif %}">
@@ -476,6 +484,12 @@
                     <span class="mobile-nav-icon"><i class="fa fa-clipboard-list"></i></span>
                     Manage Orders
                 </a>
+                {% if user.is_superuser or user.is_staff %}
+                    <a href="{% url 'orders:admin_settlements_dashboard' %}" class="mobile-nav-item">
+                        <span class="mobile-nav-icon" style="color: #059669;"><i class="fa fa-money-bill-wave"></i></span>
+                        Seller Payouts & Settlements
+                    </a>
+                {% endif %}
             {% endif %}
         {% endif %}
 

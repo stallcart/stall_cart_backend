@@ -1585,10 +1585,70 @@ def admin_order_detail(request, order_id):
             'shiprocket_status': shiprocket_status,
             'tracking_url': tracking_url,
         })
+
+    # Compile per-seller financial & settlement summaries for this order
+    from collections import defaultdict
+    seller_payout_summaries = {}
+    items_by_seller = defaultdict(list)
+    for it in order.items.select_related('seller', 'seller__user', 'product', 'product__category', 'variant').prefetch_related('settlements'):
+        items_by_seller[it.seller].append(it)
+        
+    unsettled_sellers_count = 0
+    for seller, s_items in items_by_seller.items():
+        total_val = sum((it.total for it in s_items), Decimal('0.00'))
+        total_comm = sum((it.commission_amount for it in s_items), Decimal('0.00'))
+        net_payout = sum((it.seller_earnings for it in s_items), Decimal('0.00'))
+        
+        # Check settlements
+        settled_items = [it for it in s_items if it.payout_status == 'received']
+        pending_items = [it for it in s_items if it.payout_status == 'pending']
+        due_items = [it for it in s_items if it.payout_status == 'due']
+        in_transit_items = [it for it in s_items if it.payout_status == 'in_transit']
+        cancelled_items = [it for it in s_items if it.payout_status == 'cancelled']
+        
+        latest_sett = None
+        for it in s_items:
+            s = it.latest_settlement
+            if s:
+                latest_sett = s
+                break
+                
+        if len(settled_items) == len(s_items) and len(s_items) > 0:
+            payout_status = 'settled'
+        elif len(pending_items) > 0:
+            payout_status = 'pending'
+        elif len(due_items) > 0:
+            payout_status = 'due'
+            unsettled_sellers_count += 1
+        elif len(in_transit_items) > 0:
+            payout_status = 'in_transit'
+        elif len(cancelled_items) == len(s_items):
+            payout_status = 'cancelled'
+        else:
+            payout_status = 'due'
+            unsettled_sellers_count += 1
+            
+        has_bank = bool(seller.bank_name and seller.account_number and seller.ifsc_code)
+        
+        seller_payout_summaries[seller.id] = {
+            'seller': seller,
+            'items': s_items,
+            'items_count': len(s_items),
+            'gross_total': total_val,
+            'commission': total_comm,
+            'net_payout': net_payout,
+            'status': payout_status,
+            'latest_settlement': latest_sett,
+            'has_bank_details': has_bank,
+            'unsettled_item_ids': [it.id for it in s_items if it.payout_status in ('due', 'in_transit') and not it.is_returned],
+        }
         
     context = {
         'order': order,
         'shipments_list': shipments_list,
+        'seller_payout_summaries': seller_payout_summaries,
+        'seller_payout_list': list(seller_payout_summaries.values()),
+        'unsettled_sellers_count': unsettled_sellers_count,
     }
     return render(request, 'orders/admin_order_detail.html', context)
 
@@ -2957,6 +3017,319 @@ def seller_ready_for_pickup(request, order_id):
         })
     else:
         return JsonResponse({'status': 'error', 'message': msg}, status=400)
+
+
+# ==================== ADMIN SETTLEMENTS & SELLER PAYOUTS ====================
+
+@login_required
+@admin_only
+@require_POST
+def admin_settle_order_seller_ajax(request, order_id, seller_id):
+    """
+    Admin: Payout & settle order items for a specific seller in an order.
+    Supports either RazorpayX automated bank payout or manual transfer (NEFT/RTGS/UPI).
+    """
+    import uuid
+    from items.models import SellerProfile
+    from orders.models import SellerSettlement, SystemActivityLog, OrderItem
+    order = get_object_or_404(Order, unique_order_id=order_id)
+    seller = get_object_or_404(SellerProfile, id=seller_id)
+
+    try:
+        data = json.loads(request.body) if request.body else request.POST
+    except Exception:
+        data = request.POST
+
+    payment_method = (data.get('payment_method') or 'manual').strip().lower()
+    payment_mode = (data.get('payment_mode') or 'Direct Bank Transfer (NEFT/RTGS)').strip()
+    reference = (data.get('payment_reference') or '').strip()
+    notes = (data.get('notes') or '').strip()
+    simulate = data.get('simulate') is True or request.GET.get('simulate') == '1'
+
+    with transaction.atomic():
+        # Select items for this seller in this order that are not returned, not cancelled/failed
+        items = list(
+            OrderItem.objects.select_for_update()
+            .filter(order=order, seller=seller, is_returned=False)
+            .exclude(status__in=['cancelled', 'rto', 'rto_in_transit', 'rto_delivered', 'returned', 'failed'])
+        )
+
+        # Check if already settled
+        unsettled_items = []
+        for it in items:
+            if it.latest_settlement and it.latest_settlement.status == 'processed':
+                continue
+            unsettled_items.append(it)
+
+        if not unsettled_items:
+            return JsonResponse({
+                'status': 'error',
+                'message': f'All items for {seller.shop_name} in this order are already settled or cancelled.'
+            }, status=400)
+
+        # If bank details missing and trying RazorpayX
+        if payment_method == 'razorpayx' and not (seller.account_number and seller.ifsc_code):
+            return JsonResponse({
+                'status': 'error',
+                'message': f'Cannot initiate RazorpayX payout: Seller {seller.shop_name} has not completed bank details.'
+            }, status=400)
+
+        # Create the settlement record
+        settlement = SellerSettlement.objects.create(
+            seller=seller,
+            status='pending'
+        )
+        settlement.order_items.add(*unsettled_items)
+        settlement.refresh_from_db()
+
+        if payment_method == 'razorpayx':
+            if simulate:
+                payout_id = f"pout_test_{uuid.uuid4().hex[:14]}"
+                settlement.status = 'processed'
+                settlement.razorpay_payout_id = payout_id
+                settlement.payment_reference = payout_id
+                settlement.settled_at = timezone.now()
+                settlement.save()
+
+                SystemActivityLog.log(
+                    event_type='settlement_processed',
+                    description=f"Admin {request.user.phone} simulated RazorpayX payout of ₹{settlement.amount} for seller {seller.shop_name} (Order #{order.unique_order_id}). Test Payout ID: {payout_id}.",
+                    order=order,
+                    settlement=settlement,
+                    status='success'
+                )
+                settlement.send_notification_email()
+                return JsonResponse({
+                    'status': 'success',
+                    'message': f"✅ [TEST MODE] RazorpayX payout of ₹{settlement.amount} simulated successfully for {seller.shop_name}! Ref: {payout_id}.",
+                    'settlement_id': settlement.settlement_id,
+                    'amount': str(settlement.amount),
+                    'payment_reference': payout_id,
+                    'payout_status': 'processed'
+                })
+            else:
+                from .razorpayx_service import initiate_payout
+                success, msg = initiate_payout(settlement)
+                if not success:
+                    return JsonResponse({'status': 'error', 'message': f'RazorpayX Payout Error: {msg}'}, status=400)
+                return JsonResponse({
+                    'status': 'success',
+                    'message': f'✅ RazorpayX Payout initiated for ₹{settlement.amount} to {seller.shop_name}!',
+                    'settlement_id': settlement.settlement_id,
+                    'amount': str(settlement.amount),
+                    'payment_reference': settlement.razorpay_payout_id or settlement.payment_reference,
+                    'payout_status': settlement.status
+                })
+        else:
+            # Manual Bank Transfer / NEFT / UPI
+            if not reference:
+                mode_prefix = 'UPI' if 'UPI' in payment_mode.upper() else 'NEFT'
+                reference = f"{mode_prefix}-{timezone.now().strftime('%Y%m%d%H%M%S')}"
+
+            settlement.status = 'processed'
+            settlement.payment_reference = reference
+            settlement.settled_at = timezone.now()
+            settlement.save()
+
+            log_desc = f"Admin {request.user.phone} manually settled ₹{settlement.amount} via {payment_mode} for {seller.shop_name} (Order #{order.unique_order_id}). Ref: {reference}."
+            if notes:
+                log_desc += f" Notes: {notes}"
+
+            SystemActivityLog.log(
+                event_type='settlement_processed',
+                description=log_desc,
+                order=order,
+                settlement=settlement,
+                status='success'
+            )
+            settlement.send_notification_email()
+
+            return JsonResponse({
+                'status': 'success',
+                'message': f'✅ Settle & Payout marked as Paid for ₹{settlement.amount} to {seller.shop_name}! Ref: {reference}',
+                'settlement_id': settlement.settlement_id,
+                'amount': str(settlement.amount),
+                'payment_reference': reference,
+                'payout_status': 'processed'
+            })
+
+
+@login_required
+@admin_only
+@require_POST
+def admin_settle_entire_order_ajax(request, order_id):
+    """
+    Admin: Settle all distinct sellers with unsettled items in an order.
+    """
+    import uuid
+    from orders.models import SellerSettlement, SystemActivityLog, OrderItem
+    order = get_object_or_404(Order, unique_order_id=order_id)
+    try:
+        data = json.loads(request.body) if request.body else request.POST
+    except Exception:
+        data = request.POST
+
+    payment_method = (data.get('payment_method') or 'manual').strip().lower()
+    payment_mode = (data.get('payment_mode') or 'Direct Bank Transfer (NEFT/RTGS)').strip()
+    reference_prefix = (data.get('payment_reference') or '').strip()
+    simulate = data.get('simulate') is True or request.GET.get('simulate') == '1'
+
+    from collections import defaultdict
+    items_by_seller = defaultdict(list)
+    for it in order.items.select_related('seller').prefetch_related('settlements'):
+        if it.payout_status in ('due', 'in_transit') and not it.is_returned:
+            items_by_seller[it.seller].append(it)
+
+    if not items_by_seller:
+        return JsonResponse({
+            'status': 'error',
+            'message': 'No unsettled items found in this order.'
+        }, status=400)
+
+    settled_results = []
+    with transaction.atomic():
+        for seller, s_items in items_by_seller.items():
+            settlement = SellerSettlement.objects.create(
+                seller=seller,
+                status='pending'
+            )
+            settlement.order_items.add(*s_items)
+            settlement.refresh_from_db()
+
+            if payment_method == 'razorpayx':
+                if simulate:
+                    payout_id = f"pout_test_{uuid.uuid4().hex[:14]}"
+                    settlement.status = 'processed'
+                    settlement.razorpay_payout_id = payout_id
+                    settlement.payment_reference = payout_id
+                    settlement.settled_at = timezone.now()
+                    settlement.save()
+                    settlement.send_notification_email()
+                    settled_results.append({
+                        'seller': seller.shop_name,
+                        'amount': str(settlement.amount),
+                        'settlement_id': settlement.settlement_id,
+                        'ref': payout_id
+                    })
+                else:
+                    from .razorpayx_service import initiate_payout
+                    success, msg = initiate_payout(settlement)
+                    settled_results.append({
+                        'seller': seller.shop_name,
+                        'amount': str(settlement.amount),
+                        'settlement_id': settlement.settlement_id,
+                        'ref': settlement.razorpay_payout_id or 'Initiated'
+                    })
+            else:
+                ref = reference_prefix if reference_prefix else f"BANK-{timezone.now().strftime('%Y%m%d%H%M%S')}-{seller.id}"
+                settlement.status = 'processed'
+                settlement.payment_reference = ref
+                settlement.settled_at = timezone.now()
+                settlement.save()
+                settlement.send_notification_email()
+                settled_results.append({
+                    'seller': seller.shop_name,
+                    'amount': str(settlement.amount),
+                    'settlement_id': settlement.settlement_id,
+                    'ref': ref
+                })
+
+    return JsonResponse({
+        'status': 'success',
+        'message': f'Successfully settled {len(settled_results)} seller(s) for Order #{order.unique_order_id}!',
+        'settled_results': settled_results
+    })
+
+
+@login_required
+@admin_only
+def admin_settlements_dashboard(request):
+    """
+    Dedicated Admin Dashboard for Seller Settlements, Payouts, and Commission Tracking.
+    """
+    from items.models import SellerProfile
+    from orders.models import SellerSettlement, OrderItem
+
+    total_settled_amount = SellerSettlement.objects.filter(
+        status='processed'
+    ).aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
+
+    total_commission_collected = SellerSettlement.objects.filter(
+        status='processed'
+    ).aggregate(total=models.Sum('commission_deducted'))['total'] or Decimal('0.00')
+
+    pending_settlements_amount = SellerSettlement.objects.filter(
+        status='pending'
+    ).aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
+
+    unsettled_delivered_items = OrderItem.objects.filter(
+        status='delivered',
+        is_returned=False,
+        settlements__isnull=True
+    ).select_related('order', 'seller', 'product', 'product__category')
+
+    unsettled_delivered_amount = sum(
+        (it.seller_earnings for it in unsettled_delivered_items), Decimal('0.00')
+    )
+    total_due_amount = pending_settlements_amount + unsettled_delivered_amount
+
+    from collections import defaultdict
+    unsettled_by_seller = defaultdict(list)
+    for it in unsettled_delivered_items:
+        unsettled_by_seller[it.seller].append(it)
+
+    unsettled_seller_cards = []
+    for sel, items in unsettled_by_seller.items():
+        gross = sum((it.total for it in items), Decimal('0.00'))
+        comm = sum((it.commission_amount for it in items), Decimal('0.00'))
+        net = sum((it.seller_earnings for it in items), Decimal('0.00'))
+        unsettled_seller_cards.append({
+            'seller': sel,
+            'items': items,
+            'items_count': len(items),
+            'gross_total': gross,
+            'commission': comm,
+            'net_payout': net,
+            'orders_count': len(set(it.order_id for it in items)),
+            'item_ids': [it.id for it in items],
+            'has_bank_details': bool(sel.bank_name and sel.account_number and sel.ifsc_code),
+        })
+
+    settlements_qs = SellerSettlement.objects.select_related(
+        'seller', 'seller__user'
+    ).prefetch_related('order_items').order_by('-created_at')
+
+    status_filter = request.GET.get('status', '').strip()
+    if status_filter:
+        settlements_qs = settlements_qs.filter(status=status_filter)
+
+    search_query = request.GET.get('q', '').strip()
+    if search_query:
+        settlements_qs = settlements_qs.filter(
+            Q(settlement_id__icontains=search_query) |
+            Q(seller__shop_name__icontains=search_query) |
+            Q(seller__user__phone__icontains=search_query) |
+            Q(payment_reference__icontains=search_query) |
+            Q(razorpay_payout_id__icontains=search_query)
+        )
+
+    from django.core.paginator import Paginator
+    paginator = Paginator(settlements_qs, 25)
+    page_num = request.GET.get('page', 1)
+    settlements_page = paginator.get_page(page_num)
+
+    context = {
+        'total_settled_amount': total_settled_amount,
+        'total_commission_collected': total_commission_collected,
+        'total_due_amount': total_due_amount,
+        'pending_settlements_amount': pending_settlements_amount,
+        'unsettled_seller_cards': unsettled_seller_cards,
+        'unsettled_count': len(unsettled_seller_cards),
+        'settlements': settlements_page,
+        'filters': {'status': status_filter, 'q': search_query},
+        'all_sellers': SellerProfile.objects.filter(is_verified=True).order_by('shop_name'),
+    }
+    return render(request, 'orders/admin_settlements.html', context)
 
 
 @require_POST

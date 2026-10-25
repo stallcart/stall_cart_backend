@@ -33,6 +33,22 @@ def split(value, arg):
 
 
 @register.filter
+def get_item(dictionary, key):
+    """Safely get an item from a dictionary or map using various key representations."""
+    if not dictionary or not hasattr(dictionary, 'get'):
+        return None
+    val = dictionary.get(key)
+    if val is None:
+        try:
+            val = dictionary.get(int(key))
+        except (ValueError, TypeError):
+            pass
+    if val is None and hasattr(key, 'id'):
+        val = dictionary.get(key.id)
+    return val
+
+
+@register.filter
 def is_in_wishlist(product, user):
     """Check if the product is in the user's wishlist"""
     if not user or not user.is_authenticated:

@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load custom_filters %}
 
 {% block title %}Order Details #{{ order.unique_order_id }} (Admin) | StallCart{% endblock %}
 
@@ -41,6 +42,11 @@
                         <i class="fa fa-truck-ramp-box"></i> Ready for Pickup
                     </button>
                     {% endif %}
+                {% endif %}
+                {% if unsettled_sellers_count > 1 %}
+                <button type="button" class="btn-primary" onclick="openSettleAllModal()" style="font-size: 0.85rem; padding: 8px 16px; border-radius: var(--r-md); border: none; cursor: pointer; font-weight: 700; height: 36px; display: inline-flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #059669, #047857); color: white; gap: 6px; box-shadow: 0 4px 12px rgba(5,150,105,0.25);">
+                    <i class="fa fa-money-bill-wave"></i> Settle All Sellers ({{ unsettled_sellers_count }})
+                </button>
                 {% endif %}
                 <button class="btn-primary" onclick="openStatusModal()" style="font-size: 0.85rem; padding: 8px 16px; border-radius: var(--r-md); border: none; cursor: pointer; font-weight: 700; height: 36px; display: inline-flex; align-items: center; justify-content: center;">
                     Update Status
@@ -159,6 +165,59 @@
                             </div>
                             {% endfor %}
                         </div>
+
+                        <!-- Seller Settlement & Payout Box -->
+                        {% with seller_summary=seller_payout_summaries|get_item:seller_group.grouper.id %}
+                        <div style="margin-top: 14px; padding: 12px 14px; background: white; border-radius: var(--r-lg); border: 1.5px solid var(--gray-200); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                            <div style="min-width: 220px;">
+                                <div style="font-size: 0.72rem; font-weight: 800; text-transform: uppercase; color: var(--gray-500); display: flex; align-items: center; gap: 6px; letter-spacing: 0.5px;">
+                                    <i class="fa fa-university" style="color: var(--blue-600);"></i> Seller Bank & Payout Status
+                                </div>
+                                <div style="font-size: 0.8rem; color: var(--gray-800); margin-top: 4px;">
+                                    {% if seller_group.grouper.bank_name %}
+                                        <strong>{{ seller_group.grouper.bank_name }}</strong> • A/C: ••••{{ seller_group.grouper.account_number|slice:"-4:" }} • IFSC: {{ seller_group.grouper.ifsc_code }}
+                                    {% else %}
+                                        <span style="color: #dc2626; font-weight: 600;"><i class="fa fa-exclamation-circle"></i> Bank Account Not Linked</span>
+                                    {% endif %}
+                                </div>
+                                <div style="font-size: 0.75rem; color: var(--gray-500); margin-top: 2px;">
+                                    Sales: ₹{{ seller_summary.gross_total|floatformat:2 }} | Comm: -₹{{ seller_summary.commission|floatformat:2 }} | <strong style="color: #047857;">Net Payout: ₹{{ seller_summary.net_payout|floatformat:2 }}</strong>
+                                </div>
+                            </div>
+
+                            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                                {% if seller_summary.status == 'settled' %}
+                                    <div style="text-align: right;">
+                                        <span style="font-size: 0.78rem; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 4px 10px; border-radius: 6px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;">
+                                            <i class="fa fa-check-circle"></i> Paid & Settled
+                                        </span>
+                                        <div style="font-size: 0.72rem; color: var(--gray-500); margin-top: 2px;">
+                                            Ref: <strong>{{ seller_summary.latest_settlement.payment_reference|default:seller_summary.latest_settlement.razorpay_payout_id|default:"Paid" }}</strong>
+                                            {% if seller_summary.latest_settlement.settled_at %}
+                                                • {{ seller_summary.latest_settlement.settled_at|date:"d M, h:i A" }}
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                {% elif seller_summary.status == 'pending' %}
+                                    <div style="text-align: right;">
+                                        <span style="font-size: 0.78rem; background: #fffbeb; color: #b45309; border: 1px solid #fde68a; padding: 4px 10px; border-radius: 6px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;">
+                                            <i class="fa fa-clock"></i> Payout Processing
+                                        </span>
+                                        <div style="font-size: 0.72rem; color: var(--gray-500); margin-top: 2px;">
+                                            Settlement: <strong>{{ seller_summary.latest_settlement.settlement_id }}</strong>
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <span style="font-size: 0.75rem; background: #fffbeb; color: #d97706; padding: 4px 8px; border-radius: 4px; font-weight: 700;">
+                                        Due: ₹{{ seller_summary.net_payout|floatformat:2 }}
+                                    </span>
+                                    <button type="button" class="btn-primary" onclick="openOrderSettleSellerModal('{{ seller_group.grouper.id }}', '{{ seller_group.grouper.shop_name|escapejs }}', '{{ seller_summary.net_payout }}', '{{ seller_group.grouper.bank_name|escapejs }}', '{{ seller_group.grouper.account_number|escapejs }}', '{{ seller_group.grouper.ifsc_code|escapejs }}', '{{ seller_group.grouper.beneficiary_name|escapejs }}')" style="font-size: 0.78rem; padding: 6px 12px; height: 30px; border-radius: 6px; border: none; cursor: pointer; background: linear-gradient(135deg, #059669, #047857); color: white; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(5,150,105,0.25);">
+                                        <i class="fa fa-money-bill-wave"></i> Settle & Pay Seller
+                                    </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endwith %}
                     </div>
                     {% endfor %}
                 </div>
@@ -391,6 +450,119 @@ window.closeTrackingModal = window.closeTrackingModal || function() { document.g
             </div>
             <button type="submit" class="btn-primary" style="width: 100%; padding: 12px; font-weight: 700; border-radius: var(--r-md); border: none; cursor: pointer;">Save Tracking</button>
         </form>
+<!-- ✅ Admin Settle Single Seller Modal -->
+<div id="orderSettleSellerModal" class="modal">
+    <div class="modal-content" style="max-width: 480px;">
+        <div style="padding: 20px 24px; border-bottom: 1.5px solid var(--gray-100); display: flex; align-items: center; justify-content: space-between;">
+            <h3 style="margin: 0; font-family: 'Syne', sans-serif; font-size: 1.15rem; font-weight: 800; color: var(--gray-900);">
+                💸 Settle Seller for This Order
+            </h3>
+            <span class="modal-close" onclick="closeOrderSettleSellerModal()" style="font-size: 1.5rem; color: var(--gray-400); cursor: pointer; line-height: 1;">&times;</span>
+        </div>
+        <form id="orderSettleSellerForm" style="padding: 24px; margin: 0;">
+            {% csrf_token %}
+            <input type="hidden" id="orderSettleSellerId">
+
+            <div style="background: var(--gray-50); border: 1.5px solid var(--gray-200); border-radius: var(--r-md); padding: 14px; margin-bottom: 18px;">
+                <div style="font-size: 0.78rem; text-transform: uppercase; font-weight: 700; color: var(--gray-500);">Seller / Vendor</div>
+                <div id="orderSettleShopName" style="font-size: 1.1rem; font-weight: 800; color: var(--gray-900); margin-top: 2px;"></div>
+                <div id="orderSettleBankDetails" style="font-size: 0.82rem; color: var(--gray-600); margin-top: 4px;"></div>
+                <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--gray-200); display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 0.85rem; font-weight: 700; color: var(--gray-700);">Net Payout for Order:</span>
+                    <span id="orderSettleAmount" style="font-size: 1.3rem; font-weight: 800; color: #059669; font-family: 'Syne', sans-serif;"></span>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 16px;">
+                <label style="display: block; font-weight: 700; font-size: 0.85rem; color: var(--gray-800); margin-bottom: 6px;">Payment Method</label>
+                <div style="display: flex; gap: 10px;">
+                    <label style="flex: 1; border: 1.5px solid var(--gray-200); border-radius: var(--r-md); padding: 10px; cursor: pointer; display: flex; align-items: flex-start; gap: 8px; font-size: 0.82rem;">
+                        <input type="radio" name="order_settle_method" value="manual" checked onchange="toggleOrderSettleMethod('manual')">
+                        <span><strong>Direct Bank Transfer</strong><br><small style="color: var(--gray-500);">NEFT / RTGS / IMPS / UPI</small></span>
+                    </label>
+                    <label style="flex: 1; border: 1.5px solid var(--gray-200); border-radius: var(--r-md); padding: 10px; cursor: pointer; display: flex; align-items: flex-start; gap: 8px; font-size: 0.82rem;">
+                        <input type="radio" name="order_settle_method" value="razorpayx" onchange="toggleOrderSettleMethod('razorpayx')">
+                        <span><strong>RazorpayX</strong><br><small style="color: var(--blue-600);">Instant Payout</small></span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Manual UTR Section -->
+            <div id="orderSettleManualFields" style="margin-bottom: 16px;">
+                <label style="display: block; font-weight: 600; font-size: 0.8rem; color: var(--gray-700); margin-bottom: 4px;">
+                    UTR / Bank Reference Number
+                </label>
+                <input type="text" id="orderSettleUtrInput" placeholder="e.g. UTR123456789 or UPI-REF" style="width: 100%; padding: 10px 12px; border: 1.5px solid var(--gray-200); border-radius: var(--r-md); font-size: 0.85rem;">
+                <small style="color: var(--gray-400); display: block; margin-top: 4px;">Leave blank to auto-generate a Bank reference number.</small>
+            </div>
+
+            <!-- RazorpayX Simulation Section -->
+            <div id="orderSettleRzpFields" style="display: none; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: var(--r-md); padding: 12px; margin-bottom: 16px;">
+                <label style="display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: #1e40af; cursor: pointer;">
+                    <input type="checkbox" id="orderSettleSimulate" checked>
+                    <span><strong>Test Simulation Mode</strong> (Marks settled without debiting live funds)</span>
+                </label>
+            </div>
+
+            <button type="submit" id="orderSettleSubmitBtn" class="btn-primary" style="width: 100%; padding: 12px; font-weight: 700; border-radius: var(--r-md); border: none; cursor: pointer; background: linear-gradient(135deg, #059669, #047857); color: white; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+                <i class="fa fa-check-circle"></i> Confirm Settlement & Mark Paid
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- ✅ Admin Settle All Sellers Modal -->
+<div id="settleAllModal" class="modal">
+    <div class="modal-content" style="max-width: 480px;">
+        <div style="padding: 20px 24px; border-bottom: 1.5px solid var(--gray-100); display: flex; align-items: center; justify-content: space-between;">
+            <h3 style="margin: 0; font-family: 'Syne', sans-serif; font-size: 1.15rem; font-weight: 800; color: var(--gray-900);">
+                💸 Settle All Sellers for This Order
+            </h3>
+            <span class="modal-close" onclick="closeSettleAllModal()" style="font-size: 1.5rem; color: var(--gray-400); cursor: pointer; line-height: 1;">&times;</span>
+        </div>
+        <form id="settleAllForm" style="padding: 24px; margin: 0;">
+            {% csrf_token %}
+            <div style="background: #ecfdf5; border: 1.5px solid #a7f3d0; border-radius: var(--r-md); padding: 14px; margin-bottom: 18px;">
+                <div style="font-size: 0.85rem; font-weight: 700; color: #047857;">
+                    <i class="fa fa-info-circle"></i> Settle {{ unsettled_sellers_count }} Distinct Sellers
+                </div>
+                <p style="margin: 6px 0 0; font-size: 0.8rem; color: #065f46;">
+                    Each seller will receive an independent settlement record and email payout advice for their specific items in this order.
+                </p>
+            </div>
+
+            <div style="margin-bottom: 16px;">
+                <label style="display: block; font-weight: 700; font-size: 0.85rem; color: var(--gray-800); margin-bottom: 6px;">Payment Method</label>
+                <div style="display: flex; gap: 10px;">
+                    <label style="flex: 1; border: 1.5px solid var(--gray-200); border-radius: var(--r-md); padding: 10px; cursor: pointer; display: flex; align-items: flex-start; gap: 8px; font-size: 0.82rem;">
+                        <input type="radio" name="settle_all_method" value="manual" checked onchange="toggleSettleAllMethod('manual')">
+                        <span><strong>Direct Bank Transfer</strong><br><small style="color: var(--gray-500);">NEFT / RTGS / UPI</small></span>
+                    </label>
+                    <label style="flex: 1; border: 1.5px solid var(--gray-200); border-radius: var(--r-md); padding: 10px; cursor: pointer; display: flex; align-items: flex-start; gap: 8px; font-size: 0.82rem;">
+                        <input type="radio" name="settle_all_method" value="razorpayx" onchange="toggleSettleAllMethod('razorpayx')">
+                        <span><strong>RazorpayX</strong><br><small style="color: var(--blue-600);">Instant Payout</small></span>
+                    </label>
+                </div>
+            </div>
+
+            <div id="settleAllManualFields" style="margin-bottom: 16px;">
+                <label style="display: block; font-weight: 600; font-size: 0.8rem; color: var(--gray-700); margin-bottom: 4px;">
+                    Base Reference / Batch Prefix (Optional)
+                </label>
+                <input type="text" id="settleAllRefPrefix" placeholder="e.g. BATCH-ORD-{{ order.unique_order_id }}" style="width: 100%; padding: 10px 12px; border: 1.5px solid var(--gray-200); border-radius: var(--r-md); font-size: 0.85rem;">
+            </div>
+
+            <div id="settleAllRzpFields" style="display: none; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: var(--r-md); padding: 12px; margin-bottom: 16px;">
+                <label style="display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: #1e40af; cursor: pointer;">
+                    <input type="checkbox" id="settleAllSimulate" checked>
+                    <span><strong>Test Simulation Mode</strong> (Safe test execution)</span>
+                </label>
+            </div>
+
+            <button type="submit" id="settleAllSubmitBtn" class="btn-primary" style="width: 100%; padding: 12px; font-weight: 700; border-radius: var(--r-md); border: none; cursor: pointer; background: linear-gradient(135deg, #059669, #047857); color: white; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+                <i class="fa fa-money-bill-wave"></i> Settle All Sellers Now
+            </button>
+        </form>
     </div>
 </div>
 
@@ -429,13 +601,60 @@ window.closeCancelModal = () => {
 window.closeTrackingModal = () => {
     document.getElementById('trackingModal')?.classList.remove('show');
 };
+window.openOrderSettleSellerModal = (sellerId, shopName, netAmount, bankName, acNo, ifsc, beneficiary) => {
+    document.getElementById('orderSettleSellerId').value = sellerId;
+    document.getElementById('orderSettleShopName').innerText = shopName;
+    document.getElementById('orderSettleAmount').innerText = '₹' + parseFloat(netAmount).toFixed(2);
+    const bankDesc = bankName ? `${bankName} • A/C: ••••${acNo.slice(-4)} • IFSC: ${ifsc}` : '⚠️ Bank Details Not Configured';
+    document.getElementById('orderSettleBankDetails').innerText = bankDesc;
+    document.getElementById('orderSettleUtrInput').value = '';
+    toggleOrderSettleMethod('manual');
+    const modal = document.getElementById('orderSettleSellerModal');
+    if (modal) modal.classList.add('show');
+};
+window.closeOrderSettleSellerModal = () => {
+    document.getElementById('orderSettleSellerModal')?.classList.remove('show');
+};
+window.openSettleAllModal = () => {
+    const modal = document.getElementById('settleAllModal');
+    if (modal) modal.classList.add('show');
+};
+window.closeSettleAllModal = () => {
+    document.getElementById('settleAllModal')?.classList.remove('show');
+};
+function toggleOrderSettleMethod(method) {
+    const manualFields = document.getElementById('orderSettleManualFields');
+    const rzpFields = document.getElementById('orderSettleRzpFields');
+    if (method === 'razorpayx') {
+        if (manualFields) manualFields.style.display = 'none';
+        if (rzpFields) rzpFields.style.display = 'block';
+    } else {
+        if (manualFields) manualFields.style.display = 'block';
+        if (rzpFields) rzpFields.style.display = 'none';
+    }
+}
+function toggleSettleAllMethod(method) {
+    const manualFields = document.getElementById('settleAllManualFields');
+    const rzpFields = document.getElementById('settleAllRzpFields');
+    if (method === 'razorpayx') {
+        if (manualFields) manualFields.style.display = 'none';
+        if (rzpFields) rzpFields.style.display = 'block';
+    } else {
+        if (manualFields) manualFields.style.display = 'block';
+        if (rzpFields) rzpFields.style.display = 'none';
+    }
+}
 window.onclick = (e) => {
     const modal = document.getElementById('statusModal');
     const tModal = document.getElementById('trackingModal');
     const cModal = document.getElementById('cancelModal');
+    const sModal = document.getElementById('orderSettleSellerModal');
+    const aModal = document.getElementById('settleAllModal');
     if (e.target === modal) closeModal();
     if (e.target === tModal) closeTrackingModal();
     if (e.target === cModal) closeCancelModal();
+    if (e.target === sModal) closeOrderSettleSellerModal();
+    if (e.target === aModal) closeSettleAllModal();
 };
 
 // Status Update AJAX with immediate feedback & multi-click protection
@@ -642,5 +861,88 @@ async function requestAdminPickup(orderId, sellerId, btnElem) {
         }
     }
 }
+
+// Settle Single Seller AJAX
+document.getElementById('orderSettleSellerForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const sellerId = document.getElementById('orderSettleSellerId').value;
+    const method = document.querySelector('input[name="order_settle_method"]:checked')?.value || 'manual';
+    const utr = document.getElementById('orderSettleUtrInput').value.trim();
+    const simulate = document.getElementById('orderSettleSimulate').checked;
+
+    const submitBtn = document.getElementById('orderSettleSubmitBtn');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Processing Settlement...';
+
+    try {
+        const res = await fetch(`/orders/admin/order/{{ order.unique_order_id }}/settle-seller/${sellerId}/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                payment_method: method,
+                payment_reference: utr,
+                simulate: simulate
+            })
+        });
+        const data = await res.json();
+        if (!res.ok || data.status === 'error') {
+            throw new Error(data.message || 'Settlement failed.');
+        }
+        if (typeof showToast === 'function') {
+            showToast(data.message, 'success');
+        } else {
+            alert(data.message);
+        }
+        setTimeout(() => window.location.reload(), 1200);
+    } catch (err) {
+        alert(err.message);
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fa fa-check-circle"></i> Confirm Settlement & Mark Paid';
+    }
+});
+
+// Settle All Sellers AJAX
+document.getElementById('settleAllForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const method = document.querySelector('input[name="settle_all_method"]:checked')?.value || 'manual';
+    const prefix = document.getElementById('settleAllRefPrefix').value.trim();
+    const simulate = document.getElementById('settleAllSimulate').checked;
+
+    const submitBtn = document.getElementById('settleAllSubmitBtn');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Settling All Sellers...';
+
+    try {
+        const res = await fetch(`/orders/admin/order/{{ order.unique_order_id }}/settle-all/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                payment_method: method,
+                payment_reference: prefix,
+                simulate: simulate
+            })
+        });
+        const data = await res.json();
+        if (!res.ok || data.status === 'error') {
+            throw new Error(data.message || 'Settling all sellers failed.');
+        }
+        if (typeof showToast === 'function') {
+            showToast(data.message, 'success');
+        } else {
+            alert(data.message);
+        }
+        setTimeout(() => window.location.reload(), 1200);
+    } catch (err) {
+        alert(err.message);
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fa fa-money-bill-wave"></i> Settle All Sellers Now';
+    }
+});
 </script>
 {% endblock %}

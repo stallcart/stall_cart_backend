@@ -12,7 +12,7 @@ import json
 
 from accounts.models import Wallet
 from items.models import Category, Product, SellerProfile
-from orders.models import Order, OrderItem, ReturnRequest, OrderStatusLog
+from orders.models import Order, OrderItem, ReturnRequest, OrderStatusLog, SellerSettlement
 
 User = get_user_model()
 
@@ -1135,7 +1135,158 @@ class SellerSettlementAndBankDetailsTests(TestCase):
             mock_payout.assert_not_called()
             self.assertEqual(SellerSettlement.objects.count(), initial_settlement_count)
 
+    def test_admin_settle_order_single_seller_manual(self):
+        """Admin can settle a specific seller's items in an order with manual UTR."""
+        self.client.login(phone="9999999999", password="adminpassword")
+        url = reverse('orders:admin_settle_order_seller_ajax', args=[self.order.unique_order_id, self.seller_profile.id])
+        
+        payload = {
+            "payment_method": "manual",
+            "payment_reference": "UTR-ORDER-12345"
+        }
+        res = self.client.post(
+            url,
+            data=json.dumps(payload),
+            content_type="application/json",
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest"
+        )
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertEqual(data.get('status'), 'success')
+        self.assertEqual(data.get('payment_reference'), 'UTR-ORDER-12345')
 
+        # Verify settlement in DB
+        settlement = SellerSettlement.objects.filter(seller=self.seller_profile).latest('id')
+        self.assertEqual(settlement.status, 'processed')
+        self.assertEqual(settlement.payment_reference, 'UTR-ORDER-12345')
+        self.assertIn(self.item, settlement.order_items.all())
+
+        # Anti-double-settlement: calling again should fail
+        res2 = self.client.post(
+            url,
+            data=json.dumps(payload),
+            content_type="application/json",
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest"
+        )
+        self.assertEqual(res2.status_code, 400)
+        self.assertIn("already settled", res2.json().get('message', ''))
+
+    def test_admin_settle_order_multi_seller_isolation(self):
+        """When an order has items from multiple sellers, admin settles each seller independently."""
+        # Create Seller 2
+        seller_user_2 = User.objects.create_user(phone="7777777777", password="seller2password", role="seller", full_name="Seller Two")
+        seller_profile_2 = SellerProfile.objects.create(user=seller_user_2, shop_name="Shop Two", is_verified=True)
+        product_2 = Product.objects.create(seller=seller_profile_2, category=self.category, name="Shoes", price=Decimal("200.00"), stock=5)
+
+        # Multi-seller order
+        multi_order = Order.objects.create(
+            user=self.customer_user,
+            shipping_address={"name": "Customer"},
+            total_amount=Decimal("300.00"),
+            payment_method="prepaid",
+            status="delivered",
+            delivered_at=timezone.now()
+        )
+        item1 = OrderItem.objects.create(
+            order=multi_order,
+            product=self.product,
+            seller=self.seller_profile,
+            quantity=1,
+            price=Decimal("100.00"),
+            total=Decimal("100.00")
+        )
+        item2 = OrderItem.objects.create(
+            order=multi_order,
+            product=product_2,
+            seller=seller_profile_2,
+            quantity=1,
+            price=Decimal("200.00"),
+            total=Decimal("200.00")
+        )
+
+        self.client.login(phone="9999999999", password="adminpassword")
+
+        # 1. Settle only Seller 1
+        url_seller_1 = reverse('orders:admin_settle_order_seller_ajax', args=[multi_order.unique_order_id, self.seller_profile.id])
+        res1 = self.client.post(
+            url_seller_1,
+            data=json.dumps({"payment_method": "manual", "payment_reference": "UTR-SELLER1"}),
+            content_type="application/json"
+        )
+        self.assertEqual(res1.status_code, 200)
+
+        # Verify Seller 1's settlement exists and contains ONLY item1
+        sett1 = SellerSettlement.objects.filter(seller=self.seller_profile, order_items=item1).first()
+        self.assertIsNotNone(sett1)
+        self.assertNotIn(item2, sett1.order_items.all())
+
+        # Verify Seller 2 is NOT yet settled
+        self.assertFalse(SellerSettlement.objects.filter(seller=seller_profile_2).exists())
+        self.assertEqual(item2.settlements.count(), 0)
+
+        # 2. Settle Seller 2
+        url_seller_2 = reverse('orders:admin_settle_order_seller_ajax', args=[multi_order.unique_order_id, seller_profile_2.id])
+        res2 = self.client.post(
+            url_seller_2,
+            data=json.dumps({"payment_method": "manual", "payment_reference": "UTR-SELLER2"}),
+            content_type="application/json"
+        )
+        self.assertEqual(res2.status_code, 200)
+
+        # Verify Seller 2 has its own independent settlement containing item2
+        sett2 = SellerSettlement.objects.filter(seller=seller_profile_2, order_items=item2).first()
+        self.assertIsNotNone(sett2)
+        self.assertNotEqual(sett1.id, sett2.id)
+        self.assertEqual(sett2.payment_reference, "UTR-SELLER2")
+
+    def test_admin_settle_entire_order_ajax(self):
+        """Admin can settle all distinct sellers in a multi-seller order in one click."""
+        seller_user_2 = User.objects.create_user(phone="7777777778", password="seller2password", role="seller", full_name="Seller Two")
+        seller_profile_2 = SellerProfile.objects.create(user=seller_user_2, shop_name="Shop Two", is_verified=True)
+        product_2 = Product.objects.create(seller=seller_profile_2, category=self.category, name="Pants", price=Decimal("150.00"), stock=5)
+
+        multi_order = Order.objects.create(
+            user=self.customer_user,
+            shipping_address={"name": "Customer"},
+            total_amount=Decimal("250.00"),
+            payment_method="prepaid",
+            status="delivered",
+            delivered_at=timezone.now()
+        )
+        item1 = OrderItem.objects.create(order=multi_order, product=self.product, seller=self.seller_profile, quantity=1, price=Decimal("100.00"), total=Decimal("100.00"))
+        item2 = OrderItem.objects.create(order=multi_order, product=product_2, seller=seller_profile_2, quantity=1, price=Decimal("150.00"), total=Decimal("150.00"))
+
+        self.client.login(phone="9999999999", password="adminpassword")
+        url = reverse('orders:admin_settle_entire_order_ajax', args=[multi_order.unique_order_id])
+        res = self.client.post(
+            url,
+            data=json.dumps({"payment_method": "manual", "payment_reference": "ALL-BATCH-001"}),
+            content_type="application/json"
+        )
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertEqual(data.get('status'), 'success')
+        self.assertEqual(len(data.get('settled_results')), 2)
+
+        # Both settlements exist and are marked processed
+        self.assertTrue(SellerSettlement.objects.filter(seller=self.seller_profile, order_items=item1, status='processed').exists())
+        self.assertTrue(SellerSettlement.objects.filter(seller=seller_profile_2, order_items=item2, status='processed').exists())
+
+    def test_admin_settlements_dashboard_access_and_metrics(self):
+        """Admin settlements dashboard returns 200 with metrics for superusers, blocked for customers."""
+        # Customer blocked
+        self.client.login(phone="6666666666", password="customerpassword")
+        dash_url = reverse('orders:admin_settlements_dashboard')
+        res_customer = self.client.get(dash_url)
+        self.assertNotEqual(res_customer.status_code, 200)
+
+        # Admin allowed
+        self.client.login(phone="9999999999", password="adminpassword")
+        res_admin = self.client.get(dash_url)
+        self.assertEqual(res_admin.status_code, 200)
+        self.assertTemplateUsed(res_admin, 'orders/admin_settlements.html')
+        self.assertIn('total_settled_amount', res_admin.context)
+        self.assertIn('unsettled_seller_cards', res_admin.context)
 
 
 class BackgroundJobAndEmailSyncTests(TestCase):

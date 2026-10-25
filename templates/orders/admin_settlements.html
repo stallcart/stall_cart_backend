@@ -1,0 +1,788 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load custom_filters %}
+
+{% block title %}Admin Seller Settlements & Payouts | StallCart{% endblock %}
+
+{% block content %}
+<div class="admin-settlements-container" style="max-width: 1200px; margin: 30px auto; padding: 0 16px 60px;">
+
+    <!-- Top Breadcrumb & Header -->
+    <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <div>
+            <div style="margin-bottom: 6px;">
+                <a href="{% url 'orders:admin_orders' %}" style="text-decoration: none; color: var(--blue-600); font-weight: 700; display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem;">
+                    <i class="fa fa-arrow-left"></i> Back to Orders
+                </a>
+            </div>
+            <h1 style="margin: 0; font-family: 'Syne', sans-serif; font-size: 1.45rem; font-weight: 800; color: var(--gray-900); display: flex; align-items: center; gap: 10px;">
+                <span style="display: inline-flex; width: 36px; height: 36px; border-radius: 10px; background: #ecfdf5; color: #059669; align-items: center; justify-content: center; font-size: 1.1rem;">
+                    <i class="fa fa-money-bill-wave"></i>
+                </span>
+                Seller Settlements & Payouts
+            </h1>
+            <p style="margin: 4px 0 0; font-size: 0.85rem; color: var(--gray-500);">
+                Manage platform payouts to registered sellers, bank transfers, RazorpayX disbursements, and commission audits.
+            </p>
+        </div>
+        <div>
+            <a href="{% url 'orders:admin_orders' %}" class="btn-outline" style="text-decoration: none; padding: 8px 16px; font-size: 0.85rem; font-weight: 700; border-radius: var(--r-md); border: 1.5px solid var(--gray-200); color: var(--gray-700); background: white; display: inline-flex; align-items: center; gap: 6px;">
+                <i class="fa fa-shopping-bag"></i> View Orders
+            </a>
+        </div>
+    </div>
+
+    <!-- Top Financial Overview Cards -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px;">
+        <!-- Total Settled -->
+        <div style="background: white; border-radius: var(--r-xl); border: 1.5px solid var(--gray-100); box-shadow: var(--sh-sm); padding: 18px; border-top: 4px solid #10b981;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--gray-500); letter-spacing: 0.5px;">Total Settled</span>
+                <span style="width: 32px; height: 32px; border-radius: 8px; background: #ecfdf5; color: #059669; display: flex; align-items: center; justify-content: center; font-size: 0.9rem;">
+                    <i class="fa fa-check-circle"></i>
+                </span>
+            </div>
+            <div style="font-size: 1.6rem; font-weight: 800; color: #047857; font-family: 'Syne', sans-serif;">
+                ₹{{ total_settled_amount|floatformat:2 }}
+            </div>
+            <div style="font-size: 0.75rem; color: var(--gray-500); margin-top: 4px;">Successfully paid out to sellers</div>
+        </div>
+
+        <!-- Platform Commission -->
+        <div style="background: white; border-radius: var(--r-xl); border: 1.5px solid var(--gray-100); box-shadow: var(--sh-sm); padding: 18px; border-top: 4px solid #8b5cf6;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--gray-500); letter-spacing: 0.5px;">Commission Earned</span>
+                <span style="width: 32px; height: 32px; border-radius: 8px; background: #f5f3ff; color: #7c3aed; display: flex; align-items: center; justify-content: center; font-size: 0.9rem;">
+                    <i class="fa fa-hand-holding-dollar"></i>
+                </span>
+            </div>
+            <div style="font-size: 1.6rem; font-weight: 800; color: #6d28d9; font-family: 'Syne', sans-serif;">
+                ₹{{ total_commission_collected|floatformat:2 }}
+            </div>
+            <div style="font-size: 0.75rem; color: var(--gray-500); margin-top: 4px;">Platform margin on settled items</div>
+        </div>
+
+        <!-- Total Payout Due -->
+        <div style="background: white; border-radius: var(--r-xl); border: 1.5px solid var(--gray-100); box-shadow: var(--sh-sm); padding: 18px; border-top: 4px solid #f59e0b;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--gray-500); letter-spacing: 0.5px;">Total Payout Due</span>
+                <span style="width: 32px; height: 32px; border-radius: 8px; background: #fffbeb; color: #d97706; display: flex; align-items: center; justify-content: center; font-size: 0.9rem;">
+                    <i class="fa fa-hourglass-half"></i>
+                </span>
+            </div>
+            <div style="font-size: 1.6rem; font-weight: 800; color: #b45309; font-family: 'Syne', sans-serif;">
+                ₹{{ total_due_amount|floatformat:2 }}
+            </div>
+            <div style="font-size: 0.75rem; color: var(--gray-500); margin-top: 4px;">Delivered + Pending batches</div>
+        </div>
+
+        <!-- Pending Settlement Batches -->
+        <div style="background: white; border-radius: var(--r-xl); border: 1.5px solid var(--gray-100); box-shadow: var(--sh-sm); padding: 18px; border-top: 4px solid #3b82f6;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--gray-500); letter-spacing: 0.5px;">Pending Batches</span>
+                <span style="width: 32px; height: 32px; border-radius: 8px; background: #eff6ff; color: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 0.9rem;">
+                    <i class="fa fa-clock"></i>
+                </span>
+            </div>
+            <div style="font-size: 1.6rem; font-weight: 800; color: #1d4ed8; font-family: 'Syne', sans-serif;">
+                ₹{{ pending_settlements_amount|floatformat:2 }}
+            </div>
+            <div style="font-size: 0.75rem; color: var(--gray-500); margin-top: 4px;">Awaiting payout disbursement</div>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div style="background: white; border-radius: var(--r-xl) var(--r-xl) 0 0; border: 1.5px solid var(--gray-100); border-bottom: none; padding: 12px 18px 0; display: flex; gap: 12px; flex-wrap: wrap;">
+        <button type="button" id="tab-btn-unsettled" onclick="switchSettlementTab('unsettled')" style="background: none; border: none; padding: 10px 16px; font-size: 0.9rem; font-weight: 800; cursor: pointer; border-bottom: 3px solid #059669; color: #059669; display: inline-flex; align-items: center; gap: 8px;">
+            <i class="fa fa-inbox"></i> Ready for Payout
+            {% if unsettled_count > 0 %}
+                <span style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem;">{{ unsettled_count }}</span>
+            {% endif %}
+        </button>
+        <button type="button" id="tab-btn-history" onclick="switchSettlementTab('history')" style="background: none; border: none; padding: 10px 16px; font-size: 0.9rem; font-weight: 700; cursor: pointer; border-bottom: 3px solid transparent; color: var(--gray-500); display: inline-flex; align-items: center; gap: 8px;">
+            <i class="fa fa-history"></i> Settlement History & Batches
+        </button>
+    </div>
+
+    <!-- TAB 1: Unsettled Delivered Items Ready for Payout -->
+    <div id="tab-content-unsettled" style="background: white; border-radius: 0 0 var(--r-xl) var(--r-xl); border: 1.5px solid var(--gray-100); box-shadow: var(--sh-sm); padding: 20px; margin-bottom: 30px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+            <div>
+                <h3 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: var(--gray-900);">
+                    Delivered Orders Awaiting Settlement
+                </h3>
+                <p style="margin: 2px 0 0; font-size: 0.8rem; color: var(--gray-500);">
+                    Orders that have been successfully delivered to customers and are ready for seller disbursement.
+                </p>
+            </div>
+            <div style="font-size: 0.85rem; color: var(--gray-600);">
+                Total Sellers Ready: <strong>{{ unsettled_seller_cards|length }}</strong>
+            </div>
+        </div>
+
+        {% if unsettled_seller_cards %}
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.85rem;">
+                    <thead>
+                        <tr style="background: var(--gray-50); text-align: left;">
+                            <th style="padding: 12px 14px; border-bottom: 1.5px solid var(--gray-200); font-weight: 800; color: var(--gray-700);">Seller / Shop</th>
+                            <th style="padding: 12px 14px; border-bottom: 1.5px solid var(--gray-200); font-weight: 800; color: var(--gray-700);">Bank Account</th>
+                            <th style="padding: 12px 14px; border-bottom: 1.5px solid var(--gray-200); font-weight: 800; color: var(--gray-700); text-align: center;">Orders</th>
+                            <th style="padding: 12px 14px; border-bottom: 1.5px solid var(--gray-200); font-weight: 800; color: var(--gray-700); text-align: right;">Gross Value</th>
+                            <th style="padding: 12px 14px; border-bottom: 1.5px solid var(--gray-200); font-weight: 800; color: var(--gray-700); text-align: right;">Commission</th>
+                            <th style="padding: 12px 14px; border-bottom: 1.5px solid var(--gray-200); font-weight: 800; color: var(--gray-700); text-align: right;">Net Payable</th>
+                            <th style="padding: 12px 14px; border-bottom: 1.5px solid var(--gray-200); font-weight: 800; color: var(--gray-700); text-align: center;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for card in unsettled_seller_cards %}
+                        <tr style="border-bottom: 1px solid var(--gray-100); transition: background 0.2s;" onmouseover="this.style.background='var(--gray-50)'" onmouseout="this.style.background='transparent'">
+                            <!-- Seller Info -->
+                            <td style="padding: 14px; vertical-align: middle;">
+                                <div style="font-weight: 800; color: var(--gray-900); display: flex; align-items: center; gap: 6px;">
+                                    {{ card.seller.shop_name }}
+                                    {% if card.seller.is_verified %}
+                                        <i class="fa fa-check-circle" style="color: #059669; font-size: 0.85rem;" title="Verified Seller"></i>
+                                    {% endif %}
+                                </div>
+                                <div style="font-size: 0.75rem; color: var(--gray-500); margin-top: 2px;">
+                                    <i class="fa fa-phone" style="font-size: 0.7rem;"></i> {{ card.seller.user.phone|default:"No phone" }}
+                                </div>
+                            </td>
+
+                            <!-- Bank Account -->
+                            <td style="padding: 14px; vertical-align: middle;">
+                                {% if card.has_bank_details %}
+                                    <div style="font-weight: 700; color: var(--gray-800); font-size: 0.8rem;">
+                                        {{ card.seller.bank_name }}
+                                    </div>
+                                    <div style="font-size: 0.75rem; color: var(--gray-500);">
+                                        A/C: ••••{{ card.seller.account_number|slice:"-4:" }} • IFSC: {{ card.seller.ifsc_code }}
+                                    </div>
+                                {% else %}
+                                    <span style="font-size: 0.75rem; background: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5; padding: 2px 6px; border-radius: 4px; font-weight: 600;">
+                                        <i class="fa fa-exclamation-triangle"></i> Bank Details Missing
+                                    </span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Orders / Items -->
+                            <td style="padding: 14px; text-align: center; vertical-align: middle;">
+                                <span style="font-weight: 800; color: var(--gray-800);">{{ card.orders_count }}</span>
+                                <div style="font-size: 0.75rem; color: var(--gray-500);">({{ card.items_count }} item{{ card.items_count|pluralize }})</div>
+                            </td>
+
+                            <!-- Financials -->
+                            <td style="padding: 14px; text-align: right; vertical-align: middle; color: var(--gray-700);">
+                                ₹{{ card.gross_total|floatformat:2 }}
+                            </td>
+                            <td style="padding: 14px; text-align: right; vertical-align: middle; color: #7c3aed; font-weight: 600;">
+                                -₹{{ card.commission|floatformat:2 }}
+                            </td>
+                            <td style="padding: 14px; text-align: right; vertical-align: middle;">
+                                <span style="font-size: 1rem; font-weight: 800; color: #047857; font-family: 'Syne', sans-serif;">
+                                    ₹{{ card.net_payout|floatformat:2 }}
+                                </span>
+                            </td>
+
+                            <!-- Action -->
+                            <td style="padding: 14px; text-align: center; vertical-align: middle;">
+                                <button type="button" class="btn-primary" onclick="openPayoutModalForSeller('{{ card.seller.id }}', '{{ card.seller.shop_name|escapejs }}', '{{ card.net_payout }}', {{ card.item_ids|safe }}, '{{ card.seller.bank_name|escapejs }}', '{{ card.seller.account_number|escapejs }}', '{{ card.seller.ifsc_code|escapejs }}')" style="font-size: 0.8rem; padding: 6px 14px; border-radius: var(--r-md); border: none; cursor: pointer; background: linear-gradient(135deg, #059669, #047857); color: white; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(5,150,105,0.25);">
+                                    <i class="fa fa-money-bill-wave"></i> Settle & Pay
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div style="text-align: center; padding: 40px 20px; color: var(--gray-500);">
+                <div style="width: 56px; height: 56px; border-radius: 50%; background: #ecfdf5; color: #059669; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; margin: 0 auto 12px;">
+                    <i class="fa fa-check"></i>
+                </div>
+                <h4 style="margin: 0 0 4px; font-weight: 800; color: var(--gray-800); font-size: 1.1rem;">All Caught Up!</h4>
+                <p style="margin: 0; font-size: 0.85rem;">There are currently no delivered order items awaiting settlement.</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- TAB 2: Settlement History & Batches -->
+    <div id="tab-content-history" style="display: none; background: white; border-radius: 0 0 var(--r-xl) var(--r-xl); border: 1.5px solid var(--gray-100); box-shadow: var(--sh-sm); padding: 20px; margin-bottom: 30px;">
+        
+        <!-- Filter & Search Bar -->
+        <div style="margin-bottom: 20px;">
+            <form method="get" style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+                <input type="hidden" name="tab" value="history">
+                <div style="flex: 2; min-width: 220px;">
+                    <input type="text" name="q" value="{{ filters.q|default:'' }}" placeholder="Search Settlement ID, Seller, Phone, UTR..." style="width: 100%; padding: 8px 14px; border: 1.5px solid var(--gray-200); border-radius: var(--r-md); font-size: 0.85rem;">
+                </div>
+                <div style="flex: 1; min-width: 160px;">
+                    <select name="status" style="width: 100%; padding: 8px 14px; border: 1.5px solid var(--gray-200); border-radius: var(--r-md); font-size: 0.85rem; background: white;">
+                        <option value="">All Statuses</option>
+                        <option value="processed" {% if filters.status == 'processed' %}selected{% endif %}>Paid / Processed</option>
+                        <option value="pending" {% if filters.status == 'pending' %}selected{% endif %}>Pending</option>
+                        <option value="failed" {% if filters.status == 'failed' %}selected{% endif %}>Failed</option>
+                        <option value="reversed" {% if filters.status == 'reversed' %}selected{% endif %}>Reversed</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-primary" style="padding: 8px 18px; border-radius: var(--r-md); font-size: 0.85rem; font-weight: 700; border: none; cursor: pointer; background: var(--blue-600); color: white;">
+                    <i class="fa fa-filter"></i> Filter
+                </button>
+                {% if filters.q or filters.status %}
+                    <a href="{% url 'orders:admin_settlements_dashboard' %}?tab=history" class="btn-outline" style="text-decoration: none; padding: 8px 14px; font-size: 0.85rem; border-radius: var(--r-md); border: 1.5px solid var(--gray-200); color: var(--gray-600);">
+                        Reset
+                    </a>
+                {% endif %}
+            </form>
+        </div>
+
+        {% if settlements %}
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.85rem;">
+                    <thead>
+                        <tr style="background: var(--gray-50); text-align: left;">
+                            <th style="padding: 12px 14px; border-bottom: 1.5px solid var(--gray-200); font-weight: 800; color: var(--gray-700);">Settlement ID</th>
+                            <th style="padding: 12px 14px; border-bottom: 1.5px solid var(--gray-200); font-weight: 800; color: var(--gray-700);">Date</th>
+                            <th style="padding: 12px 14px; border-bottom: 1.5px solid var(--gray-200); font-weight: 800; color: var(--gray-700);">Seller</th>
+                            <th style="padding: 12px 14px; border-bottom: 1.5px solid var(--gray-200); font-weight: 800; color: var(--gray-700); text-align: center;">Items</th>
+                            <th style="padding: 12px 14px; border-bottom: 1.5px solid var(--gray-200); font-weight: 800; color: var(--gray-700); text-align: right;">Amount Paid</th>
+                            <th style="padding: 12px 14px; border-bottom: 1.5px solid var(--gray-200); font-weight: 800; color: var(--gray-700);">Status</th>
+                            <th style="padding: 12px 14px; border-bottom: 1.5px solid var(--gray-200); font-weight: 800; color: var(--gray-700);">Reference / UTR</th>
+                            <th style="padding: 12px 14px; border-bottom: 1.5px solid var(--gray-200); font-weight: 800; color: var(--gray-700); text-align: center;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for s in settlements %}
+                        <tr style="border-bottom: 1px solid var(--gray-100); transition: background 0.2s;" onmouseover="this.style.background='var(--gray-50)'" onmouseout="this.style.background='transparent'">
+                            <td style="padding: 14px; vertical-align: middle;">
+                                <strong style="color: var(--blue-600); font-family: monospace; font-size: 0.9rem;">{{ s.settlement_id }}</strong>
+                            </td>
+                            <td style="padding: 14px; vertical-align: middle; color: var(--gray-600); font-size: 0.8rem;">
+                                <div>{{ s.created_at|date:"d M Y" }}</div>
+                                <div style="font-size: 0.72rem; color: var(--gray-400);">{{ s.created_at|date:"h:i A" }}</div>
+                            </td>
+                            <td style="padding: 14px; vertical-align: middle;">
+                                <div style="font-weight: 700; color: var(--gray-900);">{{ s.seller.shop_name }}</div>
+                                <div style="font-size: 0.75rem; color: var(--gray-500);">
+                                    {% if s.seller.bank_name %}
+                                        {{ s.seller.bank_name }} (••••{{ s.seller.account_number|slice:"-4:" }})
+                                    {% else %}
+                                        No Bank Linked
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td style="padding: 14px; text-align: center; vertical-align: middle; font-weight: 700;">
+                                {{ s.order_items.count }}
+                            </td>
+                            <td style="padding: 14px; text-align: right; vertical-align: middle;">
+                                <span style="font-size: 0.95rem; font-weight: 800; color: {% if s.status == 'processed' %}#059669{% elif s.status == 'pending' %}#d97706{% else %}var(--gray-700){% endif %}; font-family: 'Syne', sans-serif;">
+                                    ₹{{ s.amount|floatformat:2 }}
+                                </span>
+                                <div style="font-size: 0.72rem; color: var(--gray-400);">Comm: ₹{{ s.commission_deducted|floatformat:2 }}</div>
+                            </td>
+                            <td style="padding: 14px; vertical-align: middle;">
+                                {% if s.status == 'processed' %}
+                                    <span style="font-size: 0.75rem; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 3px 8px; border-radius: 4px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">
+                                        <i class="fa fa-check-circle"></i> Paid
+                                    </span>
+                                {% elif s.status == 'pending' %}
+                                    <span style="font-size: 0.75rem; background: #fffbeb; color: #b45309; border: 1px solid #fde68a; padding: 3px 8px; border-radius: 4px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">
+                                        <i class="fa fa-clock"></i> Pending
+                                    </span>
+                                {% elif s.status == 'failed' %}
+                                    <span style="font-size: 0.75rem; background: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5; padding: 3px 8px; border-radius: 4px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">
+                                        <i class="fa fa-times-circle"></i> Failed
+                                    </span>
+                                {% else %}
+                                    <span style="font-size: 0.75rem; background: var(--gray-100); color: var(--gray-700); padding: 3px 8px; border-radius: 4px; font-weight: 700;">
+                                        {{ s.get_status_display }}
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 14px; vertical-align: middle; font-size: 0.8rem; color: var(--gray-700);">
+                                {% if s.payment_reference %}
+                                    <span style="font-family: monospace; font-weight: 600;">{{ s.payment_reference }}</span>
+                                {% elif s.razorpay_payout_id %}
+                                    <span style="font-family: monospace; font-weight: 600; color: var(--blue-600);">{{ s.razorpay_payout_id }}</span>
+                                {% else %}
+                                    <span style="color: var(--gray-400); font-style: italic;">—</span>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 14px; text-align: center; vertical-align: middle;">
+                                <div style="display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;">
+                                    {% if s.status == 'pending' %}
+                                        <button type="button" class="btn-primary" onclick="openTriggerPayoutModal('{{ s.id }}', '{{ s.settlement_id }}', '{{ s.seller.shop_name|escapejs }}', '{{ s.amount }}')" style="font-size: 0.75rem; padding: 4px 8px; border-radius: 4px; border: none; cursor: pointer; background: var(--blue-600); color: white; font-weight: 700;">
+                                            <i class="fa fa-bolt"></i> RazorpayX
+                                        </button>
+                                        <button type="button" class="btn-outline" onclick="openMarkPaidModal('{{ s.id }}', '{{ s.settlement_id }}', '{{ s.seller.shop_name|escapejs }}', '{{ s.amount }}')" style="font-size: 0.75rem; padding: 4px 8px; border-radius: 4px; border: 1.5px solid var(--gray-300); background: white; cursor: pointer; font-weight: 700; color: #059669;">
+                                            <i class="fa fa-check"></i> UTR
+                                        </button>
+                                    {% elif s.status == 'processed' %}
+                                        <button type="button" class="btn-outline" onclick="openRevertModal('{{ s.id }}', '{{ s.settlement_id }}', '{{ s.amount }}')" style="font-size: 0.72rem; padding: 3px 6px; border-radius: 4px; border: 1.5px solid var(--gray-200); background: white; cursor: pointer; color: var(--gray-500);" title="Revert to Pending">
+                                            <i class="fa fa-undo"></i> Revert
+                                        </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if settlements.has_other_pages %}
+            <div style="display: flex; justify-content: center; gap: 8px; margin-top: 20px; align-items: center;">
+                {% if settlements.has_previous %}
+                    <a href="?page={{ settlements.previous_page_number }}&tab=history&status={{ filters.status }}&q={{ filters.q }}" class="btn-outline" style="padding: 6px 12px; font-size: 0.8rem; border-radius: 4px; text-decoration: none; border: 1px solid var(--gray-300); color: var(--gray-700);">Previous</a>
+                {% endif %}
+                <span style="font-size: 0.85rem; color: var(--gray-600);">
+                    Page {{ settlements.number }} of {{ settlements.paginator.num_pages }}
+                </span>
+                {% if settlements.has_next %}
+                    <a href="?page={{ settlements.next_page_number }}&tab=history&status={{ filters.status }}&q={{ filters.q }}" class="btn-outline" style="padding: 6px 12px; font-size: 0.8rem; border-radius: 4px; text-decoration: none; border: 1px solid var(--gray-300); color: var(--gray-700);">Next</a>
+                {% endif %}
+            </div>
+            {% endif %}
+
+        {% else %}
+            <div style="text-align: center; padding: 40px 20px; color: var(--gray-500);">
+                <i class="fa fa-folder-open" style="font-size: 2rem; color: var(--gray-300); margin-bottom: 8px;"></i>
+                <p style="margin: 0; font-size: 0.9rem;">No settlement batches match your query.</p>
+            </div>
+        {% endif %}
+    </div>
+
+</div>
+
+<!-- Modal 1: Settle & Pay Seller from Unsettled Tab -->
+<div id="payoutModal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center; padding: 16px;">
+    <div style="background: white; border-radius: var(--r-xl); width: 100%; max-width: 480px; box-shadow: var(--sh-xl); overflow: hidden;">
+        <div style="padding: 16px 20px; border-bottom: 1.5px solid var(--gray-100); display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 800; color: var(--gray-900);">
+                💸 Disburse Seller Settlement
+            </h3>
+            <span onclick="closeModal('payoutModal')" style="cursor: pointer; font-size: 1.3rem; color: var(--gray-400);">&times;</span>
+        </div>
+        <form id="payoutBatchForm" style="padding: 20px; margin: 0;">
+            <input type="hidden" id="payoutSellerId" name="seller_id">
+            
+            <div style="background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: var(--r-md); padding: 14px; margin-bottom: 16px;">
+                <div style="font-size: 0.8rem; color: var(--gray-500);">Recipient Seller</div>
+                <div id="payoutShopName" style="font-weight: 800; font-size: 1.05rem; color: var(--gray-900); margin-top: 2px;"></div>
+                <div id="payoutBankSummary" style="font-size: 0.8rem; color: var(--gray-600); margin-top: 4px;"></div>
+                <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--gray-200); display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 0.85rem; font-weight: 700; color: var(--gray-700);">Net Payout:</span>
+                    <span id="payoutNetAmt" style="font-size: 1.25rem; font-weight: 800; color: #059669; font-family: 'Syne', sans-serif;"></span>
+                </div>
+            </div>
+
+            <!-- Payment Method Selection -->
+            <div style="margin-bottom: 16px;">
+                <label style="display: block; font-weight: 700; font-size: 0.85rem; color: var(--gray-800); margin-bottom: 6px;">
+                    Payment Mode
+                </label>
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <label style="flex: 1; border: 1.5px solid var(--gray-200); border-radius: var(--r-md); padding: 10px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.85rem;">
+                        <input type="radio" name="payout_method" value="manual" checked onchange="togglePayoutMethodInputs('manual')">
+                        <span><strong>Manual / Bank UTR</strong><br><small style="color: var(--gray-500);">NEFT, RTGS, IMPS, UPI</small></span>
+                    </label>
+                    <label style="flex: 1; border: 1.5px solid var(--gray-200); border-radius: var(--r-md); padding: 10px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.85rem;">
+                        <input type="radio" name="payout_method" value="razorpayx" onchange="togglePayoutMethodInputs('razorpayx')">
+                        <span><strong>RazorpayX</strong><br><small style="color: var(--blue-600);">Instant Payout API</small></span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Manual Fields -->
+            <div id="manualPayoutFields">
+                <div style="margin-bottom: 12px;">
+                    <label style="display: block; font-weight: 600; font-size: 0.8rem; color: var(--gray-700); margin-bottom: 4px;">
+                        UTR / Transaction Reference Number <span style="color: #dc2626;">*</span>
+                    </label>
+                    <input type="text" id="payoutUtrInput" placeholder="e.g. UTR123456789 or BANK-REF" style="width: 100%; padding: 8px 12px; border: 1.5px solid var(--gray-200); border-radius: var(--r-md); font-size: 0.85rem;">
+                </div>
+            </div>
+
+            <!-- RazorpayX Fields -->
+            <div id="razorpayxPayoutFields" style="display: none; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: var(--r-md); padding: 12px; margin-bottom: 14px;">
+                <label style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #1e40af; cursor: pointer;">
+                    <input type="checkbox" id="payoutSimulateCheckbox" checked>
+                    <span><strong>Test Simulation Mode</strong> (Instantly marks as paid without debiting live funds)</span>
+                </label>
+            </div>
+
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px;">
+                <button type="button" class="btn-outline" onclick="closeModal('payoutModal')" style="padding: 8px 16px; border-radius: var(--r-md); border: 1.5px solid var(--gray-200); background: white; font-weight: 600; cursor: pointer; font-size: 0.85rem;">
+                    Cancel
+                </button>
+                <button type="submit" id="submitPayoutBtn" class="btn-primary" style="padding: 8px 20px; border-radius: var(--r-md); border: none; background: linear-gradient(135deg, #059669, #047857); color: white; font-weight: 700; cursor: pointer; font-size: 0.85rem;">
+                    Confirm & Execute Payout
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal 2: Mark Existing Settlement Paid (UTR) -->
+<div id="markPaidModal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center; padding: 16px;">
+    <div style="background: white; border-radius: var(--r-xl); width: 100%; max-width: 440px; box-shadow: var(--sh-xl); overflow: hidden;">
+        <div style="padding: 16px 20px; border-bottom: 1.5px solid var(--gray-100); display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; font-family: 'Syne', sans-serif; font-size: 1.05rem; font-weight: 800; color: var(--gray-900);">
+                Mark Settlement as Paid
+            </h3>
+            <span onclick="closeModal('markPaidModal')" style="cursor: pointer; font-size: 1.3rem; color: var(--gray-400);">&times;</span>
+        </div>
+        <form id="markPaidForm" style="padding: 20px; margin: 0;">
+            <input type="hidden" id="markPaidSettlementId">
+            <div style="background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: var(--r-md); padding: 12px; margin-bottom: 14px;">
+                <div style="font-size: 0.8rem; color: var(--gray-500);">Settlement: <strong id="markPaidSettlementCode" style="color: var(--blue-600);"></strong></div>
+                <div style="font-size: 0.85rem; font-weight: 700; color: var(--gray-800); margin-top: 2px;" id="markPaidSellerShop"></div>
+                <div style="font-size: 1.15rem; font-weight: 800; color: #059669; font-family: 'Syne', sans-serif; margin-top: 4px;" id="markPaidAmount"></div>
+            </div>
+            <div style="margin-bottom: 12px;">
+                <label style="display: block; font-weight: 600; font-size: 0.8rem; color: var(--gray-700); margin-bottom: 4px;">UTR / Reference Number <span style="color: #dc2626;">*</span></label>
+                <input type="text" id="markPaidUtr" required placeholder="e.g. UTR987654321" style="width: 100%; padding: 8px 12px; border: 1.5px solid var(--gray-200); border-radius: var(--r-md); font-size: 0.85rem;">
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px;">
+                <button type="button" class="btn-outline" onclick="closeModal('markPaidModal')" style="padding: 8px 16px; border-radius: var(--r-md); border: 1.5px solid var(--gray-200); background: white; font-weight: 600; cursor: pointer; font-size: 0.85rem;">Cancel</button>
+                <button type="submit" id="markPaidSubmitBtn" class="btn-primary" style="padding: 8px 20px; border-radius: var(--r-md); border: none; background: #059669; color: white; font-weight: 700; cursor: pointer; font-size: 0.85rem;">Mark as Paid</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal 3: Trigger Razorpay Payout -->
+<div id="triggerPayoutModal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center; padding: 16px;">
+    <div style="background: white; border-radius: var(--r-xl); width: 100%; max-width: 440px; box-shadow: var(--sh-xl); overflow: hidden;">
+        <div style="padding: 16px 20px; border-bottom: 1.5px solid var(--gray-100); display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; font-family: 'Syne', sans-serif; font-size: 1.05rem; font-weight: 800; color: var(--gray-900);">
+                Trigger RazorpayX Payout
+            </h3>
+            <span onclick="closeModal('triggerPayoutModal')" style="cursor: pointer; font-size: 1.3rem; color: var(--gray-400);">&times;</span>
+        </div>
+        <form id="triggerPayoutForm" style="padding: 20px; margin: 0;">
+            <input type="hidden" id="triggerPayoutSettlementId">
+            <div style="background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: var(--r-md); padding: 12px; margin-bottom: 14px;">
+                <div style="font-size: 0.8rem; color: var(--gray-500);">Settlement: <strong id="triggerSettlementCode" style="color: var(--blue-600);"></strong></div>
+                <div style="font-size: 0.85rem; font-weight: 700; color: var(--gray-800); margin-top: 2px;" id="triggerSellerShop"></div>
+                <div style="font-size: 1.15rem; font-weight: 800; color: #2563eb; font-family: 'Syne', sans-serif; margin-top: 4px;" id="triggerAmount"></div>
+            </div>
+            <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: var(--r-md); padding: 12px; margin-bottom: 14px;">
+                <label style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #1e40af; cursor: pointer;">
+                    <input type="checkbox" id="triggerSimulateCheckbox" checked>
+                    <span><strong>Test Simulation Mode</strong> (No live bank charge)</span>
+                </label>
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px;">
+                <button type="button" class="btn-outline" onclick="closeModal('triggerPayoutModal')" style="padding: 8px 16px; border-radius: var(--r-md); border: 1.5px solid var(--gray-200); background: white; font-weight: 600; cursor: pointer; font-size: 0.85rem;">Cancel</button>
+                <button type="submit" id="triggerPayoutSubmitBtn" class="btn-primary" style="padding: 8px 20px; border-radius: var(--r-md); border: none; background: #2563eb; color: white; font-weight: 700; cursor: pointer; font-size: 0.85rem;">Initiate Payout</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal 4: Revert Settlement -->
+<div id="revertModal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center; padding: 16px;">
+    <div style="background: white; border-radius: var(--r-xl); width: 100%; max-width: 440px; box-shadow: var(--sh-xl); overflow: hidden;">
+        <div style="padding: 16px 20px; border-bottom: 1.5px solid var(--gray-100); display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; font-family: 'Syne', sans-serif; font-size: 1.05rem; font-weight: 800; color: #b91c1c;">
+                Revert Settlement
+            </h3>
+            <span onclick="closeModal('revertModal')" style="cursor: pointer; font-size: 1.3rem; color: var(--gray-400);">&times;</span>
+        </div>
+        <form id="revertForm" style="padding: 20px; margin: 0;">
+            <input type="hidden" id="revertSettlementId">
+            <p style="margin: 0 0 12px; font-size: 0.85rem; color: var(--gray-600);">
+                Are you sure you want to revert settlement <strong id="revertSettlementCode" style="color: var(--gray-900);"></strong>? This will reset the status to Pending.
+            </p>
+            <div style="margin-bottom: 14px;">
+                <label style="display: block; font-weight: 600; font-size: 0.8rem; color: var(--gray-700); margin-bottom: 4px;">Reason for Reverting <span style="color: #dc2626;">*</span></label>
+                <textarea id="revertReason" rows="2" required placeholder="e.g. Incorrect bank account, payment bounced" style="width: 100%; padding: 8px 12px; border: 1.5px solid var(--gray-200); border-radius: var(--r-md); font-size: 0.85rem;"></textarea>
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px;">
+                <button type="button" class="btn-outline" onclick="closeModal('revertModal')" style="padding: 8px 16px; border-radius: var(--r-md); border: 1.5px solid var(--gray-200); background: white; font-weight: 600; cursor: pointer; font-size: 0.85rem;">Cancel</button>
+                <button type="submit" id="revertSubmitBtn" class="btn-primary" style="padding: 8px 20px; border-radius: var(--r-md); border: none; background: #dc2626; color: white; font-weight: 700; cursor: pointer; font-size: 0.85rem;">Revert Settlement</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const csrfToken = '{{ csrf_token }}';
+
+function switchSettlementTab(tabName) {
+    const unsettledTab = document.getElementById('tab-content-unsettled');
+    const historyTab = document.getElementById('tab-content-history');
+    const unsettledBtn = document.getElementById('tab-btn-unsettled');
+    const historyBtn = document.getElementById('tab-btn-history');
+
+    if (tabName === 'unsettled') {
+        unsettledTab.style.display = 'block';
+        historyTab.style.display = 'none';
+        unsettledBtn.style.borderBottomColor = '#059669';
+        unsettledBtn.style.color = '#059669';
+        historyBtn.style.borderBottomColor = 'transparent';
+        historyBtn.style.color = 'var(--gray-500)';
+    } else {
+        unsettledTab.style.display = 'none';
+        historyTab.style.display = 'block';
+        historyBtn.style.borderBottomColor = '#059669';
+        historyBtn.style.color = '#059669';
+        unsettledBtn.style.borderBottomColor = 'transparent';
+        unsettledBtn.style.color = 'var(--gray-500)';
+    }
+}
+
+// Auto open tab based on URL param
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('tab') === 'history' || urlParams.get('q') || urlParams.get('status')) {
+    switchSettlementTab('history');
+}
+
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) modal.style.display = 'none';
+}
+
+function openModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) modal.style.display = 'flex';
+}
+
+// Close when clicking backdrop
+window.addEventListener('click', (e) => {
+    ['payoutModal', 'markPaidModal', 'triggerPayoutModal', 'revertModal'].forEach(id => {
+        const m = document.getElementById(id);
+        if (e.target === m) m.style.display = 'none';
+    });
+});
+
+let currentTargetItemIds = [];
+function openPayoutModalForSeller(sellerId, shopName, netAmount, itemIds, bankName, acNo, ifsc) {
+    document.getElementById('payoutSellerId').value = sellerId;
+    document.getElementById('payoutShopName').innerText = shopName;
+    document.getElementById('payoutNetAmt').innerText = '₹' + parseFloat(netAmount).toFixed(2);
+    currentTargetItemIds = itemIds || [];
+
+    const bankSummary = bankName ? `${bankName} • A/C: ••••${acNo.slice(-4)} • IFSC: ${ifsc}` : '⚠️ No Bank Configured';
+    document.getElementById('payoutBankSummary').innerText = bankSummary;
+    document.getElementById('payoutUtrInput').value = '';
+    togglePayoutMethodInputs('manual');
+    openModal('payoutModal');
+}
+
+function togglePayoutMethodInputs(method) {
+    const manualFields = document.getElementById('manualPayoutFields');
+    const rzpFields = document.getElementById('razorpayxPayoutFields');
+    if (method === 'razorpayx') {
+        manualFields.style.display = 'none';
+        rzpFields.style.display = 'block';
+    } else {
+        manualFields.style.display = 'block';
+        rzpFields.style.display = 'none';
+    }
+}
+
+// Execute Settle & Pay Seller
+document.getElementById('payoutBatchForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const sellerId = document.getElementById('payoutSellerId').value;
+    const method = document.querySelector('input[name="payout_method"]:checked')?.value || 'manual';
+    const utr = document.getElementById('payoutUtrInput').value.trim();
+    const simulate = document.getElementById('payoutSimulateCheckbox').checked;
+
+    if (method === 'manual' && !utr) {
+        alert('Please enter a valid Bank UTR or Transaction Reference number.');
+        return;
+    }
+
+    const btn = document.getElementById('submitPayoutBtn');
+    btn.disabled = true;
+    btn.innerText = 'Processing Payout...';
+
+    try {
+        // Step 1: Create settlement batch
+        const createRes = await fetch(`/orders/admin/seller/${sellerId}/create-settlement/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ order_item_ids: currentTargetItemIds })
+        });
+        const createData = await createRes.json();
+        if (!createRes.ok || createData.status === 'error') {
+            throw new Error(createData.message || 'Failed to create settlement batch.');
+        }
+
+        const settlementId = createData.settlement_id;
+
+        // Step 2: Trigger payment or mark as paid
+        if (method === 'razorpayx') {
+            const payRes = await fetch(`/orders/admin/settlement/${settlementId}/payout/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({ simulate: simulate })
+            });
+            const payData = await payRes.json();
+            if (!payRes.ok || payData.status === 'error') {
+                throw new Error(payData.message || 'Failed to execute RazorpayX payout.');
+            }
+            alert(payData.message || 'Payout executed successfully!');
+        } else {
+            const markRes = await fetch(`/orders/admin/settlement/${settlementId}/mark-paid/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({ payment_reference: utr, payment_mode: 'Direct Bank Transfer / UPI' })
+            });
+            const markData = await markRes.json();
+            if (!markRes.ok || markData.status === 'error') {
+                throw new Error(markData.message || 'Failed to mark settlement as paid.');
+            }
+            alert(markData.message || 'Settlement marked as paid successfully!');
+        }
+
+        window.location.reload();
+    } catch (err) {
+        alert(err.message);
+        btn.disabled = false;
+        btn.innerText = 'Confirm & Execute Payout';
+    }
+});
+
+// Mark Paid Modal Handlers
+function openMarkPaidModal(id, code, shop, amount) {
+    document.getElementById('markPaidSettlementId').value = id;
+    document.getElementById('markPaidSettlementCode').innerText = code;
+    document.getElementById('markPaidSellerShop').innerText = shop;
+    document.getElementById('markPaidAmount').innerText = '₹' + parseFloat(amount).toFixed(2);
+    document.getElementById('markPaidUtr').value = '';
+    openModal('markPaidModal');
+}
+
+document.getElementById('markPaidForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('markPaidSettlementId').value;
+    const utr = document.getElementById('markPaidUtr').value.trim();
+    if (!utr) {
+        alert('Please provide a UTR reference number.');
+        return;
+    }
+    const btn = document.getElementById('markPaidSubmitBtn');
+    btn.disabled = true;
+    btn.innerText = 'Submitting...';
+
+    try {
+        const res = await fetch(`/orders/admin/settlement/${id}/mark-paid/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ payment_reference: utr, payment_mode: 'Direct Bank Transfer / UPI' })
+        });
+        const data = await res.json();
+        if (!res.ok || data.status === 'error') {
+            throw new Error(data.message || 'Failed to update settlement.');
+        }
+        alert(data.message || 'Settlement marked as paid!');
+        window.location.reload();
+    } catch (err) {
+        alert(err.message);
+        btn.disabled = false;
+        btn.innerText = 'Mark as Paid';
+    }
+});
+
+// Trigger Razorpay Payout Handlers
+function openTriggerPayoutModal(id, code, shop, amount) {
+    document.getElementById('triggerPayoutSettlementId').value = id;
+    document.getElementById('triggerSettlementCode').innerText = code;
+    document.getElementById('triggerSellerShop').innerText = shop;
+    document.getElementById('triggerAmount').innerText = '₹' + parseFloat(amount).toFixed(2);
+    openModal('triggerPayoutModal');
+}
+
+document.getElementById('triggerPayoutForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('triggerPayoutSettlementId').value;
+    const simulate = document.getElementById('triggerSimulateCheckbox').checked;
+    const btn = document.getElementById('triggerPayoutSubmitBtn');
+    btn.disabled = true;
+    btn.innerText = 'Initiating...';
+
+    try {
+        const res = await fetch(`/orders/admin/settlement/${id}/payout/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ simulate: simulate })
+        });
+        const data = await res.json();
+        if (!res.ok || data.status === 'error') {
+            throw new Error(data.message || 'Failed to initiate RazorpayX payout.');
+        }
+        alert(data.message || 'Payout initiated successfully!');
+        window.location.reload();
+    } catch (err) {
+        alert(err.message);
+        btn.disabled = false;
+        btn.innerText = 'Initiate Payout';
+    }
+});
+
+// Revert Modal Handlers
+function openRevertModal(id, code, amount) {
+    document.getElementById('revertSettlementId').value = id;
+    document.getElementById('revertSettlementCode').innerText = code;
+    document.getElementById('revertReason').value = '';
+    openModal('revertModal');
+}
+
+document.getElementById('revertForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('revertSettlementId').value;
+    const reason = document.getElementById('revertReason').value.trim();
+    if (!reason) {
+        alert('Please specify a reason for reverting.');
+        return;
+    }
+    const btn = document.getElementById('revertSubmitBtn');
+    btn.disabled = true;
+    btn.innerText = 'Reverting...';
+
+    try {
+        const res = await fetch(`/orders/admin/settlement/${id}/revert/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ reason: reason })
+        });
+        const data = await res.json();
+        if (!res.ok || data.status === 'error') {
+            throw new Error(data.message || 'Failed to revert settlement.');
+        }
+        alert(data.message || 'Settlement reverted successfully!');
+        window.location.reload();
+    } catch (err) {
+        alert(err.message);
+        btn.disabled = false;
+        btn.innerText = 'Revert Settlement';
+    }
+});
+</script>
+{% endblock %}

@@ -25,6 +25,11 @@
                 <span style="display: block; font-size: 1.4rem; font-weight: 800; color: var(--green);">{{ delivered_count|default:"0" }}</span>
                 <small style="font-size: 0.75rem; font-weight: 600; color: var(--gray-500); text-transform: uppercase;">Delivered</small>
             </div>
+            <div style="display: flex; align-items: center;">
+                <a href="{% url 'orders:admin_settlements_dashboard' %}" class="btn-primary" style="padding: 12px 20px; border-radius: var(--r-xl); font-size: 0.85rem; font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; background: linear-gradient(135deg, #059669, #047857); color: white; box-shadow: 0 4px 12px rgba(5,150,105,0.25);">
+                    <i class="fa fa-money-bill-wave"></i> Seller Payouts & Settlements
+                </a>
+            </div>
         </div>
     </div>
 

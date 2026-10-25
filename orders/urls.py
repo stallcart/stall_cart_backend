@@ -153,6 +153,9 @@ urlpatterns = [
      path('order/<str:order_id>/authorized-cancel/', seller_or_admin_only(views.authorized_cancel_order), name='authorized_cancel_order'),
 
      # Settlement & Payout management
+     path('admin/settlements/', admin_only(views.admin_settlements_dashboard), name='admin_settlements_dashboard'),
+     path('admin/order/<str:order_id>/settle-seller/<int:seller_id>/', admin_only(views.admin_settle_order_seller_ajax), name='admin_settle_order_seller_ajax'),
+     path('admin/order/<str:order_id>/settle-all/', admin_only(views.admin_settle_entire_order_ajax), name='admin_settle_entire_order_ajax'),
      path('admin/settlement/<int:settlement_id>/payout/', views.admin_trigger_payout_ajax, name='admin_trigger_payout_ajax'),
      path('admin/settlement/<int:settlement_id>/mark-paid/', views.admin_mark_settlement_paid_ajax, name='admin_mark_settlement_paid_ajax'),
      path('admin/settlement/<int:settlement_id>/revert/', views.admin_revert_settlement_ajax, name='admin_revert_settlement_ajax'),
