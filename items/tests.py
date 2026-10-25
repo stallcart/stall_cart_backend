@@ -2205,4 +2205,19 @@ class SellerStorefrontAndSearchTests(TestCase):
         self.assertIn("Banarasi Silk Saree", product_names)
         self.assertNotIn("Cotton Kurta Set", product_names)
 
+    def test_product_detail_seller_link(self):
+        """Product detail page has clickable link to seller storefront displaying all products."""
+        detail_url = reverse('items:product_detail', kwargs={'slug': self.p1.slug})
+        res = self.client.get(detail_url)
+        self.assertEqual(res.status_code, 200)
+        expected_storefront_path = reverse('items:seller_storefront', kwargs={'seller_identifier': self.seller1.slug})
+        self.assertContains(res, expected_storefront_path)
+        self.assertContains(res, "Jaiswal Vastralay")
+
+        # Now following that link returns only Jaiswal Vastralay's products
+        store_res = self.client.get(expected_storefront_path)
+        self.assertEqual(store_res.status_code, 200)
+        self.assertEqual(len(store_res.context['products']), 2)
+        self.assertEqual(store_res.context['current_seller'], self.seller1)
+
 

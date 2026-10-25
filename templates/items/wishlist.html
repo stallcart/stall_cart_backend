@@ -448,7 +448,9 @@
                     
                     <span class="wl-seller">
                         <i class="fa fa-store"></i>
-                        {{ item.product.seller.shop_name|truncatechars:18 }}
+                        <a href="{% url 'items:seller_storefront' item.product.seller.slug %}" style="color: inherit; text-decoration: none;" title="Visit {{ item.product.seller.shop_name }} Storefront">
+                            {{ item.product.seller.shop_name|truncatechars:18 }}
+                        </a>
                     </span>
                     
                     {% if item.variant %}
