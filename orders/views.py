@@ -1590,21 +1590,24 @@ def admin_order_detail(request, order_id):
     from collections import defaultdict
     seller_payout_summaries = {}
     items_by_seller = defaultdict(list)
-    for it in order.items.select_related('seller', 'seller__user', 'product', 'product__category', 'variant').prefetch_related('settlements'):
+    for it in order.items.select_related('seller', 'seller__user', 'product', 'product__category', 'variant').prefetch_related('settlements', 'return_requests'):
         items_by_seller[it.seller].append(it)
         
     unsettled_sellers_count = 0
     for seller, s_items in items_by_seller.items():
-        total_val = sum((it.total for it in s_items), Decimal('0.00'))
-        total_comm = sum((it.commission_amount for it in s_items), Decimal('0.00'))
-        net_payout = sum((it.seller_earnings for it in s_items), Decimal('0.00'))
+        # Exclude returned, cancelled, or returning items from payout calculations
+        payable_items = [it for it in s_items if not it.is_return_or_cancelled]
+        returned_or_cancelled_items = [it for it in s_items if it.is_return_or_cancelled]
+
+        total_val = sum((it.total for it in payable_items), Decimal('0.00'))
+        total_comm = sum((it.commission_amount for it in payable_items), Decimal('0.00'))
+        net_payout = sum((it.seller_earnings for it in payable_items), Decimal('0.00'))
         
         # Check settlements
         settled_items = [it for it in s_items if it.payout_status == 'received']
         pending_items = [it for it in s_items if it.payout_status == 'pending']
-        due_items = [it for it in s_items if it.payout_status == 'due']
-        in_transit_items = [it for it in s_items if it.payout_status == 'in_transit']
-        cancelled_items = [it for it in s_items if it.payout_status == 'cancelled']
+        due_items = [it for it in payable_items if it.payout_status == 'due']
+        in_transit_items = [it for it in payable_items if it.payout_status == 'in_transit']
         
         latest_sett = None
         for it in s_items:
@@ -1613,17 +1616,17 @@ def admin_order_detail(request, order_id):
                 latest_sett = s
                 break
                 
-        if len(settled_items) == len(s_items) and len(s_items) > 0:
+        if len(settled_items) == len(payable_items) and len(payable_items) > 0:
             payout_status = 'settled'
         elif len(pending_items) > 0:
             payout_status = 'pending'
+        elif len(returned_or_cancelled_items) == len(s_items) or (net_payout <= Decimal('0.00') and len(settled_items) == 0):
+            payout_status = 'cancelled'  # No payout due: all items returned or cancelled
         elif len(due_items) > 0:
             payout_status = 'due'
             unsettled_sellers_count += 1
         elif len(in_transit_items) > 0:
             payout_status = 'in_transit'
-        elif len(cancelled_items) == len(s_items):
-            payout_status = 'cancelled'
         else:
             payout_status = 'due'
             unsettled_sellers_count += 1
@@ -1634,13 +1637,16 @@ def admin_order_detail(request, order_id):
             'seller': seller,
             'items': s_items,
             'items_count': len(s_items),
+            'payable_items_count': len(payable_items),
+            'has_returned_items': len(returned_or_cancelled_items) > 0,
+            'returned_items_count': len(returned_or_cancelled_items),
             'gross_total': total_val,
             'commission': total_comm,
             'net_payout': net_payout,
             'status': payout_status,
             'latest_settlement': latest_sett,
             'has_bank_details': has_bank,
-            'unsettled_item_ids': [it.id for it in s_items if it.payout_status in ('due', 'in_transit') and not it.is_returned],
+            'unsettled_item_ids': [it.id for it in payable_items if it.payout_status in ('due', 'in_transit')],
         }
         
     context = {
@@ -3048,11 +3054,19 @@ def admin_settle_order_seller_ajax(request, order_id, seller_id):
 
     with transaction.atomic():
         # Select items for this seller in this order that are not returned, not cancelled/failed
-        items = list(
+        raw_items = list(
             OrderItem.objects.select_for_update()
             .filter(order=order, seller=seller, is_returned=False)
-            .exclude(status__in=['cancelled', 'rto', 'rto_in_transit', 'rto_delivered', 'returned', 'failed'])
+            .exclude(status__in=['cancelled', 'rto', 'rto_in_transit', 'rto_delivered', 'returned', 'failed', 'returned_to_source', 'refund_initiated', 'refunded', 'courier_failed_pickup', 'seller_unresponsive'])
+            .exclude(return_requests__status__in=['requested', 'approved', 'pickup_scheduled', 'picked_up', 'received', 'refund_initiated', 'completed'])
         )
+        items = [it for it in raw_items if not it.is_return_or_cancelled]
+
+        if not items:
+            return JsonResponse({
+                'status': 'error',
+                'message': f'Cannot settle: All items for {seller.shop_name} in this order have been returned, cancelled, or are undergoing return.'
+            }, status=400)
 
         # Check if already settled
         unsettled_items = []
@@ -3081,6 +3095,13 @@ def admin_settle_order_seller_ajax(request, order_id, seller_id):
         )
         settlement.order_items.add(*unsettled_items)
         settlement.refresh_from_db()
+
+        if settlement.amount <= Decimal('0.00'):
+            transaction.set_rollback(True)
+            return JsonResponse({
+                'status': 'error',
+                'message': f'Settlement amount for {seller.shop_name} is ₹0.00 (all items returned/cancelled). No payout is due.'
+            }, status=400)
 
         if payment_method == 'razorpayx':
             if simulate:
@@ -3176,25 +3197,33 @@ def admin_settle_entire_order_ajax(request, order_id):
 
     from collections import defaultdict
     items_by_seller = defaultdict(list)
-    for it in order.items.select_related('seller').prefetch_related('settlements'):
-        if it.payout_status in ('due', 'in_transit') and not it.is_returned:
+    for it in order.items.select_related('seller').prefetch_related('settlements', 'return_requests'):
+        if it.payout_status in ('due', 'in_transit') and not it.is_return_or_cancelled:
             items_by_seller[it.seller].append(it)
 
     if not items_by_seller:
         return JsonResponse({
             'status': 'error',
-            'message': 'No unsettled items found in this order.'
+            'message': 'No payable unsettled items found in this order (items may be returned or cancelled).'
         }, status=400)
 
     settled_results = []
     with transaction.atomic():
         for seller, s_items in items_by_seller.items():
+            valid_items = [it for it in s_items if not it.is_return_or_cancelled]
+            if not valid_items:
+                continue
+
             settlement = SellerSettlement.objects.create(
                 seller=seller,
                 status='pending'
             )
-            settlement.order_items.add(*s_items)
+            settlement.order_items.add(*valid_items)
             settlement.refresh_from_db()
+
+            if settlement.amount <= Decimal('0.00'):
+                settlement.delete()
+                continue
 
             if payment_method == 'razorpayx':
                 if simulate:
@@ -3262,11 +3291,19 @@ def admin_settlements_dashboard(request):
         status='pending'
     ).aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
 
-    unsettled_delivered_items = OrderItem.objects.filter(
+    raw_unsettled_delivered_items = OrderItem.objects.filter(
         status='delivered',
         is_returned=False,
         settlements__isnull=True
-    ).select_related('order', 'seller', 'product', 'product__category')
+    ).exclude(
+        order__status__in=['cancelled', 'returned', 'returned_to_source', 'refund_initiated', 'refunded']
+    ).exclude(
+        status__in=['cancelled', 'returned', 'returned_to_source', 'refund_initiated', 'refunded', 'courier_failed_pickup', 'seller_unresponsive']
+    ).exclude(
+        return_requests__status__in=['requested', 'approved', 'pickup_scheduled', 'picked_up', 'received', 'refund_initiated', 'completed']
+    ).select_related('order', 'seller', 'seller__user', 'product', 'product__category').prefetch_related('return_requests')
+
+    unsettled_delivered_items = [it for it in raw_unsettled_delivered_items if not it.is_return_or_cancelled]
 
     unsettled_delivered_amount = sum(
         (it.seller_earnings for it in unsettled_delivered_items), Decimal('0.00')
@@ -3280,18 +3317,23 @@ def admin_settlements_dashboard(request):
 
     unsettled_seller_cards = []
     for sel, items in unsettled_by_seller.items():
-        gross = sum((it.total for it in items), Decimal('0.00'))
-        comm = sum((it.commission_amount for it in items), Decimal('0.00'))
-        net = sum((it.seller_earnings for it in items), Decimal('0.00'))
+        valid_items = [it for it in items if not it.is_return_or_cancelled]
+        if not valid_items:
+            continue
+        gross = sum((it.total for it in valid_items), Decimal('0.00'))
+        comm = sum((it.commission_amount for it in valid_items), Decimal('0.00'))
+        net = sum((it.seller_earnings for it in valid_items), Decimal('0.00'))
+        if net <= Decimal('0.00'):
+            continue
         unsettled_seller_cards.append({
             'seller': sel,
-            'items': items,
-            'items_count': len(items),
+            'items': valid_items,
+            'items_count': len(valid_items),
             'gross_total': gross,
             'commission': comm,
             'net_payout': net,
-            'orders_count': len(set(it.order_id for it in items)),
-            'item_ids': [it.id for it in items],
+            'orders_count': len(set(it.order_id for it in valid_items)),
+            'item_ids': [it.id for it in valid_items],
             'has_bank_details': bool(sel.bank_name and sel.account_number and sel.ifsc_code),
         })
 

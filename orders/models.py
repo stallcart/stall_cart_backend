@@ -575,6 +575,30 @@ class OrderItem(BaseModel):
         return self.quantity - self.returned_quantity
 
     @property
+    def is_return_or_cancelled(self):
+        """
+        True if item is returned, cancelled, or has an active/pending/approved return request.
+        Such items are ineligible for seller payout.
+        """
+        if self.is_returned:
+            return True
+        if self.status in ('cancelled', 'returned', 'returned_to_source', 'refund_initiated', 'refunded', 'courier_failed_pickup', 'seller_unresponsive'):
+            return True
+        if self.order_id and self.order.status in ('cancelled', 'returned', 'returned_to_source', 'refund_initiated', 'refunded'):
+            return True
+        try:
+            if hasattr(self, '_prefetched_objects_cache') and 'return_requests' in self._prefetched_objects_cache:
+                for req in self.return_requests.all():
+                    if req.status != 'rejected':
+                        return True
+            else:
+                if self.return_requests.exclude(status='rejected').exists():
+                    return True
+        except Exception:
+            pass
+        return False
+
+    @property
     def commission_rate(self):
         """Commission rate from the product's category as a Decimal (e.g. 0.05 for 5%)"""
         if self.product and self.product.category:
@@ -585,7 +609,9 @@ class OrderItem(BaseModel):
 
     @property
     def commission_amount(self):
-        """Total commission for this order item"""
+        """Total commission for this order item. Returns 0 if returned or cancelled."""
+        if self.is_return_or_cancelled:
+            return Decimal('0.00')
         price = self.price if self.price is not None else Decimal('0.00')
         quantity = self.quantity or 0
         return (price * self.commission_rate * quantity).quantize(Decimal('0.01'))
@@ -594,10 +620,10 @@ class OrderItem(BaseModel):
     def seller_earnings(self):
         """
         Seller's net earnings for this item.
-        If item is cancelled or returned/refunded, earnings are 0.
+        If item is cancelled, returned, or has an active return request, earnings are 0.
         Otherwise, it is total - commission.
         """
-        if self.status in ('cancelled', 'returned', 'returned_to_source', 'refund_initiated', 'refunded', 'courier_failed_pickup', 'seller_unresponsive') or self.is_returned:
+        if self.is_return_or_cancelled:
             return Decimal('0.00')
         
         active_qty = self.remaining_quantity
@@ -655,7 +681,7 @@ class OrderItem(BaseModel):
         - 'cancelled': Item was cancelled, returned, or refunded (no payout).
         - 'failed': Settlement payout failed.
         """
-        if self.status in ('cancelled', 'returned', 'returned_to_source', 'refund_initiated', 'refunded', 'courier_failed_pickup', 'seller_unresponsive') or self.is_returned:
+        if self.is_return_or_cancelled:
             return 'cancelled'
             
         settlement = self.latest_settlement

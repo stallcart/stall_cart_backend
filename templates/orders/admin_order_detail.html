@@ -153,6 +153,9 @@
                                             • Variant: <span style="font-weight: 600;">{{ item.variant.size_value }} / {{ item.variant.color }}</span>
                                         {% endif %}
                                         • Status: <span class="badge" style="padding: 2px 6px; font-size: 0.7rem; border-radius: 4px;">{{ item.get_status_display }}</span>
+                                        {% if item.is_return_or_cancelled %}
+                                            <span class="badge" style="background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: 700; margin-left: 4px;"><i class="fa fa-undo"></i> No Payout (Returned/Cancelled)</span>
+                                        {% endif %}
                                         {% if item.shiprocket_status %}
                                             • Courier Status: <span style="font-weight: 700; color: #1e3a8a;">{{ item.shiprocket_status }}</span>
                                         {% endif %}
@@ -160,7 +163,7 @@
                                 </div>
                                 <div style="text-align: right; min-width: 80px;">
                                     <div style="font-size: 0.75rem; color: var(--gray-500);">{{ item.quantity }} x ₹{{ item.price|floatformat:2 }}</div>
-                                    <strong style="font-size: 0.9rem; color: var(--blue-500); display: block; margin-top: 2px;">₹{{ item.total|floatformat:2 }}</strong>
+                                    <strong style="font-size: 0.9rem; color: {% if item.is_return_or_cancelled %}var(--gray-400); text-decoration: line-through;{% else %}var(--blue-500);{% endif %} display: block; margin-top: 2px;">₹{{ item.total|floatformat:2 }}</strong>
                                 </div>
                             </div>
                             {% endfor %}
@@ -181,7 +184,10 @@
                                     {% endif %}
                                 </div>
                                 <div style="font-size: 0.75rem; color: var(--gray-500); margin-top: 2px;">
-                                    Sales: ₹{{ seller_summary.gross_total|floatformat:2 }} | Comm: -₹{{ seller_summary.commission|floatformat:2 }} | <strong style="color: #047857;">Net Payout: ₹{{ seller_summary.net_payout|floatformat:2 }}</strong>
+                                    Sales: ₹{{ seller_summary.gross_total|floatformat:2 }} | Comm: -₹{{ seller_summary.commission|floatformat:2 }} | <strong style="color: {% if seller_summary.net_payout > 0 %}#047857{% else %}var(--gray-500){% endif %};">Net Payout: ₹{{ seller_summary.net_payout|floatformat:2 }}</strong>
+                                    {% if seller_summary.has_returned_items %}
+                                        <span style="color: #dc2626; font-weight: 600; margin-left: 4px;">({{ seller_summary.returned_items_count }} returned/cancelled excluded)</span>
+                                    {% endif %}
                                 </div>
                             </div>
 
@@ -205,6 +211,15 @@
                                         </span>
                                         <div style="font-size: 0.72rem; color: var(--gray-500); margin-top: 2px;">
                                             Settlement: <strong>{{ seller_summary.latest_settlement.settlement_id }}</strong>
+                                        </div>
+                                    </div>
+                                {% elif seller_summary.status == 'cancelled' or seller_summary.net_payout <= 0 %}
+                                    <div style="text-align: right;">
+                                        <span style="font-size: 0.78rem; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; padding: 4px 10px; border-radius: 6px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;">
+                                            <i class="fa fa-ban"></i> No Payout Due (Returned / Cancelled)
+                                        </span>
+                                        <div style="font-size: 0.72rem; color: var(--gray-500); margin-top: 2px;">
+                                            Item(s) returned or cancelled — ₹0.00 payable
                                         </div>
                                     </div>
                                 {% else %}

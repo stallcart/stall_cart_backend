@@ -1288,6 +1288,107 @@ class SellerSettlementAndBankDetailsTests(TestCase):
         self.assertIn('total_settled_amount', res_admin.context)
         self.assertIn('unsettled_seller_cards', res_admin.context)
 
+    def test_returned_item_not_eligible_for_seller_payout(self):
+        """Returned items yield 0 earnings and cannot be settled."""
+        # Mark self.item as returned
+        self.item.is_returned = True
+        self.item.status = 'returned'
+        self.item.save()
+
+        self.assertTrue(self.item.is_return_or_cancelled)
+        self.assertEqual(self.item.seller_earnings, Decimal('0.00'))
+        self.assertEqual(self.item.commission_amount, Decimal('0.00'))
+        self.assertEqual(self.item.payout_status, 'cancelled')
+
+        # Admin attempt to settle this seller should return 400
+        self.client.login(phone="9999999999", password="adminpassword")
+        url = reverse('orders:admin_settle_order_seller_ajax', args=[self.order.unique_order_id, self.seller_profile.id])
+        res = self.client.post(
+            url,
+            data=json.dumps({"payment_method": "manual", "payment_reference": "UTR-RET-TEST"}),
+            content_type="application/json"
+        )
+        self.assertEqual(res.status_code, 400)
+        self.assertIn("returned, cancelled", res.json().get('message', ''))
+
+        # Also verify admin_order_detail page renders correctly with no payout due
+        detail_url = reverse('orders:admin_order_detail', args=[self.order.unique_order_id])
+        res_detail = self.client.get(detail_url)
+        self.assertEqual(res_detail.status_code, 200)
+        self.assertContains(res_detail, "No Payout Due (Returned / Cancelled)")
+        self.assertNotContains(res_detail, "Settle & Pay Seller")
+
+    def test_partial_return_order_settlement_only_pays_delivered_item(self):
+        """In an order with 1 delivered and 1 returned item, only delivered item is settled and paid."""
+        product_2 = Product.objects.create(seller=self.seller_profile, category=self.category, name="Jacket", price=Decimal("200.00"), stock=5)
+
+        multi_order = Order.objects.create(
+            user=self.customer_user,
+            shipping_address={"name": "Customer"},
+            total_amount=Decimal("300.00"),
+            payment_method="prepaid",
+            status="delivered",
+            delivered_at=timezone.now()
+        )
+        delivered_item = OrderItem.objects.create(
+            order=multi_order,
+            product=self.product,
+            seller=self.seller_profile,
+            quantity=1,
+            price=Decimal("100.00"),
+            total=Decimal("100.00"),
+            status="delivered"
+        )
+        returned_item = OrderItem.objects.create(
+            order=multi_order,
+            product=product_2,
+            seller=self.seller_profile,
+            quantity=1,
+            price=Decimal("200.00"),
+            total=Decimal("200.00"),
+            is_returned=True,
+            status="returned"
+        )
+
+        self.assertEqual(delivered_item.seller_earnings, Decimal("90.00"))
+        self.assertEqual(returned_item.seller_earnings, Decimal("0.00"))
+
+        self.client.login(phone="9999999999", password="adminpassword")
+        url = reverse('orders:admin_settle_order_seller_ajax', args=[multi_order.unique_order_id, self.seller_profile.id])
+        res = self.client.post(
+            url,
+            data=json.dumps({"payment_method": "manual", "payment_reference": "UTR-PARTIAL-RET"}),
+            content_type="application/json"
+        )
+        self.assertEqual(res.status_code, 200)
+
+        # Verify settlement amount is strictly for the delivered item (90.00)
+        settlement = SellerSettlement.objects.filter(seller=self.seller_profile, order_items=delivered_item).first()
+        self.assertIsNotNone(settlement)
+        self.assertEqual(settlement.amount, Decimal("90.00"))
+        self.assertNotIn(returned_item, settlement.order_items.all())
+
+    def test_active_return_request_blocks_seller_settlement(self):
+        """An item with an active (approved) return request cannot be settled."""
+        ReturnRequest.objects.create(
+            order_item=self.item,
+            user=self.customer_user,
+            reason="defective",
+            status="approved",
+            refund_amount=Decimal("100.00")
+        )
+        self.assertTrue(self.item.is_return_or_cancelled)
+        self.assertEqual(self.item.seller_earnings, Decimal("0.00"))
+
+        self.client.login(phone="9999999999", password="adminpassword")
+        url = reverse('orders:admin_settle_order_seller_ajax', args=[self.order.unique_order_id, self.seller_profile.id])
+        res = self.client.post(
+            url,
+            data=json.dumps({"payment_method": "manual", "payment_reference": "UTR-RET-REQ"}),
+            content_type="application/json"
+        )
+        self.assertEqual(res.status_code, 400)
+
 
 class BackgroundJobAndEmailSyncTests(TestCase):
     def setUp(self):
