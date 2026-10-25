@@ -200,6 +200,18 @@ class SellerProfile(BaseModel):
         self.rating = stats['avg'] or 0.0
         self.save(update_fields=['rating'])
 
+    @property
+    def slug(self):
+        from django.utils.text import slugify
+        return slugify(self.shop_name) or str(self.id)
+
+    def get_store_url(self):
+        from django.urls import reverse
+        try:
+            return reverse('items:seller_storefront', kwargs={'seller_identifier': self.slug})
+        except Exception:
+            return f"/products/?seller={self.slug}"
+
     def __str__(self):
         return f"{self.shop_name} ({self.user.phone})"
         

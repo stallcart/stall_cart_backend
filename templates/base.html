@@ -228,7 +228,7 @@
             <form method="get" action="{% url 'items:product_list' %}" class="search-form">
                 <i class="fa fa-search search-icon"></i>
                 <input type="text" name="search"
-                       placeholder="Search products, brands, categories…"
+                       placeholder="Search products, sellers, brands…"
                        value="{{ request.GET.search|default:'' }}"
                        autocomplete="off">
                 <button type="submit" class="search-btn" aria-label="Search">Search</button>
@@ -407,7 +407,7 @@
         <form method="get" action="{% url 'items:product_list' %}" class="mobile-search-form" onsubmit="closeMobileNav()">
             <div class="mobile-search-wrap">
                 <i class="fa fa-search"></i>
-                <input type="search" name="search" placeholder="Search products…"
+                <input type="search" name="search" placeholder="Search products, sellers…"
                        value="{{ request.GET.search|default:'' }}">
                 <button type="submit">Go</button>
             </div>
@@ -1305,7 +1305,7 @@ body.pwa-mobile-standalone #pwaDrawerInstallItem {
         </button>
         <form method="get" action="{% url 'items:product_list' %}" class="mobile-search-input-form" id="mobileSearchInputForm">
             <i class="fa fa-search mobile-search-icon"></i>
-            <input type="search" name="search" id="globalMobileSearchInput" placeholder="Search products, brands, categories…" value="{{ request.GET.search|default:'' }}" autocomplete="off" enterkeyhint="search">
+            <input type="search" name="search" id="globalMobileSearchInput" placeholder="Search products, sellers, brands…" value="{{ request.GET.search|default:'' }}" autocomplete="off" enterkeyhint="search">
             {% if request.GET.search %}
             <button type="button" class="mobile-search-clear-btn" onclick="document.getElementById('globalMobileSearchInput').value='';document.getElementById('globalMobileSearchInput').focus();" aria-label="Clear search">
                 <i class="fa fa-times-circle"></i>

@@ -49,6 +49,12 @@ urlpatterns = [
     path('products/', 
          views.product_list, 
          name='product_list'),
+    path('store/<str:seller_identifier>/', 
+         views.seller_storefront, 
+         name='seller_storefront'),
+    path('seller-store/<str:seller_identifier>/', 
+         views.seller_storefront, 
+         name='seller_store'),
          
     path('product/<slug:slug>/', 
          views.product_detail, 

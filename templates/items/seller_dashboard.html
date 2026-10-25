@@ -46,6 +46,35 @@
         </div>
     </div>
 
+    <!-- Seller Public Storefront Share Banner -->
+    <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 20px 24px; margin-bottom: 28px; color: #ffffff; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+        <div style="display: flex; align-items: center; gap: 16px;">
+            <div style="width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg, #2563eb, #3b82f6); display: flex; align-items: center; justify-content: center; font-size: 1.35rem; color: #fff; flex-shrink: 0; box-shadow: 0 4px 12px rgba(37,99,235,0.3);">
+                <i class="fa fa-store"></i>
+            </div>
+            <div>
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 2px;">
+                    <span style="font-size: 1.1rem; font-weight: 800; color: #ffffff;">{{ seller.shop_name }} Storefront</span>
+                    <span style="background: rgba(37, 99, 235, 0.25); color: #93c5fd; font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 12px; border: 1px solid rgba(147, 197, 253, 0.3);">Live on StallCart</span>
+                </div>
+                <p style="margin: 0; color: #94a3b8; font-size: 0.85rem;">
+                    Share your official store link with customers to showcase all your products.
+                </p>
+            </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <a href="{% url 'items:seller_storefront' seller.slug %}" target="_blank" style="background: rgba(255, 255, 255, 0.1); color: #ffffff; text-decoration: none; padding: 9px 16px; border-radius: 10px; font-weight: 700; font-size: 0.84rem; display: inline-flex; align-items: center; gap: 6px; border: 1px solid rgba(255, 255, 255, 0.15); transition: background 0.2s;">
+                <i class="fa fa-external-link-alt"></i> View Store
+            </a>
+            <a href="https://api.whatsapp.com/send?text=Explore%20our%20products%20on%20StallCart!%20Visit%20our%20store%20{{ seller.shop_name|urlencode }}%3A%20{{ request.scheme }}%3A%2F%2F{{ request.get_host }}{% url 'items:seller_storefront' seller.slug %}" target="_blank" rel="noopener" style="background: #25D366; color: #ffffff; text-decoration: none; padding: 9px 16px; border-radius: 10px; font-weight: 700; font-size: 0.84rem; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(37, 211, 102, 0.25);">
+                <i class="fab fa-whatsapp" style="font-size: 1rem;"></i> Share on WhatsApp
+            </a>
+            <button type="button" onclick="navigator.clipboard.writeText('{{ request.scheme }}://{{ request.get_host }}{% url 'items:seller_storefront' seller.slug %}').then(()=>{ this.innerHTML='<i class=\'fa fa-check\'></i> Copied!'; setTimeout(()=>{ this.innerHTML='<i class=\'fa fa-copy\'></i> Copy Link'; }, 2000); alert('Store link copied to clipboard!'); });" style="background: var(--blue-600); color: #ffffff; border: none; padding: 9px 16px; border-radius: 10px; font-weight: 700; font-size: 0.84rem; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);">
+                <i class="fa fa-copy"></i> Copy Link
+            </button>
+        </div>
+    </div>
+
     <!-- Redesigned 6-Column Stats Cards Grid -->
     <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); margin-bottom: 32px; gap: 16px;">
         <div class="stat-card total" id="stat-total-card">

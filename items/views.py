@@ -1190,8 +1190,8 @@ def product_api_detail(request, product_id):
 # ---------------------------------------------------------------------------
 
 
-def product_list(request):
-    """Public product catalog – all published, in-stock products."""
+def product_list(request, seller_identifier=None):
+    """Public product catalog – all published, in-stock products with category, gender, price, search, and seller filters."""
     products = (
         Product.objects
         .filter(status='published', stock__gt=0)
@@ -1213,6 +1213,23 @@ def product_list(request):
     search = request.GET.get('search')
     sort = request.GET.get('sort', '-created_at')
 
+    # Seller Filter (from URL path or query params ?seller=... or ?seller_id=...)
+    seller_param = seller_identifier or request.GET.get('seller') or request.GET.get('seller_id')
+    current_seller = None
+    if seller_param:
+        from django.utils.text import slugify
+        seller_param_str = str(seller_param).strip()
+        if seller_param_str.isdigit():
+            current_seller = SellerProfile.objects.filter(id=int(seller_param_str)).first()
+        if not current_seller:
+            current_seller = SellerProfile.objects.filter(shop_name__iexact=seller_param_str).first()
+        if not current_seller:
+            param_slug = slugify(seller_param_str)
+            for sp in SellerProfile.objects.filter(is_active=True):
+                if slugify(sp.shop_name) == param_slug:
+                    current_seller = sp
+                    break
+
     show_gender_filter = True
     if category_slugs:
         selected_cats = Category.objects.filter(slug__in=category_slugs)
@@ -1228,12 +1245,56 @@ def product_list(request):
         products = products.filter(price__gte=min_price)
     if max_price:
         products = products.filter(price__lte=max_price)
+    if current_seller:
+        products = products.filter(seller=current_seller)
+
+    matched_seller = None
     if search:
+        search_term = search.strip()
         products = products.filter(
-            Q(name__icontains=search) |
-            Q(description__icontains=search) |
-            Q(brand__icontains=search)
+            Q(name__icontains=search_term) |
+            Q(description__icontains=search_term) |
+            Q(brand__icontains=search_term) |
+            Q(seller__shop_name__icontains=search_term)
         )
+        # If search matches a seller shop name and no specific seller was already filtered
+        if not current_seller:
+            from django.utils.text import slugify
+            matched_seller = SellerProfile.objects.filter(shop_name__iexact=search_term, is_active=True).first()
+            if not matched_seller:
+                matched_sellers = list(SellerProfile.objects.filter(shop_name__icontains=search_term, is_active=True)[:2])
+                if len(matched_sellers) == 1:
+                    matched_seller = matched_sellers[0]
+            if not matched_seller:
+                sq_slug = slugify(search_term)
+                for sp in SellerProfile.objects.filter(is_active=True):
+                    if sq_slug and (sq_slug in slugify(sp.shop_name)):
+                        matched_seller = sp
+                        break
+
+    # Seller location lookup for storefront banner
+    seller_location = ""
+    target_seller = current_seller or matched_seller
+    if target_seller:
+        try:
+            from accounts.models import SellerShopAddress
+            shop_addr = SellerShopAddress.objects.filter(seller=target_seller).first()
+            if shop_addr:
+                parts = [p for p in [shop_addr.city, shop_addr.state] if p]
+                seller_location = ", ".join(parts)
+        except Exception:
+            pass
+        if not seller_location and isinstance(target_seller.address, dict):
+            parts = [p for p in [target_seller.address.get('city'), target_seller.address.get('state')] if p]
+            seller_location = ", ".join(parts)
+
+    # Top active verified sellers for sidebar filter
+    top_sellers = (
+        SellerProfile.objects
+        .filter(is_verified=True, is_active=True, products__status='published', products__stock__gt=0)
+        .distinct()
+        .order_by('shop_name')[:25]
+    )
 
     # Sorting
     sort_options = {
@@ -1270,8 +1331,18 @@ def product_list(request):
         'min_price': min_price,
         'max_price': max_price,
         'sort': sort,
+        'current_seller': current_seller,
+        'matched_seller': matched_seller,
+        'seller_location': seller_location,
+        'top_sellers': top_sellers,
+        'search': search,
     }
     return render(request, 'shop/product_list.html', context)
+
+
+def seller_storefront(request, seller_identifier):
+    """Public storefront page for a specific seller/store."""
+    return product_list(request, seller_identifier=seller_identifier)
 
 
 # def product_detail(request, slug):

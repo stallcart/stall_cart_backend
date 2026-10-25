@@ -483,6 +483,30 @@
                         </button>
                     </div>
                     
+                    <!-- Storefront Public Link Card -->
+                    <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 16px 20px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="width: 40px; height: 40px; border-radius: 10px; background: #2563eb; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0;">
+                                <i class="fa fa-store"></i>
+                            </div>
+                            <div>
+                                <strong style="font-size: 0.95rem; color: #0f172a; display: block;">Your Public Storefront</strong>
+                                <span style="font-size: 0.82rem; color: #64748b;">Customers can browse and search all your products on StallCart</span>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                            <a href="{% url 'items:seller_storefront' seller_profile.slug %}" target="_blank" class="btn-outline btn-sm" style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none;">
+                                <i class="fa fa-external-link-alt"></i> View Store
+                            </a>
+                            <a href="https://api.whatsapp.com/send?text=Explore%20our%20products%20on%20StallCart!%20Visit%20our%20store%20{{ seller_profile.shop_name|urlencode }}%3A%20{{ request.scheme }}%3A%2F%2F{{ request.get_host }}{% url 'items:seller_storefront' seller_profile.slug %}" target="_blank" rel="noopener" class="btn-sm" style="background: #25D366; color: #fff; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; border-radius: 6px; font-weight: 700; padding: 6px 14px;">
+                                <i class="fab fa-whatsapp"></i> WhatsApp
+                            </a>
+                            <button type="button" onclick="navigator.clipboard.writeText('{{ request.scheme }}://{{ request.get_host }}{% url 'items:seller_storefront' seller_profile.slug %}').then(()=>{ alert('Storefront link copied!'); });" class="btn-outline btn-sm" style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+                                <i class="fa fa-copy"></i> Copy Link
+                            </button>
+                        </div>
+                    </div>
+
                     <!-- Shop Address View -->
                     <div id="shopAddressView">
                         {% if shop_address %}

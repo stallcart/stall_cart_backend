@@ -2106,3 +2106,103 @@ class AdminSellerManagementTests(TestCase):
         self.seller1_user.refresh_from_db()
         self.assertNotEqual(self.seller1_user.phone, '8888888882')
 
+
+class SellerStorefrontAndSearchTests(TestCase):
+    def setUp(self):
+        from accounts.models import User, SellerShopAddress
+        from items.models import Category, SellerProfile, Product
+        from decimal import Decimal
+
+        # Category
+        self.category = Category.objects.create(name="Ethnic Wear", slug="ethnic-wear")
+
+        # Seller 1: Jaiswal Vastralay
+        self.seller1_user = User.objects.create_user(
+            phone="9876500001", password="password123", role="seller", full_name="Vivek Jaiswal"
+        )
+        self.seller1 = SellerProfile.objects.create(
+            user=self.seller1_user, shop_name="Jaiswal Vastralay", is_verified=True
+        )
+        SellerShopAddress.objects.create(
+            seller=self.seller1, shop_name="Jaiswal Vastralay",
+            city="Varanasi", state="Uttar Pradesh", postal_code="221005"
+        )
+
+        # Seller 2: Sharma Textiles
+        self.seller2_user = User.objects.create_user(
+            phone="9876500002", password="password123", role="seller", full_name="Rahul Sharma"
+        )
+        self.seller2 = SellerProfile.objects.create(
+            user=self.seller2_user, shop_name="Sharma Textiles", is_verified=True
+        )
+
+        # Products for Jaiswal Vastralay
+        self.p1 = Product.objects.create(
+            seller=self.seller1, category=self.category, name="Banarasi Silk Saree",
+            price=Decimal("2499.00"), stock=10, status="published"
+        )
+        self.p2 = Product.objects.create(
+            seller=self.seller1, category=self.category, name="Kanjeevaram Pattu Saree",
+            price=Decimal("4999.00"), stock=5, status="published"
+        )
+
+        # Products for Sharma Textiles
+        self.p3 = Product.objects.create(
+            seller=self.seller2, category=self.category, name="Cotton Kurta Set",
+            price=Decimal("999.00"), stock=15, status="published"
+        )
+
+    def test_filter_by_seller_id(self):
+        """Filtering by ?seller=<id> returns only products of that seller."""
+        url = reverse('items:product_list')
+        res = self.client.get(f"{url}?seller={self.seller1.id}")
+        self.assertEqual(res.status_code, 200)
+        product_names = [p.name for p in res.context['products']]
+        self.assertIn("Banarasi Silk Saree", product_names)
+        self.assertIn("Kanjeevaram Pattu Saree", product_names)
+        self.assertNotIn("Cotton Kurta Set", product_names)
+        self.assertEqual(res.context['current_seller'], self.seller1)
+
+    def test_filter_by_seller_slug(self):
+        """Filtering by ?seller=jaiswal-vastralay returns only products of that seller."""
+        url = reverse('items:product_list')
+        res = self.client.get(f"{url}?seller=jaiswal-vastralay")
+        self.assertEqual(res.status_code, 200)
+        product_names = [p.name for p in res.context['products']]
+        self.assertEqual(len(product_names), 2)
+        self.assertIn("Banarasi Silk Saree", product_names)
+        self.assertNotIn("Cotton Kurta Set", product_names)
+        self.assertEqual(res.context['current_seller'], self.seller1)
+
+    def test_seller_storefront_route(self):
+        """Visiting /store/<slug>/ directly renders seller's storefront."""
+        res = self.client.get(f"/store/{self.seller1.slug}/")
+        self.assertEqual(res.status_code, 200)
+        product_names = [p.name for p in res.context['products']]
+        self.assertEqual(len(product_names), 2)
+        self.assertEqual(res.context['current_seller'], self.seller1)
+        self.assertContains(res, "Jaiswal Vastralay")
+        self.assertContains(res, "Varanasi, Uttar Pradesh")
+
+    def test_search_by_seller_name(self):
+        """Searching for 'jaiswal' returns all products of Jaiswal Vastralay even if title doesn't contain 'jaiswal'."""
+        url = reverse('items:product_list')
+        res = self.client.get(f"{url}?search=jaiswal")
+        self.assertEqual(res.status_code, 200)
+        product_names = [p.name for p in res.context['products']]
+        self.assertIn("Banarasi Silk Saree", product_names)
+        self.assertIn("Kanjeevaram Pattu Saree", product_names)
+        self.assertNotIn("Cotton Kurta Set", product_names)
+        self.assertEqual(res.context['matched_seller'], self.seller1)
+
+    def test_search_by_full_shop_name(self):
+        """Searching for 'Jaiswal Vastralay' returns all its products."""
+        url = reverse('items:product_list')
+        res = self.client.get(f"{url}?search=Jaiswal Vastralay")
+        self.assertEqual(res.status_code, 200)
+        product_names = [p.name for p in res.context['products']]
+        self.assertEqual(len(product_names), 2)
+        self.assertIn("Banarasi Silk Saree", product_names)
+        self.assertNotIn("Cotton Kurta Set", product_names)
+
+

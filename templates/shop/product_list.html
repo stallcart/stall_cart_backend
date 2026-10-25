@@ -215,23 +215,96 @@
                 <p class="section-subtitle">{{ products|length }} item{{ products|length|pluralize }} found</p>
             </div>
             <!-- Search bar on Product List -->
-            <form method="get" action="{% url 'items:product_list' %}" style="display: flex; align-items: center; background: #ffffff; border: 1.5px solid var(--gray-200); border-radius: 30px; padding: 4px 6px 4px 14px; width: 100%; max-width: 360px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); box-sizing: border-box; overflow: hidden; min-width: 0;">
+            <form method="get" action="{% url 'items:product_list' %}" style="display: flex; align-items: center; background: #ffffff; border: 1.5px solid var(--gray-200); border-radius: 30px; padding: 4px 6px 4px 14px; width: 100%; max-width: 380px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); box-sizing: border-box; overflow: hidden; min-width: 0;">
                 {% if request.GET.sort %}<input type="hidden" name="sort" value="{{ request.GET.sort }}">{% endif %}
+                {% if current_seller %}<input type="hidden" name="seller" value="{{ current_seller.slug }}">{% endif %}
                 <i class="fa fa-search" style="color: var(--gray-400); margin-right: 8px; font-size: 0.9rem; flex-shrink: 0;"></i>
-                <input type="search" name="search" id="catalogSearchInput" placeholder="Search products, brands…" value="{{ request.GET.search|default:'' }}" style="border: none; outline: none; background: transparent; width: 100%; min-width: 0; flex: 1 1 auto; font-size: 0.9rem; color: var(--gray-800); padding: 4px 0;">
+                <input type="search" name="search" id="catalogSearchInput" placeholder="Search products, sellers, brands…" value="{{ request.GET.search|default:'' }}" style="border: none; outline: none; background: transparent; width: 100%; min-width: 0; flex: 1 1 auto; font-size: 0.9rem; color: var(--gray-800); padding: 4px 0;">
                 <button type="submit" style="background: var(--blue-500); color: #fff; border: none; border-radius: 20px; padding: 6px 14px; font-size: 0.82rem; font-weight: 700; cursor: pointer; flex-shrink: 0; white-space: nowrap;">Search</button>
             </form>
         </div>
 
+        {% if current_seller %}
+        <!-- Seller Storefront Header Card -->
+        <div class="seller-store-banner" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius: 18px; padding: 24px 28px; margin-bottom: 24px; color: #ffffff; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
+            <div style="display: flex; align-items: center; gap: 18px;">
+                <div style="width: 58px; height: 58px; border-radius: 16px; background: linear-gradient(135deg, #2563eb, #3b82f6); display: flex; align-items: center; justify-content: center; font-size: 1.6rem; color: #fff; font-weight: 800; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35); flex-shrink: 0;">
+                    <i class="fa fa-store"></i>
+                </div>
+                <div>
+                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 4px;">
+                        <h2 style="margin: 0; font-size: 1.55rem; font-weight: 800; color: #ffffff; letter-spacing: -0.01em;">{{ current_seller.shop_name }}</h2>
+                        {% if current_seller.is_verified %}
+                            <span style="background: rgba(16, 185, 129, 0.2); color: #34d399; font-size: 0.75rem; font-weight: 700; padding: 4px 10px; border-radius: 20px; display: inline-flex; align-items: center; gap: 5px; border: 1px solid rgba(52, 211, 153, 0.3);">
+                                <i class="fa fa-check-circle"></i> Verified Seller
+                            </span>
+                        {% endif %}
+                    </div>
+                    <p style="margin: 0 0 6px 0; color: #94a3b8; font-size: 0.88rem; max-width: 650px;">
+                        {{ current_seller.shop_description|default:"Welcome to our official store on StallCart. Browse our complete collection with fast shipping and 100% original quality." }}
+                    </p>
+                    <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap; font-size: 0.82rem; color: #cbd5e1;">
+                        {% if seller_location %}
+                            <span><i class="fa fa-map-marker-alt" style="color: #ef4444; margin-right: 5px;"></i>{{ seller_location }}</span>
+                        {% endif %}
+                        <span><i class="fa fa-star" style="color: #f59e0b; margin-right: 5px;"></i>{{ current_seller.rating|default:"5.0" }} Rating</span>
+                        <span><i class="fa fa-boxes" style="color: #60a5fa; margin-right: 5px;"></i>{{ page_obj.paginator.count }} Product{{ page_obj.paginator.count|pluralize }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Share & Action Controls -->
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <!-- WhatsApp Share Button -->
+                <a href="https://api.whatsapp.com/send?text=Check%20out%20products%20from%20{{ current_seller.shop_name|urlencode }}%20on%20StallCart%3A%20{{ request.build_absolute_uri|urlencode }}" 
+                   target="_blank" 
+                   rel="noopener"
+                   style="background: #25D366; color: #ffffff; text-decoration: none; padding: 10px 18px; border-radius: 10px; font-weight: 700; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 14px rgba(37, 211, 102, 0.3); transition: transform 0.2s;"
+                   title="Share Store on WhatsApp">
+                    <i class="fab fa-whatsapp" style="font-size: 1.15rem;"></i> Share Store
+                </a>
+                
+                <!-- Copy Link Button -->
+                <button type="button" 
+                        onclick="copyStoreLink(this, '{{ request.build_absolute_uri }}')" 
+                        style="background: rgba(255, 255, 255, 0.12); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.2); padding: 10px 16px; border-radius: 10px; font-weight: 700; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; transition: background 0.2s;">
+                    <i class="fa fa-copy"></i> Copy Link
+                </button>
+
+                <!-- View All Products link to clear seller filter -->
+                <a href="{% url 'items:product_list' %}" 
+                   style="background: transparent; color: #94a3b8; border: 1px solid #475569; padding: 10px 16px; border-radius: 10px; font-weight: 600; font-size: 0.85rem; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; transition: color 0.2s;">
+                    <i class="fa fa-times"></i> All Stores
+                </a>
+            </div>
+        </div>
+        {% elif matched_seller %}
+        <!-- Search matched seller alert -->
+        <div class="seller-matched-banner" style="background: #eff6ff; border: 1.5px solid #bfdbfe; border-radius: 14px; padding: 16px 20px; margin-bottom: 22px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.05);">
+            <div style="display: flex; align-items: center; gap: 14px;">
+                <div style="width: 44px; height: 44px; border-radius: 12px; background: #2563eb; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0;">
+                    <i class="fa fa-store"></i>
+                </div>
+                <div>
+                    <div style="font-size: 0.8rem; color: #1e40af; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;">Verified Seller Store</div>
+                    <div style="font-size: 1.1rem; font-weight: 800; color: #0f172a;">{{ matched_seller.shop_name }}</div>
+                </div>
+            </div>
+            <a href="{% url 'items:seller_storefront' matched_seller.slug %}" class="btn-primary" style="background: #2563eb; color: #fff; text-decoration: none; padding: 9px 18px; border-radius: 8px; font-weight: 700; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 2px 8px rgba(37,99,235,0.25);">
+                <i class="fa fa-store"></i> View Storefront &rarr;
+            </a>
+        </div>
+        {% endif %}
+
         <!-- Horizontal Category Quick Filters -->
         <div class="category-scroll-wrapper" style="margin-bottom: 24px;">
             <div class="category-scroll-container" style="display: flex; gap: 12px; overflow-x: auto; padding: 4px 4px 12px; scrollbar-width: none;">
-                <a href="{% url 'items:product_list' %}{% if request.GET.sort %}?sort={{ request.GET.sort }}{% endif %}" class="category-quick-card {% if not selected_categories %}active{% endif %}">
+                <a href="{% url 'items:product_list' %}{% if current_seller %}?seller={{ current_seller.slug }}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}{% elif request.GET.sort %}?sort={{ request.GET.sort }}{% endif %}" class="category-quick-card {% if not selected_categories %}active{% endif %}">
                     <div class="category-quick-icon" style="font-size: 1rem; line-height: 1; display: flex; align-items: center; justify-content: center; color: var(--gray-500);"><i class="fa fa-shopping-bag"></i></div>
                     <span class="category-quick-name">All Shop</span>
                 </a>
                 {% for cat in categories %}
-                <a href="{% url 'items:product_list' %}?category={{ cat.slug }}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}" 
+                <a href="{% url 'items:product_list' %}?category={{ cat.slug }}{% if current_seller %}&seller={{ current_seller.slug }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}" 
                    class="category-quick-card {% if cat.slug in selected_categories %}active{% endif %}">
                     <div class="category-quick-icon" style="width: 20px; height: 20px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; background: var(--gray-50); flex-shrink: 0;">
                         {% if cat.icon %}
@@ -275,6 +348,9 @@
         <form id="shopFilterForm" method="get" action="{% url 'items:product_list' %}">
             {% if request.GET.search %}
                 <input type="hidden" name="search" value="{{ request.GET.search }}">
+            {% endif %}
+            {% if current_seller %}
+                <input type="hidden" name="seller" value="{{ current_seller.slug }}">
             {% endif %}
 
             <div class="shop-layout">
@@ -332,6 +408,30 @@
                             <button type="submit" class="btn-primary" style="padding: 9px 12px; border-radius: 8px; font-size: 0.85rem; width: auto; background: var(--blue-600);"><i class="fa fa-play" style="font-size: 0.75rem;"></i></button>
                         </div>
                     </div>
+
+                    <!-- Sellers / Stores -->
+                    {% if top_sellers %}
+                    <div class="filter-section">
+                        <h5 class="filter-section-title">Sellers / Stores</h5>
+                        <div style="max-height: 200px; overflow-y: auto; padding-right: 4px;">
+                            {% for s in top_sellers %}
+                            <label class="filter-checkbox-label" style="display: flex; align-items: center; justify-content: space-between;">
+                                <span style="display: flex; align-items: center; gap: 8px;">
+                                    <input type="radio" name="seller" value="{{ s.slug }}" {% if current_seller and current_seller.id == s.id %}checked{% endif %} onchange="submitFilterForm()" class="filter-checkbox-input" style="accent-color: var(--blue-600);">
+                                    {{ s.shop_name|truncatechars:20 }}
+                                </span>
+                            </label>
+                            {% endfor %}
+                        </div>
+                        {% if current_seller %}
+                        <div style="margin-top: 10px;">
+                            <a href="{% url 'items:product_list' %}{% if request.GET.search %}?search={{ request.GET.search }}{% endif %}" style="font-size: 0.8rem; color: var(--blue-600); font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+                                <i class="fa fa-times"></i> Clear Seller Filter
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
                 </aside>
 
                 <!-- Catalog Content -->
@@ -354,8 +454,14 @@
                     </div>
 
                     <!-- Active Filter Tags -->
-                    {% if selected_categories or selected_genders or request.GET.search or min_price or max_price %}
+                    {% if selected_categories or selected_genders or request.GET.search or min_price or max_price or current_seller %}
                     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;align-items:center;">
+                        {% if current_seller %}
+                            <span style="background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;padding:4px 12px;border-radius:20px;font-size:0.75rem;font-weight:700;display:inline-flex;align-items:center;gap:6px;">
+                                <i class="fa fa-store"></i> Store: {{ current_seller.shop_name }}
+                                <a href="{% url 'items:product_list' %}{% if request.GET.search %}?search={{ request.GET.search }}{% endif %}" style="color: #ef4444; margin-left: 4px; text-decoration: none; font-size: 0.9rem;" title="Remove seller filter">&times;</a>
+                            </span>
+                        {% endif %}
                         {% if request.GET.search %}
                             <span style="background:var(--blue-50);color:var(--blue-700);padding:4px 12px;border-radius:20px;font-size:0.75rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;">
                                 <i class="fa fa-search"></i> "{{ request.GET.search }}"
@@ -428,7 +534,12 @@
 
                             <!-- Product Info -->
                             <div class="product-info">
-                                <div class="product-seller">by {{ product.seller.shop_name|truncatechars:22 }}</div>
+                                <div class="product-seller">
+                                    <i class="fa fa-store" style="margin-right: 4px; font-size: 0.72rem; color: var(--blue-500);"></i>
+                                    <a href="{% url 'items:seller_storefront' product.seller.slug %}" style="color: inherit; text-decoration: none;" title="Visit {{ product.seller.shop_name }} Storefront">
+                                        {{ product.seller.shop_name|truncatechars:22 }}
+                                    </a>
+                                </div>
                                 <h4 class="product-name">
                                     <a href="{% url 'items:product_detail' product.slug %}">{{ product.name|truncatechars:45 }}</a>
                                 </h4>
@@ -533,6 +644,24 @@ function closeFiltersMobile() {
     document.getElementById('shopSidebar').classList.remove('active');
     document.getElementById('sidebarOverlay').classList.remove('active');
     document.body.style.overflow = '';
+}
+
+// ── Copy Store Link Helper ──────────────────────────────────
+function copyStoreLink(btn, url) {
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(url).then(() => {
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fa fa-check"></i> Copied!';
+            setTimeout(() => { btn.innerHTML = originalHtml; }, 2500);
+            if (typeof showToast === 'function') {
+                showToast('<i class="fa fa-check-circle"></i> Store link copied to clipboard!', 'success');
+            }
+        }).catch(() => {
+            prompt('Copy store link:', url);
+        });
+    } else {
+        prompt('Copy store link:', url);
+    }
 }
 
 // ── Share Button Functionality ──────────────────────────────

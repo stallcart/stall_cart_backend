@@ -43,6 +43,8 @@ urlpatterns = [
 
     # Direct mapping to prevent 404 on root-level urls (e.g. from banner/collection links)
     path('products/', items_views.product_list, name='product_list_direct'),
+    path('store/<str:seller_identifier>/', items_views.seller_storefront, name='seller_storefront_direct'),
+    path('seller/<str:seller_identifier>/', items_views.seller_storefront, name='seller_store_direct'),
     path('product/<slug:slug>/', items_views.product_detail, name='product_detail_direct'),
     path('wishlist/', items_views.wishlist_page, name='wishlist_direct'),
     # Universal app download & APK routes
