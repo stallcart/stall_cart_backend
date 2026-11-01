@@ -1532,6 +1532,7 @@ class BackgroundJobAndEmailSyncTests(TestCase):
         # Check initial flags
         self.assertFalse(order.customer_placed_email_sent)
         self.assertFalse(order.seller_placed_email_sent)
+        self.assertFalse(order.admin_placed_email_sent)
         self.assertFalse(order.customer_payment_email_sent)
         self.assertFalse(order.seller_payment_email_sent)
         
@@ -1543,6 +1544,7 @@ class BackgroundJobAndEmailSyncTests(TestCase):
         # They should be True since mock email backend succeeds in tests
         self.assertTrue(order.customer_placed_email_sent)
         self.assertTrue(order.seller_placed_email_sent)
+        self.assertTrue(order.admin_placed_email_sent)
         
         # Create a log manually / change status
         log = OrderStatusLog.objects.create(

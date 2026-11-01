@@ -196,13 +196,20 @@ def notify_order_placed(order):
     except Exception as e:
         logger.error(f"[FCM] Failed to send order placed notification to admins: {e}")
 
-    # 4. Email notifications to Customer and Sellers
+    # 4. Email notifications to Customer, Sellers, and Admins
     try:
+        update_fields = []
         if not order.customer_placed_email_sent:
             order.customer_placed_email_sent = send_order_placed_email_customer(order)
+            update_fields.append('customer_placed_email_sent')
         if not order.seller_placed_email_sent:
             order.seller_placed_email_sent = send_order_placed_email_sellers(order)
-        order.save(update_fields=['customer_placed_email_sent', 'seller_placed_email_sent'])
+            update_fields.append('seller_placed_email_sent')
+        if not getattr(order, 'admin_placed_email_sent', False):
+            order.admin_placed_email_sent = send_order_placed_email_admin(order)
+            update_fields.append('admin_placed_email_sent')
+        if update_fields:
+            order.save(update_fields=update_fields)
     except Exception as e:
         logger.error(f"Failed to send order placed emails: {e}", exc_info=True)
 
@@ -511,6 +518,41 @@ def send_order_placed_email_sellers(order) -> bool:
         else:
             SystemActivityLog.log('email_sent', f"Skip sending order placement email to seller {seller.seller_profile.shop_name}: email address not found.", order=order, status='failed')
     return success
+
+
+def send_order_placed_email_admin(order) -> bool:
+    from common.email_service import send_dynamic_email, get_admin_notification_emails
+    from orders.models import SystemActivityLog
+    
+    admin_emails = get_admin_notification_emails()
+    if not admin_emails:
+        return False
+        
+    items_str = ""
+    for item in order.items.select_related('product', 'variant', 'seller').all():
+        variant_info = f" ({item.variant.size_value} / {item.variant.color})" if item.variant else ""
+        seller_info = f" [Seller: {item.seller.shop_name}]" if item.seller else ""
+        items_str += f"- {item.product.name}{variant_info} x {item.quantity} (₹{item.price:.2f} each){seller_info}\n"
+        
+    sent = send_dynamic_email(
+        'admin_order_placed',
+        admin_emails,
+        {
+            'order_id': order.unique_order_id,
+            'customer_name': (order.user.full_name or order.user.phone) if order.user else "Customer",
+            'items_list': items_str,
+            'shipping_address': format_shipping_address(order),
+            'payment_method': order.get_payment_method_display() if hasattr(order, 'get_payment_method_display') else order.payment_method.upper(),
+            'payment_status': getattr(order, 'payment_status', ''),
+            'total_amount': str(order.total_amount),
+            'admin_order_url': f"https://stallcart.in/orders/admin/order/{order.unique_order_id}/",
+        }
+    )
+    if sent:
+        SystemActivityLog.log('email_sent', f"New order notification email sent to admin(s): {', '.join(admin_emails)}.", order=order)
+    else:
+        SystemActivityLog.log('email_sent', f"Failed to send new order notification email to admin(s).", order=order, status='failed')
+    return sent
 
 
 def send_payment_email_customer(order) -> bool:

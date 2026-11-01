@@ -369,10 +369,8 @@ def register_view(request):
                         )
                         # Notify admin of new seller pending verification via dynamic template
                         try:
-                            from common.email_service import send_dynamic_email
-                            from accounts.models import User as AuthUser
-                            admins = AuthUser.objects.filter(role='admin', is_active=True)
-                            admin_emails = [admin.email for admin in admins if admin.email]
+                            from common.email_service import send_dynamic_email, get_admin_notification_emails
+                            admin_emails = get_admin_notification_emails()
                             if admin_emails:
                                 send_dynamic_email('admin_notify_verification', admin_emails, {
                                     'shop_name': profile.shop_name,
@@ -2029,6 +2027,7 @@ def admin_business_dashboard(request):
         'email_templates': email_templates,
         
         'site_settings': site_settings,
+        'admin_notification_emails_list': site_settings.get_admin_notification_emails(),
         'recent_orders': recent_orders,
         'recent_otps': recent_otps,
         'daily_sales': daily_sales,
@@ -2038,6 +2037,45 @@ def admin_business_dashboard(request):
         'recent_support_enquiries': recent_support_enquiries,
     }
     return render(request, 'accounts/admin_business_dashboard.html', context)
+
+
+@login_required
+@require_POST
+def admin_update_notification_emails(request):
+    """
+    AJAX endpoint for admins to update admin notification emails in SiteSettings.
+    Excludes vivekjais16@gmail.com and invalid formats.
+    """
+    from django.http import JsonResponse
+    from common.models import SiteSettings
+
+    if not request.user.is_superuser and getattr(request.user, 'role', None) not in ['admin', 'staff'] and not request.user.is_staff:
+        return JsonResponse({'status': 'error', 'message': '🔐 Access Denied: Admin or Staff privileges required.'}, status=403)
+
+    emails_raw = request.POST.get('admin_notification_emails', '').strip()
+    
+    import re
+    cleaned_emails = []
+    for part in re.split(r'[,;\n\r\s]+', emails_raw):
+        clean = part.strip().lower()
+        if clean and '@' in clean and '.' in clean:
+            if clean != 'vivekjais16@gmail.com' and clean not in cleaned_emails:
+                cleaned_emails.append(clean)
+
+    if not cleaned_emails:
+        cleaned_emails = ['stallcart.in@gmail.com']
+
+    formatted_str = ', '.join(cleaned_emails)
+    site_settings = SiteSettings.get_singleton()
+    site_settings.admin_notification_emails = formatted_str
+    site_settings.save(update_fields=['admin_notification_emails'])
+
+    return JsonResponse({
+        'status': 'success',
+        'message': 'Admin notification emails updated successfully.',
+        'emails': cleaned_emails,
+        'formatted': formatted_str
+    })
 
 
 @login_required

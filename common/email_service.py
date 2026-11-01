@@ -383,6 +383,37 @@ DEFAULT_TEMPLATES = {
         ),
         'description': "Alert email sent when shipment exists on Shiprocket but AWB assignment requires manual review"
     },
+    'admin_order_placed': {
+        'subject': "StallCart Admin - New Order Placed: {{ order_id }} (₹{{ total_amount }})",
+        'body': _base_email_wrapper(
+            "StallCart Admin - New Order Placed",
+            "🛍️ Admin Order Alert",
+            "New Customer Order Received",
+            "Order #{{ order_id }}",
+            """<div class="greeting">Hello Admin,</div>
+            <p style="font-size: 14px; color: #334155; line-height: 1.6; margin: 0 0 14px 0;">
+              A new customer order <strong>#{{ order_id }}</strong> has been placed on StallCart:
+            </p>
+            <div class="info-box">
+              <table class="detail-table">
+                <tr><td class="lbl">Order ID</td><td class="val">#{{ order_id }}</td></tr>
+                <tr><td class="lbl">Customer</td><td class="val">{{ customer_name }}</td></tr>
+                <tr><td class="lbl">Total Amount</td><td class="val" style="color: #16a34a; font-size: 15px;">₹{{ total_amount }}</td></tr>
+                <tr><td class="lbl">Payment Method</td><td class="val">{{ payment_method }}</td></tr>
+                {% if payment_status %}<tr><td class="lbl">Payment Status</td><td class="val">{{ payment_status }}</td></tr>{% endif %}
+              </table>
+              <div style="font-weight: 800; font-size: 13px; color: #0f172a; margin: 12px 0 6px 0;">Items Ordered:</div>
+              <div style="font-size: 13px; color: #334155; line-height: 1.6; white-space: pre-line;">{{ items_list }}</div>
+              <div style="margin-top: 10px; font-size: 12px; color: #64748b;">
+                <strong>Shipping Address:</strong><br>{{ shipping_address }}
+              </div>
+            </div>
+            <div style="text-align: center;">
+              <a href="{{ admin_order_url|default:'https://stallcart.in/orders/admin/' }}" class="btn-primary">View Order in Admin Dashboard &rarr;</a>
+            </div>"""
+        ),
+        'description': "Email notification sent to admins when a customer places an order"
+    },
     'seller_order_status_update': {
         'subject': "StallCart Seller - Order {{ order_id }} Update: {{ status }}",
         'body': _base_email_wrapper(
@@ -623,12 +654,35 @@ DEFAULT_TEMPLATES = {
     }
 }
 
+def get_admin_notification_emails() -> list:
+    """
+    Get configured admin notification email recipients from SiteSettings.
+    Guarantees vivekjais16@gmail.com is filtered out.
+    """
+    try:
+        from .models import SiteSettings
+        return SiteSettings.get_singleton().get_admin_notification_emails()
+    except Exception as e:
+        logger.error(f"Error fetching admin notification emails from SiteSettings: {e}")
+        return ["stallcart.in@gmail.com"]
+
+
 def send_dynamic_email(template_name: str, recipient_list: list, context_data: dict) -> bool:
     """
     Sends an email using templates stored dynamically in the EmailTemplate model.
     Auto-populates templates if not found in the DB. Supports both rich HTML and plain text emails.
     """
     try:
+        # Safeguard: never send admin notification emails to vivekjais16@gmail.com
+        if template_name.startswith('admin_'):
+            recipient_list = [
+                r for r in recipient_list
+                if r and r.strip().lower() != 'vivekjais16@gmail.com'
+            ]
+            if not recipient_list:
+                logger.warning(f"No valid recipients left for admin email '{template_name}' after excluding vivekjais16@gmail.com.")
+                return False
+
         # Get or create the template in DB
         template_obj = EmailTemplate.objects.filter(name=template_name).first()
         if not template_obj:
@@ -688,3 +742,4 @@ def send_dynamic_email(template_name: str, recipient_list: list, context_data: d
     except Exception as e:
         logger.error(f"Failed to send dynamic email '{template_name}' to {recipient_list}: {e}", exc_info=True)
         return False
+

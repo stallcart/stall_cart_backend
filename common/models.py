@@ -95,6 +95,12 @@ class SiteSettings(models.Model):
     contact_phone = models.CharField(max_length=20, default='+91 8004096954')
     contact_email = models.EmailField(default='stallcart.in@gmail.com')
     contact_whatsapp = models.CharField(max_length=20, blank=True, default='8004096954')
+    admin_notification_emails = models.TextField(
+        blank=True,
+        default='stallcart.in@gmail.com',
+        verbose_name="Admin Notification Emails",
+        help_text="Comma, space, or newline-separated list of email addresses that will receive admin notifications (new orders, seller registrations, PAN verifications, AWB courier alerts, etc.)."
+    )
     social_instagram = models.URLField(blank=True, help_text='Full Instagram profile URL')
     social_facebook = models.URLField(blank=True)
     social_twitter = models.URLField(blank=True)
@@ -348,6 +354,31 @@ class SiteSettings(models.Model):
             clean = ''.join(c for c in self.contact_whatsapp if c.isdigit() or c == '+')
             return f'https://wa.me/{clean}'
         return '#'
+
+    def get_admin_notification_emails(self):
+        """
+        Return sanitized list of email addresses configured to receive admin-related notifications.
+        Strictly excludes personal/unwanted emails like vivekjais16@gmail.com.
+        Falls back to contact_email (if not excluded) or stallcart.in@gmail.com.
+        """
+        raw = self.admin_notification_emails or ''
+        emails = []
+        import re
+        for part in re.split(r'[,;\n\r\s]+', raw):
+            cleaned = part.strip().lower()
+            if cleaned and '@' in cleaned and '.' in cleaned:
+                if cleaned != 'vivekjais16@gmail.com' and cleaned not in emails:
+                    emails.append(cleaned)
+        
+        if not emails and self.contact_email:
+            contact = self.contact_email.strip().lower()
+            if contact and contact != 'vivekjais16@gmail.com' and contact not in emails:
+                emails.append(contact)
+
+        if not emails:
+            emails.append("stallcart.in@gmail.com")
+
+        return emails
     @property
     def logo_absolute_url(self):
         """Return absolute URL for Open Graph tags"""

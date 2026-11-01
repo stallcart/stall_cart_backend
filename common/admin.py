@@ -60,6 +60,10 @@ class SiteSettingsAdmin(admin.ModelAdmin):
         ('📞 Contact', {
             'fields': ('contact_phone', 'contact_email', 'contact_whatsapp')
         }),
+        ('📧 Admin Notification Emails', {
+            'fields': ('admin_notification_emails',),
+            'description': 'Configure the email address(es) where admin-related emails (seller verification alerts, PAN submissions, AWB reviews, order notifications) will be sent. Separate multiple emails with commas or newlines.'
+        }),
         ('🌐 Social Links', {
             'fields': ('social_instagram', 'social_facebook', 'social_twitter', 'social_youtube')
         }),

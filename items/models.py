@@ -137,10 +137,8 @@ class SellerProfile(BaseModel):
                 logging.getLogger(__name__).error(f"Failed to log PAN update to SystemActivityLog: {e}")
 
             try:
-                from common.email_service import send_dynamic_email
-                from accounts.models import User as AuthUser
-                admins = AuthUser.objects.filter(role__in=['admin', 'staff'], is_active=True)
-                admin_emails = [admin.email for admin in admins if admin.email]
+                from common.email_service import send_dynamic_email, get_admin_notification_emails
+                admin_emails = get_admin_notification_emails()
                 if admin_emails:
                     send_dynamic_email('admin_notify_pan_verification', admin_emails, {
                         'seller_name': self.user.full_name or self.user.phone,

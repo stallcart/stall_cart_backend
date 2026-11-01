@@ -408,6 +408,69 @@ class SupportEnquiryTests(TestCase):
         self.assertIn("customsupport@stallcart.in", sent_email.body)
         self.assertIn("Need Support?", sent_email.body)
 
+    def test_admin_notification_emails_filtering(self):
+        """Verify that get_admin_notification_emails excludes vivekjais16@gmail.com and cleans emails."""
+        from common.models import SiteSettings
+        settings_obj = SiteSettings.get_singleton()
+        
+        # Test multiple emails including vivekjais16@gmail.com
+        settings_obj.admin_notification_emails = "stallcart.in@gmail.com, vivekjais16@gmail.com, hello@stallcart.in\nteam@stallcart.in"
+        settings_obj.save()
+        
+        emails = settings_obj.get_admin_notification_emails()
+        self.assertIn("stallcart.in@gmail.com", emails)
+        self.assertIn("hello@stallcart.in", emails)
+        self.assertIn("team@stallcart.in", emails)
+        self.assertNotIn("vivekjais16@gmail.com", emails)
+        
+        # Test when only vivekjais16@gmail.com is provided -> fallback
+        settings_obj.admin_notification_emails = "vivekjais16@gmail.com"
+        settings_obj.contact_email = "support@stallcart.in"
+        settings_obj.save()
+        
+        fallback_emails = settings_obj.get_admin_notification_emails()
+        self.assertNotIn("vivekjais16@gmail.com", fallback_emails)
+        self.assertIn("support@stallcart.in", fallback_emails)
+
+    def test_send_dynamic_email_filters_admin_recipients(self):
+        """Verify send_dynamic_email strips vivekjais16@gmail.com from any admin_* template"""
+        from common.email_service import send_dynamic_email
+        from django.core import mail
+        mail.outbox.clear()
+        
+        # Admin email with vivekjais16@gmail.com + valid admin
+        success = send_dynamic_email(
+            'admin_notify_verification',
+            ['vivekjais16@gmail.com', 'admin@example.com'],
+            {
+                'shop_name': 'Test Shop',
+                'seller_name': 'Test Seller',
+                'phone': '9999999999',
+                'email': 'seller@example.com',
+                'dashboard_url': 'http://example.com'
+            }
+        )
+        self.assertTrue(success)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ['admin@example.com'])
+        self.assertNotIn('vivekjais16@gmail.com', mail.outbox[0].to)
+        
+        # When only vivekjais16@gmail.com is supplied for admin template -> should fail silently / safely without sending
+        mail.outbox.clear()
+        success_blocked = send_dynamic_email(
+            'admin_notify_verification',
+            ['vivekjais16@gmail.com'],
+            {
+                'shop_name': 'Test Shop',
+                'seller_name': 'Test Seller',
+                'phone': '9999999999',
+                'email': 'seller@example.com',
+                'dashboard_url': 'http://example.com'
+            }
+        )
+        self.assertFalse(success_blocked)
+        self.assertEqual(len(mail.outbox), 0)
+
 
 from common.models import Campaign, CampaignPrize, CampaignParticipant, CampaignWinner
 from django.utils import timezone

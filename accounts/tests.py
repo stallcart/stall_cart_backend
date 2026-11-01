@@ -1457,3 +1457,62 @@ class RoleSelectionRegistrationTests(TestCase):
         self.assertEqual(res.context['form']['user_role'].value(), 'customer')
         customer_radio = [r for r in res.context['form']['user_role'] if r.data['value'] == 'customer'][0]
         self.assertTrue(customer_radio.data['selected'])
+
+
+class AdminNotificationEmailSettingsTests(TestCase):
+    def setUp(self):
+        from accounts.models import User
+        from common.models import SiteSettings
+        self.admin = User.objects.create_superuser(
+            phone='9000000001',
+            email='admin@stallcart.in',
+            password='AdminPassword123!',
+            role='admin'
+        )
+        self.customer = User.objects.create_user(
+            phone='9000000002',
+            email='customer@example.com',
+            password='CustomerPassword123!',
+            role='customer'
+        )
+        self.settings = SiteSettings.get_singleton()
+
+    def test_anonymous_and_non_admin_denied(self):
+        from django.urls import reverse
+        url = reverse('accounts:admin_update_notification_emails')
+        
+        # Anonymous
+        res = self.client.post(url, {'admin_notification_emails': 'test@example.com'})
+        self.assertEqual(res.status_code, 302)  # Redirected to login
+        
+        # Non-admin customer
+        self.client.login(phone='9000000002', password='CustomerPassword123!')
+        res_cust = self.client.post(url, {'admin_notification_emails': 'test@example.com'})
+        self.assertEqual(res_cust.status_code, 403)
+
+    def test_admin_update_emails_success_and_strips_unwanted_email(self):
+        from django.urls import reverse
+        from common.models import SiteSettings
+        url = reverse('accounts:admin_update_notification_emails')
+        
+        self.client.login(phone='9000000001', password='AdminPassword123!')
+        res = self.client.post(url, {
+            'admin_notification_emails': 'admin1@stallcart.in, vivekjais16@gmail.com, alerts@stallcart.in'
+        })
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertEqual(data['status'], 'success')
+        self.assertIn('admin1@stallcart.in', data['emails'])
+        self.assertIn('alerts@stallcart.in', data['emails'])
+        self.assertNotIn('vivekjais16@gmail.com', data['emails'])
+        
+        # Verify in SiteSettings
+        self.settings.refresh_from_db()
+        self.assertIn('admin1@stallcart.in', self.settings.admin_notification_emails)
+        self.assertNotIn('vivekjais16@gmail.com', self.settings.admin_notification_emails)
+        
+        resolved_emails = self.settings.get_admin_notification_emails()
+        self.assertIn('admin1@stallcart.in', resolved_emails)
+        self.assertIn('alerts@stallcart.in', resolved_emails)
+        self.assertNotIn('vivekjais16@gmail.com', resolved_emails)
+

@@ -543,6 +543,10 @@
                 <i class="fa fa-envelope-open-text"></i>
                 <span>Mail Templates</span>
             </a>
+            <a href="#admin-notification-settings" class="quick-action-btn">
+                <i class="fa fa-envelope-shield"></i>
+                <span>Admin Alert Emails</span>
+            </a>
             <button id="reconcile-shiprocket-btn" class="quick-action-btn" style="cursor: pointer; background: var(--gray-50); border: 1.5px solid var(--gray-200); width: 100%; box-sizing: border-box; text-align: center; border-radius: var(--r-lg);">
                 <i class="fa fa-sync-alt" id="reconcile-btn-icon"></i>
                 <span>Sync Shiprocket Shipments</span>
@@ -738,6 +742,74 @@
                     {% endif %}
                 </tbody>
             </table>
+        </div>
+    </div>
+
+    <!-- 6. Admin Email Notification Settings Section -->
+    <div id="admin-notification-settings" class="section-card" style="margin-top: 30px; margin-bottom: 30px;">
+        <div class="section-card-header" style="flex-wrap: wrap; gap: 10px;">
+            <div>
+                <h3 style="margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <i class="fa fa-envelope-shield" style="color: var(--blue-500);"></i> 
+                    Admin Email Notification Settings
+                </h3>
+                <span class="text-muted" style="font-size: 0.85rem; margin-top: 4px; display: block;">
+                    Configure recipient email addresses that receive administrative notifications (seller registrations, PAN verifications, courier AWB alerts, and new order alerts).
+                </span>
+            </div>
+            <a href="/admin/common/sitesettings/1/change/" class="btn-outline btn-sm" style="padding: 6px 12px; font-size: 0.82rem; font-weight: 600; text-decoration: none;">
+                <i class="fa fa-external-link-alt"></i> Django Admin View
+            </a>
+        </div>
+
+        <div style="padding: 24px;">
+            <!-- Currently Active Emails Display -->
+            <div style="margin-bottom: 22px;">
+                <label style="display: block; font-size: 0.82rem; font-weight: 700; color: var(--gray-500); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px;">
+                    Active Admin Recipients
+                </label>
+                <div id="admin-email-pills" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+                    {% if admin_notification_emails_list %}
+                        {% for email in admin_notification_emails_list %}
+                        <span class="status-capsule active" style="font-size: 0.88rem; padding: 7px 16px; background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; font-weight: 600;">
+                            <i class="fa fa-envelope-circle-check" style="color: #16a34a; margin-right: 4px;"></i> {{ email }}
+                        </span>
+                        {% endfor %}
+                    {% else %}
+                        <span class="status-capsule inactive" style="font-size: 0.85rem; padding: 6px 12px;">
+                            No specific admin emails configured (defaulting to stallcart.in@gmail.com)
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Edit / Update Form -->
+            <form id="admin-email-update-form" style="background: var(--gray-50); border: 1.5px solid var(--gray-200); border-radius: var(--r-lg); padding: 20px;">
+                {% csrf_token %}
+                <div style="margin-bottom: 14px;">
+                    <label for="admin-emails-input" style="display: block; font-size: 0.88rem; font-weight: 700; color: var(--gray-800); margin-bottom: 6px;">
+                        Manage Notification Emails (Comma, space, or newline-separated):
+                    </label>
+                    <textarea 
+                        id="admin-emails-input" 
+                        name="admin_notification_emails" 
+                        rows="2" 
+                        class="form-control" 
+                        style="width: 100%; box-sizing: border-box; border: 1.5px solid var(--gray-200); border-radius: var(--r-md); padding: 12px 14px; font-family: monospace; font-size: 0.92rem; resize: vertical; background: white;"
+                        placeholder="e.g. stallcart.in@gmail.com, alerts@stallcart.in"
+                    >{{ site_settings.admin_notification_emails }}</textarea>
+                    <small class="text-muted" style="display: block; margin-top: 6px; font-size: 0.8rem;">
+                        <i class="fa fa-shield-halved" style="color: var(--blue-500);"></i> 
+                        Admins and store managers listed here will receive admin notifications. Customer and seller emails remain strictly separated.
+                    </small>
+                </div>
+                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+                    <div id="admin-email-status-msg" style="font-size: 0.85rem; font-weight: 600;"></div>
+                    <button type="submit" id="save-admin-emails-btn" class="quick-action-btn" style="cursor: pointer; background: var(--blue-500); color: white; border: none; padding: 10px 24px; font-weight: 700; border-radius: var(--r-md); box-shadow: 0 2px 8px rgba(37,99,235,0.25);">
+                        <i class="fa fa-save"></i> Save Notification Emails
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -962,6 +1034,65 @@
                 btn.disabled = false;
                 btn.innerHTML = 'Mark Resolved <i class="fa fa-check"></i>';
             }
+        });
+    }
+
+    // Handle Admin Email Notification Settings Update
+    const adminEmailForm = document.getElementById('admin-email-update-form');
+    if (adminEmailForm) {
+        adminEmailForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+            const saveBtn = document.getElementById('save-admin-emails-btn');
+            const statusMsg = document.getElementById('admin-email-status-msg');
+            const emailsInput = document.getElementById('admin-emails-input');
+            const pillsContainer = document.getElementById('admin-email-pills');
+
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving...';
+            statusMsg.innerHTML = '';
+
+            const formData = new FormData(adminEmailForm);
+
+            fetch("{% url 'accounts:admin_update_notification_emails' %}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+                },
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<i class="fa fa-save"></i> Save Notification Emails';
+                if (data.status === 'success') {
+                    statusMsg.innerHTML = '<span style="color: var(--green);"><i class="fa fa-check-circle"></i> ' + data.message + '</span>';
+                    emailsInput.value = data.formatted;
+                    
+                    if (pillsContainer && data.emails) {
+                        let pillsHtml = '';
+                        data.emails.forEach(function (email) {
+                            pillsHtml += '<span class="status-capsule active" style="font-size: 0.88rem; padding: 7px 16px; background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; font-weight: 600;"><i class="fa fa-envelope-circle-check" style="color: #16a34a; margin-right: 4px;"></i> ' + email + '</span>';
+                        });
+                        pillsContainer.innerHTML = pillsHtml;
+                    }
+                    if (typeof showToast === 'function') {
+                        showToast('Notification emails updated successfully!', 'success');
+                    }
+                } else {
+                    statusMsg.innerHTML = '<span style="color: var(--red);"><i class="fa fa-exclamation-circle"></i> ' + (data.message || 'Error updating emails') + '</span>';
+                    if (typeof showToast === 'function') {
+                        showToast(data.message || 'Error updating emails', 'error');
+                    }
+                }
+            })
+            .catch(err => {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<i class="fa fa-save"></i> Save Notification Emails';
+                statusMsg.innerHTML = '<span style="color: var(--red);"><i class="fa fa-exclamation-circle"></i> Failed to communicate with server.</span>';
+                if (typeof showToast === 'function') {
+                    showToast('Failed to communicate with server.', 'error');
+                }
+            });
         });
     }
 </script>

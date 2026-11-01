@@ -203,6 +203,7 @@ class Order(BaseModel):
     # Email tracking flags
     customer_placed_email_sent = models.BooleanField(default=False)
     seller_placed_email_sent = models.BooleanField(default=False)
+    admin_placed_email_sent = models.BooleanField(default=False)
     customer_payment_email_sent = models.BooleanField(default=False)
     seller_payment_email_sent = models.BooleanField(default=False)
     customer_refund_email_sent = models.BooleanField(default=False)

@@ -214,9 +214,8 @@ class Command(BaseCommand):
                 if seller.user.email:
                     recipient_list.append(seller.user.email.strip())
 
-                admin_emails = list(User.objects.filter(is_superuser=True).exclude(email='').values_list('email', flat=True))
-                if not admin_emails:
-                    admin_emails = [getattr(settings, 'DEFAULT_FROM_EMAIL', 'admin@stallcart.in')]
+                from common.email_service import get_admin_notification_emails
+                admin_emails = get_admin_notification_emails()
                 
                 recipient_list = list(set(recipient_list + admin_emails))
                 recipient_list = [email for email in recipient_list if email]
@@ -469,6 +468,7 @@ class Command(BaseCommand):
         from common.notification_service import (
             send_order_placed_email_customer,
             send_order_placed_email_sellers,
+            send_order_placed_email_admin,
             send_payment_email_customer,
             send_payment_email_sellers,
             send_refund_email_customer,
@@ -494,6 +494,15 @@ class Command(BaseCommand):
             if send_order_placed_email_sellers(order):
                 order.seller_placed_email_sent = True
                 order.save(update_fields=['seller_placed_email_sent'])
+                self.stdout.write(self.style.SUCCESS(f"    Sent successfully."))
+
+        pending_placed_admin = Order.objects.filter(admin_placed_email_sent=False)
+        self.stdout.write(f"Found {pending_placed_admin.count()} pending admin order placement email(s).")
+        for order in pending_placed_admin:
+            self.stdout.write(f"  Sending order placement email to admin for Order {order.unique_order_id}...")
+            if send_order_placed_email_admin(order):
+                order.admin_placed_email_sent = True
+                order.save(update_fields=['admin_placed_email_sent'])
                 self.stdout.write(self.style.SUCCESS(f"    Sent successfully."))
 
         # 2. Retry Payment Emails
