@@ -2087,7 +2087,7 @@ def admin_trigger_backup(request):
     import subprocess
     try:
         # Run the backup shell script (dumps DB and sends email backup)
-        result = subprocess.run(['/root/backup_db.sh'], capture_output=True, text=True, timeout=60)
+        result = subprocess.run(['/root/backup_db.sh', '--force'], capture_output=True, text=True, timeout=120)
         if result.returncode == 0:
             return JsonResponse({'status': 'success', 'message': '🎉 Database backup successfully created and sent to your email!'})
         else:
