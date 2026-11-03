@@ -1,6 +1,8 @@
 
 import requests
 import logging
+import hashlib
+import re
 from django.conf import settings
 from django.utils import timezone
 from datetime import timedelta
@@ -8,8 +10,6 @@ from datetime import timedelta
 logger = logging.getLogger(__name__)
  
 SHIPROCKET_API = "https://apiv2.shiprocket.in/v1/external"
-
-import re
 
 def repair_address(addr, order=None):
     """
@@ -270,18 +270,18 @@ class ShiprocketService:
         if not email_val or "@" not in email_val:
             email_val = "customer@stallcart.in"
 
-        # Try to resolve seller pickup location dynamically from SellerShopAddress
+        # Try to resolve seller pickup location dynamically from SellerShopAddress / SellerProfile
         pickup_loc_name = getattr(settings, "SHIPROCKET_PICKUP_LOCATION", "Primary")
         try:
             first_item = items_list[0] if items_list else None
             current_seller = seller or (first_item.product.seller if first_item else None)
             if current_seller:
-                if hasattr(current_seller, 'shop_address') and current_seller.shop_address:
-                    shop_addr = current_seller.shop_address
-                    if shop_addr.address_line1 and shop_addr.city and shop_addr.state and shop_addr.postal_code:
-                        pickup_loc_name = f"Seller_{current_seller.id}"
-                        # Ensure this pickup location exists in Shiprocket
-                        self._ensure_pickup_location_registered(pickup_loc_name, current_seller, shop_addr)
+                resolved_nickname = self.get_seller_pickup_location_name(current_seller)
+                if resolved_nickname and resolved_nickname != getattr(settings, "SHIPROCKET_PICKUP_LOCATION", "Primary"):
+                    if self._ensure_pickup_location_registered(resolved_nickname, current_seller):
+                        pickup_loc_name = resolved_nickname
+                    else:
+                        logger.warning(f"Could not ensure pickup location '{resolved_nickname}' in Shiprocket; fallback to '{pickup_loc_name}'")
         except Exception as e:
             logger.warning(f"Failed to resolve seller pickup address dynamically: {e}")
 
@@ -450,23 +450,120 @@ class ShiprocketService:
             logger.error(f"Shiprocket AWB assignment failed: {e}")
             return {}
 
-    def _ensure_pickup_location_registered(self, nickname, seller, shop_addr):
+    def get_seller_pickup_location_name(self, seller, shop_addr=None):
+        """
+        Generate a unique, deterministic pickup location nickname for Shiprocket.
+        Includes seller id, pincode, and a 6-character hash of the address fields.
+        This guarantees that if the seller changes their address, a new pickup location
+        is registered and used in Shiprocket, ensuring orders reflect the latest address.
+        Max length in Shiprocket is 36 characters.
+        """
+        default_loc = getattr(settings, "SHIPROCKET_PICKUP_LOCATION", "Primary")
+        if not seller:
+            return default_loc
+
+        if shop_addr is None:
+            if hasattr(seller, 'shop_address') and seller.shop_address:
+                shop_addr = seller.shop_address
+            else:
+                try:
+                    from accounts.models import SellerShopAddress
+                    shop_addr = SellerShopAddress.objects.filter(seller=seller).first()
+                except Exception:
+                    shop_addr = None
+
+        line1 = ""
+        line2 = ""
+        city = ""
+        pincode = ""
+        if shop_addr:
+            line1 = str(shop_addr.address_line1 or "").strip()
+            line2 = str(shop_addr.address_line2 or "").strip()
+            city = str(shop_addr.city or "").strip()
+            pincode = str(shop_addr.postal_code or "").strip()
+        elif isinstance(seller.address, dict):
+            line1 = str(seller.address.get('address', '')).strip()
+            city = str(seller.address.get('city', '')).strip()
+            pincode = str(seller.address.get('postalCode', '') or seller.address.get('pincode', '')).strip()
+
+        if not line1 or not city or not pincode:
+            return default_loc
+
+        clean_pincode = "".join(c for c in pincode if c.isdigit())[:6]
+        if not clean_pincode:
+            return default_loc
+
+        addr_key = f"{line1.lower()}_{line2.lower()}_{city.lower()}_{clean_pincode}"
+        addr_hash = hashlib.md5(addr_key.encode('utf-8')).hexdigest()[:6]
+        
+        # Format: Seller_{id}_{pincode}_{hash} -> e.g. Seller_16_395011_a9f3b1 (23 chars <= 36)
+        nickname = f"Seller_{seller.id}_{clean_pincode}_{addr_hash}"[:36]
+        return nickname
+
+    def _ensure_pickup_location_registered(self, nickname, seller, shop_addr=None):
         """Register the seller's shop address as a pickup location in Shiprocket."""
+        default_loc = getattr(settings, "SHIPROCKET_PICKUP_LOCATION", "Primary")
+        if not nickname or nickname == default_loc or not seller:
+            return False
+
+        if shop_addr is None:
+            if hasattr(seller, 'shop_address') and seller.shop_address:
+                shop_addr = seller.shop_address
+            else:
+                try:
+                    from accounts.models import SellerShopAddress
+                    shop_addr = SellerShopAddress.objects.filter(seller=seller).first()
+                except Exception:
+                    shop_addr = None
+
+        phone = ""
+        pincode = ""
+        address_line = ""
+        address_2 = ""
+        city = ""
+        state = ""
+        country = "India"
+        shop_name = ""
+        shop_email = ""
+
+        if shop_addr:
+            phone = str(shop_addr.shop_phone or (seller.user.phone if hasattr(seller, 'user') else ""))
+            pincode = str(shop_addr.postal_code or "")
+            address_line = str(shop_addr.address_line1 or "").strip()
+            address_2 = str(shop_addr.address_line2 or "").strip()
+            city = str(shop_addr.city or "").strip()
+            state = str(shop_addr.state or "").strip()
+            country = str(shop_addr.country or "India").strip()
+            shop_name = str(shop_addr.shop_name or seller.shop_name or "Seller Shop").strip()
+            shop_email = str(shop_addr.shop_email or (seller.user.email if hasattr(seller, 'user') else "") or "seller@stallcart.in")
+        elif isinstance(seller.address, dict):
+            phone = str(seller.phone or (seller.user.phone if hasattr(seller, 'user') else ""))
+            pincode = str(seller.address.get('postalCode', '') or seller.address.get('pincode', ''))
+            address_line = str(seller.address.get('address', '')).strip()
+            city = str(seller.address.get('city', '')).strip()
+            state = str(seller.address.get('state', '')).strip()
+            country = str(seller.address.get('country', 'India')).strip()
+            shop_name = str(seller.shop_name or "Seller Shop").strip()
+            shop_email = str((seller.user.email if hasattr(seller, 'user') else "") or "seller@stallcart.in")
+        else:
+            return False
+
         # Clean up phone
-        clean_phone = "".join(c for c in str(shop_addr.shop_phone or seller.user.phone) if c.isdigit())
+        clean_phone = "".join(c for c in phone if c.isdigit())
         if len(clean_phone) >= 10:
             clean_phone = clean_phone[-10:]
         else:
             clean_phone = "9999999999"
-            
+
         # Clean up pincode
-        clean_pincode = "".join(c for c in str(shop_addr.postal_code) if c.isdigit()).strip()
+        clean_pincode = "".join(c for c in pincode if c.isdigit()).strip()[:6]
         if len(clean_pincode) != 6:
             clean_pincode = "221005"
-            
+
+        if not address_line:
+            return False
+
         # Ensure address contains at least one digit (Shiprocket requires house/flat/road number)
-        address_line = (shop_addr.address_line1 or "").strip()
-        address_2 = (shop_addr.address_line2 or "").strip()
         if not any(c.isdigit() for c in address_line):
             address_line = f"Shop No. 1, {address_line}"
 
@@ -476,7 +573,7 @@ class ShiprocketService:
                 address_line = f"{address_line}, {address_2}".strip()
                 address_2 = ""
             else:
-                city_hint = str(shop_addr.city or "").strip()
+                city_hint = city or "Market"
                 address_line = f"{address_line}, Market Road, {city_hint}".strip()
 
         if not any(c.isdigit() for c in address_line):
@@ -495,24 +592,23 @@ class ShiprocketService:
         address_line = address_line[:80].strip()
         address_2 = address_2[:80].strip()
 
-        shop_name = str(shop_addr.shop_name or seller.shop_name or "Seller").strip()
         if len(shop_name) < 2:
             shop_name = "Seller Shop"
-            
+
         payload = {
             "pickup_location": nickname[:36],  # Max 36 chars
             "name": shop_name[:40],
-            "email": shop_addr.shop_email or seller.user.email or "seller@stallcart.in",
+            "email": shop_email,
             "phone": clean_phone,
             "address": address_line[:80],  # Min 10, Max 80 chars
             "address_2": address_2[:80],
-            "city": (shop_addr.city or "Varanasi")[:50].strip(),
-            "state": (shop_addr.state or "Uttar Pradesh")[:50].strip(),
+            "city": (city or "Varanasi")[:50].strip(),
+            "state": (state or "Uttar Pradesh")[:50].strip(),
             "pin_code": clean_pincode,
             "pincode": clean_pincode,
-            "country": shop_addr.country or "India"
+            "country": country or "India"
         }
-        
+
         try:
             res = requests.post(
                 f"{SHIPROCKET_API}/settings/company/addpickup",
@@ -522,10 +618,16 @@ class ShiprocketService:
             )
             if res.status_code == 200:
                 logger.info(f"Registered pickup location '{nickname}' in Shiprocket: {res.json()}")
+                return True
+            elif res.status_code == 422 and "already exists" in res.text:
+                logger.info(f"Pickup location '{nickname}' already registered in Shiprocket.")
+                return True
             else:
-                logger.info(f"Add pickup location returned status {res.status_code}: {res.text}")
+                logger.warning(f"Add pickup location returned status {res.status_code}: {res.text}")
+                return False
         except Exception as e:
             logger.warning(f"Error registering pickup location '{nickname}' in Shiprocket: {e}")
+            return False
  
     # ── Tracking ──────────────────────────────────────────────────────────────
  

@@ -1,4 +1,5 @@
 # items/views.py
+import logging
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
@@ -7,6 +8,8 @@ from django.views.decorators.http import require_POST
 from decimal import Decimal
 from django.db.models import F, Avg, Count, Q, Sum, ProtectedError
 from .models import *
+
+logger = logging.getLogger(__name__)
 from .forms import *
 from common.decorators import *
 from PIL import Image
@@ -2486,6 +2489,15 @@ def seller_edit_view(request, seller_id):
                     'postalCode': shop_addr.postal_code,
                 }
                 seller.save(update_fields=['address'])
+
+                # Proactively register pickup location in Shiprocket
+                try:
+                    from delivery.delivery_services import ShiprocketService
+                    sr = ShiprocketService()
+                    nickname = sr.get_seller_pickup_location_name(seller, shop_addr)
+                    sr._ensure_pickup_location_registered(nickname, seller, shop_addr)
+                except Exception as e:
+                    logger.warning(f"Could not proactively register pickup location for seller {seller.id}: {e}")
 
             success_msg = f"✅ All seller details for '{seller.shop_name}' have been updated across User, Profile, and Shop Address tables!"
             if is_ajax:

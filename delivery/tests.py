@@ -184,6 +184,16 @@ class ShiprocketServiceTests(TestCase):
         self.srv._token = "dummy-token"
         self.srv._token_expiry = timezone.now() + timedelta(days=9)
 
+        User.objects.filter(phone="7776665554").delete()
+        self.seller_user = User.objects.create_user(
+            phone="7776665554", email="seller2@example.com", password="password123", role="seller"
+        )
+        self.seller_profile = SellerProfile.objects.create(
+            user=self.seller_user,
+            shop_name="Shiprocket Test Shop",
+            is_verified=True
+        )
+
     @patch('requests.get')
     def test_fetch_shipment_details_exact_match(self, mock_get):
         mock_response = MagicMock()
@@ -243,4 +253,82 @@ class ShiprocketServiceTests(TestCase):
         }
         tracking2 = self.srv.get_tracking("AWB-1234")
         self.assertEqual(tracking2["activities"], [])
+
+    def test_get_seller_pickup_location_name_dynamic_and_stable(self):
+        from accounts.models import SellerShopAddress
+        seller = self.seller_profile
+
+        # Create shop address
+        shop_addr = SellerShopAddress.objects.create(
+            seller=seller,
+            shop_name="Test Shop",
+            address_line1="66-67 Sarita Vihar",
+            city="Surat",
+            state="Gujarat",
+            postal_code="395010"
+        )
+        seller.refresh_from_db()
+
+        nick1 = self.srv.get_seller_pickup_location_name(seller)
+        self.assertTrue(nick1.startswith(f"Seller_{seller.id}_395010_"))
+        self.assertLessEqual(len(nick1), 36)
+
+        # Call again without changing address -> must match nick1 exactly
+        nick1_again = self.srv.get_seller_pickup_location_name(seller)
+        self.assertEqual(nick1, nick1_again)
+
+        # Update address -> must produce different nickname
+        shop_addr.address_line1 = "707 Pavitraa Point"
+        shop_addr.postal_code = "395011"
+        shop_addr.save()
+        seller.refresh_from_db()
+
+        nick2 = self.srv.get_seller_pickup_location_name(seller)
+        self.assertTrue(nick2.startswith(f"Seller_{seller.id}_395011_"))
+        self.assertNotEqual(nick1, nick2)
+        self.assertLessEqual(len(nick2), 36)
+
+    @patch('requests.post')
+    def test_ensure_pickup_location_registered(self, mock_post):
+        from accounts.models import SellerShopAddress
+        seller = self.seller_profile
+        SellerShopAddress.objects.get_or_create(
+            seller=seller,
+            defaults={
+                'shop_name': "Shiprocket Test Shop",
+                'address_line1': "707 Pavitraa Point",
+                'city': "Surat",
+                'state': "Gujarat",
+                'postal_code': "395011"
+            }
+        )
+        seller.refresh_from_db()
+        
+        # Test 200 OK
+        mock_res_200 = MagicMock()
+        mock_res_200.status_code = 200
+        mock_res_200.json.return_value = {"pickup_id": 12345}
+        mock_post.return_value = mock_res_200
+
+        res = self.srv._ensure_pickup_location_registered("Seller_1_395011_abc123", seller)
+        self.assertTrue(res)
+
+        # Test 422 Address already exists
+        mock_res_422 = MagicMock()
+        mock_res_422.status_code = 422
+        mock_res_422.text = '{"message":"Address name already exists"}'
+        mock_post.return_value = mock_res_422
+
+        res_exists = self.srv._ensure_pickup_location_registered("Seller_1_395011_abc123", seller)
+        self.assertTrue(res_exists)
+
+        # Test 500 error
+        mock_res_500 = MagicMock()
+        mock_res_500.status_code = 500
+        mock_res_500.text = '{"error":"Server error"}'
+        mock_post.return_value = mock_res_500
+
+        res_fail = self.srv._ensure_pickup_location_registered("Seller_1_395011_abc123", seller)
+        self.assertFalse(res_fail)
+
 

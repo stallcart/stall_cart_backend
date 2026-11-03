@@ -1494,7 +1494,25 @@ def profile_view(request):
                         if hasattr(shop_address, key):
                             setattr(shop_address, key, value)
                     shop_address.save()
-                
+
+                # Keep seller.address JSONField in sync
+                seller.address = {
+                    'address': f"{shop_address.address_line1 or ''} {shop_address.address_line2 or ''}".strip(),
+                    'city': shop_address.city or '',
+                    'state': shop_address.state or '',
+                    'postalCode': shop_address.postal_code or '',
+                }
+                seller.save(update_fields=['address'])
+
+                # Proactively register pickup location in Shiprocket
+                try:
+                    from delivery.delivery_services import ShiprocketService
+                    sr = ShiprocketService()
+                    nickname = sr.get_seller_pickup_location_name(seller, shop_address)
+                    sr._ensure_pickup_location_registered(nickname, seller, shop_address)
+                except Exception as e:
+                    logger.warning(f"Could not proactively register pickup location for seller {seller.id}: {e}")
+
                 return JsonResponse({'status': 'success', 'message': 'Shop address saved'})
             
             # ===== UPDATE BANK DETAILS (Sellers Only) =====

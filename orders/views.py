@@ -149,11 +149,10 @@ def sync_shiprocket_tracking(order):
     """
     shiprocket_tracking = None
     terminal_statuses = (
-        'delivered', 'cancelled', 'returned',
+        'delivered', 'cancelled', 'returned', 'returned_to_source',
         'refund_initiated', 'refunded', 'courier_failed_pickup', 'seller_unresponsive'
     )
-    # If order is returned_to_source AND already refunded, don't sync
-    if order.status == 'returned_to_source' and (order.payment_status == 'refunded' or order.status in ('refund_initiated', 'refunded')):
+    if order.status in terminal_statuses:
         return None
 
     status_ranks = {
