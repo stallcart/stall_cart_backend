@@ -74,6 +74,21 @@ class Command(BaseCommand):
                             new_status='refunded',
                             remarks=f"💰 Refund processed automatically to source account via background job. Amount: Rs. {remaining_to_refund}."
                         )
+                        try:
+                            from orders.models import SystemActivityLog
+                            SystemActivityLog.log(
+                                event_type='payment_status',
+                                description=f"💰 Auto-refund of ₹{remaining_to_refund} processed to customer via Razorpay (Refund ID: {order.razorpay_refund_id}).",
+                                order=order,
+                                status='success',
+                                metadata={
+                                    'refund_id': order.razorpay_refund_id,
+                                    'amount': float(remaining_to_refund),
+                                    'payment_id': order.razorpay_payment_id
+                                }
+                            )
+                        except Exception:
+                            pass
                         self.stdout.write(self.style.SUCCESS(f"  Successfully processed Razorpay refund for Order {order.unique_order_id}."))
                     else:
                         self.stdout.write(self.style.ERROR(f"  Failed: Razorpay client not initialized or missing payment ID for Order {order.unique_order_id}."))
@@ -91,9 +106,31 @@ class Command(BaseCommand):
                             new_status='refunded',
                             remarks="💰 Reconciled with Razorpay: Payment was already fully refunded."
                         )
+                        try:
+                            from orders.models import SystemActivityLog
+                            SystemActivityLog.log(
+                                event_type='payment_status',
+                                description=f"💰 Payment reconciled with Razorpay (already fully refunded). Total: ₹{order.total_amount}.",
+                                order=order,
+                                status='success',
+                                metadata={'amount': float(order.total_amount), 'payment_id': order.razorpay_payment_id}
+                            )
+                        except Exception:
+                            pass
                     else:
                         self.stdout.write(self.style.ERROR(f"  Razorpay refund API call failed for Order {order.unique_order_id}: {e}"))
                         logger.error(f"Razorpay refund error for Order {order.unique_order_id}: {e}", exc_info=True)
+                        try:
+                            from orders.models import SystemActivityLog
+                            SystemActivityLog.log(
+                                event_type='payment_status',
+                                description=f"Auto-refund API failed for Order {order.unique_order_id}: {e}",
+                                order=order,
+                                status='failed',
+                                metadata={'error': str(e), 'payment_id': order.razorpay_payment_id}
+                            )
+                        except Exception:
+                            pass
 
         # 2. Wallet Refunds
         with transaction.atomic():

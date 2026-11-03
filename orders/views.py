@@ -1650,12 +1650,17 @@ def admin_order_detail(request, order_id):
             'unsettled_item_ids': [it.id for it in payable_items if it.payout_status in ('due', 'in_transit')],
         }
         
+    activity_logs = order.activity_logs.all().order_by('-created_at')
+    all_status_logs = order.status_logs.all().order_by('-timestamp')
+
     context = {
         'order': order,
         'shipments_list': shipments_list,
         'seller_payout_summaries': seller_payout_summaries,
         'seller_payout_list': list(seller_payout_summaries.values()),
         'unsettled_sellers_count': unsettled_sellers_count,
+        'activity_logs': activity_logs,
+        'all_status_logs': all_status_logs,
     }
     return render(request, 'orders/admin_order_detail.html', context)
 

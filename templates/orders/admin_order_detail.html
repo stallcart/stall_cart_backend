@@ -267,31 +267,169 @@
                 </div>
             </div>
 
-            <!-- Status Timeline -->
+            <!-- Status Timeline & Service Audit Logs -->
             <div style="background: white; border-radius: var(--r-2xl); border: 1.5px solid var(--gray-100); box-shadow: var(--sh-md); padding: 24px;">
-                <h3 style="margin: 0 0 16px; font-family: 'Syne', sans-serif; font-size: 1.05rem; font-weight: 800; color: var(--gray-900); border-bottom: 1.5px solid var(--gray-100); padding-bottom: 10px;">
-                    <i class="fa fa-history" style="margin-right: 6px;"></i>Status Audit Logs
-                </h3>
-                <div style="display: flex; flex-direction: column; gap: 0; padding-left: 10px; border-left: 2px solid var(--gray-200); margin-left: 10px;">
-                    {% for log in order.cleaned_status_logs reversed %}
-                    <div style="position: relative; padding-left: 20px; padding-bottom: 20px;">
-                        <div style="position: absolute; left: -17px; top: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--blue-500); border: 2px solid white;"></div>
-                        <strong style="display: block; font-size: 0.875rem; color: var(--gray-800);">
-                            {{ log.get_new_status_display }}
-                        </strong>
-                        <span style="font-size: 0.75rem; color: var(--gray-500);">
-                            Changed by: {% if log.changed_by %}{{ log.changed_by.full_name|default:log.changed_by.phone }}{% else %}System{% endif %}
-                            • {{ log.timestamp|date:"d M Y, h:i A" }}
-                        </span>
-                        {% if log.remarks %}
-                            <p style="margin: 6px 0 0; font-size: 0.82rem; color: var(--gray-600); background: var(--gray-50); padding: 8px 12px; border-radius: var(--r-md); border: 1px solid var(--gray-100);">
-                                {{ log.remarks }}
-                            </p>
-                        {% endif %}
+                <!-- Header with Navigation Tabs -->
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; border-bottom: 1.5px solid var(--gray-100); padding-bottom: 14px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <h3 style="margin: 0; font-family: 'Syne', sans-serif; font-size: 1.05rem; font-weight: 800; color: var(--gray-900);">
+                            <i class="fa fa-history" style="margin-right: 6px; color: #4f46e5;"></i>Audit & Activity Logs
+                        </h3>
                     </div>
-                    {% empty %}
-                    <p class="text-muted" style="margin: 0; font-size: 0.85rem; color: var(--gray-400);">No status log updates recorded.</p>
-                    {% endfor %}
+                    
+                    <div style="display: inline-flex; background: #f1f5f9; padding: 4px; border-radius: 10px; gap: 4px;">
+                        <button type="button" id="tabBtnTimeline" onclick="switchAuditTab('timeline')" style="padding: 6px 14px; font-size: 0.8rem; font-weight: 700; border: none; border-radius: 8px; cursor: pointer; background: white; color: #0f172a; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: all 0.2s;">
+                            <i class="fa fa-stream" style="margin-right: 4px;"></i> Status Milestones ({{ order.cleaned_status_logs|length }})
+                        </button>
+                        <button type="button" id="tabBtnServices" onclick="switchAuditTab('services')" style="padding: 6px 14px; font-size: 0.8rem; font-weight: 700; border: none; border-radius: 8px; cursor: pointer; background: transparent; color: #64748b; transition: all 0.2s;">
+                            <i class="fa fa-server" style="margin-right: 4px;"></i> Service Activities ({{ activity_logs|length|default:all_status_logs|length }})
+                        </button>
+                    </div>
+                </div>
+
+                <!-- TAB 1: Status Milestones Timeline -->
+                <div id="auditTabTimeline" style="display: block;">
+                    <div style="display: flex; flex-direction: column; gap: 0; padding-left: 10px; border-left: 2px solid var(--gray-200); margin-left: 10px;">
+                        {% for log in order.cleaned_status_logs reversed %}
+                        <div style="position: relative; padding-left: 20px; padding-bottom: 20px;">
+                            <div style="position: absolute; left: -17px; top: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--blue-500); border: 2px solid white;"></div>
+                            <div style="display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 6px;">
+                                <strong style="font-size: 0.9rem; color: var(--gray-900);">
+                                    {{ log.get_new_status_display }}
+                                </strong>
+                                <span style="font-size: 0.75rem; color: var(--gray-500);">
+                                    {{ log.timestamp|date:"d M Y, h:i A" }}
+                                </span>
+                            </div>
+                            <span style="font-size: 0.78rem; color: var(--gray-500); display: block; margin-top: 2px;">
+                                Changed by: {% if log.changed_by %}{{ log.changed_by.full_name|default:log.changed_by.phone }}{% else %}System{% endif %}
+                            </span>
+                            {% if log.remarks %}
+                                <p style="margin: 8px 0 0; font-size: 0.82rem; color: var(--gray-700); background: var(--gray-50); padding: 8px 12px; border-radius: var(--r-md); border: 1px solid var(--gray-200); white-space: pre-line;">
+                                    {{ log.remarks }}
+                                </p>
+                            {% endif %}
+                        </div>
+                        {% empty %}
+                        <p class="text-muted" style="margin: 0; font-size: 0.85rem; color: var(--gray-400);">No status log updates recorded.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- TAB 2: Full Service Activities -->
+                <div id="auditTabServices" style="display: none;">
+                    <!-- Filter Chips -->
+                    <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px;">
+                        <button type="button" class="filter-chip active-chip" onclick="filterActivityLogs('all', this)" style="padding: 4px 10px; font-size: 0.75rem; font-weight: 700; border-radius: 20px; border: 1px solid #cbd5e1; cursor: pointer; background: #0f172a; color: white;">
+                            All ({{ activity_logs|length }})
+                        </button>
+                        <button type="button" class="filter-chip" onclick="filterActivityLogs('delivery_status', this)" style="padding: 4px 10px; font-size: 0.75rem; font-weight: 700; border-radius: 20px; border: 1px solid #cbd5e1; cursor: pointer; background: white; color: #0284c7;">
+                            🚚 Delivery / Shiprocket
+                        </button>
+                        <button type="button" class="filter-chip" onclick="filterActivityLogs('payment_status', this)" style="padding: 4px 10px; font-size: 0.75rem; font-weight: 700; border-radius: 20px; border: 1px solid #cbd5e1; cursor: pointer; background: white; color: #059669;">
+                            💳 Payments & Refunds
+                        </button>
+                        <button type="button" class="filter-chip" onclick="filterActivityLogs('email_sent', this)" style="padding: 4px 10px; font-size: 0.75rem; font-weight: 700; border-radius: 20px; border: 1px solid #cbd5e1; cursor: pointer; background: white; color: #7c3aed;">
+                            📧 Email Notifications
+                        </button>
+                        <button type="button" class="filter-chip" onclick="filterActivityLogs('order_status', this)" style="padding: 4px 10px; font-size: 0.75rem; font-weight: 700; border-radius: 20px; border: 1px solid #cbd5e1; cursor: pointer; background: white; color: #d97706;">
+                            ⚙️ Status Updates
+                        </button>
+                    </div>
+
+                    <!-- Activities List -->
+                    <div style="display: flex; flex-direction: column; gap: 10px; max-height: 520px; overflow-y: auto; padding-right: 4px;">
+                        {% for act in activity_logs %}
+                        <div class="activity-card" data-event-type="{{ act.event_type }}" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 16px; transition: all 0.2s;">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 8px; margin-bottom: 6px;">
+                                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                    {% if act.event_type == 'delivery_status' %}
+                                        <span style="font-size: 0.72rem; font-weight: 800; background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 6px; border: 1px solid #bae6fd;">
+                                            🚚 Logistics & Shiprocket
+                                        </span>
+                                    {% elif act.event_type == 'payment_status' %}
+                                        <span style="font-size: 0.72rem; font-weight: 800; background: #dcfce7; color: #15803d; padding: 2px 8px; border-radius: 6px; border: 1px solid #bbf7d0;">
+                                            💳 Payments & Refunds
+                                        </span>
+                                    {% elif act.event_type == 'email_sent' %}
+                                        <span style="font-size: 0.72rem; font-weight: 800; background: #f3e8ff; color: #6b21a8; padding: 2px 8px; border-radius: 6px; border: 1px solid #e9d5ff;">
+                                            📧 Email Notification
+                                        </span>
+                                    {% elif act.event_type == 'sms_sent' %}
+                                        <span style="font-size: 0.72rem; font-weight: 800; background: #e0e7ff; color: #3730a3; padding: 2px 8px; border-radius: 6px; border: 1px solid #c7d2fe;">
+                                            📱 SMS / Push
+                                        </span>
+                                    {% elif act.event_type == 'settlement_processed' %}
+                                        <span style="font-size: 0.72rem; font-weight: 800; background: #ccfbf1; color: #115e59; padding: 2px 8px; border-radius: 6px; border: 1px solid #99f6e4;">
+                                            💼 Seller Settlement
+                                        </span>
+                                    {% else %}
+                                        <span style="font-size: 0.72rem; font-weight: 800; background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 6px; border: 1px solid #fde68a;">
+                                            ⚙️ Order Status
+                                        </span>
+                                    {% endif %}
+
+                                    {% if act.status == 'success' %}
+                                        <span style="font-size: 0.7rem; font-weight: 700; color: #166534; background: #dcfce7; padding: 1px 6px; border-radius: 4px;">
+                                            <i class="fa fa-check-circle"></i> Success
+                                        </span>
+                                    {% elif act.status == 'failed' %}
+                                        <span style="font-size: 0.7rem; font-weight: 700; color: #991b1b; background: #fee2e2; padding: 1px 6px; border-radius: 4px;">
+                                            <i class="fa fa-times-circle"></i> Failed
+                                        </span>
+                                    {% else %}
+                                        <span style="font-size: 0.7rem; font-weight: 700; color: #854d0e; background: #fef9c3; padding: 1px 6px; border-radius: 4px;">
+                                            {{ act.status }}
+                                        </span>
+                                    {% endif %}
+                                </div>
+                                <span style="font-size: 0.75rem; color: #64748b;">
+                                    {{ act.created_at|date:"d M Y, h:i:s A" }}
+                                </span>
+                            </div>
+
+                            <p style="margin: 0; font-size: 0.83rem; color: #1e293b; line-height: 1.45;">
+                                {{ act.description }}
+                            </p>
+
+                            {% if act.metadata %}
+                            <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px;">
+                                {% for key, val in act.metadata.items %}
+                                    {% if val %}
+                                    <span style="font-size: 0.7rem; background: white; border: 1px solid #e2e8f0; color: #475569; padding: 2px 8px; border-radius: 4px; font-family: monospace;">
+                                        <strong>{{ key }}:</strong> {{ val }}
+                                    </span>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+
+                            <div style="margin-top: 6px; font-size: 0.72rem; color: #94a3b8;">
+                                Actor: {% if act.user %}{{ act.user.full_name|default:act.user.phone }}{% else %}System Background Worker{% endif %}
+                            </div>
+                        </div>
+                        {% empty %}
+                            {% if all_status_logs %}
+                                {% for slog in all_status_logs %}
+                                <div class="activity-card" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 16px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                        <span style="font-size: 0.75rem; font-weight: 700; color: #0284c7;">
+                                            {{ slog.old_status }} → {{ slog.new_status }}
+                                        </span>
+                                        <span style="font-size: 0.75rem; color: #64748b;">
+                                            {{ slog.timestamp|date:"d M Y, h:i A" }}
+                                        </span>
+                                    </div>
+                                    <div style="font-size: 0.82rem; color: #334155;">
+                                        {{ slog.remarks|default:"Status updated" }}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <p class="text-muted" style="margin: 10px 0; font-size: 0.85rem; color: var(--gray-400);">No system activity logs recorded for this order.</p>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
                 </div>
             </div>
 
@@ -1026,5 +1164,53 @@ document.getElementById('settleAllForm')?.addEventListener('submit', async (e) =
         submitBtn.innerHTML = '<i class="fa fa-money-bill-wave"></i> Settle All Sellers Now';
     }
 });
+
+function switchAuditTab(tab) {
+    const timeline = document.getElementById('auditTabTimeline');
+    const services = document.getElementById('auditTabServices');
+    const btnTimeline = document.getElementById('tabBtnTimeline');
+    const btnServices = document.getElementById('tabBtnServices');
+
+    if (!timeline || !services) return;
+
+    if (tab === 'timeline') {
+        timeline.style.display = 'block';
+        services.style.display = 'none';
+        btnTimeline.style.background = 'white';
+        btnTimeline.style.color = '#0f172a';
+        btnTimeline.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+        btnServices.style.background = 'transparent';
+        btnServices.style.color = '#64748b';
+        btnServices.style.boxShadow = 'none';
+    } else {
+        timeline.style.display = 'none';
+        services.style.display = 'block';
+        btnServices.style.background = 'white';
+        btnServices.style.color = '#0f172a';
+        btnServices.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+        btnTimeline.style.background = 'transparent';
+        btnTimeline.style.color = '#64748b';
+        btnTimeline.style.boxShadow = 'none';
+    }
+}
+
+function filterActivityLogs(eventType, btn) {
+    const chips = document.querySelectorAll('.filter-chip');
+    chips.forEach(c => {
+        c.style.background = 'white';
+        c.style.color = '#475569';
+    });
+    btn.style.background = '#0f172a';
+    btn.style.color = 'white';
+
+    const cards = document.querySelectorAll('.activity-card');
+    cards.forEach(card => {
+        if (eventType === 'all' || card.getAttribute('data-event-type') === eventType) {
+            card.style.display = 'block';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+}
 </script>
 {% endblock %}

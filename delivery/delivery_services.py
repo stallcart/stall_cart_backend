@@ -995,6 +995,23 @@ def push_seller_items_to_shiprocket(order, seller):
                     new_status=order.status,
                     remarks=f"Reconciled/Healed existing Shiprocket shipment for {seller.shop_name} (AWB: {awb}, Courier: {courier})"
                 )
+                try:
+                    from orders.models import SystemActivityLog
+                    SystemActivityLog.log(
+                        event_type='delivery_status',
+                        description=f"Reconciled existing Shiprocket shipment for {seller.shop_name} (AWB: {awb}, Courier: {courier}).",
+                        order=order,
+                        metadata={
+                            'seller_id': seller.id,
+                            'seller_name': seller.shop_name,
+                            'awb': awb,
+                            'courier': courier,
+                            'shiprocket_order_id': sr_order_id,
+                            'shipment_id': shipment_id
+                        }
+                    )
+                except Exception as ex_log:
+                    logger.warning(f"Could not log healed shipment to SystemActivityLog: {ex_log}")
 
                 # Notify seller of AWB assignment to prepare for pickup
                 try:
@@ -1054,6 +1071,25 @@ def push_seller_items_to_shiprocket(order, seller):
                 new_status=order.status,
                 remarks=f"Automatically pushed {seller.shop_name} items to Shiprocket (AWB: {awb}, Courier: {courier})"
             )
+            try:
+                from orders.models import SystemActivityLog
+                SystemActivityLog.log(
+                    event_type='delivery_status',
+                    description=f"Shipment pushed to Shiprocket for {seller.shop_name} (AWB: {awb}, Courier: {courier}).",
+                    order=order,
+                    status='success',
+                    metadata={
+                        'seller_id': seller.id,
+                        'seller_name': seller.shop_name,
+                        'awb': awb,
+                        'courier': courier,
+                        'shiprocket_order_id': sr_order_id,
+                        'shipment_id': shipment_id,
+                        'estimated_delivery': str(res.get('estimated_delivery', ''))
+                    }
+                )
+            except Exception as ex_log:
+                logger.warning(f"Could not log Shiprocket push to SystemActivityLog: {ex_log}")
 
             # Notify seller of AWB assignment to prepare for pickup
             try:
@@ -1092,6 +1128,21 @@ def push_seller_items_to_shiprocket(order, seller):
                 new_status=order.status,
                 remarks=remarks
             )
+            try:
+                from orders.models import SystemActivityLog
+                SystemActivityLog.log(
+                    event_type='delivery_status',
+                    description=f"Failed to push {seller.shop_name} items to Shiprocket: {err_msg}",
+                    order=order,
+                    status='failed',
+                    metadata={
+                        'seller_id': seller.id,
+                        'seller_name': seller.shop_name,
+                        'error': str(err_msg)
+                    }
+                )
+            except Exception:
+                pass
             return False, err_msg
     except Exception as e:
         logger.error(f"Error executing Shiprocket push: {e}", exc_info=True)
@@ -1271,13 +1322,23 @@ def auto_cancel_shiprocket_order(order):
         res = srv.cancel_shipment(order_ids)
         if res.get('success'):
             logger.info(f"Successfully cancelled Shiprocket orders {order_ids} for order {order.unique_order_id}")
-            from orders.models import OrderStatusLog
             OrderStatusLog.objects.create(
                 order=order,
                 old_status=order.status,
                 new_status=order.status,
                 remarks=f"Cancelled Shiprocket orders {', '.join(order_ids)} successfully."
             )
+            try:
+                from orders.models import SystemActivityLog
+                SystemActivityLog.log(
+                    event_type='delivery_status',
+                    description=f"Cancelled Shiprocket order(s) {', '.join(order_ids)} successfully.",
+                    order=order,
+                    status='success',
+                    metadata={'cancelled_shiprocket_ids': order_ids}
+                )
+            except Exception:
+                pass
         else:
             err_msg = res.get('error', 'Unknown error')
             logger.error(f"Failed to cancel Shiprocket orders {order_ids} for order {order.unique_order_id}: {err_msg}")
@@ -1288,5 +1349,16 @@ def auto_cancel_shiprocket_order(order):
                 new_status=order.status,
                 remarks=f"⚠️ Failed to cancel Shiprocket orders {', '.join(order_ids)}: {err_msg}"
             )
+            try:
+                from orders.models import SystemActivityLog
+                SystemActivityLog.log(
+                    event_type='delivery_status',
+                    description=f"Failed to cancel Shiprocket order(s) {', '.join(order_ids)}: {err_msg}",
+                    order=order,
+                    status='failed',
+                    metadata={'shiprocket_order_ids': order_ids, 'error': str(err_msg)}
+                )
+            except Exception:
+                pass
     except Exception as e:
         logger.error(f"Error during auto-cancelling order on Shiprocket: {e}", exc_info=True)
