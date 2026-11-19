@@ -2344,7 +2344,7 @@
 {% block scripts %}
 <script>
 const csrfToken = '{{ csrf_token }}';
-const userRole  = '{{ user.role|default:"" }}';
+const userRole  = '{{ user.role|default:""|escapejs }}';
 
 // Quick Add to Cart
 document.querySelectorAll('.btn-quick-add').forEach(btn => {
@@ -2896,7 +2896,7 @@ document.querySelectorAll('.btn-share').forEach(btn => {
         } else {
             // General query / Custom issue -> Ask for phone callback or auto-submit if logged in
             {% if request.user.is_authenticated %}
-            submitSupportEnquiry(text, "{{ request.user.phone|default:'Authenticated User' }}");
+            submitSupportEnquiry(text, "{{ request.user.phone|default:'Authenticated User'|escapejs }}");
             {% else %}
             pendingCallbackQuery = text;
             addMessage(`
@@ -2922,7 +2922,7 @@ document.querySelectorAll('.btn-share').forEach(btn => {
                 body: JSON.stringify({
                     message: query,
                     phone: phone,
-                    name: '{{ request.user.full_name|default:"Shopper" }}'
+                    name: '{{ request.user.full_name|default:"Shopper"|escapejs }}'
                 })
             });
             const data = await resp.json();
