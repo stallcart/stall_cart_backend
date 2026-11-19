@@ -267,6 +267,7 @@
                             <a href="{% url 'orders:my_orders' %}" role="menuitem">
                                 <i class="fa fa-box"></i> My Orders
                             </a>
+                        {% endif %}
                         {% if user.is_seller or user.is_superuser or user.is_staff %}
                             <a href="{% url 'download_seller_manual' %}" role="menuitem" target="_blank" download>
                                 <i class="fa fa-book" style="color: #4f46e5;"></i> Seller Manual (PDF)
