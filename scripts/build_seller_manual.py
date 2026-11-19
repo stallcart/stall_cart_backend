@@ -38,8 +38,9 @@ def get_pillow_font(size=14, bold=False):
     font_candidates = [
         "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
         "/System/Library/Fonts/Supplemental/Arial Bold.ttf" if bold else "/System/Library/Fonts/Supplemental/Arial.ttf",
-        "/usr/share/fonts/truetype/noto/NotoSansDevanagari-Bold.ttf" if bold else "/usr/share/fonts/truetype/noto/NotoSansDevanagari-Regular.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        "/usr/share/fonts/truetype/noto/NotoSansDevanagari-Bold.ttf" if bold else "/usr/share/fonts/truetype/noto/NotoSansDevanagari-Regular.ttf",
     ]
     for p in font_candidates:
         if os.path.exists(p):
@@ -761,7 +762,7 @@ def generate_html_manual(lang='both'):
             padding-bottom: 4px;
         }}
         @bottom-left {{
-            content: "© 2026 StallCart Platform · हेल्पलाइन: +91 7307383046 · stallcartsupport@gmail.com";
+            content: "{'© 2026 StallCart Platform · Helpline: +91 7307383046 · stallcartsupport@gmail.com' if is_en else '© 2026 StallCart Platform · हेल्पलाइन: +91 7307383046 · stallcartsupport@gmail.com'}";
             font-family: 'Plus Jakarta Sans', 'Noto Sans Devanagari', sans-serif;
             font-size: 8pt;
             color: #64748b;
@@ -1030,20 +1031,20 @@ def generate_html_manual(lang='both'):
 
     <table class="meta-grid">
         <tr>
-            <td><strong>संस्करण / Edition:</strong> Version 2.0 (Official Standard)</td>
-            <td><strong>वेबसाइट / Portal:</strong> https://stallcart.in</td>
+            <td><strong>{'संस्करण / Edition:' if not is_en else 'Edition:'}</strong> Version 2.0 (Official Standard)</td>
+            <td><strong>{'वेबसाइट / Portal:' if not is_en else 'Portal:'}</strong> https://stallcart.in</td>
         </tr>
         <tr>
-            <td><strong>लक्षित पाठक / Audience:</strong> {'सभी रजिस्टर्ड एवं नए विक्रेता' if not is_en else 'All Registered & Prospective Merchants'}</td>
-            <td><strong>लॉजिस्टिक्स पार्टनर:</strong> Shiprocket &amp; Delhivery Express</td>
+            <td><strong>{'लक्षित पाठक / Audience:' if not is_en else 'Target Audience:'}</strong> {'सभी रजिस्टर्ड एवं नए विक्रेता' if not is_en else 'All Registered & Prospective Merchants'}</td>
+            <td><strong>{'लॉजिस्टिक्स पार्टनर:' if not is_en else 'Logistics Partners:'}</strong> Shiprocket &amp; Delhivery Express</td>
         </tr>
         <tr>
-            <td><strong>व्हाट्सएप हेल्पलाइन:</strong> +91 7307383046</td>
-            <td><strong>सपोर्ट ईमेल:</strong> stallcartsupport@gmail.com</td>
+            <td><strong>{'व्हाट्सएप हेल्पलाइन:' if not is_en else 'WhatsApp Helpline:'}</strong> +91 7307383046</td>
+            <td><strong>{'सपोर्ट ईमेल:' if not is_en else 'Support Email:'}</strong> stallcartsupport@gmail.com</td>
         </tr>
         <tr>
-            <td><strong>भुगतान का माध्यम:</strong> {'सीधा बैंक ट्रांसफर (NEFT / UPI / UTR)' if not is_en else 'Direct Bank Transfer (NEFT / UPI / UTR)'}</td>
-            <td><strong>सेटलमेंट चक्र:</strong> {'डिलीवरी व 7-दिन रिटर्न अवधि पश्चात' if not is_en else 'Post Delivery & 7-Day Return Window'}</td>
+            <td><strong>{'भुगतान का माध्यम:' if not is_en else 'Payout Method:'}</strong> {'सीधा बैंक ट्रांसफर (NEFT / UPI / UTR)' if not is_en else 'Direct Bank Transfer (NEFT / UPI / UTR)'}</td>
+            <td><strong>{'सेटलमेंट चक्र:' if not is_en else 'Settlement Cycle:'}</strong> {'डिलीवरी व 7-दिन रिटर्न अवधि पश्चात' if not is_en else 'Post Delivery & 7-Day Return Window'}</td>
         </tr>
     </table>
 
