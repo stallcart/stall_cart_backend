@@ -39,7 +39,10 @@
                 {% if is_superuser %}Manage products across all sellers{% else %}Monitor and update your store inventory{% endif %}
             </p>
         </div>
-        <div>
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <a href="{% url 'download_seller_manual' %}" download class="btn-outline" style="text-decoration: none; display: inline-flex; align-items: center; gap: 8px; padding: 11px 18px; font-size: 0.88rem; font-weight: 700; border-radius: 10px; border: 1.5px solid var(--gray-200); background: white; color: var(--gray-800); box-shadow: var(--sh-xs);">
+                <i class="fa fa-book" style="color: #059669;"></i> Seller Manual (PDF)
+            </a>
             <a href="{% url 'items:product_create' %}" class="btn-primary" id="openAddBtn" style="text-decoration: none; display: inline-flex; align-items: center; gap: 8px; padding: 11px 22px; font-size: 0.9rem; font-weight: 700; border-radius: 10px; box-shadow: 0 4px 12px rgba(40, 116, 240, 0.2);">
                 <i class="fa fa-plus"></i> Add New Product
             </a>

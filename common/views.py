@@ -326,3 +326,23 @@ def download_app_view(request):
     Renders dedicated App Download page with direct install flow.
     """
     return render(request, 'common/download_app.html')
+
+
+def download_seller_manual_view(request):
+    """
+    Universal endpoint for downloading StallCart Official Seller Operations Manual (PDF).
+    URL: /download/seller-manual/ or /seller-manual/
+    """
+    from django.http import FileResponse, Http404
+    pdf_path = os.path.join(settings.BASE_DIR, 'static', 'docs', 'StallCart_Seller_Manual.pdf')
+    if not os.path.exists(pdf_path):
+        pdf_path = os.path.join(settings.MEDIA_ROOT, 'manuals', 'StallCart_Seller_Manual.pdf')
+        if not os.path.exists(pdf_path):
+            raise Http404("Seller Operations Manual PDF is currently being updated. Please check back shortly.")
+
+    response = FileResponse(open(pdf_path, 'rb'), content_type='application/pdf')
+    if request.GET.get('view') == '1':
+        response['Content-Disposition'] = 'inline; filename="StallCart_Seller_Operations_Manual.pdf"'
+    else:
+        response['Content-Disposition'] = 'attachment; filename="StallCart_Seller_Operations_Manual.pdf"'
+    return response

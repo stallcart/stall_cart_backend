@@ -2109,9 +2109,46 @@
                     {% if request.user.is_authenticated %}
                     Hi {{ request.user.full_name|default:request.user.phone }}! 👋 Welcome to StallCart Support. How can we help you today?
                     {% else %}
-                    Hi there! 👋 Welcome to StallCart. Please share your phone number to start.
+                    Hi there! 👋 Welcome to StallCart. How can we help you today?
                     {% endif %}
                 </div>
+            </div>
+
+            {% if request.user.role == 'seller' %}
+            <div class="message bot-message" style="margin-top: 8px;">
+                <div class="message-bubble" style="background: #f0fdf4; border: 1.5px solid #bbf7d0; color: #166534; padding: 12px 14px; border-radius: 12px;">
+                    <div style="font-weight: 800; font-size: 0.92rem; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; color: #14532d;">
+                        <span>📘</span> Official Seller Operations Manual (PDF)
+                    </div>
+                    <p style="margin: 0 0 10px; font-size: 0.78rem; color: #15803d; line-height: 1.4;">
+                        Complete handbook with step-by-step screenshots on product listing, packaging SOP, Shiprocket courier dispatch, and bank settlements with UTR.
+                    </p>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <a href="{% url 'download_seller_manual' %}" download class="btn-chat-action" style="display: inline-flex; align-items: center; gap: 6px; background: #059669; color: white; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 0.8rem; font-weight: 700;">
+                            <i class="fa fa-download"></i> Download PDF
+                        </a>
+                        <a href="{% url 'download_seller_manual' %}?view=1" target="_blank" class="btn-chat-action" style="display: inline-flex; align-items: center; gap: 6px; background: white; border: 1px solid #059669; color: #059669; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 0.8rem; font-weight: 700;">
+                            <i class="fa fa-eye"></i> View Online
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Quick Action Chips -->
+            <div class="chatbot-quick-actions" style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; margin-bottom: 6px; padding: 0 4px;">
+                <button type="button" class="btn-chat-chip" onclick="triggerChatAction('seller_manual')" style="background: #ecfdf5; border: 1px solid #a7f3d0; color: #047857; font-size: 0.75rem; padding: 5px 10px; border-radius: 14px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+                    📘 Seller Manual (PDF)
+                </button>
+                <button type="button" class="btn-chat-chip" onclick="triggerChatAction('packing_sop')" style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; font-size: 0.75rem; padding: 5px 10px; border-radius: 14px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+                    📦 Packing &amp; Courier
+                </button>
+                <button type="button" class="btn-chat-chip" onclick="triggerChatAction('settlement_info')" style="background: #fdf2f8; border: 1px solid #fbcfe8; color: #be185d; font-size: 0.75rem; padding: 5px 10px; border-radius: 14px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+                    💰 Payouts &amp; UTR
+                </button>
+                <a href="https://wa.me/917307383046?text=Hi%20StallCart%20Support%2C%20I%20have%20an%20enquiry." target="_blank" style="background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; font-size: 0.75rem; padding: 5px 10px; border-radius: 14px; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+                    💬 WhatsApp
+                </a>
             </div>
         </div>
         <div class="chatbot-input-area" id="chatbotInputArea">
@@ -2466,6 +2503,57 @@ document.querySelectorAll('.btn-share').forEach(btn => {
         messagesContainer.appendChild(msgDiv);
         scrollToBottom();
     }
+
+    // Quick Action Handler for Chatbot Chips
+    window.triggerChatAction = function(action) {
+        if (!container.classList.contains('active')) {
+            container.classList.add('active');
+        }
+        const indicator = addTypingIndicator();
+        setTimeout(() => {
+            indicator.remove();
+            if (action === 'seller_manual') {
+                addMessage(`
+                    <div style="background: #f0fdf4; border: 1.5px solid #a7f3d0; border-radius: 10px; padding: 12px; margin-top: 2px;">
+                        <div style="font-weight: 800; font-size: 0.95rem; color: #14532d; margin-bottom: 4px;">📘 StallCart Seller Operations Manual</div>
+                        <p style="margin: 0 0 10px; font-size: 0.8rem; color: #15803d; line-height: 1.4;">
+                            Here is the official 9-page guide with step-by-step screenshots on Seller Registration, Listing Items, Packaging SOP, Shiprocket Courier Dispatch, and Bank Settlements with UTR audit trail.
+                        </p>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <a href="/download/seller-manual/" download class="btn-chat-action" style="display: inline-flex; align-items: center; gap: 6px; background: #059669; color: white; padding: 7px 14px; border-radius: 6px; text-decoration: none; font-size: 0.82rem; font-weight: 700;">
+                                <i class="fa fa-download"></i> Download PDF (396 KB)
+                            </a>
+                            <a href="/download/seller-manual/?view=1" target="_blank" class="btn-chat-action" style="display: inline-flex; align-items: center; gap: 6px; background: white; border: 1px solid #059669; color: #059669; padding: 7px 12px; border-radius: 6px; text-decoration: none; font-size: 0.82rem; font-weight: 700;">
+                                <i class="fa fa-eye"></i> View Online
+                            </a>
+                        </div>
+                    </div>
+                `);
+            } else if (action === 'packing_sop') {
+                addMessage(`
+                    <div style="font-size: 0.82rem; line-height: 1.5;">
+                        <strong style="color: #1e3a8a; font-size: 0.9rem;">📦 StallCart Packaging SOP Summary:</strong><br>
+                        1. <strong>Inspect:</strong> Verify product variant, color, and size.<br>
+                        2. <strong>Wrap:</strong> 2 layers of bubble wrap for protection.<br>
+                        3. <strong>Invoice:</strong> Insert StallCart Tax Invoice inside the box.<br>
+                        4. <strong>AWB Label:</strong> Affix Delhivery/Shiprocket barcode label flat on outer surface.<br>
+                        5. <strong>Pickup:</strong> Courier rider scans AWB upon collection.<br>
+                        <a href="/download/seller-manual/" download style="color: #2563eb; font-weight: 700; text-decoration: underline; margin-top: 4px; display: inline-block;">📥 Download Full Visual Guide (PDF)</a>
+                    </div>
+                `);
+            } else if (action === 'settlement_info') {
+                addMessage(`
+                    <div style="font-size: 0.82rem; line-height: 1.5;">
+                        <strong style="color: #065f46; font-size: 0.9rem;">💰 Seller Settlements & Payouts:</strong><br>
+                        • <strong>Earnings Formula:</strong> Product Selling Price - Platform Category Commission (e.g. 15%).<br>
+                        • <strong>Disbursement:</strong> Paid via Direct Bank Transfer (NEFT/RTGS/UPI) once delivery is complete.<br>
+                        • <strong>Bank UTR:</strong> Genuine bank UTR reference number provided with every payout.<br>
+                        <a href="/download/seller-manual/" download style="color: #059669; font-weight: 700; text-decoration: underline; margin-top: 4px; display: inline-block;">📥 Download Complete Settlement Guide (PDF)</a>
+                    </div>
+                `);
+            }
+        }, 500);
+    };
 
     function addTypingIndicator() {
         const indDiv = document.createElement('div');

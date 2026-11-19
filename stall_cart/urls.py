@@ -50,6 +50,8 @@ urlpatterns = [
     # Universal app download & APK routes
     path('download/app/', common_views.download_app_view, name='download_app'),
     path('download/apk/', common_views.download_apk_view, name='download_apk'),
+    path('download/seller-manual/', common_views.download_seller_manual_view, name='download_seller_manual'),
+    path('seller-manual/', common_views.download_seller_manual_view, name='seller_manual_direct'),
 
     # App icons & Web Manifest for Chrome shortcuts & PWAs
     path('favicon.ico', RedirectView.as_view(url=settings.STATIC_URL + 'favicon.ico', permanent=True), name='favicon_ico'),
