@@ -870,14 +870,12 @@
     position: absolute;
     bottom: 80px;
     right: 0;
-    width: 360px;
-    max-width: calc(100vw - 40px);
-    height: 480px;
-    background: rgba(255, 255, 255, 0.9);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.5);
-    border-radius: 20px;
+    width: 380px;
+    max-width: calc(100vw - 30px);
+    height: 520px;
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 18px;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
     display: flex;
     flex-direction: column;
@@ -1051,6 +1049,195 @@
 .btn-chat-submit:hover {
     background: #1e5cc8;
 }
+
+/* --- Premium E-Commerce Chatbot Enhancements --- */
+.chat-mode-bar {
+    display: flex;
+    gap: 4px;
+    padding: 6px 10px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    flex-shrink: 0;
+}
+.chat-tab-btn {
+    flex: 1;
+    border: none;
+    background: transparent;
+    padding: 6px 8px;
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: #64748b;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    white-space: nowrap;
+}
+.chat-tab-btn.active {
+    background: #ffffff;
+    color: #2874f0;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    border: 1px solid #e2e8f0;
+}
+.chat-tab-btn.active.seller-tab {
+    color: #059669;
+}
+.chat-tab-btn:hover:not(.active) {
+    background: rgba(255,255,255,0.7);
+    color: #1e293b;
+}
+
+.chat-response-card {
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-top: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    font-size: 0.82rem;
+    line-height: 1.5;
+    color: #1e293b;
+    animation: fadeInSlide 0.3s ease;
+}
+.chat-response-card .card-header {
+    font-weight: 800;
+    font-size: 0.9rem;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #0f172a;
+}
+.chat-response-card p {
+    margin: 0 0 10px 0;
+    color: #475569;
+    font-size: 0.8rem;
+    line-height: 1.45;
+}
+.chat-response-card .card-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+}
+.chat-card-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.76rem;
+    font-weight: 700;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.chat-card-btn.primary {
+    background: #2874f0;
+    color: #ffffff !important;
+}
+.chat-card-btn.primary:hover {
+    background: #1e5cc8;
+}
+.chat-card-btn.success {
+    background: #059669;
+    color: #ffffff !important;
+}
+.chat-card-btn.success:hover {
+    background: #047857;
+}
+.chat-card-btn.secondary {
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    color: #334155 !important;
+}
+.chat-card-btn.secondary:hover {
+    background: #f1f5f9;
+}
+.chat-card-btn.whatsapp {
+    background: #25d366;
+    color: #ffffff !important;
+}
+.chat-card-btn.whatsapp:hover {
+    background: #1eb754;
+}
+
+.chat-chips-container {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+    padding: 2px 0;
+}
+.btn-chat-chip {
+    border-radius: 14px;
+    font-size: 0.74rem;
+    font-weight: 700;
+    padding: 5px 10px;
+    border: 1px solid #e2e8f0;
+    background: #ffffff;
+    color: #334155;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    transition: all 0.2s ease;
+}
+.btn-chat-chip:hover {
+    border-color: #2874f0;
+    color: #2874f0;
+    background: #eff6ff;
+    transform: translateY(-1px);
+}
+.btn-chat-chip.seller-chip:hover {
+    border-color: #059669;
+    color: #059669;
+    background: #ecfdf5;
+}
+
+.chat-input-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+.chat-input-row input {
+    flex: 1;
+    height: 40px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 20px;
+    padding: 0 14px;
+    font-size: 0.85rem;
+    outline: none;
+    transition: border-color 0.2s ease;
+}
+.chat-input-row input:focus {
+    border-color: #2874f0;
+}
+.chat-send-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #2874f0;
+    color: white;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+.chat-send-btn:hover {
+    background: #1e5cc8;
+    transform: scale(1.05);
+}
+
 .d-none {
     display: none !important;
 }
@@ -2084,94 +2271,69 @@
 
 <!-- Floating Support Chatbot -->
 <div class="chatbot-wrapper">
-    <div class="chatbot-bubble" id="chatbotBubble">Need Help? Enquiry here! 💬</div>
+    <div class="chatbot-bubble" id="chatbotBubble">Need Help? Shopping &amp; Seller Support 💬</div>
     <button class="chatbot-trigger" id="chatbotTrigger" aria-label="Open support chat">
         <i class="fa fa-comments"></i>
         <span class="pulse-ring"></span>
     </button>
     <div class="chatbot-container" id="chatbotContainer">
+        <!-- Header -->
         <div class="chatbot-header">
-            <div class="chatbot-avatar" style="background: linear-gradient(135deg, #2874f0 0%, #1e5cc8 100%); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(40, 116, 240, 0.3); flex-shrink: 0; margin-right: 12px;">
+            <div class="chatbot-avatar" style="background: linear-gradient(135deg, #2874f0 0%, #1e5cc8 100%); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(40, 116, 240, 0.3); flex-shrink: 0; margin-right: 12px; position: relative;">
                 <i class="fa fa-robot" style="color: white; font-size: 1.25rem;"></i>
-                <span class="status-indicator" style="bottom: 0; right: 0; position: absolute;"></span>
+                <span class="status-indicator"></span>
             </div>
             <div class="chatbot-title-area">
                 <h4>StallCart Assistant</h4>
-                <span>Online | We typically reply instantly</span>
+                <span>24/7 Shopper &amp; Seller Support · Instant Help</span>
             </div>
             <button class="chatbot-close" id="chatbotClose" aria-label="Close chat">
                 <i class="fa fa-times"></i>
             </button>
         </div>
+
+        <!-- Mode Toggle Bar: Shoppers vs Sellers vs Helpdesk -->
+        <div class="chat-mode-bar" id="chatModeBar">
+            <button type="button" class="chat-tab-btn {% if request.user.role != 'seller' %}active{% endif %}" id="tabCustomerMode" onclick="switchChatMode('customer')">
+                <i class="fa fa-bag-shopping"></i> Shoppers
+            </button>
+            <button type="button" class="chat-tab-btn seller-tab {% if request.user.role == 'seller' %}active{% endif %}" id="tabSellerMode" onclick="switchChatMode('seller')">
+                <i class="fa fa-store"></i> Seller Hub
+            </button>
+            <button type="button" class="chat-tab-btn" id="tabSupportMode" onclick="switchChatMode('support')">
+                <i class="fa fa-headset"></i> Helpdesk
+            </button>
+        </div>
+
+        <!-- Messages Container -->
         <div class="chatbot-messages" id="chatbotMessages">
             <div class="message bot-message">
                 <div class="message-bubble">
-                    {% if request.user.is_authenticated %}
-                    Hi {{ request.user.full_name|default:request.user.phone }}! 👋 Welcome to StallCart Support. How can we help you today?
+                    {% if request.user.is_authenticated and request.user.role == 'seller' %}
+                    Hi {{ request.user.full_name|default:request.user.phone }}! 👋 Welcome to StallCart Partner Desk. How can we help with your store, orders, or payouts today?
+                    {% elif request.user.is_authenticated %}
+                    Hi {{ request.user.full_name|default:request.user.phone }}! 👋 Welcome to StallCart. Looking to track an order, check returns, or explore trending deals?
                     {% else %}
-                    Hi there! 👋 Welcome to StallCart. How can we help you today?
+                    Hi there! 👋 Welcome to StallCart. Are you shopping today or looking to sell with us? Choose a topic below or type your question:
                     {% endif %}
                 </div>
             </div>
 
-            {% if request.user.role == 'seller' %}
-            <div class="message bot-message" style="margin-top: 8px;">
-                <div class="message-bubble" style="background: #f0fdf4; border: 1.5px solid #bbf7d0; color: #166534; padding: 12px 14px; border-radius: 12px;">
-                    <div style="font-weight: 800; font-size: 0.92rem; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; color: #14532d;">
-                        <span>📘</span> Official Seller Operations Manual (PDF)
-                    </div>
-                    <p style="margin: 0 0 10px; font-size: 0.78rem; color: #15803d; line-height: 1.4;">
-                        Complete handbook with step-by-step screenshots on product listing, packaging SOP, Shiprocket courier dispatch, and bank settlements with UTR.
-                    </p>
-                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                        <a href="{% url 'download_seller_manual' %}" download class="btn-chat-action" style="display: inline-flex; align-items: center; gap: 6px; background: #059669; color: white; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 0.8rem; font-weight: 700;">
-                            <i class="fa fa-download"></i> Download PDF
-                        </a>
-                        <a href="{% url 'download_seller_manual' %}?view=1" target="_blank" class="btn-chat-action" style="display: inline-flex; align-items: center; gap: 6px; background: white; border: 1px solid #059669; color: #059669; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 0.8rem; font-weight: 700;">
-                            <i class="fa fa-eye"></i> View Online
-                        </a>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
-
-            <!-- Quick Action Chips -->
-            <div class="chatbot-quick-actions" style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; margin-bottom: 6px; padding: 0 4px;">
-                <button type="button" class="btn-chat-chip" onclick="triggerChatAction('seller_manual')" style="background: #ecfdf5; border: 1px solid #a7f3d0; color: #047857; font-size: 0.75rem; padding: 5px 10px; border-radius: 14px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
-                    📘 Seller Manual (PDF)
-                </button>
-                <button type="button" class="btn-chat-chip" onclick="triggerChatAction('packing_sop')" style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; font-size: 0.75rem; padding: 5px 10px; border-radius: 14px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
-                    📦 Packing &amp; Courier
-                </button>
-                <button type="button" class="btn-chat-chip" onclick="triggerChatAction('settlement_info')" style="background: #fdf2f8; border: 1px solid #fbcfe8; color: #be185d; font-size: 0.75rem; padding: 5px 10px; border-radius: 14px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
-                    💰 Payouts &amp; UTR
-                </button>
-                <a href="https://wa.me/917307383046?text=Hi%20StallCart%20Support%2C%20I%20have%20an%20enquiry." target="_blank" style="background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; font-size: 0.75rem; padding: 5px 10px; border-radius: 14px; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
-                    💬 WhatsApp
-                </a>
+            <!-- Quick Action Chips Container (dynamically updated by switchChatMode) -->
+            <div class="chat-chips-container" id="chatChipsContainer">
+                <!-- Injected via JavaScript based on active mode -->
             </div>
         </div>
+
+        <!-- Input Area -->
         <div class="chatbot-input-area" id="chatbotInputArea">
-            <form id="chatbotForm" onsubmit="event.preventDefault();">
-                {% if request.user.is_authenticated %}
-                <div class="input-group-custom" id="stepMessageGroup">
-                    <textarea id="chatInputMessage" placeholder="Type your query/enquiry here..." required></textarea>
-                    <button type="button" id="chatSubmitBtn" class="btn-chat-action btn-chat-submit" style="color: white;">Submit Enquiry <i class="fa fa-paper-plane"></i></button>
+            <form id="chatbotForm" onsubmit="event.preventDefault(); submitChatMessage();">
+                <div class="chat-input-row" id="mainChatInputRow">
+                    <input type="text" id="chatTextInput" placeholder="Ask about orders, returns, selling…" autocomplete="off">
+                    <button type="submit" class="chat-send-btn" id="chatSendBtn" title="Send Message">
+                        <i class="fa fa-paper-plane"></i>
+                    </button>
                 </div>
-                {% else %}
-                <div class="input-group-custom" id="stepPhoneGroup">
-                    <input type="tel" id="chatInputPhone" placeholder="Phone Number (10 digits)" required pattern="[0-9]{10}">
-                    <button type="button" id="chatNextToNameBtn" class="btn-chat-action btn-chat-submit" style="color: white;">Next <i class="fa fa-arrow-right"></i></button>
-                </div>
-                <div class="input-group-custom d-none" id="stepNameGroup">
-                    <input type="text" id="chatInputName" placeholder="Your Name (Optional)">
-                    <button type="button" id="chatNextToMessageBtn" class="btn-chat-action btn-chat-submit" style="color: white;">Next <i class="fa fa-arrow-right"></i></button>
-                </div>
-                <div class="input-group-custom d-none" id="stepMessageGroup">
-                    <textarea id="chatInputMessage" placeholder="Type your query/enquiry here..." required></textarea>
-                    <button type="button" id="chatSubmitBtn" class="btn-chat-action btn-chat-submit" style="color: white;">Submit Enquiry <i class="fa fa-paper-plane"></i></button>
-                </div>
-                {% endif %}
             </form>
         </div>
     </div>
@@ -2430,130 +2592,54 @@ document.querySelectorAll('.btn-share').forEach(btn => {
     }
 })();
 
-// ── Floating Support Chatbot JS ──
+// ── Floating Support Chatbot JS (Omnichannel E-Commerce Assistant) ──
 (function() {
     const trigger = document.getElementById('chatbotTrigger');
     const container = document.getElementById('chatbotContainer');
     const closeBtn = document.getElementById('chatbotClose');
     const messagesContainer = document.getElementById('chatbotMessages');
-    
-    const inputMessageGroup = document.getElementById('stepMessageGroup');
-    const inputNameGroup = document.getElementById('stepNameGroup');
-    const inputPhoneGroup = document.getElementById('stepPhoneGroup');
-    
-    const nextToNameBtn = document.getElementById('chatNextToNameBtn');
-    const nextToMessageBtn = document.getElementById('chatNextToMessageBtn');
-    const submitBtn = document.getElementById('chatSubmitBtn');
-    
-    const inputMessage = document.getElementById('chatInputMessage');
-    const inputName = document.getElementById('chatInputName');
-    const inputPhone = document.getElementById('chatInputPhone');
-    
-    let enquiryData = {
-        message: '',
-        name: '',
-        phone: ''
-    };
+    const chipsContainer = document.getElementById('chatChipsContainer');
+    const chatInput = document.getElementById('chatTextInput');
+    const label = document.getElementById('chatbotLabel');
+    const bubble = document.getElementById('chatbotBubble');
 
     if (!trigger || !container) return;
 
-    const label = document.getElementById('chatbotLabel');
+    let currentMode = (userRole === 'seller') ? 'seller' : 'customer';
+    let pendingCallbackQuery = null;
+
     const toggleContainer = () => {
         container.classList.toggle('active');
-        scrollToBottom();
+        if (container.classList.contains('active')) {
+            if (bubble) bubble.classList.remove('show');
+            scrollToBottom();
+            if (chatInput) setTimeout(() => chatInput.focus(), 300);
+        }
     };
 
     trigger.addEventListener('click', toggleContainer);
-    if (label) {
-        label.addEventListener('click', toggleContainer);
-    }
+    if (label) label.addEventListener('click', toggleContainer);
+    if (closeBtn) closeBtn.addEventListener('click', () => container.classList.remove('active'));
 
-    // Auto show/hide enquiry chat bubble logic
-    const bubble = document.getElementById('chatbotBubble');
+    // Bubble auto peek
     if (bubble) {
-        // Show after 1.5 seconds if chat is not open
         setTimeout(() => {
-            if (!container.classList.contains('active')) {
-                bubble.classList.add('show');
-            }
+            if (!container.classList.contains('active')) bubble.classList.add('show');
         }, 1500);
-        // Hide after 8.5 seconds
-        setTimeout(() => {
-            bubble.classList.remove('show');
-        }, 8500);
-        // Click on bubble also opens chat
+        setTimeout(() => bubble.classList.remove('show'), 9000);
         bubble.style.pointerEvents = 'auto';
         bubble.style.cursor = 'pointer';
         bubble.addEventListener('click', toggleContainer);
-        // Hide bubble immediately when chat is opened
-        trigger.addEventListener('click', () => bubble.classList.remove('show'));
-        if (label) {
-            label.addEventListener('click', () => bubble.classList.remove('show'));
-        }
     }
 
-    closeBtn.addEventListener('click', () => {
-        container.classList.remove('active');
-    });
-
-    function addMessage(text, isBot = true) {
+    function addMessage(htmlContent, isBot = true) {
         const msgDiv = document.createElement('div');
         msgDiv.className = `message ${isBot ? 'bot-message' : 'user-message'}`;
-        msgDiv.innerHTML = `<div class="message-bubble">${text}</div>`;
+        msgDiv.innerHTML = `<div class="message-bubble">${htmlContent}</div>`;
         messagesContainer.appendChild(msgDiv);
         scrollToBottom();
+        return msgDiv;
     }
-
-    // Quick Action Handler for Chatbot Chips
-    window.triggerChatAction = function(action) {
-        if (!container.classList.contains('active')) {
-            container.classList.add('active');
-        }
-        const indicator = addTypingIndicator();
-        setTimeout(() => {
-            indicator.remove();
-            if (action === 'seller_manual') {
-                addMessage(`
-                    <div style="background: #f0fdf4; border: 1.5px solid #a7f3d0; border-radius: 10px; padding: 12px; margin-top: 2px;">
-                        <div style="font-weight: 800; font-size: 0.95rem; color: #14532d; margin-bottom: 4px;">📘 StallCart Seller Operations Manual</div>
-                        <p style="margin: 0 0 10px; font-size: 0.8rem; color: #15803d; line-height: 1.4;">
-                            Here is the official 9-page guide with step-by-step screenshots on Seller Registration, Listing Items, Packaging SOP, Shiprocket Courier Dispatch, and Bank Settlements with UTR audit trail.
-                        </p>
-                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                            <a href="/download/seller-manual/" download class="btn-chat-action" style="display: inline-flex; align-items: center; gap: 6px; background: #059669; color: white; padding: 7px 14px; border-radius: 6px; text-decoration: none; font-size: 0.82rem; font-weight: 700;">
-                                <i class="fa fa-download"></i> Download PDF (396 KB)
-                            </a>
-                            <a href="/download/seller-manual/?view=1" target="_blank" class="btn-chat-action" style="display: inline-flex; align-items: center; gap: 6px; background: white; border: 1px solid #059669; color: #059669; padding: 7px 12px; border-radius: 6px; text-decoration: none; font-size: 0.82rem; font-weight: 700;">
-                                <i class="fa fa-eye"></i> View Online
-                            </a>
-                        </div>
-                    </div>
-                `);
-            } else if (action === 'packing_sop') {
-                addMessage(`
-                    <div style="font-size: 0.82rem; line-height: 1.5;">
-                        <strong style="color: #1e3a8a; font-size: 0.9rem;">📦 StallCart Packaging SOP Summary:</strong><br>
-                        1. <strong>Inspect:</strong> Verify product variant, color, and size.<br>
-                        2. <strong>Wrap:</strong> 2 layers of bubble wrap for protection.<br>
-                        3. <strong>Invoice:</strong> Insert StallCart Tax Invoice inside the box.<br>
-                        4. <strong>AWB Label:</strong> Affix Delhivery/Shiprocket barcode label flat on outer surface.<br>
-                        5. <strong>Pickup:</strong> Courier rider scans AWB upon collection.<br>
-                        <a href="/download/seller-manual/" download style="color: #2563eb; font-weight: 700; text-decoration: underline; margin-top: 4px; display: inline-block;">📥 Download Full Visual Guide (PDF)</a>
-                    </div>
-                `);
-            } else if (action === 'settlement_info') {
-                addMessage(`
-                    <div style="font-size: 0.82rem; line-height: 1.5;">
-                        <strong style="color: #065f46; font-size: 0.9rem;">💰 Seller Settlements & Payouts:</strong><br>
-                        • <strong>Earnings Formula:</strong> Product Selling Price - Platform Category Commission (e.g. 15%).<br>
-                        • <strong>Disbursement:</strong> Paid via Direct Bank Transfer (NEFT/RTGS/UPI) once delivery is complete.<br>
-                        • <strong>Bank UTR:</strong> Genuine bank UTR reference number provided with every payout.<br>
-                        <a href="/download/seller-manual/" download style="color: #059669; font-weight: 700; text-decoration: underline; margin-top: 4px; display: inline-block;">📥 Download Complete Settlement Guide (PDF)</a>
-                    </div>
-                `);
-            }
-        }, 500);
-    };
 
     function addTypingIndicator() {
         const indDiv = document.createElement('div');
@@ -2570,97 +2656,300 @@ document.querySelectorAll('.btn-share').forEach(btn => {
     }
 
     function scrollToBottom() {
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        if (messagesContainer) {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
     }
 
-    // Step 1: User enters phone number, clicks Next (anonymous users only)
-    if (nextToNameBtn) {
-        nextToNameBtn.addEventListener('click', () => {
-            const phoneVal = inputPhone.value.trim();
-            const phoneDigits = phoneVal.replace(/\D/g, '');
-            if (phoneDigits.length < 10 || phoneDigits.length > 15) {
-                alert('Please enter a valid 10-15 digit phone number.');
-                inputPhone.focus();
-                return;
-            }
-            enquiryData.phone = phoneVal;
-            addMessage(phoneVal, false);
-            
-            inputPhoneGroup.classList.add('d-none');
-            const indicator = addTypingIndicator();
-            
-            setTimeout(() => {
-                indicator.remove();
-                addMessage("Thank you! May I have your name, please? (Or click Next to remain anonymous)");
-                inputNameGroup.classList.remove('d-none');
-                inputName.focus();
-            }, 800);
+    // Quick Chips definitions for Shoppers, Sellers, and Helpdesk
+    const CHIPS_DATA = {
+        customer: [
+            { id: 'track_order', icon: 'fa-truck-fast', label: 'Track Order', color: '#eff6ff', textCol: '#1d4ed8' },
+            { id: 'return_refund', icon: 'fa-undo', label: '7-Day Returns', color: '#fef3c7', textCol: '#b45309' },
+            { id: 'delivery_info', icon: 'fa-bolt', label: 'Free Delivery', color: '#ecfdf5', textCol: '#047857' },
+            { id: 'payment_modes', icon: 'fa-shield-halved', label: 'Payment & COD', color: '#f5f3ff', textCol: '#6d28d9' },
+            { id: 'today_deals', icon: 'fa-gift', label: 'Deals & Offers', color: '#fff1f2', textCol: '#be123c' },
+            { id: 'whatsapp_support', icon: 'fa-brands fa-whatsapp', label: 'WhatsApp', color: '#f0fdf4', textCol: '#15803d' }
+        ],
+        seller: [
+            { id: 'seller_manual', icon: 'fa-book', label: 'Seller Manual (PDF)', color: '#ecfdf5', textCol: '#047857' },
+            { id: 'packing_sop', icon: 'fa-box', label: 'Packaging SOP (5 Steps)', color: '#eff6ff', textCol: '#1d4ed8' },
+            { id: 'settlement_info', icon: 'fa-money-bill-wave', label: 'Payouts & UTR', color: '#fdf2f8', textCol: '#be185d' },
+            { id: 'become_seller', icon: 'fa-store', label: 'Sell on StallCart', color: '#fef3c7', textCol: '#b45309' },
+            { id: 'whatsapp_seller', icon: 'fa-brands fa-whatsapp', label: 'Partner WhatsApp', color: '#f0fdf4', textCol: '#15803d' }
+        ],
+        support: [
+            { id: 'contact_support', icon: 'fa-headset', label: 'Helpline & WhatsApp', color: '#eff6ff', textCol: '#1d4ed8' },
+            { id: 'request_callback', icon: 'fa-phone-volume', label: 'Request Callback', color: '#fef3c7', textCol: '#b45309' },
+            { id: 'faq_general', icon: 'fa-circle-question', label: 'General FAQ', color: '#f8fafc', textCol: '#334155' }
+        ]
+    };
+
+    window.switchChatMode = function(mode) {
+        currentMode = mode;
+        document.querySelectorAll('.chat-tab-btn').forEach(btn => btn.classList.remove('active'));
+        if (mode === 'customer') document.getElementById('tabCustomerMode')?.classList.add('active');
+        if (mode === 'seller') document.getElementById('tabSellerMode')?.classList.add('active');
+        if (mode === 'support') document.getElementById('tabSupportMode')?.classList.add('active');
+        renderQuickChips(mode);
+    };
+
+    function renderQuickChips(mode) {
+        if (!chipsContainer) return;
+        chipsContainer.innerHTML = '';
+        const list = CHIPS_DATA[mode] || CHIPS_DATA.customer;
+        list.forEach(chip => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = `btn-chat-chip ${mode === 'seller' ? 'seller-chip' : ''}`;
+            btn.style.background = chip.color;
+            btn.style.color = chip.textCol;
+            btn.innerHTML = `<i class="fa ${chip.icon}"></i> ${chip.label}`;
+            btn.onclick = () => window.triggerChatAction(chip.id, chip.label);
+            chipsContainer.appendChild(btn);
         });
     }
 
-    // Step 2: User enters name, clicks Next (anonymous users only)
-    if (nextToMessageBtn) {
-        nextToMessageBtn.addEventListener('click', () => {
-            const val = inputName.value.trim();
-            enquiryData.name = val || 'Guest';
-            addMessage(val || 'Remain Anonymous', false);
-            
-            inputNameGroup.classList.add('d-none');
-            const indicator = addTypingIndicator();
-            
-            setTimeout(() => {
-                indicator.remove();
-                addMessage(`Nice to meet you, ${enquiryData.name}! How can we help you today? Please type your query/enquiry below.`);
-                inputMessageGroup.classList.remove('d-none');
-                inputMessage.focus();
-            }, 800);
-        });
+    // Smart Intent Cards Database
+    const RESPONSES = {
+        track_order: `
+            <div class="chat-response-card">
+                <div class="card-header"><i class="fa fa-truck-fast text-primary"></i> <span>Order Tracking / ऑर्डर स्थिति</span></div>
+                <p>Track all your active shipments in real-time. Delhivery Express provides live tracking updates with secret 4-digit delivery OTP verification.</p>
+                <div class="card-actions">
+                    <a href="/orders/my-orders/" class="chat-card-btn primary"><i class="fa fa-box"></i> View My Orders</a>
+                    <a href="/accounts/profile/" class="chat-card-btn secondary"><i class="fa fa-user"></i> My Profile</a>
+                </div>
+            </div>
+        `,
+        return_refund: `
+            <div class="chat-response-card">
+                <div class="card-header"><i class="fa fa-undo" style="color: #b45309;"></i> <span>7-Day Easy Returns / आसान वापसी</span></div>
+                <p>• <strong>Window:</strong> 7 days from the delivery date.<br>
+                • <strong>Free Doorstep Pickup:</strong> Courier collects package from your home.<br>
+                • <strong>Fast Refunds:</strong> Credited within 5-7 business days to your bank/source account.</p>
+                <div class="card-actions">
+                    <a href="/orders/my-orders/" class="chat-card-btn primary"><i class="fa fa-undo"></i> Request Return / Replace</a>
+                </div>
+            </div>
+        `,
+        delivery_info: `
+            <div class="chat-response-card">
+                <div class="card-header"><i class="fa fa-bolt" style="color: #047857;"></i> <span>Delivery Charges &amp; Timelines</span></div>
+                <p>• <strong>Free Express Delivery:</strong> All orders above ₹499 qualify for FREE shipping!<br>
+                • <strong>Under ₹499:</strong> Flat ₹40 delivery fee.<br>
+                • <strong>Timeline:</strong> 2-4 business days across India via Delhivery Express.</p>
+                <div class="card-actions">
+                    <a href="/items/products/" class="chat-card-btn primary"><i class="fa fa-shopping-bag"></i> Browse Products</a>
+                </div>
+            </div>
+        `,
+        payment_modes: `
+            <div class="chat-response-card">
+                <div class="card-header"><i class="fa fa-shield-halved" style="color: #6d28d9;"></i> <span>Safe &amp; Secure Payments</span></div>
+                <p>• <strong>UPI:</strong> Google Pay, PhonePe, Paytm, BHIM.<br>
+                • <strong>Cards &amp; NetBanking:</strong> All major debit/credit cards.<br>
+                • <strong>Cash on Delivery (COD):</strong> Available on select pincodes.<br>
+                • <strong>Bank-Grade Security:</strong> 256-bit SSL encrypted checkout via Razorpay.</p>
+            </div>
+        `,
+        today_deals: `
+            <div class="chat-response-card">
+                <div class="card-header"><i class="fa fa-gift" style="color: #be123c;"></i> <span>Trending Deals &amp; Offers</span></div>
+                <p>• Up to <strong>50% - 70% OFF</strong> across trending fashion &amp; footwear.<br>
+                • <strong>Free Delivery</strong> on orders above ₹499.<br>
+                • Check your profile for active Lucky Draw prize campaigns!</p>
+                <div class="card-actions">
+                    <a href="/items/products/" class="chat-card-btn primary"><i class="fa fa-fire"></i> Shop Trending Deals</a>
+                </div>
+            </div>
+        `,
+        seller_manual: `
+            <div class="chat-response-card" style="border-left: 4px solid #059669;">
+                <div class="card-header"><i class="fa fa-book text-success"></i> <span>StallCart Seller Operations Manual</span></div>
+                <p>Complete 8-module bilingual (Hindi &amp; English) handbook with step-by-step screenshots on Seller Registration, Listing Items, Packaging SOP, Courier Dispatch, and Bank Settlements with UTR audit trail.</p>
+                <div class="card-actions">
+                    <a href="/download/seller-manual/" download class="chat-card-btn success"><i class="fa fa-download"></i> Download Manual (PDF)</a>
+                    <a href="/download/seller-manual/?view=1" target="_blank" class="chat-card-btn secondary"><i class="fa fa-eye"></i> View Online</a>
+                </div>
+            </div>
+        `,
+        packing_sop: `
+            <div class="chat-response-card">
+                <div class="card-header"><i class="fa fa-box text-primary"></i> <span>Packaging SOP · 5 सुनहरे नियम</span></div>
+                <p>1. <strong>Inspect:</strong> Verify product variant, size, and color.<br>
+                2. <strong>Wrap:</strong> 2 layers of bubble wrap for protection.<br>
+                3. <strong>Invoice:</strong> Insert StallCart Tax Invoice inside the box.<br>
+                4. <strong>AWB Label:</strong> Affix Delhivery barcode label flat on outer face.<br>
+                5. <strong>Handover:</strong> Courier rider scans AWB upon pickup.</p>
+                <div class="card-actions">
+                    <a href="/download/seller-manual/" download class="chat-card-btn success"><i class="fa fa-download"></i> Full SOP Manual (PDF)</a>
+                </div>
+            </div>
+        `,
+        settlement_info: `
+            <div class="chat-response-card" style="border-left: 4px solid #059669;">
+                <div class="card-header"><i class="fa fa-money-bill-wave text-success"></i> <span>Payouts, Commission &amp; UTR Audit</span></div>
+                <p>• <strong>Earnings Formula:</strong> Product Selling Price - Platform Commission (e.g. 15%).<br>
+                • <strong>Disbursement:</strong> Direct Bank Transfer (NEFT/RTGS/UPI) once delivery completes.<br>
+                • <strong>Bank UTR:</strong> Genuine bank UTR reference number provided with every payout.</p>
+                <div class="card-actions">
+                    <a href="/download/seller-manual/" download class="chat-card-btn success"><i class="fa fa-download"></i> Download Settlement Guide</a>
+                </div>
+            </div>
+        `,
+        become_seller: `
+            <div class="chat-response-card">
+                <div class="card-header"><i class="fa fa-store text-primary"></i> <span>Sell with StallCart · विक्रेता बनें</span></div>
+                <p>Reach thousands of online shoppers across India. Transparent 15% category commission, automated Shiprocket pickup, and guaranteed bank payouts.</p>
+                <div class="card-actions">
+                    <a href="/accounts/seller/register/" class="chat-card-btn primary"><i class="fa fa-arrow-right"></i> Register as a Seller</a>
+                    <a href="/download/seller-manual/" download class="chat-card-btn success"><i class="fa fa-download"></i> Seller Manual (PDF)</a>
+                </div>
+            </div>
+        `,
+        contact_support: `
+            <div class="chat-response-card">
+                <div class="card-header"><i class="fa fa-headset text-primary"></i> <span>StallCart Helpdesk &amp; Support</span></div>
+                <p>• <strong>Phone Helpline:</strong> +91 7307383046 (Mon-Sat, 9 AM - 9 PM)<br>
+                • <strong>WhatsApp Support:</strong> +91 7307383046 (Instant replies)<br>
+                • <strong>Email:</strong> stallcartsupport@gmail.com</p>
+                <div class="card-actions">
+                    <a href="https://wa.me/917307383046?text=Hi%20StallCart%20Support%2C%20I%20need%20assistance." target="_blank" class="chat-card-btn whatsapp"><i class="fab fa-whatsapp"></i> Chat on WhatsApp</a>
+                </div>
+            </div>
+        `,
+        request_callback: `
+            <div class="chat-response-card">
+                <div class="card-header"><i class="fa fa-phone-volume text-primary"></i> <span>Request Support Callback</span></div>
+                <p>Type your query in the box below and our support specialist will call you or connect on WhatsApp shortly.</p>
+            </div>
+        `,
+        faq_general: `
+            <div class="chat-response-card">
+                <div class="card-header"><i class="fa fa-circle-question text-primary"></i> <span>Frequently Asked Questions</span></div>
+                <p>• <strong>Orders:</strong> Track shipments in <a href="/orders/my-orders/" style="color:#2874f0;font-weight:700;">My Orders</a>.<br>
+                • <strong>Returns:</strong> 7-day hassle-free doorstep return &amp; refund.<br>
+                • <strong>Delivery:</strong> Free above ₹499 (2-4 business days).<br>
+                • <strong>Sellers:</strong> Download our <a href="/download/seller-manual/" download style="color:#059669;font-weight:700;">Seller Manual (PDF)</a>.</p>
+            </div>
+        `
+    };
+
+    // Action Trigger
+    window.triggerChatAction = function(actionId, labelText) {
+        if (!container.classList.contains('active')) container.classList.add('active');
+        if (actionId === 'whatsapp_support' || actionId === 'whatsapp_seller') {
+            window.open('https://wa.me/917307383046?text=Hi%20StallCart%20Support%2C%20I%20have%20an%20enquiry.', '_blank');
+            return;
+        }
+        if (labelText) addMessage(labelText, false);
+        const ind = addTypingIndicator();
+        setTimeout(() => {
+            ind.remove();
+            if (RESPONSES[actionId]) {
+                addMessage(RESPONSES[actionId]);
+            }
+        }, 350);
+    };
+
+    // Smart Conversational Matcher
+    function processUserQuery(text) {
+        const q = text.toLowerCase().trim();
+        const phoneDigits = q.replace(/\D/g, '');
+
+        // If user entered a phone number during callback flow
+        if (pendingCallbackQuery && (phoneDigits.length === 10 || phoneDigits.length === 11 || phoneDigits.length === 12)) {
+            submitSupportEnquiry(pendingCallbackQuery, phoneDigits);
+            pendingCallbackQuery = null;
+            return;
+        }
+
+        // Rule-based e-commerce keyword matching
+        if (/track|order|status|kahan|shipment|delivery date|dispatch/.test(q)) {
+            addMessage(RESPONSES.track_order);
+        } else if (/return|refund|replace|exchange|wapas|cancel|badal/.test(q)) {
+            addMessage(RESPONSES.return_refund);
+        } else if (/delivery|shipping|free delivery|charges|shipping cost|kitna lagega/.test(q)) {
+            addMessage(RESPONSES.delivery_info);
+        } else if (/payment|cod|cash on delivery|upi|gpay|phonepe|paytm|card|razorpay/.test(q)) {
+            addMessage(RESPONSES.payment_modes);
+        } else if (/offer|deal|discount|coupon|sale|prize|lucky|chhoot/.test(q)) {
+            addMessage(RESPONSES.today_deals);
+        } else if (/manual|handbook|seller|vendor|dukan|sell|payout|settlement|commission|utr/.test(q)) {
+            addMessage(RESPONSES.seller_manual);
+        } else if (/contact|support|help|call|phone|number|whatsapp|agent|madad/.test(q)) {
+            addMessage(RESPONSES.contact_support);
+        } else {
+            // General query / Custom issue -> Ask for phone callback or auto-submit if logged in
+            {% if request.user.is_authenticated %}
+            submitSupportEnquiry(text, "{{ request.user.phone|default:'Authenticated User' }}");
+            {% else %}
+            pendingCallbackQuery = text;
+            addMessage(`
+                <div class="chat-response-card" style="border-left: 4px solid #2874f0;">
+                    <div class="card-header"><i class="fa fa-headset text-primary"></i> <span>Support Callback Request</span></div>
+                    <p>I understand your query: "<em>${escapeHtml(text)}</em>".<br>
+                    Please enter your <strong>10-digit mobile number</strong> below so our support team can call or message you on WhatsApp to resolve this.</p>
+                </div>
+            `);
+            {% endif %}
+        }
     }
 
-    // Step 3: User enters message, clicks Submit
-    if (submitBtn) {
-        submitBtn.addEventListener('click', async () => {
-            const messageVal = inputMessage.value.trim();
-            if (!messageVal) {
-                inputMessage.focus();
-                return;
+    async function submitSupportEnquiry(query, phone) {
+        const ind = addTypingIndicator();
+        try {
+            const resp = await fetch('/common/submit-enquiry/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({
+                    message: query,
+                    phone: phone,
+                    name: '{{ request.user.full_name|default:"Shopper" }}'
+                })
+            });
+            const data = await resp.json();
+            ind.remove();
+            if (resp.ok) {
+                addMessage(`
+                    <div class="chat-response-card" style="border-left: 4px solid #059669;">
+                        <div class="card-header"><i class="fa fa-check-circle text-success"></i> <span>Query Registered Successfully!</span></div>
+                        <p>${data.message || 'Thank you! Our support executive has received your ticket and will reach out to you shortly.'}</p>
+                    </div>
+                `);
+            } else {
+                addMessage(`⚠️ ${data.error || 'Unable to log inquiry. Please call +91 7307383046.'}`);
             }
-            enquiryData.message = messageVal;
-            addMessage(messageVal, false);
-            
-            inputMessageGroup.classList.add('d-none');
-            const indicator = addTypingIndicator();
-            
-            try {
-                const response = await fetch('/common/submit-enquiry/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken
-                    },
-                    body: JSON.stringify(enquiryData)
-                });
-                const data = await response.json();
-                
-                setTimeout(() => {
-                    indicator.remove();
-                    if (response.ok) {
-                        addMessage(data.message || 'Thank you! Your enquiry has been registered.');
-                    } else {
-                        addMessage(`⚠️ ${data.error || 'Something went wrong.'}`);
-                        inputMessageGroup.classList.remove('d-none');
-                    }
-                }, 1000);
-                
-            } catch (err) {
-                setTimeout(() => {
-                    indicator.remove();
-                    addMessage('⚠️ Network error. Please try again.');
-                    inputMessageGroup.classList.remove('d-none');
-                }, 1000);
-            }
-        });
+        } catch (err) {
+            ind.remove();
+            addMessage('⚠️ Network error. Please try WhatsApp (+91 7307383046).');
+        }
     }
+
+    function escapeHtml(str) {
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    window.submitChatMessage = function() {
+        if (!chatInput) return;
+        const text = chatInput.value.trim();
+        if (!text) return;
+        addMessage(escapeHtml(text), false);
+        chatInput.value = '';
+        const ind = addTypingIndicator();
+        setTimeout(() => {
+            ind.remove();
+            processUserQuery(text);
+        }, 350);
+    };
+
+    // Initialize chips on page load
+    renderQuickChips(currentMode);
+})();
 
     // Category scroller hint fade on scroll
     const catTrack = document.getElementById('categoryScrollerTrack');
