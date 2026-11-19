@@ -2285,17 +2285,17 @@
             </div>
             <div class="chatbot-title-area">
                 <h4>StallCart Assistant</h4>
-                <span>24/7 Shopper &amp; Seller Support · Instant Help</span>
+                <span>24/7 Customer &amp; Seller Support · Instant Help</span>
             </div>
             <button class="chatbot-close" id="chatbotClose" aria-label="Close chat">
                 <i class="fa fa-times"></i>
             </button>
         </div>
 
-        <!-- Mode Toggle Bar: Shoppers vs Sellers vs Helpdesk -->
+        <!-- Mode Toggle Bar: Customers vs Sellers vs Helpdesk -->
         <div class="chat-mode-bar" id="chatModeBar">
             <button type="button" class="chat-tab-btn {% if request.user.role != 'seller' %}active{% endif %}" id="tabCustomerMode" onclick="switchChatMode('customer')">
-                <i class="fa fa-bag-shopping"></i> Shoppers
+                <i class="fa fa-user"></i> Customers
             </button>
             <button type="button" class="chat-tab-btn seller-tab {% if request.user.role == 'seller' %}active{% endif %}" id="tabSellerMode" onclick="switchChatMode('seller')">
                 <i class="fa fa-store"></i> Seller Hub
@@ -2661,7 +2661,7 @@ document.querySelectorAll('.btn-share').forEach(btn => {
         }
     }
 
-    // Quick Chips definitions for Shoppers, Sellers, and Helpdesk
+    // Quick Chips definitions for Customers, Sellers, and Helpdesk
     const CHIPS_DATA = {
         customer: [
             { id: 'track_order', icon: 'fa-truck-fast', label: 'Track Order', color: '#eff6ff', textCol: '#1d4ed8' },
@@ -2806,7 +2806,7 @@ document.querySelectorAll('.btn-share').forEach(btn => {
         become_seller: `
             <div class="chat-response-card">
                 <div class="card-header"><i class="fa fa-store text-primary"></i> <span>Sell with StallCart · विक्रेता बनें</span></div>
-                <p>Reach thousands of online shoppers across India. Transparent 15% category commission, automated Shiprocket pickup, and guaranteed bank payouts.</p>
+                <p>Reach thousands of online customers across India. Transparent 15% category commission, automated Shiprocket pickup, and guaranteed bank payouts.</p>
                 <div class="card-actions">
                     <a href="/accounts/seller/register/" class="chat-card-btn primary"><i class="fa fa-arrow-right"></i> Register as a Seller</a>
                     <a href="/download/seller-manual/" download class="chat-card-btn success"><i class="fa fa-download"></i> Seller Manual (PDF)</a>
@@ -2914,7 +2914,7 @@ document.querySelectorAll('.btn-share').forEach(btn => {
                 body: JSON.stringify({
                     message: query,
                     phone: phone,
-                    name: '{{ request.user.full_name|default:"Shopper"|escapejs }}'
+                    name: '{{ request.user.full_name|default:"Customer"|escapejs }}'
                 })
             });
             const data = await resp.json();
