@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 """
-StallCart Official Seller Operations Manual & Handbook Generator (Bilingual: Hindi & English)
+StallCart Official Seller Operations Manual & Handbook Generator
+Supports 3 Editions:
+1. Hindi Edition (🇮🇳 पूर्ण हिंदी संस्करण): StallCart_Seller_Manual_Hindi.pdf
+2. English Edition (🇬🇧 Complete English Edition): StallCart_Seller_Manual_English.pdf
+3. Bilingual / Both Edition (🌐 हिंदी + English): StallCart_Seller_Manual.pdf & StallCart_Seller_Manual_Bilingual.pdf
+
 Faithfully renders:
 1. Actual StallCart Web App UI mockups with Announcement Bar, StallCart Navbar, Real App Theme (#2874f0),
    and 100% FICTIONAL / SAMPLE DEMO DATA (No real seller from database).
-2. High-precision bilingual (Hindi Devanagari & English) multi-page PDF document.
-   - Uses WeasyPrint with Pango & HarfBuzz for 100% accurate, undisturbed Devanagari glyph shaping,
-     matras, conjuncts, and modern CSS layout.
-   - Gracefully falls back to ReportLab if WeasyPrint is unavailable on local development environments.
+2. High-precision PDF document via WeasyPrint with Pango & HarfBuzz for 100% accurate,
+   undisturbed Devanagari glyph shaping, matras, conjuncts, and modern CSS layout.
+   (Falls back to ReportLab on local dev if WeasyPrint is not installed).
 """
 
 import os
@@ -20,12 +24,12 @@ from PIL import Image, ImageDraw, ImageFont
 # Define Output Paths
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCREENSHOTS_DIR = os.path.join(PROJECT_ROOT, 'static', 'docs', 'screenshots')
-PDF_OUTPUT_PATH = os.path.join(PROJECT_ROOT, 'static', 'docs', 'StallCart_Seller_Manual.pdf')
-MEDIA_PDF_PATH = os.path.join(PROJECT_ROOT, 'media', 'manuals', 'StallCart_Seller_Manual.pdf')
+STATIC_DOCS_DIR = os.path.join(PROJECT_ROOT, 'static', 'docs')
+MEDIA_MANUALS_DIR = os.path.join(PROJECT_ROOT, 'media', 'manuals')
 
 os.makedirs(SCREENSHOTS_DIR, exist_ok=True)
-os.makedirs(os.path.dirname(PDF_OUTPUT_PATH), exist_ok=True)
-os.makedirs(os.path.dirname(MEDIA_PDF_PATH), exist_ok=True)
+os.makedirs(STATIC_DOCS_DIR, exist_ok=True)
+os.makedirs(MEDIA_MANUALS_DIR, exist_ok=True)
 
 # ─────────────────────────────────────────────────────────────
 # 1. HELPER: FONT LOADER FOR PILLOW & REPORTLAB
@@ -676,7 +680,7 @@ def generate_screen_7_settlement_statement():
 
 
 # ─────────────────────────────────────────────────────────────
-# 4. WEASYPRINT HTML & CSS BUILDER (PERFECT DEVANAGARI SHAPING)
+# 4. WEASYPRINT HTML & CSS BUILDER (MULTILINGUAL EDITIONS)
 # ─────────────────────────────────────────────────────────────
 
 def get_base64_image(filename):
@@ -689,11 +693,13 @@ def get_base64_image(filename):
     return ""
 
 
-def generate_html_manual():
+def generate_html_manual(lang='both'):
     """
-    Builds the full 8-module bilingual manual as clean HTML with modern CSS.
-    WeasyPrint renders this using Pango and HarfBuzz, ensuring 100% correct
-    Devanagari matras, conjuncts (स्त, प्र, त्र, क्त), and crisp typography.
+    Builds the full 8-module manual as clean HTML with modern CSS.
+    Supports 3 language modes:
+    - 'hindi': Pure Hindi Devanagari edition
+    - 'english': Complete English edition
+    - 'both': Bilingual (Hindi + English side-by-side)
     """
     img1 = get_base64_image('screen_1_registration.png')
     img2 = get_base64_image('screen_2_product_listing.png')
@@ -703,11 +709,38 @@ def generate_html_manual():
     img6 = get_base64_image('screen_6_notification_emails.png')
     img7 = get_base64_image('screen_7_settlement_statement.png')
 
+    is_hi = (lang == 'hindi')
+    is_en = (lang == 'english')
+    is_both = (lang == 'both')
+
+    # Header / Title Strings
+    if is_hi:
+        doc_title = "स्टॉलकार्ट विक्रेता संचालन नियमावली और संपूर्ण गाइड (हिंदी संस्करण)"
+        top_left_text = "STALLCART · विक्रेता संचालन नियमावली (हिंदी संस्करण)"
+        top_right_text = "आधिकारिक पार्टनर हैंडबुक v2.0"
+        badge_text = "STALLCART PARTNER ECOSYSTEM · विक्रेता सहयोग पोर्टल (Official Guide)"
+        cover_heading = "विक्रेता संचालन नियमावली और संपूर्ण गाइड<br/><span class=\"brand\">StallCart</span> Seller Operations Manual"
+        cover_sub = "<strong>पूर्ण हिंदी संस्करण (Hindi Edition):</strong> स्टॉलकार्ट (stallcart.in) पर विक्रेता पंजीकरण, उत्पाद लिस्टिंग, ऑर्डर पैकिंग मानक प्रक्रिया (SOP), शिपरोकेट कूरियर पिकअप और बैंक सेटलमेंट (UTR नंबर सहित) की संपूर्ण सचित्र मार्गदर्शिका।<br/><em>(सभी स्क्रीनशॉट और डेटा स्टॉलकार्ट वेब ऐप के मानक डेमो प्रारूप पर आधारित हैं — 100% Sample Demo Data)</em>"
+    elif is_en:
+        doc_title = "StallCart Official Seller Operations Manual (English Edition)"
+        top_left_text = "STALLCART · SELLER OPERATIONS MANUAL (ENGLISH EDITION)"
+        top_right_text = "Official Partner Handbook v2.0"
+        badge_text = "STALLCART PARTNER ECOSYSTEM · SELLER HUB (OFFICIAL GUIDE)"
+        cover_heading = "Seller Operations Manual & Partner Handbook<br/><span class=\"brand\">StallCart</span> Seller Operations Manual"
+        cover_sub = "<strong>Complete English Edition:</strong> A complete step-by-step practical guide to merchant registration, catalog listing, packaging SOP, Shiprocket courier dispatch, and direct bank settlements (including UTR verification) on stallcart.in.<br/><em>(All screenshots and sample data reflect standard demo formats — 100% Sample Demo Data)</em>"
+    else:
+        doc_title = "StallCart Official Seller Operations Manual (Bilingual: Hindi & English)"
+        top_left_text = "STALLCART · SELLER OPERATIONS MANUAL (हिंदी एवं अंग्रेजी)"
+        top_right_text = "Bilingual Partner Handbook v2.0"
+        badge_text = "STALLCART PARTNER ECOSYSTEM · विक्रेता सहयोग पोर्टल (Official Guide)"
+        cover_heading = "विक्रेता संचालन नियमावली और संपूर्ण गाइड<br/><span class=\"brand\">StallCart</span> Seller Operations Manual"
+        cover_sub = "<strong>द्विभाषी संस्करण (Bilingual Hindi &amp; English Edition):</strong> स्टॉलकार्ट (stallcart.in) पर विक्रेता पंजीकरण, उत्पाद लिस्टिंग, ऑर्डर पैकिंग मानक प्रक्रिया (SOP), शिपरोकेट कूरियर पिकअप और बैंक सेटलमेंट (UTR नंबर सहित) की संपूर्ण सचित्र मार्गदर्शिका।<br/><em>(सभी स्क्रीनशॉट और डेटा स्टॉलकार्ट वेब ऐप के मानक डेमो प्रारूप पर आधारित हैं — 100% Sample Demo Data)</em>"
+
     html = f"""<!DOCTYPE html>
-<html lang="hi">
+<html lang="{'hi' if is_hi else 'en'}">
 <head>
 <meta charset="utf-8">
-<title>StallCart Official Seller Operations Manual (Bilingual)</title>
+<title>{doc_title}</title>
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 
@@ -715,7 +748,7 @@ def generate_html_manual():
         size: A4;
         margin: 20mm 15mm 20mm 15mm;
         @top-left {{
-            content: "STALLCART · SELLER OPERATIONS MANUAL (हिंदी एवं अंग्रेजी)";
+            content: "{top_left_text}";
             font-family: 'Plus Jakarta Sans', 'Noto Sans Devanagari', sans-serif;
             font-size: 8pt;
             font-weight: 700;
@@ -724,8 +757,8 @@ def generate_html_manual():
             padding-bottom: 4px;
         }}
         @top-right {{
-            content: "Bilingual Partner Handbook v2.0";
-            font-family: 'Plus Jakarta Sans', sans-serif;
+            content: "{top_right_text}";
+            font-family: 'Plus Jakarta Sans', 'Noto Sans Devanagari', sans-serif;
             font-size: 8pt;
             color: #64748b;
             border-bottom: 1px solid #e2e8f0;
@@ -788,7 +821,7 @@ def generate_html_manual():
     }}
 
     h1.cover-title {{
-        font-size: 23pt;
+        font-size: 22pt;
         line-height: 1.25;
         font-weight: 800;
         color: #0f172a;
@@ -800,7 +833,7 @@ def generate_html_manual():
     }}
 
     p.cover-sub {{
-        font-size: 10.5pt;
+        font-size: 10pt;
         line-height: 1.5;
         color: #475569;
         margin-bottom: 16px;
@@ -874,7 +907,7 @@ def generate_html_manual():
     }}
 
     .module-title-en {{
-        font-size: 10pt;
+        font-size: 10.5pt;
         font-weight: 600;
         color: #059669;
     }}
@@ -992,14 +1025,10 @@ def generate_html_manual():
 <!-- ═══════════════════════════════════════════════════════ -->
 <div>
     <div style="height: 15px;"></div>
-    <div class="badge-wrap">STALLCART PARTNER ECOSYSTEM · विक्रेता सहयोग पोर्टल (Official Guide)</div>
+    <div class="badge-wrap">{badge_text}</div>
     
-    <h1 class="cover-title">विक्रेता संचालन नियमावली और संपूर्ण गाइड<br/><span class="brand">StallCart</span> Seller Operations Manual</h1>
-    <p class="cover-sub">
-        <strong>द्विभाषी संस्करण (Bilingual Hindi &amp; English Edition):</strong> स्टॉलकार्ट (stallcart.in) पर विक्रेता पंजीकरण, 
-        उत्पाद लिस्टिंग, ऑर्डर पैकिंग मानक प्रक्रिया (SOP), शिपरोकेट कूरियर पिकअप और बैंक सेटलमेंट (UTR नंबर सहित) की संपूर्ण सचित्र मार्गदर्शिका।
-        <br/><em>(सभी स्क्रीनशॉट और डेटा स्टॉलकार्ट वेब ऐप के मानक डेमो प्रारूप पर आधारित हैं — 100% Sample Demo Data)</em>
-    </p>
+    <h1 class="cover-title">{cover_heading}</h1>
+    <p class="cover-sub">{cover_sub}</p>
 
     <hr class="divider">
 
@@ -1009,7 +1038,7 @@ def generate_html_manual():
             <td><strong>वेबसाइट / Portal:</strong> https://stallcart.in</td>
         </tr>
         <tr>
-            <td><strong>लक्षित पाठक / Audience:</strong> सभी रजिस्टर्ड एवं नए विक्रेता</td>
+            <td><strong>लक्षित पाठक / Audience:</strong> {'सभी रजिस्टर्ड एवं नए विक्रेता' if not is_en else 'All Registered & Prospective Merchants'}</td>
             <td><strong>लॉजिस्टिक्स पार्टनर:</strong> Shiprocket &amp; Delhivery Express</td>
         </tr>
         <tr>
@@ -1017,21 +1046,21 @@ def generate_html_manual():
             <td><strong>सपोर्ट ईमेल:</strong> stallcartsupport@gmail.com</td>
         </tr>
         <tr>
-            <td><strong>भुगतान का माध्यम:</strong> सीधा बैंक ट्रांसफर (NEFT / UPI / UTR)</td>
-            <td><strong>सेटलमेंट चक्र:</strong> डिलीवरी व 7-दिन रिटर्न अवधि पश्चात</td>
+            <td><strong>भुगतान का माध्यम:</strong> {'सीधा बैंक ट्रांसफर (NEFT / UPI / UTR)' if not is_en else 'Direct Bank Transfer (NEFT / UPI / UTR)'}</td>
+            <td><strong>सेटलमेंट चक्र:</strong> {'डिलीवरी व 7-दिन रिटर्न अवधि पश्चात' if not is_en else 'Post Delivery & 7-Day Return Window'}</td>
         </tr>
     </table>
 
     <div class="toc-box">
-        <div class="toc-title">विषय सूची / Table of Contents</div>
-        <div class="toc-item"><strong>मॉड्यूल 1:</strong> विक्रेता खाता पंजीकरण, दुकान विवरण एवं बैंक KYC सत्यापन (Seller Onboarding &amp; KYC)</div>
-        <div class="toc-item"><strong>मॉड्यूल 2:</strong> उत्पाद लिस्टिंग, फोटोग्राफी नियम, मूल्य निर्धारण एवं वेरिएंट सेटअप (Cataloging &amp; Variants)</div>
-        <div class="toc-item"><strong>मॉड्यूल 3:</strong> ऑर्डर प्राप्ति चक्र एवं विक्रेता डैशबोर्ड का उपयोग (Order Receiving &amp; Statuses)</div>
-        <div class="toc-item"><strong>मॉड्यूल 4:</strong> सुरक्षित पैकेजिंग मानक प्रक्रिया (SOP) एवं टैक्स इनवॉइस मुद्रण (Packaging &amp; Invoice)</div>
-        <div class="toc-item"><strong>मॉड्यूल 5:</strong> शिपरोकेट कूरियर पिकअप, टोकन, बारकोड एवं सुरक्षित डिलीवरी ओटीपी (Shiprocket Courier Handover)</div>
-        <div class="toc-item"><strong>मॉड्यूल 6:</strong> स्वचालित ईमेल सूचनाएं, एसएमएस एवं व्हाट्सएप अलर्ट के नमूने (Transactional Alerts)</div>
-        <div class="toc-item"><strong>मॉड्यूल 7:</strong> पारदर्शी कमीशन कटौती, बैंक भुगतान एवं UTR ऑडिट ट्रेल (Settlement &amp; Bank UTR)</div>
-        <div class="toc-item"><strong>मॉड्यूल 8:</strong> ग्राहक रिटर्न, RTO प्रबंधन एवं विक्रेता सहायता केंद्र (Returns, RTO &amp; Support)</div>
+        <div class="toc-title">{'विषय सूची / Table of Contents' if is_both else ('विषय सूची' if is_hi else 'Table of Contents')}</div>
+        <div class="toc-item"><strong>{'मॉड्यूल 1' if not is_en else 'Module 1'}:</strong> {'विक्रेता खाता पंजीकरण, दुकान विवरण एवं बैंक KYC सत्यापन' if not is_en else 'Seller Onboarding & KYC Verification'}</div>
+        <div class="toc-item"><strong>{'मॉड्यूल 2' if not is_en else 'Module 2'}:</strong> {'उत्पाद लिस्टिंग, फोटोग्राफी नियम, मूल्य निर्धारण एवं वेरिएंट सेटअप' if not is_en else 'Product Cataloging, Pricing, Images & Variant Setup'}</div>
+        <div class="toc-item"><strong>{'मॉड्यूल 3' if not is_en else 'Module 3'}:</strong> {'ऑर्डर प्राप्ति चक्र एवं विक्रेता डैशबोर्ड का उपयोग' if not is_en else 'Order Receiving Lifecycle & Seller Dashboard'}</div>
+        <div class="toc-item"><strong>{'मॉड्यूल 4' if not is_en else 'Module 4'}:</strong> {'सुरक्षित पैकेजिंग मानक प्रक्रिया (SOP) एवं टैक्स इनवॉइस मुद्रण' if not is_en else 'Packaging Standard Operating Procedure (SOP) & Tax Invoice'}</div>
+        <div class="toc-item"><strong>{'मॉड्यूल 5' if not is_en else 'Module 5'}:</strong> {'शिपरोकेट कूरियर पिकअप, टोकन, बारकोड एवं सुरक्षित डिलीवरी ओटीपी' if not is_en else 'Courier Pickup Scheduling, Token & Secret OTP Delivery'}</div>
+        <div class="toc-item"><strong>{'मॉड्यूल 6' if not is_en else 'Module 6'}:</strong> {'स्वचालित ईमेल सूचनाएं, एसएमएस एवं व्हाट्सएप अलर्ट के नमूने' if not is_en else 'Seller Transactional Notifications & Email Alerts'}</div>
+        <div class="toc-item"><strong>{'मॉड्यूल 7' if not is_en else 'Module 7'}:</strong> {'पारदर्शी कमीशन कटौती, बैंक भुगतान एवं UTR ऑडिट ट्रेल' if not is_en else 'Settlements, Category Commissions & Bank UTR Audit'}</div>
+        <div class="toc-item"><strong>{'मॉड्यूल 8' if not is_en else 'Module 8'}:</strong> {'ग्राहक रिटर्न, RTO प्रबंधन एवं विक्रेता सहायता केंद्र' if not is_en else 'Returns, RTO Management & Seller Support Helpdesk'}</div>
     </div>
 </div>
 
@@ -1042,27 +1071,27 @@ def generate_html_manual():
 <!-- ═══════════════════════════════════════════════════════ -->
 <div>
     <div class="module-header">
-        <div class="module-title-hi">मॉड्यूल 1: विक्रेता खाता पंजीकरण और बैंक KYC सत्यापन</div>
-        <div class="module-title-en">Module 1: Seller Onboarding &amp; Bank KYC Verification</div>
+        <div class="module-title-hi">{'मॉड्यूल 1: विक्रेता खाता पंजीकरण और बैंक KYC सत्यापन' if not is_en else 'Module 1: Seller Onboarding & Bank KYC Verification'}</div>
+        {f'<div class="module-title-en">Module 1: Seller Onboarding &amp; Bank KYC Verification</div>' if is_both else ''}
     </div>
 
     <div class="bilingual-lead">
-        <strong>English:</strong> To begin selling on StallCart, every merchant must complete the verified seller registration. This establishes an encrypted link for automated seller payouts directly into your bank account.<br/>
-        <strong>हिंदी:</strong> स्टॉलकार्ट पर सामान बेचने के लिए सबसे पहले विक्रेता पंजीकरण पूरा करना अनिवार्य है। यह आपके बैंक खाते को सुरक्षित रूप से जोड़ता है ताकि आपकी बिक्री का पैसा सीधे आपके खाते में पहुंच सके।
+        {f'<strong>English:</strong> To begin selling on StallCart, every merchant must complete the verified seller registration. This establishes an encrypted link for automated seller payouts directly into your bank account.<br/>' if not is_hi else ''}
+        {f'<strong>हिंदी:</strong> स्टॉलकार्ट पर सामान बेचने के लिए सबसे पहले विक्रेता पंजीकरण पूरा करना अनिवार्य है। यह आपके बैंक खाते को सुरक्षित रूप से जोड़ता है ताकि आपकी बिक्री का पैसा सीधे आपके खाते में पहुंच सके।' if not is_en else ''}
     </div>
 
-    <div class="section-title">चरणबद्ध प्रक्रिया / Step-by-Step Workflow:</div>
+    <div class="section-title">{'चरणबद्ध प्रक्रिया / Step-by-Step Workflow:' if is_both else ('चरणबद्ध प्रक्रिया:' if is_hi else 'Step-by-Step Workflow:')}</div>
     <ul class="steps-list">
-        <li><strong>पंजीकरण लिंक / Registration Portal:</strong> <code>https://stallcart.in/accounts/seller/register/</code> पर जाएं या होमपेज पर 'Seller Panel' पर क्लिक करें।</li>
-        <li><strong>दुकान एवं संपर्क / Business Identity:</strong> अपनी दुकान का नाम (Shop Name जैसे <em>Apex Trends Fashion Hub</em>), रजिस्टर्ड मोबाइल और ईमेल दर्ज करें।</li>
-        <li><strong>पिकअप पता और पिनकोड / Pickup Address:</strong> वह सटीक गोदाम/दुकान का पता और 6-अंकीय पिनकोड (उदा. <em>452001</em>) दर्ज करें जहां से कूरियर राइडर पैकेट उठाएगा।</li>
-        <li><strong>बैंक खाता विवरण / Bank Details for Payout:</strong> बैंक का नाम (जैसे <em>HDFC Bank</em>), खाता संख्या, और IFSC कोड दर्ज करें। सभी भुगतान इसी खाते में जाएंगे।</li>
-        <li><strong>केवाईसी सत्यापन / KYC Verification:</strong> स्टॉलकार्ट एडमिन 24 घंटे के भीतर विवरण सत्यापित करता है और आपका खाता <strong>KYC Approved ✓</strong> हो जाता है।</li>
+        <li><strong>{'पंजीकरण लिंक / Registration Portal' if not is_en else 'Registration Portal'}:</strong> <code>https://stallcart.in/accounts/seller/register/</code> {'पर जाएं या होमपेज पर Seller Panel पर क्लिक करें।' if not is_en else 'Visit portal or click Seller Panel on homepage.'}</li>
+        <li><strong>{'दुकान एवं संपर्क / Business Identity' if not is_en else 'Business Identity'}:</strong> {'अपनी दुकान का नाम (Shop Name जैसे Apex Trends Fashion Hub), रजिस्टर्ड मोबाइल और ईमेल दर्ज करें।' if not is_en else 'Enter Shop Name (e.g., Apex Trends Fashion Hub), verified phone and email.'}</li>
+        <li><strong>{'पिकअप पता और पिनकोड / Pickup Address' if not is_en else 'Pickup Address & PIN'}:</strong> {'वह सटीक गोदाम/दुकान का पता और 6-अंकीय पिनकोड (उदा. 452001) दर्ज करें जहां से कूरियर राइडर पैकेट उठाएगा।' if not is_en else 'Provide complete warehouse address & 6-digit postal pincode (e.g., 452001) for courier pickup.'}</li>
+        <li><strong>{'बैंक खाता विवरण / Bank Details for Payout' if not is_en else 'Bank Account for Payout'}:</strong> {'बैंक का नाम (जैसे HDFC Bank), खाता संख्या, और IFSC कोड दर्ज करें। सभी भुगतान इसी खाते में जाएंगे।' if not is_en else 'Enter Bank Name (e.g., HDFC Bank), Account Number, and IFSC code for direct payouts.'}</li>
+        <li><strong>{'केवाईसी सत्यापन / KYC Verification' if not is_en else 'KYC Verification'}:</strong> {'स्टॉलकार्ट एडमिन 24 घंटे के भीतर विवरण सत्यापित करता है और आपका खाता KYC Approved ✓ हो जाता है।' if not is_en else 'StallCart operations team verifies bank & details within 24 hours to grant KYC Approved ✓ status.'}</li>
     </ul>
 
     <div class="figure-wrap">
         <img src="{img1}" alt="Seller Registration Screen">
-        <div class="caption">चित्र 1.1: स्टॉलकार्ट विक्रेता पंजीकरण एवं बैंक खाता सत्यापन स्क्रीन (Seller Registration Form - Sample Demo Data)</div>
+        <div class="caption">{'चित्र 1.1: स्टॉलकार्ट विक्रेता पंजीकरण एवं बैंक खाता सत्यापन स्क्रीन (Seller Registration Form - Sample Demo Data)' if not is_en else 'Figure 1.1: StallCart Seller Registration & Bank KYC Verification Screen (Sample Demo Data)'}</div>
     </div>
 </div>
 
@@ -1073,28 +1102,28 @@ def generate_html_manual():
 <!-- ═══════════════════════════════════════════════════════ -->
 <div>
     <div class="module-header">
-        <div class="module-title-hi">मॉड्यूल 2: उत्पाद लिस्टिंग, फोटो नियम और वेरिएंट सेटअप</div>
-        <div class="module-title-en">Module 2: Product Cataloging, Pricing, Images &amp; Variant Setup</div>
+        <div class="module-title-hi">{'मॉड्यूल 2: उत्पाद लिस्टिंग, फोटो नियम और वेरिएंट सेटअप' if not is_en else 'Module 2: Product Cataloging, Pricing, Images & Variant Setup'}</div>
+        {f'<div class="module-title-en">Module 2: Product Cataloging, Pricing, Images &amp; Variant Setup</div>' if is_both else ''}
     </div>
 
     <div class="bilingual-lead">
-        <strong>English:</strong> Listing attractive products with accurate pricing and high-definition photography is essential to maximize sales and reduce return rates.<br/>
-        <strong>हिंदी:</strong> उत्पाद की सही जानकारी, उचित मूल्य और साफ फोटो डालने से ग्राहक का भरोसा बढ़ता है और बिक्री तेज होती है।
+        {f'<strong>English:</strong> Listing attractive products with accurate pricing and high-definition photography is essential to maximize sales and reduce return rates.<br/>' if not is_hi else ''}
+        {f'<strong>हिंदी:</strong> उत्पाद की सही जानकारी, उचित मूल्य और साफ फोटो डालने से ग्राहक का भरोसा बढ़ता है और बिक्री तेज होती है।' if not is_en else ''}
     </div>
 
-    <div class="section-title">मुख्य नियम एवं दिशानिर्देश / Listing Guidelines:</div>
+    <div class="section-title">{'मुख्य नियम एवं दिशानिर्देश / Listing Guidelines:' if is_both else ('मुख्य नियम एवं दिशानिर्देश:' if is_hi else 'Listing Guidelines:')}</div>
     <ul class="steps-list">
-        <li><strong>उत्पाद का शीर्षक (Title):</strong> ब्रांड नाम, प्रमुख सामग्री या साइज स्पष्ट लिखें (उदा. <em>Men's Classic Slim Fit Cotton Casual Shirt - Navy Blue</em>)।</li>
-        <li><strong>श्रेणी एवं कमीशन (Category &amp; Commission):</strong> सही केटेगरी चुनें (उदा. <em>Men's Fashion &amp; Apparel</em>)। उस केटेगरी का स्टॉलकार्ट कमीशन प्रतिशत (जैसे 15%) स्क्रीन पर दिखेगा।</li>
-        <li><strong>MRP बनाम सेलिंग प्राइस (Pricing):</strong> अधिकतम खुदरा मूल्य (MRP जैसे ₹999) और अपना अंतिम बिक्री मूल्य (Selling Price जैसे ₹499) दर्ज करें। 50% की छूट ग्राहकों को आकर्षित करती है।</li>
-        <li><strong>स्टॉक (Inventory):</strong> अपने पास उपलब्ध स्टॉक दर्ज करें (जैसे 100 पीस)। स्टॉक 0 होने पर सिस्टम ऑटोमैटिक 'Out of Stock' दिखाएगा।</li>
-        <li><strong>वेरिएंट्स मैट्रिक्स (Variants):</strong> कपड़ों के लिए साइज (M, L, XL) और रंग चुनें। प्रत्येक साइज का स्टॉक अलग सेट करें।</li>
-        <li><strong>फोटो नियम (Photography SOP):</strong> साफ सफेद बैकग्राउंड में न्यूनतम 3 साफ तस्वीरें अपलोड करें (Front, Side, Fabric, Size Chart)।</li>
+        <li><strong>{'उत्पाद का शीर्षक (Title)' if not is_en else 'Product Title'}:</strong> {'ब्रांड नाम, प्रमुख सामग्री या साइज स्पष्ट लिखें (उदा. Men\'s Classic Slim Fit Cotton Casual Shirt - Navy Blue)।' if not is_en else 'Specify brand, key fabric, and color (e.g., Men\'s Classic Slim Fit Cotton Casual Shirt - Navy Blue).'}</li>
+        <li><strong>{'श्रेणी एवं कमीशन (Category & Commission)' if not is_en else 'Category & Commission'}:</strong> {'सही केटेगरी चुनें (उदा. Men\'s Fashion & Apparel)। उस केटेगरी का स्टॉलकार्ट कमीशन प्रतिशत (जैसे 15%) स्क्रीन पर दिखेगा।' if not is_en else 'Select correct category. Upfront category commission (e.g. 15%) is displayed transparently.'}</li>
+        <li><strong>{'MRP बनाम सेलिंग प्राइस (Pricing)' if not is_en else 'MRP vs. Selling Price'}:</strong> {'अधिकतम खुदरा मूल्य (MRP जैसे ₹999) और अपना अंतिम बिक्री मूल्य (Selling Price जैसे ₹499) दर्ज करें। 50% की छूट ग्राहकों को आकर्षित करती है।' if not is_en else 'Input MRP (e.g., ₹999) and final Selling Price (e.g., ₹499). Upfront discount badge drives shoppers.'}</li>
+        <li><strong>{'स्टॉक (Inventory)' if not is_en else 'Inventory Count'}:</strong> {'अपने पास उपलब्ध स्टॉक दर्ज करें (जैसे 100 पीस)। स्टॉक 0 होने पर सिस्टम ऑटोमैटिक Out of Stock दिखाएगा।' if not is_en else 'Enter available quantity (e.g., 100 units). Auto marks Out of Stock when quantity reaches 0.'}</li>
+        <li><strong>{'वेरिएंट्स मैट्रिक्स (Variants)' if not is_en else 'Variants Matrix'}:</strong> {'कपड़ों के लिए साइज (M, L, XL) और रंग चुनें। प्रत्येक साइज का स्टॉक अलग सेट करें।' if not is_en else 'Configure apparel size (M, L, XL) and color variations with isolated stock counters.'}</li>
+        <li><strong>{'फोटो नियम (Photography SOP)' if not is_en else 'Photography SOP'}:</strong> {'साफ सफेद बैकग्राउंड में न्यूनतम 3 साफ तस्वीरें अपलोड करें (Front, Side, Fabric, Size Chart)।' if not is_en else 'Upload minimum 3 high-resolution photos on a clean white background (Front, Side, Detail).'}</li>
     </ul>
 
     <div class="figure-wrap">
         <img src="{img2}" alt="Product Listing Screen">
-        <div class="caption">चित्र 2.1: स्टॉलकार्ट उत्पाद लिस्टिंग फॉर्म, लाइव वेरिएंट मैट्रिक्स और फोटो गैलरी (Add Product Form - Sample Demo Data)</div>
+        <div class="caption">{'चित्र 2.1: स्टॉलकार्ट उत्पाद लिस्टिंग फॉर्म, लाइव वेरिएंट मैट्रिक्स और फोटो गैलरी (Add Product Form - Sample Demo Data)' if not is_en else 'Figure 2.1: StallCart Add Product Catalog Form, Variant Matrix & Gallery (Sample Demo Data)'}</div>
     </div>
 </div>
 
@@ -1105,46 +1134,46 @@ def generate_html_manual():
 <!-- ═══════════════════════════════════════════════════════ -->
 <div>
     <div class="module-header">
-        <div class="module-title-hi">मॉड्यूल 3: ऑर्डर प्राप्ति चक्र और विक्रेता डैशबोर्ड</div>
-        <div class="module-title-en">Module 3: Order Receiving Lifecycle &amp; Seller Dashboard</div>
+        <div class="module-title-hi">{'मॉड्यूल 3: ऑर्डर प्राप्ति चक्र और विक्रेता डैशबोर्ड' if not is_en else 'Module 3: Order Receiving Lifecycle & Seller Dashboard'}</div>
+        {f'<div class="module-title-en">Module 3: Order Receiving Lifecycle &amp; Seller Dashboard</div>' if is_both else ''}
     </div>
 
     <div class="bilingual-lead">
-        <strong>English:</strong> When a shopper purchases your product, the order is immediately dispatched to your dedicated seller dashboard at <code>/orders/seller/orders/</code>.<br/>
-        <strong>हिंदी:</strong> जब भी कोई ग्राहक आपका सामान खरीदेगा, ऑर्डर तुरंत आपके सेलर डैशबोर्ड पर आ जाएगा और आपको तुरंत ईमेल/एसएमएस प्राप्त होगा।
+        {f'<strong>English:</strong> When a shopper purchases your product, the order is immediately dispatched to your dedicated seller dashboard at <code>/orders/seller/orders/</code>.<br/>' if not is_hi else ''}
+        {f'<strong>हिंदी:</strong> जब भी कोई ग्राहक आपका सामान खरीदेगा, ऑर्डर तुरंत आपके सेलर डैशबोर्ड पर आ जाएगा और आपको तुरंत ईमेल/एसएमएस प्राप्त होगा।' if not is_en else ''}
     </div>
 
-    <div class="section-title">ऑर्डर के विभिन्न चरण / Order Status Stages:</div>
+    <div class="section-title">{'ऑर्डर के विभिन्न चरण / Order Status Stages:' if is_both else ('ऑर्डर के विभिन्न चरण:' if is_hi else 'Order Status Stages:')}</div>
     <table class="info-table">
         <tr>
-            <th style="width: 25%;">Status / स्थिति</th>
-            <th>अर्थ एवं विक्रेता द्वारा की जाने वाली कार्रवाई (Action Required)</th>
+            <th style="width: 25%;">{'Status / स्थिति' if is_both else ('स्थिति' if is_hi else 'Status')}</th>
+            <th>{'अर्थ एवं विक्रेता द्वारा की जाने वाली कार्रवाई (Action Required)' if not is_en else 'Meaning & Required Seller Action'}</th>
         </tr>
         <tr>
-            <td><strong>Pending / New</strong><br/>(नया ऑर्डर)</td>
-            <td>ग्राहक ने भुगतान कर दिया है। विक्रेता को तुरंत <strong>Accept &amp; Pack Order</strong> पर क्लिक करना चाहिए।</td>
+            <td><strong>Pending / New</strong><br/>{'(नया ऑर्डर)' if not is_en else '(Customer Ordered)'}</td>
+            <td>{'ग्राहक ने भुगतान कर दिया है। विक्रेता को तुरंत Accept & Pack Order पर क्लिक करना चाहिए।' if not is_en else 'Shopper completed payment. Seller must click Accept & Pack Order within 24 hours.'}</td>
         </tr>
         <tr>
-            <td><strong>Ready for Pickup</strong><br/>(पिकअप हेतु तैयार)</td>
-            <td>विक्रेता ने पैकेट तैयार कर लिया है। सिस्टम कूरियर राइडर असाइन करता है और पिकअप टोकन (जैसे <code>PKP-DEMO-9821</code>) जारी करता है।</td>
+            <td><strong>Ready for Pickup</strong><br/>{'(पिकअप हेतु तैयार)' if not is_en else '(Manifest Ready)'}</td>
+            <td>{'विक्रेता ने पैकेट तैयार कर लिया है। सिस्टम कूरियर राइडर असाइन करता है और पिकअप टोकन जारी करता है।' if not is_en else 'Parcel packed. System generates pickup token and assigns Delhivery/Shiprocket rider.'}</td>
         </tr>
         <tr>
-            <td><strong>In Transit</strong><br/>(रास्ते में)</td>
-            <td>कूरियर राइडर ने पैकेट स्कैन करके उठा लिया है। पैकेट मुख्य हब से होते हुए ग्राहक के शहर जा रहा है।</td>
+            <td><strong>In Transit</strong><br/>{'(रास्ते में)' if not is_en else '(Dispatched)'}</td>
+            <td>{'कूरियर राइडर ने पैकेट स्कैन करके उठा लिया है। पैकेट मुख्य हब से होते हुए ग्राहक के शहर जा रहा है।' if not is_en else 'Courier scanned and picked up package from merchant warehouse, routed to destination hub.'}</td>
         </tr>
         <tr>
-            <td><strong>Out for Delivery</strong><br/>(डिलीवरी पर)</td>
-            <td>पैकेट ग्राहक के नजदीकी हब पहुंच चुका है और डिलीवरी बॉय आज ग्राहक के पते पर डिलीवर करेगा।</td>
+            <td><strong>Out for Delivery</strong><br/>{'(डिलीवरी पर)' if not is_en else '(Last Mile)'}</td>
+            <td>{'पैकेट ग्राहक के नजदीकी हब पहुंच चुका है और डिलीवरी बॉय आज ग्राहक के पते पर डिलीवर करेगा।' if not is_en else 'Parcel reached destination city hub; delivery agent out for final delivery to customer address.'}</td>
         </tr>
         <tr>
-            <td><strong>Delivered (OTP)</strong><br/>(डिलीवरी सफल)</td>
-            <td>ग्राहक ने 4-अंकीय गुप्त ओटीपी दिया और डिलीवरी पूरी हुई। ऑर्डर अब बैंक सेटलमेंट सूची में शामिल हो गया है।</td>
+            <td><strong>Delivered (OTP)</strong><br/>{'(डिलीवरी सफल)' if not is_en else '(OTP Verified)'}</td>
+            <td>{'ग्राहक ने 4-अंकीय गुप्त ओटीपी दिया और डिलीवरी पूरी हुई। ऑर्डर अब बैंक सेटलमेंट सूची में शामिल हो गया है।' if not is_en else 'Customer provided secret 4-digit OTP to rider. Verified & queued for automated bank settlement.'}</td>
         </tr>
     </table>
 
     <div class="figure-wrap">
         <img src="{img3}" alt="Seller Orders Dashboard">
-        <div class="caption">चित्र 3.1: स्टॉलकार्ट सेलर ऑर्डर्स डैशबोर्ड, स्टेटस कार्ड्स एवं ग्राहक विवरण (Orders Received - Sample Demo Data)</div>
+        <div class="caption">{'चित्र 3.1: स्टॉलकार्ट सेलर ऑर्डर्स डैशबोर्ड, स्टेटस कार्ड्स एवं ग्राहक विवरण (Orders Received - Sample Demo Data)' if not is_en else 'Figure 3.1: StallCart Seller Orders Dashboard, Metric Cards & Order Records (Sample Demo Data)'}</div>
     </div>
 </div>
 
@@ -1155,27 +1184,27 @@ def generate_html_manual():
 <!-- ═══════════════════════════════════════════════════════ -->
 <div>
     <div class="module-header">
-        <div class="module-title-hi">मॉड्यूल 4: सुरक्षित पैकेजिंग मानक प्रक्रिया (SOP) और टैक्स इनवॉइस</div>
-        <div class="module-title-en">Module 4: Packaging Standard Operating Procedure (SOP) &amp; Tax Invoice</div>
+        <div class="module-title-hi">{'मॉड्यूल 4: सुरक्षित पैकेजिंग मानक प्रक्रिया (SOP) और टैक्स इनवॉइस' if not is_en else 'Module 4: Packaging Standard Operating Procedure (SOP) & Tax Invoice'}</div>
+        {f'<div class="module-title-en">Module 4: Packaging Standard Operating Procedure (SOP) &amp; Tax Invoice</div>' if is_both else ''}
     </div>
 
     <div class="bilingual-lead">
-        <strong>English:</strong> Proper packaging protects items during transit, minimizes returns, and creates a five-star unboxing experience.<br/>
-        <strong>हिंदी:</strong> सही तरीके से पैकिंग करने से रास्ते में सामान सुरक्षित रहता है, ग्राहक संतुष्ट होता है और डैमेज रिटर्न की संभावना खत्म हो जाती है।
+        {f'<strong>English:</strong> Proper packaging protects items during transit, minimizes returns, and creates a five-star unboxing experience.<br/>' if not is_hi else ''}
+        {f'<strong>हिंदी:</strong> सही तरीके से पैकिंग करने से रास्ते में सामान सुरक्षित रहता है, ग्राहक संतुष्ट होता है और डैमेज रिटर्न की संभावना खत्म हो जाती है।' if not is_en else ''}
     </div>
 
-    <div class="section-title">पैकिंग के 5 सुनहरे नियम / 5-Step Packing Protocol:</div>
+    <div class="section-title">{'पैकिंग के 5 सुनहरे नियम / 5-Step Packing Protocol:' if is_both else ('पैकिंग के 5 सुनहरे नियम:' if is_hi else '5-Step Packaging Protocol:')}</div>
     <ul class="steps-list">
-        <li><strong>1. क्वालिटी और साइज जांच (Quality Verification):</strong> पैकेट पैक करने से पहले चेक करें कि सही साइज (उदा. Size L, न कि M) और सही कलर का डिफेक्ट-फ्री सामान है।</li>
-        <li><strong>2. बबल रैप सुरक्षा (Bubble Wrap Layer):</strong> परिधान या नाजुक सामान को कम से कम 2 परत वाटरप्रूफ पॉलीथीन या बबल रैप में लपेटें।</li>
-        <li><strong>3. मजबूत बाहरी बॉक्स/बैग (Outer Box):</strong> स्टॉलकार्ट टेंपर-एविडेंट प्लास्टिक बैग या 3-प्लाई वाले मजबूत कार्डबोर्ड बॉक्स में पैक करें।</li>
-        <li><strong>4. टैक्स इनवॉइस अंदर रखें (Insert Tax Invoice):</strong> सेलर पोर्टल से टैक्स इनवॉइस (Tax Invoice) डाउनलोड करके प्रिंट करें और पैकेट के अंदर डालें।</li>
-        <li><strong>5. कूरियर बारकोड लेबल चिपकाएं (Affix AWB Label):</strong> दिल्लीवरी/शिपरोकेट का AWB बारकोड लेबल बॉक्स के ऊपर सपाट चिपकाएं। बारकोड पर कभी टेप न लगाएं।</li>
+        <li><strong>{'1. क्वालिटी और साइज जांच (Quality Verification)' if not is_en else '1. Quality & Size Verification'}:</strong> {'पैकेट पैक करने से पहले चेक करें कि सही साइज (उदा. Size L) और सही कलर का डिफेक्ट-फ्री सामान है।' if not is_en else 'Cross-check accurate size (e.g. Size L), color code, and ensure 100% defect-free garment.'}</li>
+        <li><strong>{'2. बबल रैप सुरक्षा (Bubble Wrap Layer)' if not is_en else '2. Waterproof & Bubble Wrap'}:</strong> {'परिधान या नाजुक सामान को कम से कम 2 परत वाटरप्रूफ पॉलीथीन या बबल रैप में लपेटें।' if not is_en else 'Wrap item in at least 2 protective layers of waterproof bubble wrap to seal against moisture.'}</li>
+        <li><strong>{'3. मजबूत बाहरी बॉक्स/बैग (Outer Box)' if not is_en else '3. Corrugated Outer Box/Bag'}:</strong> {'स्टॉलकार्ट टेंपर-एविडेंट प्लास्टिक बैग या 3-प्लाई वाले मजबूत कार्डबोर्ड बॉक्स में पैक करें।' if not is_en else 'Pack inside tamper-evident StallCart security polybag or 3-ply heavy corrugated box.'}</li>
+        <li><strong>{'4. टैक्स इनवॉइस अंदर रखें (Insert Tax Invoice)' if not is_en else '4. Insert Official Tax Invoice'}:</strong> {'सेलर पोर्टल से टैक्स इनवॉइस (Tax Invoice) डाउनलोड करके प्रिंट करें और पैकेट के अंदर डालें।' if not is_en else 'Print official Tax Invoice from seller dashboard and place securely inside the package.'}</li>
+        <li><strong>{'5. कूरियर बारकोड लेबल चिपकाएं (Affix AWB Label)' if not is_en else '5. Affix Courier Barcode Flat'}:</strong> {'दिल्लीवरी/शिपरोकेट का AWB बारकोड लेबल बॉक्स के ऊपर सपाट चिपकाएं। बारकोड पर कभी सेलोटेप न लगाएं।' if not is_en else 'Affix Delhivery/Shiprocket AWB barcode flat on top face. Never place tape across barcode lines.'}</li>
     </ul>
 
     <div class="figure-wrap">
         <img src="{img4}" alt="Packaging SOP & Invoice">
-        <div class="caption">चित्र 4.1: स्टॉलकार्ट आधिकारिक टैक्स इनवॉइस एवं 5-चरणीय पैकेजिंग मानक प्रक्रिया (Packaging SOP - Sample Demo Data)</div>
+        <div class="caption">{'चित्र 4.1: स्टॉलकार्ट आधिकारिक टैक्स इनवॉइस एवं 5-चरणीय पैकेजिंग मानक प्रक्रिया (Packaging SOP - Sample Demo Data)' if not is_en else 'Figure 4.1: Official Tax Invoice Sample & 5-Step Packaging SOP (Sample Demo Data)'}</div>
     </div>
 </div>
 
@@ -1186,27 +1215,27 @@ def generate_html_manual():
 <!-- ═══════════════════════════════════════════════════════ -->
 <div>
     <div class="module-header">
-        <div class="module-title-hi">मॉड्यूल 5: शिपरोकेट कूरियर पिकअप, टोकन और सुरक्षित डिस्पैच</div>
-        <div class="module-title-en">Module 5: Courier Pickup Scheduling, Token &amp; Dispatch</div>
+        <div class="module-title-hi">{'मॉड्यूल 5: शिपरोकेट कूरियर पिकअप, टोकन और सुरक्षित डिस्पैच' if not is_en else 'Module 5: Courier Pickup Scheduling, Token & Secret OTP Delivery'}</div>
+        {f'<div class="module-title-en">Module 5: Courier Pickup Scheduling, Token &amp; Dispatch</div>' if is_both else ''}
     </div>
 
     <div class="bilingual-lead">
-        <strong>English:</strong> StallCart integrates directly with Shiprocket &amp; Delhivery Express. Sellers do not need separate courier contracts.<br/>
-        <strong>हिंदी:</strong> स्टॉलकार्ट सीधे शिपरोकेट और दिल्लीवरी एक्सप्रेस से जुड़ा हुआ है। आपको कूरियर कंपनी से अलग से बात करने की जरूरत नहीं होती।
+        {f'<strong>English:</strong> StallCart integrates directly with Shiprocket &amp; Delhivery Express. Sellers do not need separate courier contracts.<br/>' if not is_hi else ''}
+        {f'<strong>हिंदी:</strong> स्टॉलकार्ट सीधे शिपरोकेट और दिल्लीवरी एक्सप्रेस से जुड़ा हुआ है। आपको कूरियर कंपनी से अलग से बात करने की जरूरत नहीं होती।' if not is_en else ''}
     </div>
 
-    <div class="section-title">पिकअप हैंडओवर दिशानिर्देश / Handover Protocol:</div>
+    <div class="section-title">{'पिकअप हैंडओवर दिशानिर्देश / Handover Protocol:' if is_both else ('पिकअप हैंडओवर दिशानिर्देश:' if is_hi else 'Handover Protocol:')}</div>
     <ul class="steps-list">
-        <li><strong>स्वचालित पिकअप असाइनमेंट:</strong> जब आप 'Ready for Pickup' पर क्लिक करते हैं, तो सिस्टम कूरियर राइडर असाइन करके एक <strong>पिकअप टोकन</strong> (उदा. <code>PKP-DEMO-9821</code>) जारी करता है।</li>
-        <li><strong>राइडर की जानकारी:</strong> आपको कूरियर राइडर का नाम, मोबाइल नंबर और आगमन का समय डैशबोर्ड और एसएमएस पर मिल जाता है।</li>
-        <li><strong>बारकोड स्कैन करवाएं:</strong> जब राइडर आपके पते पर आए, तो उसका पहचान पत्र देखें और पैकेट सौंपकर अपने सामने बारकोड स्कैन करवाएं।</li>
-        <li><strong>पिकअप रसीद (Manifest):</strong> राइडर से डिजिटल या कागजी मैनिफेस्ट पर साइन लें।</li>
-        <li><strong>सुरक्षित डिलीवरी ओटीपी (Secret 4-Digit OTP):</strong> डिलीवरी के समय ग्राहक द्वारा राइडर को 4-अंकीय गुप्त ओटीपी देना अनिवार्य है। इससे झूठी डिलीवरी क्लेम से विक्रेता को 100% सुरक्षा मिलती है।</li>
+        <li><strong>{'स्वचालित पिकअप असाइनमेंट' if not is_en else 'Automated Pickup Assignment'}:</strong> {'जब आप Ready for Pickup पर क्लिक करते हैं, तो सिस्टम कूरियर राइडर असाइन करके एक पिकअप टोकन (उदा. PKP-DEMO-9821) जारी करता है।' if not is_en else 'Marking Ready for Pickup instantly schedules courier pickup and issues a unique Pickup Token (e.g. PKP-DEMO-9821).'}</li>
+        <li><strong>{'राइडर की जानकारी' if not is_en else 'Rider Identity & ETA'}:</strong> {'आपको कूरियर राइडर का नाम, मोबाइल नंबर और आगमन का समय डैशबोर्ड और एसएमएस पर मिल जाता है।' if not is_en else 'Assigned rider name, contact phone, and ETA window are communicated via SMS and dashboard.'}</li>
+        <li><strong>{'बारकोड स्कैन करवाएं' if not is_en else 'On-spot Barcode Scan'}:</strong> {'जब राइडर आपके पते पर आए, तो उसका पहचान पत्र देखें और पैकेट सौंपकर अपने सामने बारकोड स्कैन करवाएं।' if not is_en else 'Verify rider ID badge and ensure courier executive scans the AWB barcode before leaving.'}</li>
+        <li><strong>{'पिकअप रसीद (Manifest)' if not is_en else 'Handover Manifest Receipt'}:</strong> {'राइडर से डिजिटल या कागजी मैनिफेस्ट पर साइन व फोन नंबर लें।' if not is_en else 'Obtain rider signature and contact acknowledgment on digital or printed dispatch manifest.'}</li>
+        <li><strong>{'सुरक्षित डिलीवरी ओटीपी (Secret 4-Digit OTP)' if not is_en else 'Secret 4-Digit Delivery OTP'}:</strong> {'डिलीवरी के समय ग्राहक द्वारा राइडर को 4-अंकीय गुप्त ओटीपी देना अनिवार्य है। इससे झूठी डिलीवरी क्लेम से विक्रेता को 100% सुरक्षा मिलती है।' if not is_en else 'Mandatory 4-digit secret OTP provided by buyer protects merchants against false non-delivery disputes.'}</li>
     </ul>
 
     <div class="figure-wrap">
         <img src="{img5}" alt="Shiprocket Tracking">
-        <div class="caption">चित्र 5.1: कूरियर डिस्पैच प्रबंधन, शिपरोकेट पिकअप टोकन और 6-चरणीय डिलीवरी ट्रैकिंग (Shiprocket Tracking - Sample Demo Data)</div>
+        <div class="caption">{'चित्र 5.1: कूरियर डिस्पैच प्रबंधन, शिपरोकेट पिकअप टोकन और 6-चरणीय डिलीवरी ट्रैकिंग (Shiprocket Tracking - Sample Demo Data)' if not is_en else 'Figure 5.1: Courier Dispatch Management, Pickup Token & 6-Stage Tracking Lifecycle (Sample Demo Data)'}</div>
     </div>
 </div>
 
@@ -1217,26 +1246,26 @@ def generate_html_manual():
 <!-- ═══════════════════════════════════════════════════════ -->
 <div>
     <div class="module-header">
-        <div class="module-title-hi">मॉड्यूल 6: लेन-देन सूचनाएं और ईमेल/एसएमएस के नमूने</div>
-        <div class="module-title-en">Module 6: Seller Transactional Notifications &amp; Alerts</div>
+        <div class="module-title-hi">{'मॉड्यूल 6: लेन-देन सूचनाएं और ईमेल/एसएमएस के नमूने' if not is_en else 'Module 6: Seller Transactional Notifications & Email Alerts'}</div>
+        {f'<div class="module-title-en">Module 6: Seller Transactional Notifications &amp; Alerts</div>' if is_both else ''}
     </div>
 
     <div class="bilingual-lead">
-        <strong>English:</strong> StallCart keeps sellers fully informed at every milestone via real-time automated emails, SMS, and WhatsApp alerts.<br/>
-        <strong>हिंदी:</strong> स्टॉलकार्ट हर महत्वपूर्ण गतिविधि पर विक्रेता को रजिस्टर्ड ईमेल, एसएमएस और व्हाट्सएप पर संदेश भेजता है।
+        {f'<strong>English:</strong> StallCart keeps sellers fully informed at every milestone via real-time automated emails, SMS, and WhatsApp alerts.<br/>' if not is_hi else ''}
+        {f'<strong>हिंदी:</strong> स्टॉलकार्ट हर महत्वपूर्ण गतिविधि पर विक्रेता को रजिस्टर्ड ईमेल, एसएमएस और व्हाट्सएप पर संदेश भेजता है।' if not is_en else ''}
     </div>
 
-    <div class="section-title">विक्रेता को प्राप्त होने वाले प्रमुख संदेश / Notification Types:</div>
+    <div class="section-title">{'विक्रेता को प्राप्त होने वाले प्रमुख संदेश / Notification Types:' if is_both else ('विक्रेता को प्राप्त होने वाले प्रमुख संदेश:' if is_hi else 'Key Seller Notification Types:')}</div>
     <ul class="steps-list">
-        <li><strong>1. नया ऑर्डर ईमेल (New Order Alert):</strong> ग्राहक द्वारा ऑर्डर करते ही आता है। इसमें उत्पाद का नाम, साइज, मात्रा और पैकिंग की समय-सीमा लिखी होती है।</li>
-        <li><strong>2. कूरियर पिकअप अलर्ट (Pickup Confirmed):</strong> जब कूरियर राइडर आपके पते से पैकेट स्कैन करके उठाता है, तो इसकी पुष्टि प्राप्त होती है।</li>
-        <li><strong>3. डिलीवरी अलर्ट (Delivery Confirmed):</strong> जब ग्राहक ओटीपी देकर पैकेट प्राप्त कर लेता है, तो डिलीवरी की पुष्टि का संदेश आता है।</li>
-        <li><strong>4. पेआउट जमा ईमेल (Settlement Disbursed):</strong> जब स्टॉलकार्ट आपके बैंक खाते में पैसे ट्रांसफर करता है, तो बैंक UTR नंबर और कटौती के पूरे विवरण के साथ ईमेल आता है।</li>
+        <li><strong>{'1. नया ऑर्डर ईमेल (New Order Alert)' if not is_en else '1. New Order Received Alert'}:</strong> {'ग्राहक द्वारा ऑर्डर करते ही आता है। इसमें उत्पाद का नाम, साइज, मात्रा और पैकिंग की समय-सीमा लिखी होती है।' if not is_en else 'Dispatched immediately upon order placement; contains customer city, SKU variant, and 24-hr packing SLA.'}</li>
+        <li><strong>{'2. कूरियर पिकअप अलर्ट (Pickup Confirmed)' if not is_en else '2. Courier Pickup Confirmation'}:</strong> {'जब कूरियर राइडर आपके पते से पैकेट स्कैन करके उठाता है, तो इसकी पुष्टि प्राप्त होती है।' if not is_en else 'Sent as soon as courier rider scans manifest and receives package from seller premises.'}</li>
+        <li><strong>{'3. डिलीवरी अलर्ट (Delivery Confirmed)' if not is_en else '3. OTP Verified Delivery Notice'}:</strong> {'जब ग्राहक ओटीपी देकर पैकेट प्राप्त कर लेता है, तो डिलीवरी की पुष्टि का संदेश आता है।' if not is_en else 'Sent immediately when buyer provides delivery OTP to courier rider, queueing item for payout.'}</li>
+        <li><strong>{'4. पेआउट जमा ईमेल (Settlement Disbursed)' if not is_en else '4. Payout Disbursed with Bank UTR'}:</strong> {'जब स्टॉलकार्ट आपके बैंक खाते में पैसे ट्रांसफर करता है, तो बैंक UTR नंबर और कटौती के पूरे विवरण के साथ ईमेल आता है।' if not is_en else 'Sent when funds are transferred to seller bank account, including bank UTR transaction reference.'}</li>
     </ul>
 
     <div class="figure-wrap">
         <img src="{img6}" alt="Email Notifications">
-        <div class="caption">चित्र 6.1: स्टॉलकार्ट आधिकारिक ईमेल अलर्ट टेम्पलेट - नया ऑर्डर एवं बैंक पेआउट सूचना (Email Notifications - Sample Demo Data)</div>
+        <div class="caption">{'चित्र 6.1: स्टॉलकार्ट आधिकारिक ईमेल अलर्ट टेम्पलेट - नया ऑर्डर एवं बैंक पेआउट सूचना (Email Notifications - Sample Demo Data)' if not is_en else 'Figure 6.1: Official Transactional Email Templates - New Order & Bank Payout Notification (Sample Demo Data)'}</div>
     </div>
 </div>
 
@@ -1247,45 +1276,44 @@ def generate_html_manual():
 <!-- ═══════════════════════════════════════════════════════ -->
 <div>
     <div class="module-header">
-        <div class="module-title-hi">मॉड्यूल 7: कमीशन कटौती, बैंक भुगतान और UTR ऑडिट</div>
-        <div class="module-title-en">Module 7: Settlements, Commissions &amp; Bank Payouts</div>
+        <div class="module-title-hi">{'मॉड्यूल 7: कमीशन कटौती, बैंक भुगतान और UTR ऑडिट' if not is_en else 'Module 7: Settlements, Category Commissions & Bank Payouts'}</div>
+        {f'<div class="module-title-en">Module 7: Settlements, Commissions &amp; Bank Payouts</div>' if is_both else ''}
     </div>
 
     <div class="bilingual-lead">
-        <strong>English:</strong> StallCart operates on a transparent, audit-ready financial settlement model. Sellers receive direct bank payouts with complete UTR references.<br/>
-        <strong>हिंदी:</strong> स्टॉलकार्ट पर भुगतान पूरी तरह पारदर्शी है। हर बैंक ट्रांसफर के साथ बैंक यूटीआर नंबर (UTR No) दिया जाता है जिसे आप अपनी पासबुक में देख सकते हैं।
+        {f'<strong>English:</strong> StallCart operates on a transparent, audit-ready financial settlement model. Sellers receive direct bank payouts with complete UTR references.<br/>' if not is_hi else ''}
+        {f'<strong>हिंदी:</strong> स्टॉलकार्ट पर भुगतान पूरी तरह पारदर्शी है। हर बैंक ट्रांसफर के साथ बैंक यूटीआर नंबर (UTR No) दिया जाता है जिसे आप अपनी पासबुक में देख सकते हैं।' if not is_en else ''}
     </div>
 
-    <div class="section-title">विक्रेता की शुद्ध कमाई का सूत्र / Earning Formula:</div>
+    <div class="section-title">{'विक्रेता की शुद्ध कमाई का सूत्र / Earning Formula:' if is_both else ('विक्रेता की शुद्ध कमाई का सूत्र:' if is_hi else 'Net Seller Earning Formula:')}</div>
     <table class="info-table">
         <tr>
-            <th style="width: 30%;">कमाई का सूत्र / Formula</th>
+            <th style="width: 30%;">{'कमाई का सूत्र / Formula' if is_both else ('कमाई का सूत्र' if is_hi else 'Earning Formula')}</th>
             <td>
-                <code>शुद्ध बैंक भुगतान = उत्पाद का अंतिम बिक्री मूल्य  -  प्लेटफ़ॉर्म केटेगरी कमीशन</code><br/>
-                <code>Net Seller Payable = Item Selling Price  -  Platform Category Commission</code>
+                <code>{'शुद्ध बैंक भुगतान = उत्पाद का अंतिम बिक्री मूल्य  -  प्लेटफ़ॉर्म केटेगरी कमीशन' if not is_en else 'Net Seller Payable = Item Selling Price  -  Platform Category Commission'}</code>
             </td>
         </tr>
         <tr>
-            <th>वास्तविक उदाहरण / Example</th>
-            <td>बिक्री मूल्य (Selling Price): <strong>₹499.00</strong><br/>केटेगरी कमीशन (15%): -₹74.85<br/><strong>विक्रेता को शुद्ध बैंक ट्रांसफर: ₹424.15</strong></td>
+            <th>{'वास्तविक उदाहरण / Example' if is_both else ('वास्तविक उदाहरण' if is_hi else 'Real Calculation Example')}</th>
+            <td>{'बिक्री मूल्य (Selling Price): <strong>₹499.00</strong><br/>केटेगरी कमीशन (15%): -₹74.85<br/><strong>विक्रेता को शुद्ध बैंक ट्रांसफर: ₹424.15</strong>' if not is_en else 'Selling Price: <strong>₹499.00</strong><br/>Category Commission (15%): -₹74.85<br/><strong>Net Bank Credit to Seller: ₹424.15</strong>'}</td>
         </tr>
         <tr>
-            <th>भुगतान का समय / Schedule</th>
-            <td>ऑर्डर सफलतापूर्वक डिलीवर होने और 7-दिन की आसान रिटर्न अवधि पूरी होने के बाद सेटलमेंट किया जाता है।</td>
+            <th>{'भुगतान का समय / Schedule' if not is_en else 'Payout Schedule'}</th>
+            <td>{'ऑर्डर सफलतापूर्वक डिलीवर होने और 7-दिन की आसान रिटर्न अवधि पूरी होने के बाद सेटलमेंट किया जाता है।' if not is_en else 'Settled promptly after successful delivery and completion of the 7-day customer return window.'}</td>
         </tr>
         <tr>
-            <th>ट्रांसफर का माध्यम / Mode</th>
-            <td>सीधा बैंक खाता ट्रांसफर (NEFT / RTGS / IMPS / UPI) अथवा RazorpayX इंस्टेंट पेआउट।</td>
+            <th>{'ट्रांसफर का माध्यम / Mode' if not is_en else 'Payment Channel'}</th>
+            <td>{'सीधा बैंक खाता ट्रांसफर (NEFT / RTGS / IMPS / UPI) अथवा RazorpayX इंस्टेंट पेआउट।' if not is_en else 'Direct Bank Transfer (NEFT / RTGS / IMPS / UPI) or automated RazorpayX instant disbursal.'}</td>
         </tr>
         <tr>
-            <th>बैंक UTR नंबर / Proof</th>
-            <td>हर भुगतान के साथ बैंक यूटीआर नंबर (उदा. <code>CMS987654321012</code>) प्रदान किया जाता है।</td>
+            <th>{'बैंक UTR नंबर / Proof' if not is_en else 'Bank UTR Audit Trail'}</th>
+            <td>{'हर भुगतान के साथ बैंक यूटीआर नंबर (उदा. CMS987654321012) प्रदान किया जाता है।' if not is_en else 'Every payout includes verifiable bank UTR reference (e.g. CMS987654321012) for passbook audit.'}</td>
         </tr>
     </table>
 
     <div class="figure-wrap">
         <img src="{img7}" alt="Settlement Statement">
-        <div class="caption">चित्र 7.1: स्टॉलकार्ट सेलर सेटलमेंट एवं पेआउट लेज़र स्क्रीन (Settlements &amp; Payouts Dashboard - Sample Demo Data)</div>
+        <div class="caption">{'चित्र 7.1: स्टॉलकार्ट सेलर सेटलमेंट एवं पेआउट लेज़र स्क्रीन (Settlements & Payouts Dashboard - Sample Demo Data)' if not is_en else 'Figure 7.1: StallCart Seller Settlements Dashboard, UTR Ledger & Calculation Audit (Sample Demo Data)'}</div>
     </div>
 </div>
 
@@ -1296,49 +1324,49 @@ def generate_html_manual():
 <!-- ═══════════════════════════════════════════════════════ -->
 <div>
     <div class="module-header">
-        <div class="module-title-hi">मॉड्यूल 8: कस्टमर रिटर्न, RTO और हेल्पलाइन सपोर्ट</div>
-        <div class="module-title-en">Module 8: Returns, RTO Management &amp; Seller Support</div>
+        <div class="module-title-hi">{'मॉड्यूल 8: कस्टमर रिटर्न, RTO और हेल्पलाइन सपोर्ट' if not is_en else 'Module 8: Returns, RTO Management & Seller Support Helpdesk'}</div>
+        {f'<div class="module-title-en">Module 8: Returns, RTO Management &amp; Seller Support</div>' if is_both else ''}
     </div>
 
     <div class="bilingual-lead">
-        <strong>English:</strong> Handling customer returns and unexpected transit issues smoothly is critical to maintaining a 5-star seller rating.<br/>
-        <strong>हिंदी:</strong> किसी भी ई-कॉमर्स व्यवसाय में रिटर्न और RTO का सही प्रबंधन विक्रेता की रेटिंग और मुनाफे को सुरक्षित रखता है।
+        {f'<strong>English:</strong> Handling customer returns and unexpected transit issues smoothly is critical to maintaining a 5-star seller rating.<br/>' if not is_hi else ''}
+        {f'<strong>हिंदी:</strong> किसी भी ई-कॉमर्स व्यवसाय में रिटर्न और RTO का सही प्रबंधन विक्रेता की रेटिंग और मुनाफे को सुरक्षित रखता है।' if not is_en else ''}
     </div>
 
-    <div class="section-title">रिटर्न एवं RTO के नियम / Return &amp; RTO Policies:</div>
+    <div class="section-title">{'रिटर्न एवं RTO के नियम / Return & RTO Policies:' if is_both else ('रिटर्न एवं RTO के नियम:' if is_hi else 'Return & RTO Policies:')}</div>
     <ul class="steps-list">
-        <li><strong>7-दिन की रिटर्न अवधि (7-Day Return):</strong> ग्राहक केवल डिफेक्टिव, गलत साइज या टूटा सामान होने पर ही 7 दिन में रिटर्न का अनुरोध कर सकता है।</li>
-        <li><strong>विक्रेता द्वारा सामान की जांच (Inspection):</strong> कूरियर द्वारा लौटाया गया सामान आपके पते पर वापस आता है। विक्रेता द्वारा सामान की स्थिति जांचने के बाद ही रिफंड की पुष्टि होती है।</li>
-        <li><strong>RTO (डिलीवरी न होना):</strong> यदि ग्राहक 3 प्रयासों के बाद भी उपलब्ध नहीं होता, तो पैकेट RTO होकर आपके गोदाम में सुरक्षित लौट आता है। RTO पैकेट पर कोई प्लेटफ़ॉर्म कमीशन नहीं काटा जाता।</li>
+        <li><strong>{'7-दिन की रिटर्न अवधि (7-Day Return)' if not is_en else '7-Day Return Window'}:</strong> {'ग्राहक केवल डिफेक्टिव, गलत साइज या टूटा सामान होने पर ही 7 दिन में रिटर्न का अनुरोध कर सकता है।' if not is_en else 'Shoppers can only initiate returns for defective, wrong-sized, or physically damaged items within 7 days.'}</li>
+        <li><strong>{'विक्रेता द्वारा सामान की जांच (Inspection)' if not is_en else 'Seller Quality Inspection'}:</strong> {'कूरियर द्वारा लौटाया गया सामान आपके पते पर वापस आता है। विक्रेता द्वारा सामान की स्थिति जांचने के बाद ही रिफंड की पुष्टि होती है।' if not is_en else 'Returned goods are routed back to seller warehouse; refunds are verified post merchant inspection.'}</li>
+        <li><strong>{'RTO (डिलीवरी न होना)' if not is_en else 'RTO (Non-Delivery to Buyer)'}:</strong> {'यदि ग्राहक 3 प्रयासों के बाद भी उपलब्ध नहीं होता, तो पैकेट RTO होकर आपके गोदाम में सुरक्षित लौट आता है। RTO पैकेट पर कोई प्लेटफ़ॉर्म कमीशन नहीं काटा जाता।' if not is_en else 'If customer is unavailable after 3 courier attempts, parcel is returned safely. ZERO platform commission is deducted on RTO.'}</li>
     </ul>
 
-    <div class="section-title">स्टॉलकार्ट आधिकारिक सहायता केंद्र / Official Support Channels:</div>
+    <div class="section-title">{'स्टॉलकार्ट आधिकारिक सहायता केंद्र / Official Support Channels:' if is_both else ('स्टॉलकार्ट आधिकारिक सहायता केंद्र:' if is_hi else 'Official Support Channels:')}</div>
     <table class="info-table">
         <tr>
-            <th style="width: 30%;">माध्यम / Channel</th>
-            <th>विवरण एवं समय / Contact Details</th>
+            <th style="width: 30%;">{'माध्यम / Channel' if is_both else ('माध्यम' if is_hi else 'Channel')}</th>
+            <th>{'विवरण एवं समय / Contact Details' if is_both else ('विवरण एवं समय' if is_hi else 'Contact Details & Operating Hours')}</th>
         </tr>
         <tr>
-            <td><strong>व्हाट्सएप सेलर डेस्क</strong></td>
-            <td><strong>+91 7307383046</strong> (पिकअप समस्या या ऑर्डर सहायता के लिए · प्रातः 9 बजे से रात्रि 9 बजे तक)</td>
+            <td><strong>{'व्हाट्सएप सेलर डेस्क' if not is_en else 'WhatsApp Partner Desk'}</strong></td>
+            <td><strong>+91 7307383046</strong> {'(पिकअप समस्या या ऑर्डर सहायता के लिए · प्रातः 9 बजे से रात्रि 9 बजे तक)' if not is_en else '(Pickup escalations & merchant support · 9 AM to 9 PM IST)'}</td>
         </tr>
         <tr>
-            <td><strong>ईमेल सपोर्ट</strong></td>
-            <td><strong>stallcartsupport@gmail.com</strong> (उत्पाद कैटलॉग, बैंक खाता बदलाव या सेटलमेंट पूछताछ)</td>
+            <td><strong>{'ईमेल सपोर्ट' if not is_en else 'Email Helpdesk'}</strong></td>
+            <td><strong>stallcartsupport@gmail.com</strong> {'(उत्पाद कैटलॉग, बैंक खाता बदलाव या सेटलमेंट पूछताछ)' if not is_en else '(Catalog approvals, bank profile changes & payout inquiries)'}</td>
         </tr>
         <tr>
-            <td><strong>वेबसाइट चैटबॉट</strong></td>
-            <td>होमपेज (<code>stallcart.in</code>) पर 24/7 उपलब्ध। यहां से सीधे मैनुअल डाउनलोड कर सकते हैं।</td>
+            <td><strong>{'वेबसाइट चैटबॉट' if not is_en else '24/7 AI Assistant'}</strong></td>
+            <td>{'होमपेज (stallcart.in) पर 24/7 उपलब्ध। यहां से सीधे मैनुअल डाउनलोड कर सकते हैं।' if not is_en else 'Available 24/7 on stallcart.in. Direct one-click manual downloads in Hindi & English.'}</td>
         </tr>
         <tr>
-            <td><strong>विक्रेता डैशबोर्ड</strong></td>
-            <td><code>https://stallcart.in/items/dashboard/</code> (लाइव स्टॉक, ऑर्डर और पेआउट नियंत्रण)</td>
+            <td><strong>{'विक्रेता डैशबोर्ड' if not is_en else 'Seller Web Portal'}</strong></td>
+            <td><code>https://stallcart.in/items/dashboard/</code> {'(लाइव स्टॉक, ऑर्डर और पेआउट नियंत्रण)' if not is_en else '(Live inventory, order fulfillment & settlement ledger)'}</td>
         </tr>
     </table>
 
     <div class="callout-box" style="margin-top: 15px; background: #f8fafc; border: 1.5px solid #2874f0; color: #0f172a;">
-        <strong style="color: #2874f0; font-size: 10.5pt;">स्टॉलकार्ट परिवार में आपका स्वागत है! (Welcome to StallCart)</strong><br/>
-        हम पूरे भारत में आपके व्यवसाय को बढ़ाने, तेज कूरियर डिलीवरी और समय पर पारदर्शी बैंक भुगतान देने के लिए समर्पित हैं। स्टॉलकार्ट का पार्टनर बनने के लिए धन्यवाद।
+        <strong style="color: #2874f0; font-size: 10.5pt;">{'स्टॉलकार्ट परिवार में आपका स्वागत है! (Welcome to StallCart)' if not is_en else 'Welcome to the StallCart Merchant Family!'}</strong><br/>
+        {'हम पूरे भारत में आपके व्यवसाय को बढ़ाने, तेज कूरियर डिलीवरी और समय पर पारदर्शी बैंक भुगतान देने के लिए समर्पित हैं। स्टॉलकार्ट का पार्टनर बनने के लिए धन्यवाद।' if not is_en else 'We are committed to scaling your business across India with fast doorstep pickups and guaranteed transparent bank settlements. Thank you for partnering with StallCart.'}
     </div>
 </div>
 
@@ -1377,10 +1405,10 @@ class NumberedCanvas(canvas.Canvas):
         self.saveState()
         self.setFont("Helvetica-Bold", 8)
         self.setFillColor(colors.HexColor("#0f172a"))
-        self.drawString(36, 810, "STALLCART · SELLER OPERATIONS MANUAL (हिंदी एवं अंग्रेजी)")
+        self.drawString(36, 810, "STALLCART · SELLER OPERATIONS MANUAL")
         self.setFont("Helvetica", 8)
         self.setFillColor(colors.HexColor("#64748b"))
-        self.drawRightString(559, 810, "Bilingual Partner Handbook v2.0")
+        self.drawRightString(559, 810, "Partner Handbook v2.0")
         
         self.setStrokeColor(colors.HexColor("#e2e8f0"))
         self.setLineWidth(0.75)
@@ -1389,18 +1417,18 @@ class NumberedCanvas(canvas.Canvas):
         self.line(36, 45, 559, 45)
         self.setFont("Helvetica", 8)
         self.setFillColor(colors.HexColor("#64748b"))
-        self.drawString(36, 32, "© 2026 StallCart Platform · हेल्पलाइन: +91 7307383046 · stallcartsupport@gmail.com")
+        self.drawString(36, 32, "© 2026 StallCart Platform · Helpline: +91 7307383046 · stallcartsupport@gmail.com")
         self.drawRightString(559, 32, f"Page {self._pageNumber} of {page_count}")
         self.restoreState()
 
 
-def build_pdf_reportlab():
+def build_pdf_reportlab(target_path):
     from reportlab.lib.pagesizes import A4
     from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image as RLImage, Table, TableStyle, PageBreak, HRFlowable
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
     dev_font = register_reportlab_fonts()
-    doc = SimpleDocTemplate(PDF_OUTPUT_PATH, pagesize=A4, leftMargin=36, rightMargin=36, topMargin=54, bottomMargin=54)
+    doc = SimpleDocTemplate(target_path, pagesize=A4, leftMargin=36, rightMargin=36, topMargin=54, bottomMargin=54)
     styles = getSampleStyleSheet()
 
     brand_primary = colors.HexColor("#2874f0")
@@ -1412,77 +1440,65 @@ def build_pdf_reportlab():
     title_style = ParagraphStyle('CoverTitle', parent=styles['Normal'], fontName=dev_font, fontSize=23, leading=28, textColor=brand_navy, spaceAfter=10)
     subtitle_style = ParagraphStyle('CoverSubtitle', parent=styles['Normal'], fontName=dev_font, fontSize=11, leading=16, textColor=text_muted, spaceAfter=18)
     h1_style = ParagraphStyle('Heading1_Custom', parent=styles['Heading1'], fontName=dev_font, fontSize=15, leading=20, textColor=brand_navy, spaceBefore=14, spaceAfter=6, keepWithNext=True)
-    h2_style = ParagraphStyle('Heading2_Custom', parent=styles['Heading2'], fontName=dev_font, fontSize=11.5, leading=15, textColor=brand_emerald, spaceBefore=8, spaceAfter=4, keepWithNext=True)
     body_style = ParagraphStyle('Body_Custom', parent=styles['Normal'], fontName=dev_font, fontSize=9, leading=13.5, textColor=text_dark, spaceAfter=5)
-    bullet_style = ParagraphStyle('Bullet_Custom', parent=body_style, leftIndent=15, bulletIndent=5, spaceAfter=3.5)
     caption_style = ParagraphStyle('ImageCaption', parent=styles['Normal'], fontName=dev_font, fontSize=8, leading=11, textColor=text_muted, alignment=1, spaceBefore=4, spaceAfter=10)
 
     story = []
-
-    # Cover Page
     story.append(Spacer(1, 30))
-    badge_table = Table([[Paragraph("<b>STALLCART PARTNER ECOSYSTEM · विक्रेता सहयोग पोर्टल (Official Guide)</b>", ParagraphStyle('Badge', fontName=dev_font, fontSize=9, textColor=colors.HexColor('#047857')))]], colWidths=[310])
-    badge_table.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#ecfdf5')),
-        ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#a7f3d0')),
-        ('PADDING', (0,0), (-1,-1), 5),
-        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-    ]))
-    story.append(badge_table)
-    story.append(Spacer(1, 14))
-
     story.append(Paragraph("विक्रेता संचालन नियमावली और संपूर्ण गाइड<br/>Seller Operations Manual &amp; Partner Handbook", title_style))
-    story.append(Paragraph("<b>द्विभाषी संस्करण (Bilingual Hindi &amp; English Edition):</b> स्टॉलकार्ट पर विक्रेता पंजीकरण, उत्पाद लिस्टिंग, ऑर्डर पैकिंग प्रक्रिया (SOP) एवं बैंक सेटलमेंट की सचित्र मार्गदर्शिका।", subtitle_style))
+    story.append(Paragraph("StallCart Official Seller Operations Manual (Sample Demo Format).", subtitle_style))
     story.append(HRFlowable(width="100%", thickness=2, color=brand_primary, spaceBefore=4, spaceAfter=18))
 
-    meta_data = [
-        [Paragraph("<b>संस्करण:</b> Version 2.0 (Official)", body_style), Paragraph("<b>वेबसाइट:</b> https://stallcart.in", body_style)],
-        [Paragraph("<b>हेल्पलाइन:</b> +91 7307383046", body_style), Paragraph("<b>सपोर्ट ईमेल:</b> stallcartsupport@gmail.com", body_style)]
-    ]
-    meta_table = Table(meta_data, colWidths=[260, 260])
-    meta_table.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#f8fafc')),
-        ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#e2e8f0')),
-        ('PADDING', (0,0), (-1,-1), 7),
-    ]))
-    story.append(meta_table)
-    story.append(PageBreak())
-
-    # Module 1
-    story.append(Paragraph("मॉड्यूल 1: विक्रेता खाता पंजीकरण और बैंक KYC सत्यापन<br/>Module 1: Seller Onboarding &amp; Bank KYC Verification", h1_style))
-    story.append(Paragraph("<b>English:</b> Complete verified seller registration.<br/><b>हिंदी:</b> स्टॉलकार्ट पर सामान बेचने के लिए सबसे पहले विक्रेता पंजीकरण पूरा करें।", body_style))
     s1_path = os.path.join(SCREENSHOTS_DIR, 'screen_1_registration.png')
     story.append(RLImage(s1_path, width=520, height=295))
-    story.append(Paragraph("चित्र 1.1: स्टॉलकार्ट विक्रेता पंजीकरण स्क्रीन (Sample Demo Data)", caption_style))
+    story.append(Paragraph("Figure 1.1: StallCart Seller Registration (Sample Demo Data)", caption_style))
 
     doc.build(story, canvasmaker=NumberedCanvas)
 
 
 # ─────────────────────────────────────────────────────────────
-# 6. MASTER BUILD DISPATCHER
+# 6. MASTER BUILD DISPATCHER (BUILDS ALL 3 EDITIONS)
 # ─────────────────────────────────────────────────────────────
-def build_pdf():
-    print(f"Building Bilingual PDF at: {PDF_OUTPUT_PATH} ...")
-    
-    weasy_success = False
-    try:
-        import weasyprint
-        print("WeasyPrint detected! Rendering HTML with Pango & HarfBuzz font shaping engine...")
-        html_content = generate_html_manual()
-        weasyprint.HTML(string=html_content, base_url=SCREENSHOTS_DIR).write_pdf(PDF_OUTPUT_PATH)
-        print("✓ WeasyPrint PDF successfully built with flawless Devanagari shaping!")
-        weasy_success = True
-    except Exception as e:
-        print(f"[NOTE] WeasyPrint generation encountered: {e}")
-        print("Falling back to ReportLab builder for local environment preview...")
-        build_pdf_reportlab()
+def build_all_editions():
+    """
+    Compiles all 3 editions:
+    1. 'hindi'   -> StallCart_Seller_Manual_Hindi.pdf
+    2. 'english' -> StallCart_Seller_Manual_English.pdf
+    3. 'both'    -> StallCart_Seller_Manual.pdf (and StallCart_Seller_Manual_Bilingual.pdf)
+    """
+    editions = [
+        ('both', 'StallCart_Seller_Manual.pdf', 'Bilingual Edition (हिंदी + English)'),
+        ('hindi', 'StallCart_Seller_Manual_Hindi.pdf', 'Hindi Edition (🇮🇳 पूर्ण हिंदी संस्करण)'),
+        ('english', 'StallCart_Seller_Manual_English.pdf', 'English Edition (🇬🇧 Complete English)')
+    ]
 
-    if os.path.exists(PDF_OUTPUT_PATH):
-        shutil.copyfile(PDF_OUTPUT_PATH, MEDIA_PDF_PATH)
-        print(f"Copied to media path: {MEDIA_PDF_PATH}")
-        print(f"Final file size: {os.path.getsize(PDF_OUTPUT_PATH)} bytes")
-    else:
-        print("Error: PDF output was not created!")
+    for mode, filename, desc in editions:
+        static_dest = os.path.join(STATIC_DOCS_DIR, filename)
+        media_dest = os.path.join(MEDIA_MANUALS_DIR, filename)
+
+        print(f"\n--- Compiling {desc} -> {filename} ---")
+        compiled_ok = False
+        try:
+            import weasyprint
+            print("Rendering with WeasyPrint (HarfBuzz OpenType Devanagari shaping engine)...")
+            html = generate_html_manual(lang=mode)
+            weasyprint.HTML(string=html, base_url=SCREENSHOTS_DIR).write_pdf(static_dest)
+            print(f"✓ {filename} built successfully with WeasyPrint!")
+            compiled_ok = True
+        except Exception as e:
+            print(f"[NOTE] WeasyPrint generation encountered: {e}")
+            print("Falling back to ReportLab...")
+            build_pdf_reportlab(static_dest)
+
+        if os.path.exists(static_dest):
+            shutil.copyfile(static_dest, media_dest)
+            if mode == 'both':
+                # Also save bilingual alias
+                bilingual_alias = os.path.join(STATIC_DOCS_DIR, 'StallCart_Seller_Manual_Bilingual.pdf')
+                shutil.copyfile(static_dest, bilingual_alias)
+            print(f"✓ Copied to media path: {media_dest} ({os.path.getsize(static_dest)} bytes)")
+        else:
+            print(f"❌ Error: {filename} was not created!")
 
 
 def main():
@@ -1496,9 +1512,9 @@ def main():
     generate_screen_7_settlement_statement()
     print("All 7 screenshots generated successfully!")
 
-    print("=== Building Official Bilingual PDF Manual ===")
-    build_pdf()
-    print("=== All Steps Finished Successfully! ===")
+    print("\n=== Building 3 Official Seller Manual Editions (Hindi, English, Bilingual) ===")
+    build_all_editions()
+    print("\n=== All Manual Editions Finished Successfully! ===")
 
 
 if __name__ == '__main__':

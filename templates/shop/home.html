@@ -2766,11 +2766,24 @@ document.querySelectorAll('.btn-share').forEach(btn => {
         `,
         seller_manual: `
             <div class="chat-response-card" style="border-left: 4px solid #059669;">
-                <div class="card-header"><i class="fa fa-book text-success"></i> <span>StallCart Seller Operations Manual</span></div>
-                <p>Complete 8-module bilingual (Hindi &amp; English) handbook with step-by-step screenshots on Seller Registration, Listing Items, Packaging SOP, Courier Dispatch, and Bank Settlements with UTR audit trail.</p>
-                <div class="card-actions">
-                    <a href="/download/seller-manual/" download class="chat-card-btn success"><i class="fa fa-download"></i> Download Manual (PDF)</a>
-                    <a href="/download/seller-manual/?view=1" target="_blank" class="chat-card-btn secondary"><i class="fa fa-eye"></i> View Online</a>
+                <div class="card-header"><i class="fa fa-book text-success"></i> <span>StallCart Seller Operations Manual / विक्रेता नियमावली</span></div>
+                <p>Please choose your preferred language to download the official handbook / कृपया अपनी पसंदीदा भाषा चुनें:</p>
+                <div style="display: flex; flex-direction: column; gap: 8px; margin: 10px 0;">
+                    <a href="/download/seller-manual/?lang=hindi" download class="chat-card-btn success" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; font-size: 12px; text-decoration: none;">
+                        <span>🇮🇳 <strong>हिंदी संस्करण (Hindi Edition)</strong></span>
+                        <span><i class="fa fa-download"></i> Download</span>
+                    </a>
+                    <a href="/download/seller-manual/?lang=english" download class="chat-card-btn primary" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; font-size: 12px; text-decoration: none;">
+                        <span>🇬🇧 <strong>English Edition (Full English)</strong></span>
+                        <span><i class="fa fa-download"></i> Download</span>
+                    </a>
+                    <a href="/download/seller-manual/?lang=both" download class="chat-card-btn secondary" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; font-size: 12px; text-decoration: none; background: #f1f5f9; color: #1e293b; border: 1px solid #cbd5e1;">
+                        <span>🌐 <strong>Both / Bilingual (हिंदी + English)</strong></span>
+                        <span><i class="fa fa-download"></i> Download</span>
+                    </a>
+                </div>
+                <div style="text-align: right; margin-top: 4px;">
+                    <a href="/seller-manual/?view=1" target="_blank" style="font-size: 11px; color: #64748b; text-decoration: underline;"><i class="fa fa-eye"></i> Preview Online in Browser</a>
                 </div>
             </div>
         `,
@@ -2963,6 +2976,5 @@ document.querySelectorAll('.btn-share').forEach(btn => {
             }
         }, { passive: true });
     }
-})();
 </script>
 {% endblock %}

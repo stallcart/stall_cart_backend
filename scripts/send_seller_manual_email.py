@@ -87,11 +87,13 @@ def send_manual_email(recipients=None):
     </div>
 
     <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 14px; margin: 20px 0; color: #065f46;">
-      <strong>✅ Attached Document:</strong> StallCart_Seller_Manual.pdf (Attached below, ~470 KB)<br>
-      <strong>🌐 Live Download Link:</strong> <a href="https://stallcart.in/download/seller-manual/" style="color: #059669; font-weight: 700;">https://stallcart.in/download/seller-manual/</a>
+      <strong>✅ Available Editions / 3 भाषा विकल्प उपलब्ध:</strong><br>
+      • 🇮🇳 <strong>Hindi Edition:</strong> <a href="https://stallcart.in/download/seller-manual/?lang=hindi" style="color: #059669; font-weight: 700;">https://stallcart.in/download/seller-manual/?lang=hindi</a><br>
+      • 🇬🇧 <strong>English Edition:</strong> <a href="https://stallcart.in/download/seller-manual/?lang=english" style="color: #2563eb; font-weight: 700;">https://stallcart.in/download/seller-manual/?lang=english</a><br>
+      • 🌐 <strong>Bilingual (Both):</strong> <a href="https://stallcart.in/download/seller-manual/?lang=both" style="color: #4f46e5; font-weight: 700;">https://stallcart.in/download/seller-manual/?lang=both</a>
     </div>
 
-    <p style="font-size: 13px; color: #64748b;">This PDF manual is also available via one-click download directly inside the <strong>StallCart Admin Panel</strong> (Header, Verify Sellers, Orders, and Settlements dashboard) and the <strong>Seller Dashboard</strong>.</p>
+    <p style="font-size: 13px; color: #64748b;">All PDF manuals are attached to this email and are also downloadable via the <strong>StallCart AI Chatbot</strong> and the <strong>Admin & Seller Navigation Panels</strong>.</p>
   </div>
   <div class="footer">
     <strong>{site_name}</strong> &bull; India's Premier Online Marketplace<br>
@@ -111,10 +113,22 @@ def send_manual_email(recipients=None):
     )
     msg.content_subtype = "html"
     
-    with open(pdf_path, 'rb') as f:
-        msg.attach('StallCart_Seller_Manual.pdf', f.read(), 'application/pdf')
+    # Attach all available manual editions
+    attachments = [
+        ('StallCart_Seller_Manual_Hindi.pdf', 'StallCart_Seller_Manual_Hindi.pdf'),
+        ('StallCart_Seller_Manual_English.pdf', 'StallCart_Seller_Manual_English.pdf'),
+        ('StallCart_Seller_Manual.pdf', 'StallCart_Seller_Manual_Bilingual.pdf'),
+    ]
+    for src_name, attach_name in attachments:
+        p = os.path.join(BASE_DIR, 'static', 'docs', src_name)
+        if not os.path.exists(p):
+            p = os.path.join(BASE_DIR, 'media', 'manuals', src_name)
+        if os.path.exists(p):
+            with open(p, 'rb') as f:
+                msg.attach(attach_name, f.read(), 'application/pdf')
+                print(f"Attached: {attach_name} ({os.path.getsize(p)} bytes)")
 
-    print(f"Sending email with attached PDF to {recipients} from {from_email}...")
+    print(f"Sending email with attached PDFs to {recipients} from {from_email}...")
     sent = msg.send(fail_silently=False)
     print(f"Email sent successfully! Result: {sent}")
     return sent

@@ -331,18 +331,37 @@ def download_app_view(request):
 def download_seller_manual_view(request):
     """
     Universal endpoint for downloading StallCart Official Seller Operations Manual (PDF).
-    URL: /download/seller-manual/ or /seller-manual/
+    Supports Hindi, English, and Bilingual editions:
+    URL: /download/seller-manual/?lang=hindi
+         /download/seller-manual/?lang=english
+         /download/seller-manual/?lang=both (default)
     """
     from django.http import FileResponse, Http404
-    pdf_path = os.path.join(settings.BASE_DIR, 'static', 'docs', 'StallCart_Seller_Manual.pdf')
+    lang = request.GET.get('lang', 'both').lower().strip()
+    
+    if lang in ['hi', 'hindi']:
+        filename = 'StallCart_Seller_Manual_Hindi.pdf'
+        download_name = 'StallCart_Seller_Operations_Manual_Hindi.pdf'
+    elif lang in ['en', 'english']:
+        filename = 'StallCart_Seller_Manual_English.pdf'
+        download_name = 'StallCart_Seller_Operations_Manual_English.pdf'
+    else:
+        filename = 'StallCart_Seller_Manual.pdf'
+        download_name = 'StallCart_Seller_Operations_Manual_Bilingual.pdf'
+
+    pdf_path = os.path.join(settings.BASE_DIR, 'static', 'docs', filename)
     if not os.path.exists(pdf_path):
-        pdf_path = os.path.join(settings.MEDIA_ROOT, 'manuals', 'StallCart_Seller_Manual.pdf')
+        pdf_path = os.path.join(settings.MEDIA_ROOT, 'manuals', filename)
+    
+    # Fallback to general manual if requested specific language file is not yet compiled
+    if not os.path.exists(pdf_path):
+        pdf_path = os.path.join(settings.BASE_DIR, 'static', 'docs', 'StallCart_Seller_Manual.pdf')
         if not os.path.exists(pdf_path):
-            raise Http404("Seller Operations Manual PDF is currently being updated. Please check back shortly.")
+            pdf_path = os.path.join(settings.MEDIA_ROOT, 'manuals', 'StallCart_Seller_Manual.pdf')
+            if not os.path.exists(pdf_path):
+                raise Http404("Seller Operations Manual PDF is currently being updated. Please check back shortly.")
 
     response = FileResponse(open(pdf_path, 'rb'), content_type='application/pdf')
-    if request.GET.get('view') == '1':
-        response['Content-Disposition'] = 'inline; filename="StallCart_Seller_Operations_Manual.pdf"'
-    else:
-        response['Content-Disposition'] = 'attachment; filename="StallCart_Seller_Operations_Manual.pdf"'
+    disposition = 'inline' if request.GET.get('view') == '1' else 'attachment'
+    response['Content-Disposition'] = f'{disposition}; filename="{download_name}"'
     return response
