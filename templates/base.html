@@ -267,6 +267,10 @@
                             <a href="{% url 'orders:my_orders' %}" role="menuitem">
                                 <i class="fa fa-box"></i> My Orders
                             </a>
+                        {% if user.is_seller or user.is_superuser or user.is_staff %}
+                            <a href="{% url 'download_seller_manual' %}" role="menuitem" target="_blank" download>
+                                <i class="fa fa-book" style="color: #4f46e5;"></i> Seller Manual (PDF)
+                            </a>
                         {% endif %}
                         <div class="dropdown-divider"></div>
                         <form action="{% url 'accounts:logout' %}" method="post">
@@ -490,6 +494,10 @@
                         Seller Payouts & Settlements
                     </a>
                 {% endif %}
+                <a href="{% url 'download_seller_manual' %}" class="mobile-nav-item" target="_blank" download>
+                    <span class="mobile-nav-icon" style="color: #4f46e5;"><i class="fa fa-book"></i></span>
+                    Seller Manual (PDF)
+                </a>
             {% endif %}
         {% endif %}
 

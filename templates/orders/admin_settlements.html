@@ -25,7 +25,10 @@
                 Manage platform payouts to registered sellers, bank transfers, RazorpayX disbursements, and commission audits.
             </p>
         </div>
-        <div>
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <a href="{% url 'download_seller_manual' %}" style="text-decoration: none; padding: 8px 16px; font-size: 0.85rem; font-weight: 700; border-radius: var(--r-md); background: linear-gradient(135deg, #4f46e5, #4338ca); color: white; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(79,70,229,0.25);" target="_blank" download>
+                <i class="fa fa-book"></i> Seller Manual (PDF)
+            </a>
             <a href="{% url 'orders:admin_orders' %}" class="btn-outline" style="text-decoration: none; padding: 8px 16px; font-size: 0.85rem; font-weight: 700; border-radius: var(--r-md); border: 1.5px solid var(--gray-200); color: var(--gray-700); background: white; display: inline-flex; align-items: center; gap: 6px;">
                 <i class="fa fa-shopping-bag"></i> View Orders
             </a>
