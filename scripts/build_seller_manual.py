@@ -87,7 +87,7 @@ def draw_browser_frame(d, width, height, title, url):
     url_box_right = width - 20
     d.rounded_rectangle([(url_box_left, 6), (url_box_right, 32)], radius=5, fill=(255, 255, 255), outline=(203, 213, 225), width=1)
     font_url = get_pillow_font(11, bold=False)
-    d.text((url_box_left + 10, 10), f"🔒 {url}", fill=(100, 116, 139), font=font_url)
+    d.text((url_box_left + 12, 10), url, fill=(100, 116, 139), font=font_url)
 
 
 def draw_stallcart_header(d, width, active_nav='seller'):
@@ -99,8 +99,8 @@ def draw_stallcart_header(d, width, active_nav='seller'):
     # 1. Top Announcement Bar (height: 24px)
     d.rectangle([(0, 39), (width, 63)], fill=(15, 23, 42))
     ann_font = get_pillow_font(10, bold=False)
-    ann_text = "⚡ Free delivery on orders above ₹499   ·   ↩ 7-day easy returns   ·   🛡 100% genuine products"
-    d.text((width // 2 - 210, 44), ann_text, fill=(241, 245, 249), font=ann_font)
+    ann_text = "Free delivery on orders above Rs. 499   |   7-day easy returns   |   100% genuine products"
+    d.text((width // 2 - 215, 44), ann_text, fill=(241, 245, 249), font=ann_font)
 
     # 2. Main StallCart Navbar (height: 52px)
     d.rectangle([(0, 64), (width, 116)], fill=(255, 255, 255))
@@ -115,7 +115,7 @@ def draw_stallcart_header(d, width, active_nav='seller'):
     s_box_left = 145
     s_box_right = 530
     d.rounded_rectangle([(s_box_left, 74), (s_box_right, 106)], radius=6, fill=(248, 250, 252), outline=(203, 213, 225), width=1)
-    d.text((s_box_left + 12, 82), "🔍 Search products, sellers, brands…", fill=(148, 163, 184), font=get_pillow_font(11, bold=False))
+    d.text((s_box_left + 14, 82), "Search products, categories, brands...", fill=(148, 163, 184), font=get_pillow_font(11, bold=False))
     d.rounded_rectangle([(s_box_right - 65, 74), (s_box_right, 106)], radius=6, fill=(40, 116, 240))
     d.text((s_box_right - 52, 82), "Search", fill=(255, 255, 255), font=get_pillow_font(11, bold=True))
 
@@ -125,23 +125,23 @@ def draw_stallcart_header(d, width, active_nav='seller'):
     # Seller Panel
     if active_nav == 'seller':
         d.rounded_rectangle([(550, 77), (645, 103)], radius=5, fill=(239, 246, 255))
-        d.text((560, 82), "🏪 Seller Panel", fill=(37, 99, 235), font=nav_font)
+        d.text((562, 82), "Seller Panel", fill=(37, 99, 235), font=nav_font)
     else:
-        d.text((560, 82), "🏪 Seller Panel", fill=(71, 85, 105), font=nav_font)
+        d.text((562, 82), "Seller Panel", fill=(71, 85, 105), font=nav_font)
 
     # Manage Orders
     if active_nav == 'orders':
         d.rounded_rectangle([(655, 77), (765, 103)], radius=5, fill=(239, 246, 255))
-        d.text((665, 82), "📋 Manage Orders", fill=(37, 99, 235), font=nav_font)
+        d.text((667, 82), "Manage Orders", fill=(37, 99, 235), font=nav_font)
     else:
-        d.text((665, 82), "📋 Manage Orders", fill=(71, 85, 105), font=nav_font)
+        d.text((667, 82), "Manage Orders", fill=(71, 85, 105), font=nav_font)
 
     # Payouts
     if active_nav == 'payouts':
         d.rounded_rectangle([(775, 77), (850, 103)], radius=5, fill=(236, 253, 245))
-        d.text((785, 82), "💸 Payouts", fill=(5, 150, 105), font=nav_font)
+        d.text((787, 82), "Payouts", fill=(5, 150, 105), font=nav_font)
     else:
-        d.text((785, 82), "💸 Payouts", fill=(71, 85, 105), font=nav_font)
+        d.text((787, 82), "Payouts", fill=(71, 85, 105), font=nav_font)
 
     # User Profile Avatar (Sample Demo Seller / Admin)
     d.ellipse([(width - 110, 75), (width - 78, 107)], fill=(40, 116, 240))
@@ -162,52 +162,52 @@ def generate_screen_1_registration():
     draw_stallcart_header(d, w, active_nav='seller')
     
     # Subheader / Breadcrumb
-    d.text((30, 130), "Seller Partner Onboarding · विक्रेता पंजीकरण (Sample Demo Profile)", fill=(15, 23, 42), font=get_pillow_font(16, bold=True))
+    d.text((30, 130), "Seller Partner Onboarding · Merchant Profile (Sample Demo Profile)", fill=(15, 23, 42), font=get_pillow_font(16, bold=True))
     d.rounded_rectangle([(w - 180, 126), (w - 30, 152)], radius=12, fill=(236, 253, 245), outline=(167, 243, 208), width=1)
-    d.text((w - 165, 132), "● KYC Approved ✓", fill=(4, 120, 87), font=get_pillow_font(11, bold=True))
+    d.text((w - 165, 132), "KYC Approved ✓", fill=(4, 120, 87), font=get_pillow_font(11, bold=True))
 
     # Card 1: Shop & Pickup Details
     d.rounded_rectangle([(30, 165), (w - 30, 345)], radius=10, fill=(255, 255, 255), outline=(226, 232, 240), width=1)
     d.rectangle([(30, 165), (w - 30, 198)], fill=(241, 245, 249))
-    d.text((45, 175), "1. Business & Pickup Warehouse Details (दुकान एवं पिकअप पता)", fill=(30, 41, 59), font=get_pillow_font(13, bold=True))
+    d.text((45, 175), "1. Business & Pickup Warehouse Details", fill=(30, 41, 59), font=get_pillow_font(13, bold=True))
     
-    d.text((45, 210), "Shop Name (दुकान का नाम) *", fill=(71, 85, 105), font=get_pillow_font(11, bold=True))
+    d.text((45, 210), "Shop Name *", fill=(71, 85, 105), font=get_pillow_font(11, bold=True))
     d.rounded_rectangle([(45, 226), (460, 258)], radius=5, fill=(248, 250, 252), outline=(203, 213, 225), width=1)
     d.text((58, 234), "Apex Trends Fashion Hub (Sample Demo Store)", fill=(15, 23, 42), font=get_pillow_font(12, bold=False))
     
-    d.text((490, 210), "Seller Phone / WhatsApp (मोबाइल नंबर) *", fill=(71, 85, 105), font=get_pillow_font(11, bold=True))
+    d.text((490, 210), "Seller Phone / WhatsApp *", fill=(71, 85, 105), font=get_pillow_font(11, bold=True))
     d.rounded_rectangle([(490, 226), (935, 258)], radius=5, fill=(248, 250, 252), outline=(203, 213, 225), width=1)
     d.text((503, 234), "+91 98000 12345 (OTP Verified ✓)", fill=(5, 150, 105), font=get_pillow_font(12, bold=True))
 
-    d.text((45, 272), "Pickup Warehouse Address (कूरियर पिकअप गोदाम) *", fill=(71, 85, 105), font=get_pillow_font(11, bold=True))
+    d.text((45, 272), "Pickup Warehouse Address *", fill=(71, 85, 105), font=get_pillow_font(11, bold=True))
     d.rounded_rectangle([(45, 288), (620, 320)], radius=5, fill=(248, 250, 252), outline=(203, 213, 225), width=1)
     d.text((58, 296), "Plot No. 104, Industrial Area, Sector 5, Indore, Madhya Pradesh", fill=(15, 23, 42), font=get_pillow_font(12, bold=False))
     
-    d.text((645, 272), "Pickup Pincode (पिनकोड) *", fill=(71, 85, 105), font=get_pillow_font(11, bold=True))
+    d.text((645, 272), "Pickup Pincode *", fill=(71, 85, 105), font=get_pillow_font(11, bold=True))
     d.rounded_rectangle([(645, 288), (935, 320)], radius=5, fill=(248, 250, 252), outline=(203, 213, 225), width=1)
     d.text((658, 296), "452001 (Delhivery Express Serviceable ✓)", fill=(5, 150, 105), font=get_pillow_font(12, bold=True))
 
     # Card 2: Bank Account Details for Payouts
     d.rounded_rectangle([(30, 360), (w - 30, 520)], radius=10, fill=(255, 255, 255), outline=(226, 232, 240), width=1)
     d.rectangle([(30, 360), (w - 30, 393)], fill=(241, 245, 249))
-    d.text((45, 370), "2. Bank Account for Automated Payouts (पेआउट बैंक खाता विवरण - Sample)", fill=(30, 41, 59), font=get_pillow_font(13, bold=True))
+    d.text((45, 370), "2. Bank Account Details for Automated Payouts (Sample)", fill=(30, 41, 59), font=get_pillow_font(13, bold=True))
     
-    d.text((45, 405), "Bank Name (बैंक का नाम) *", fill=(71, 85, 105), font=get_pillow_font(11, bold=True))
+    d.text((45, 405), "Bank Name *", fill=(71, 85, 105), font=get_pillow_font(11, bold=True))
     d.rounded_rectangle([(45, 421), (320, 453)], radius=5, fill=(248, 250, 252), outline=(203, 213, 225), width=1)
     d.text((58, 429), "HDFC Bank (Sample Demo)", fill=(15, 23, 42), font=get_pillow_font(12, bold=False))
     
-    d.text((345, 405), "Account Number (खाता संख्या) *", fill=(71, 85, 105), font=get_pillow_font(11, bold=True))
+    d.text((345, 405), "Account Number *", fill=(71, 85, 105), font=get_pillow_font(11, bold=True))
     d.rounded_rectangle([(345, 421), (640, 453)], radius=5, fill=(248, 250, 252), outline=(203, 213, 225), width=1)
     d.text((358, 429), "50100492815678 (••••5678 Encrypted)", fill=(15, 23, 42), font=get_pillow_font(12, bold=False))
 
-    d.text((665, 405), "IFSC Code (आईएफएससी कोड) *", fill=(71, 85, 105), font=get_pillow_font(11, bold=True))
+    d.text((665, 405), "IFSC Code *", fill=(71, 85, 105), font=get_pillow_font(11, bold=True))
     d.rounded_rectangle([(665, 421), (935, 453)], radius=5, fill=(248, 250, 252), outline=(203, 213, 225), width=1)
     d.text((678, 429), "HDFC0001234 (Verified ✓)", fill=(5, 150, 105), font=get_pillow_font(12, bold=True))
 
     # Bottom Submit Action
     d.rounded_rectangle([(45, 470), (280, 504)], radius=6, fill=(40, 116, 240))
-    d.text((65, 480), "✓ Save & Submit Profile (जमा करें)", fill=(255, 255, 255), font=get_pillow_font(12, bold=True))
-    d.text((305, 482), "🔒 All bank details are 256-bit encrypted for automated NEFT/RazorpayX disbursements.", fill=(100, 116, 139), font=get_pillow_font(11, bold=False))
+    d.text((65, 480), "✓ Save & Submit Profile", fill=(255, 255, 255), font=get_pillow_font(12, bold=True))
+    d.text((305, 482), "All bank details are 256-bit encrypted for automated NEFT/RazorpayX disbursements.", fill=(100, 116, 139), font=get_pillow_font(11, bold=False))
 
     path = os.path.join(SCREENSHOTS_DIR, 'screen_1_registration.png')
     img.save(path)
@@ -223,41 +223,41 @@ def generate_screen_2_product_listing():
     draw_stallcart_header(d, w, active_nav='seller')
     
     # Page Header
-    d.text((30, 130), "Add New Product (नया उत्पाद कैटलॉग में जोड़ें)", fill=(15, 23, 42), font=get_pillow_font(16, bold=True))
-    d.text((450, 133), "Apex Trends Catalog · Category Commission: 15%", fill=(37, 99, 235), font=get_pillow_font(12, bold=True))
+    d.text((30, 130), "Add New Product to Store Catalog (Sample Demo)", fill=(15, 23, 42), font=get_pillow_font(16, bold=True))
+    d.text((500, 133), "Apex Trends Catalog · Category Commission: 15%", fill=(37, 99, 235), font=get_pillow_font(12, bold=True))
 
     # Left Column: Basic Info & Pricing
     d.rounded_rectangle([(30, 160), (560, h - 25)], radius=10, fill=(255, 255, 255), outline=(226, 232, 240), width=1)
     d.rectangle([(30, 160), (560, 192)], fill=(241, 245, 249))
-    d.text((45, 170), "Product Information & Pricing (उत्पाद विवरण एवं मूल्य)", fill=(30, 41, 59), font=get_pillow_font(13, bold=True))
+    d.text((45, 170), "Product Information & Pricing", fill=(30, 41, 59), font=get_pillow_font(13, bold=True))
     
-    d.text((45, 205), "Product Name (उत्पाद का नाम) *", fill=(71, 85, 105), font=get_pillow_font(11, bold=True))
+    d.text((45, 205), "Product Name *", fill=(71, 85, 105), font=get_pillow_font(11, bold=True))
     d.rounded_rectangle([(45, 221), (545, 253)], radius=5, fill=(248, 250, 252), outline=(203, 213, 225), width=1)
     d.text((58, 229), "Men's Classic Slim Fit Cotton Casual Shirt (Navy Blue)", fill=(15, 23, 42), font=get_pillow_font(12, bold=False))
     
-    d.text((45, 265), "Category (श्रेणी) *", fill=(71, 85, 105), font=get_pillow_font(11, bold=True))
+    d.text((45, 265), "Category *", fill=(71, 85, 105), font=get_pillow_font(11, bold=True))
     d.rounded_rectangle([(45, 281), (285, 313)], radius=5, fill=(248, 250, 252), outline=(203, 213, 225), width=1)
     d.text((58, 289), "Men's Fashion & Apparel", fill=(15, 23, 42), font=get_pillow_font(12, bold=False))
     
-    d.text((305, 265), "Brand (ब्रांड)", fill=(71, 85, 105), font=get_pillow_font(11, bold=True))
+    d.text((305, 265), "Brand Name", fill=(71, 85, 105), font=get_pillow_font(11, bold=True))
     d.rounded_rectangle([(305, 281), (545, 313)], radius=5, fill=(248, 250, 252), outline=(203, 213, 225), width=1)
     d.text((318, 289), "Apex Trends (Sample Brand)", fill=(15, 23, 42), font=get_pillow_font(12, bold=False))
 
     # Pricing Row
-    d.text((45, 325), "MRP (अधिकतम मूल्य) *", fill=(71, 85, 105), font=get_pillow_font(11, bold=True))
+    d.text((45, 325), "MRP (Maximum Retail Price) *", fill=(71, 85, 105), font=get_pillow_font(11, bold=True))
     d.rounded_rectangle([(45, 341), (195, 373)], radius=5, fill=(248, 250, 252), outline=(203, 213, 225), width=1)
-    d.text((58, 349), "₹ 999.00", fill=(15, 23, 42), font=get_pillow_font(12, bold=False))
+    d.text((58, 349), "Rs. 999.00", fill=(15, 23, 42), font=get_pillow_font(12, bold=False))
     
-    d.text((215, 325), "Selling Price (बिक्री मूल्य) *", fill=(71, 85, 105), font=get_pillow_font(11, bold=True))
+    d.text((215, 325), "Selling Price (Online Discount) *", fill=(71, 85, 105), font=get_pillow_font(11, bold=True))
     d.rounded_rectangle([(215, 341), (375, 373)], radius=5, fill=(236, 253, 245), outline=(167, 243, 208), width=1)
-    d.text((228, 349), "₹ 499.00 (50% OFF)", fill=(4, 120, 87), font=get_pillow_font(12, bold=True))
+    d.text((228, 349), "Rs. 499.00 (50% OFF)", fill=(4, 120, 87), font=get_pillow_font(12, bold=True))
 
-    d.text((395, 325), "Stock Qty (स्टॉक) *", fill=(71, 85, 105), font=get_pillow_font(11, bold=True))
+    d.text((395, 325), "Total Stock Units *", fill=(71, 85, 105), font=get_pillow_font(11, bold=True))
     d.rounded_rectangle([(395, 341), (545, 373)], radius=5, fill=(248, 250, 252), outline=(203, 213, 225), width=1)
     d.text((408, 349), "100 Units", fill=(15, 23, 42), font=get_pillow_font(12, bold=False))
 
     # Description Box
-    d.text((45, 385), "Product Highlights & Description (उत्पाद विवरण)", fill=(71, 85, 105), font=get_pillow_font(11, bold=True))
+    d.text((45, 385), "Product Highlights & Description", fill=(71, 85, 105), font=get_pillow_font(11, bold=True))
     d.rounded_rectangle([(45, 401), (545, 500)], radius=5, fill=(248, 250, 252), outline=(203, 213, 225), width=1)
     d.text((58, 410), "• 100% Breathable Combed Cotton fabric.", fill=(71, 85, 105), font=get_pillow_font(11, bold=False))
     d.text((58, 430), "• Spread collar with curved hemline, machine wash.", fill=(71, 85, 105), font=get_pillow_font(11, bold=False))
@@ -267,10 +267,10 @@ def generate_screen_2_product_listing():
     # Right Column: Variant & Media Gallery
     d.rounded_rectangle([(585, 160), (w - 30, h - 25)], radius=10, fill=(255, 255, 255), outline=(226, 232, 240), width=1)
     d.rectangle([(585, 160), (w - 30, 192)], fill=(241, 245, 249))
-    d.text((600, 170), "Sizes, Color Variants & Images (वेरिएंट और फोटो)", fill=(30, 41, 59), font=get_pillow_font(13, bold=True))
+    d.text((600, 170), "Size Variants & Product Photos", fill=(30, 41, 59), font=get_pillow_font(13, bold=True))
 
     # Variants Table
-    d.text((600, 205), "Active Variants Matrix (साइज व रंग)", fill=(71, 85, 105), font=get_pillow_font(11, bold=True))
+    d.text((600, 205), "Active Variants Matrix", fill=(71, 85, 105), font=get_pillow_font(11, bold=True))
     d.rounded_rectangle([(600, 221), (w - 45, 335)], radius=6, fill=(248, 250, 252), outline=(226, 232, 240), width=1)
     
     # Table header
@@ -294,16 +294,16 @@ def generate_screen_2_product_listing():
         vy += 26
 
     # Product Images Area
-    d.text((600, 350), "Product Photography (न्यूनतम 3 साफ तस्वीरें अपलोड करें)", fill=(71, 85, 105), font=get_pillow_font(11, bold=True))
+    d.text((600, 350), "Product Photography (Upload min. 3 clean photos)", fill=(71, 85, 105), font=get_pillow_font(11, bold=True))
     for i, label in enumerate(["1. Front View", "2. Side Angle", "3. Fabric Detail"]):
         ix = 600 + i * 115
         d.rounded_rectangle([(ix, 370), (ix + 105, 475)], radius=6, fill=(241, 245, 249), outline=(203, 213, 225), width=1)
-        d.rectangle([(ix + 20, 390), (ix + 85, 435)], fill=(203, 213, 225))
-        d.text((ix + 35, 405), "👕", font=get_pillow_font(20, bold=False))
+        d.rectangle([(ix + 15, 385), (ix + 90, 440)], fill=(226, 232, 240), outline=(203, 213, 225), width=1)
+        d.text((ix + 28, 405), "PHOTO", fill=(148, 163, 184), font=get_pillow_font(10, bold=True))
         d.text((ix + 12, 450), label, fill=(100, 116, 139), font=get_pillow_font(9, bold=False))
 
     # Bottom Actions
-    d.rounded_rectangle([(45, 515), (260, 550)], radius=6, fill=(40, 116, 240))
+    d.rounded_rectangle([(45, 515), (280, 550)], radius=6, fill=(40, 116, 240))
     d.text((65, 526), "✓ Publish to StallCart Catalog", fill=(255, 255, 255), font=get_pillow_font(12, bold=True))
     
     path = os.path.join(SCREENSHOTS_DIR, 'screen_2_product_listing.png')
@@ -320,7 +320,7 @@ def generate_screen_3_orders_dashboard():
     draw_stallcart_header(d, w, active_nav='orders')
     
     # Subheader
-    d.text((30, 130), "Seller Orders Management (प्राप्त ऑर्डर्स और डिस्पैच स्थिति)", fill=(15, 23, 42), font=get_pillow_font(16, bold=True))
+    d.text((30, 130), "Seller Orders Management & Dispatch Dashboard (Sample Demo)", fill=(15, 23, 42), font=get_pillow_font(16, bold=True))
 
     # Metric Cards Row
     cards = [
@@ -362,8 +362,8 @@ def generate_screen_3_orders_dashboard():
     d.text((540, 295), "Rahul Sharma (Sample Buyer)", fill=(15, 23, 42), font=get_pillow_font(11, bold=False))
     d.text((540, 312), "Bhopal, MP (PIN: 462001)", fill=(100, 116, 139), font=get_pillow_font(10, bold=False))
 
-    d.text((700, 295), "₹ 499.00", fill=(15, 23, 42), font=get_pillow_font(12, bold=True))
-    d.text((700, 312), "Comm: ₹74.85", fill=(100, 116, 139), font=get_pillow_font(9, bold=False))
+    d.text((700, 295), "Rs. 499.00", fill=(15, 23, 42), font=get_pillow_font(12, bold=True))
+    d.text((700, 312), "Comm: Rs. 74.85", fill=(100, 116, 139), font=get_pillow_font(9, bold=False))
 
     # Action Button for New Order: Accept & Pack
     d.rounded_rectangle([(790, 292), (935, 324)], radius=5, fill=(40, 116, 240))
@@ -384,18 +384,18 @@ def generate_screen_3_orders_dashboard():
     d.text((540, 355), "Pooja Verma (Sample Buyer)", fill=(15, 23, 42), font=get_pillow_font(11, bold=False))
     d.text((540, 372), "Jaipur, RJ (PIN: 302001)", fill=(100, 116, 139), font=get_pillow_font(10, bold=False))
 
-    d.text((700, 355), "₹ 499.00", fill=(15, 23, 42), font=get_pillow_font(12, bold=True))
-    d.text((700, 372), "Net: ₹424.15", fill=(5, 150, 105), font=get_pillow_font(9, bold=True))
+    d.text((700, 355), "Rs. 499.00", fill=(15, 23, 42), font=get_pillow_font(12, bold=True))
+    d.text((700, 372), "Net: Rs. 424.15", fill=(5, 150, 105), font=get_pillow_font(9, bold=True))
 
     d.rounded_rectangle([(790, 352), (935, 384)], radius=5, fill=(236, 253, 245), outline=(167, 243, 208), width=1)
     d.text((805, 361), "Delivered (OTP Verified ✓)", fill=(4, 120, 87), font=get_pillow_font(9, bold=True))
 
     # Helper Banner
     d.rounded_rectangle([(45, 430), (w - 45, 530)], radius=8, fill=(239, 246, 255), outline=(191, 219, 254), width=1)
-    d.text((65, 445), "💡 विक्रेता के लिए आवश्यक दिशानिर्देश (Quick Seller Operational Rule):", fill=(30, 58, 138), font=get_pillow_font(12, bold=True))
-    d.text((65, 468), "1. नया ऑर्डर आने के 24 घंटे के भीतर 'Accept & Pack Order' पर क्लिक करके पैकेट पैक करें।", fill=(30, 41, 59), font=get_pillow_font(11, bold=False))
-    d.text((65, 488), "2. 'Ready for Pickup' मार्क करते ही कूरियर राइडर 1 कार्यदिवस में आपके गोदाम पर आ जाएगा।", fill=(30, 41, 59), font=get_pillow_font(11, bold=False))
-    d.text((65, 508), "3. डिलीवरी के समय ग्राहक राइडर को 4-अंकीय ओटीपी देगा, जिससे फर्जी दावों की कोई गुंजाइश नहीं रहती।", fill=(30, 41, 59), font=get_pillow_font(11, bold=False))
+    d.text((65, 445), "Important Operational Rules for StallCart Sellers:", fill=(30, 58, 138), font=get_pillow_font(12, bold=True))
+    d.text((65, 468), "1. Accept and pack new orders within 24 hours of notification.", fill=(30, 41, 59), font=get_pillow_font(11, bold=False))
+    d.text((65, 488), "2. Mark 'Ready for Pickup' so courier rider can collect within 1 business day.", fill=(30, 41, 59), font=get_pillow_font(11, bold=False))
+    d.text((65, 508), "3. OTP delivery guarantees protection against fraudulent non-delivery claims.", fill=(30, 41, 59), font=get_pillow_font(11, bold=False))
 
     path = os.path.join(SCREENSHOTS_DIR, 'screen_3_orders_dashboard.png')
     img.save(path)
@@ -411,12 +411,12 @@ def generate_screen_4_packing_sop():
     draw_stallcart_header(d, w, active_nav='orders')
     
     # Subheader
-    d.text((30, 130), "Packaging SOP & Tax Invoice Protocol (मानक पैकिंग प्रक्रिया एवं इनवॉइस)", fill=(15, 23, 42), font=get_pillow_font(16, bold=True))
+    d.text((30, 130), "Packaging SOP & Official Tax Invoice Protocol (Sample Demo)", fill=(15, 23, 42), font=get_pillow_font(16, bold=True))
 
     # Left Container: Printable Official Invoice
     d.rounded_rectangle([(30, 160), (460, h - 25)], radius=10, fill=(255, 255, 255), outline=(203, 213, 225), width=1)
     d.rectangle([(30, 160), (460, 195)], fill=(15, 23, 42))
-    d.text((45, 172), "StallCart Official Tax Invoice (नमूना इनवॉइस)", fill=(255, 255, 255), font=get_pillow_font(11, bold=True))
+    d.text((45, 172), "StallCart Official Tax Invoice (Sample Demo)", fill=(255, 255, 255), font=get_pillow_font(11, bold=True))
     
     # Invoice Inner Content
     d.text((45, 210), "TAX INVOICE / BILL OF SUPPLY", fill=(15, 23, 42), font=get_pillow_font(12, bold=True))
@@ -444,15 +444,15 @@ def generate_screen_4_packing_sop():
 
     d.text((45, 350), "Men's Classic Cotton Casual Shirt (L)", fill=(15, 23, 42), font=get_pillow_font(9, bold=False))
     d.text((275, 350), "1", fill=(15, 23, 42), font=get_pillow_font(9, bold=False))
-    d.text((320, 350), "₹475.24", fill=(15, 23, 42), font=get_pillow_font(9, bold=False))
-    d.text((390, 350), "₹475.24", fill=(15, 23, 42), font=get_pillow_font(9, bold=False))
+    d.text((320, 350), "Rs. 475.24", fill=(15, 23, 42), font=get_pillow_font(9, bold=False))
+    d.text((390, 350), "Rs. 475.24", fill=(15, 23, 42), font=get_pillow_font(9, bold=False))
 
     d.text((45, 370), "CGST (2.5%) + SGST (2.5%)", fill=(100, 116, 139), font=get_pillow_font(9, bold=False))
-    d.text((390, 370), "₹23.76", fill=(100, 116, 139), font=get_pillow_font(9, bold=False))
+    d.text((390, 370), "Rs. 23.76", fill=(100, 116, 139), font=get_pillow_font(9, bold=False))
 
     d.line([(45, 390), (445, 390)], fill=(203, 213, 225), width=1)
     d.text((45, 400), "Grand Total (Prepaid Paid in Full):", fill=(15, 23, 42), font=get_pillow_font(10, bold=True))
-    d.text((385, 400), "₹ 499.00", fill=(5, 150, 105), font=get_pillow_font(12, bold=True))
+    d.text((385, 400), "Rs. 499.00", fill=(5, 150, 105), font=get_pillow_font(12, bold=True))
 
     # AWB Barcode Simulation on parcel
     d.rounded_rectangle([(45, 430), (445, 530)], radius=6, fill=(248, 250, 252), outline=(203, 213, 225), width=1)
@@ -467,24 +467,20 @@ def generate_screen_4_packing_sop():
     # Right Container: 5 Golden Packing Steps SOP
     d.rounded_rectangle([(485, 160), (w - 30, h - 25)], radius=10, fill=(255, 255, 255), outline=(226, 232, 240), width=1)
     d.rectangle([(485, 160), (w - 30, 195)], fill=(37, 99, 235))
-    d.text((500, 172), "5-Step Packaging Protocol (सुरक्षित 5-चरणीय पैकिंग मानक)", fill=(255, 255, 255), font=get_pillow_font(12, bold=True))
+    d.text((500, 172), "5-Step Packaging Protocol (Standard Operating Procedure)", fill=(255, 255, 255), font=get_pillow_font(12, bold=True))
 
     steps = [
-        ("1. Quality & Size Verification (क्वालिटी जांच)", "सामान पैक करने से पहले सुनिश्चित करें कि सही साइज (Size L), रंग और डिफेक्ट-फ्री उत्पाद ही पैक हो रहा है।"),
-        ("2. Waterproof Polybag Wrap (बबल रैप / पॉलीथीन)", "कपड़े या नाजुक सामान को पहले स्वच्छ पॉलीथीन या 2-लेयर बबल रैप में सील करें ताकि नमी या बारिश से सुरक्षा रहे।"),
-        ("3. Strong Outer Box / Bag (मजबूत बाहरी बॉक्स)", "स्टॉलकार्ट टेंपर-एविडेंट सिक्योरिटी बैग या 3-प्लाई वाले मजबूत कार्डबोर्ड बॉक्स में सुरक्षित रूप से रखें।"),
-        ("4. Insert Tax Invoice Inside (टैक्स इनवॉइस रखें)", "सेलर पैनल से डाउनलोड किया हुआ टैक्स इनवॉइस बॉक्स के अंदर सामान के साथ अवश्य रखें।"),
-        ("5. Affix Courier Label on Flat Face (कूरियर लेबल)", "शिपरोकेट/दिल्लीवरी का AWB शिपिंग बारकोड बॉक्स के ऊपर सपाट चिपकाएं। बारकोड पर कभी सेलोटेप न लगाएं।")
+        ("1. Quality & Size Verification", "Ensure correct size (Size L), color variant, and zero manufacturing defects."),
+        ("2. Waterproof Polybag Wrap", "Wrap garment inside clean waterproof polybag or 2-layer bubble wrap."),
+        ("3. Strong Outer Packaging", "Seal securely inside tamper-evident security flyer or 3-ply corrugated box."),
+        ("4. Insert Tax Invoice Inside", "Place printed StallCart Tax Invoice inside the parcel with the item."),
+        ("5. Affix Courier Label Flat", "Affix Delhivery/Shiprocket AWB barcode flat on top face. Never tape across barcode.")
     ]
     sy = 210
     for title, desc in steps:
         d.text((505, sy), title, fill=(30, 58, 138), font=get_pillow_font(11, bold=True))
-        d.text((505, sy + 20), desc[:62], fill=(71, 85, 105), font=get_pillow_font(10, bold=False))
-        if len(desc) > 62:
-            d.text((505, sy + 36), desc[62:], fill=(71, 85, 105), font=get_pillow_font(10, bold=False))
-            sy += 64
-        else:
-            sy += 52
+        d.text((505, sy + 20), desc, fill=(71, 85, 105), font=get_pillow_font(10, bold=False))
+        sy += 58
 
     path = os.path.join(SCREENSHOTS_DIR, 'screen_4_packing_sop.png')
     img.save(path)
@@ -500,27 +496,27 @@ def generate_screen_5_shiprocket_pickup():
     draw_stallcart_header(d, w, active_nav='orders')
     
     # Subheader
-    d.text((30, 130), "Shiprocket Courier Pickup & Dispatch (कूरियर राइडर पिकअप एवं हैंडओवर)", fill=(15, 23, 42), font=get_pillow_font(16, bold=True))
+    d.text((30, 130), "Shiprocket Courier Pickup & Logistics Dispatch (Sample Demo)", fill=(15, 23, 42), font=get_pillow_font(16, bold=True))
 
     # Top Banner: Automated Pickup Token
     d.rounded_rectangle([(30, 160), (w - 30, 235)], radius=10, fill=(236, 253, 245), outline=(167, 243, 208), width=1)
-    d.text((45, 172), "Pickup Token: PKP-DEMO-9821 · Scheduled for Today (आज पिकअप निर्धारित)", fill=(6, 95, 70), font=get_pillow_font(13, bold=True))
+    d.text((45, 172), "Pickup Token: PKP-DEMO-9821 · Scheduled for Today", fill=(6, 95, 70), font=get_pillow_font(13, bold=True))
     d.text((45, 196), "Courier Partner: Delhivery Express via Shiprocket API · Service Type: Surface Fast Forward", fill=(15, 23, 42), font=get_pillow_font(11, bold=False))
-    d.text((45, 214), "Assigned Rider: Ramesh Kumar (+91 97000 54321) · Expected Arrival: 02:00 PM - 04:00 PM", fill=(4, 120, 87), font=get_pillow_font(11, bold=True))
+    d.text((45, 214), "Assigned Courier Rider: Ramesh Kumar (+91 97000 54321) · Arrival Window: 02:00 PM - 04:00 PM", fill=(4, 120, 87), font=get_pillow_font(11, bold=True))
 
     # Tracking Milestones Box
     d.rounded_rectangle([(30, 255), (w - 30, 395)], radius=10, fill=(255, 255, 255), outline=(226, 232, 240), width=1)
     d.rectangle([(30, 255), (w - 30, 288)], fill=(241, 245, 249))
-    d.text((45, 267), "6-Stage Courier Transit Lifecycle (ऑर्डर की 6-चरणीय यात्रा)", fill=(30, 41, 59), font=get_pillow_font(12, bold=True))
+    d.text((45, 267), "6-Stage Courier Transit Lifecycle", fill=(30, 41, 59), font=get_pillow_font(12, bold=True))
 
     # 6 Milestones
     milestones = [
-        ("1. Order Packed", "विक्रेता ने पैक किया", True),
-        ("2. Pickup Handover", "राइडर ने स्कैन किया", True),
-        ("3. Hub In-Transit", "मुख्य हब पहुंचा", True),
-        ("4. Dest. Sorting", "ग्राहक शहर पहुंचा", False),
-        ("5. Out for Delivery", "डिलीवरी पर निकला", False),
-        ("6. Delivered (OTP)", "ओटीपी से पुष्टि", False)
+        ("1. Order Packed", "Prepared by seller", True),
+        ("2. Pickup Handover", "Scanned by rider", True),
+        ("3. Hub In-Transit", "At main sorting hub", True),
+        ("4. Dest. Sorting", "Destination hub", False),
+        ("5. Out for Delivery", "Rider with package", False),
+        ("6. Delivered (OTP)", "Verified & Closed", False)
     ]
     mx = 45
     for title, desc, done in milestones:
@@ -536,12 +532,12 @@ def generate_screen_5_shiprocket_pickup():
     # Handover Guidelines Card
     d.rounded_rectangle([(30, 415), (w - 30, h - 25)], radius=10, fill=(255, 255, 255), outline=(226, 232, 240), width=1)
     d.rectangle([(30, 415), (w - 30, 448)], fill=(241, 245, 249))
-    d.text((45, 426), "Rider Handover & OTP Verification Rules (राइडर को पैकेट सौंपने के नियम):", fill=(30, 41, 59), font=get_pillow_font(12, bold=True))
+    d.text((45, 426), "Courier Rider Handover & Delivery Verification Protocol:", fill=(30, 41, 59), font=get_pillow_font(12, bold=True))
 
-    d.text((45, 460), "• कूरियर राइडर के आने पर उसका शिपरोकेट पहचान पत्र जांचें और अपने सामने AWB बारकोड स्कैन करवाएं।", fill=(71, 85, 105), font=get_pillow_font(11, bold=False))
-    d.text((45, 482), "• पिकअप रसीद (Manifest / Handover Acknowledgement) पर राइडर के हस्ताक्षर व मोबाइल नंबर अवश्य दर्ज करवाएं।", fill=(71, 85, 105), font=get_pillow_font(11, bold=False))
-    d.text((45, 504), "• गुप्त 4-अंकीय ओटीपी (Secret 4-Digit OTP): ग्राहक डिलीवरी के समय राइडर को ओटीपी देगा। इसके बिना डिलीवरी मान्य नहीं होती।", fill=(5, 150, 105), font=get_pillow_font(11, bold=True))
-    d.text((45, 526), "• ओटीपी सत्यापन के तुरंत बाद ऑर्डर स्टॉलकार्ट पेआउट सेटलमेंट चक्र में शामिल हो जाता है।", fill=(37, 99, 235), font=get_pillow_font(11, bold=True))
+    d.text((45, 460), "• Verify courier rider credentials upon arrival and ensure AWB barcode is scanned in your presence.", fill=(71, 85, 105), font=get_pillow_font(11, bold=False))
+    d.text((45, 482), "• Obtain rider signature on the pickup handover manifest / acknowledgement sheet.", fill=(71, 85, 105), font=get_pillow_font(11, bold=False))
+    d.text((45, 504), "• Secret 4-digit OTP: Customer shares OTP at doorstep; courier cannot complete delivery without OTP.", fill=(5, 150, 105), font=get_pillow_font(11, bold=True))
+    d.text((45, 526), "• Successful delivery triggers automatic entry into StallCart settlement and payout cycle.", fill=(37, 99, 235), font=get_pillow_font(11, bold=True))
 
     path = os.path.join(SCREENSHOTS_DIR, 'screen_5_shiprocket_pickup.png')
     img.save(path)
@@ -558,21 +554,21 @@ def generate_screen_6_notification_emails():
     # Left Email: New Order Received
     d.rounded_rectangle([(40, 130), (480, h - 25)], radius=10, fill=(255, 255, 255), outline=(203, 213, 225), width=1)
     d.rectangle([(40, 130), (480, 175)], fill=(40, 116, 240))
-    d.text((55, 145), "StallCart: New Order Received! नया ऑर्डर 🛒", fill=(255, 255, 255), font=get_pillow_font(13, bold=True))
+    d.text((55, 145), "StallCart: New Order Received (#ORD-SAMPLE-202611-01)", fill=(255, 255, 255), font=get_pillow_font(12, bold=True))
 
     d.text((55, 190), "Dear Apex Trends Fashion Hub (Sample Seller),", fill=(15, 23, 42), font=get_pillow_font(11, bold=True))
-    d.text((55, 210), "आपको स्टॉलकार्ट पर एक नया ऑर्डर प्राप्त हुआ है!", fill=(71, 85, 105), font=get_pillow_font(10, bold=False))
+    d.text((55, 210), "You have received a new prepaid customer order on StallCart!", fill=(71, 85, 105), font=get_pillow_font(10, bold=False))
 
     d.rounded_rectangle([(55, 235), (465, 360)], radius=6, fill=(248, 250, 252), outline=(226, 232, 240), width=1)
     d.text((70, 248), "Order Number: #ORD-SAMPLE-202611-01", fill=(30, 41, 59), font=get_pillow_font(11, bold=True))
     d.text((70, 270), "Item: Men's Classic Slim Fit Cotton Shirt", fill=(15, 23, 42), font=get_pillow_font(11, bold=False))
     d.text((70, 290), "Size: L  |  Color: Navy Blue  |  Qty: 1", fill=(100, 116, 139), font=get_pillow_font(10, bold=False))
     d.text((70, 310), "Customer City: Bhopal, Madhya Pradesh", fill=(71, 85, 105), font=get_pillow_font(10, bold=False))
-    d.text((70, 332), "Order Value: ₹499.00 (Prepaid Paid ✓)", fill=(5, 150, 105), font=get_pillow_font(11, bold=True))
+    d.text((70, 332), "Order Value: Rs. 499.00 (Prepaid Paid in Full ✓)", fill=(5, 150, 105), font=get_pillow_font(11, bold=True))
 
     d.text((55, 380), "Action Required:", fill=(30, 41, 59), font=get_pillow_font(11, bold=True))
-    d.text((55, 400), "कृपया 24 घंटे के भीतर ऑर्डर पैक करके 'Ready for Pickup' करें।", fill=(71, 85, 105), font=get_pillow_font(10, bold=False))
-    d.text((55, 420), "टैक्स इनवॉइस एवं शिपिंग लेबल अपने सेलर डैशबोर्ड से डाउनलोड करें।", fill=(71, 85, 105), font=get_pillow_font(10, bold=False))
+    d.text((55, 400), "Please pack the order within 24 hours and mark 'Ready for Pickup'.", fill=(71, 85, 105), font=get_pillow_font(10, bold=False))
+    d.text((55, 420), "Download Tax Invoice & Shipping AWB label from your Seller Dashboard.", fill=(71, 85, 105), font=get_pillow_font(10, bold=False))
 
     d.rounded_rectangle([(55, 445), (230, 478)], radius=6, fill=(40, 116, 240))
     d.text((75, 455), "Open Seller Panel →", fill=(255, 255, 255), font=get_pillow_font(11, bold=True))
@@ -581,21 +577,21 @@ def generate_screen_6_notification_emails():
     # Right Email: Payout Disbursed
     d.rounded_rectangle([(500, 130), (940, h - 25)], radius=10, fill=(255, 255, 255), outline=(203, 213, 225), width=1)
     d.rectangle([(500, 130), (940, 175)], fill=(5, 150, 105))
-    d.text((520, 145), "StallCart: Payout Disbursed! पेआउट सफल 💸", fill=(255, 255, 255), font=get_pillow_font(13, bold=True))
+    d.text((520, 145), "StallCart: Payout Disbursed (Batch #SET-SAMPLE-202611-01)", fill=(255, 255, 255), font=get_pillow_font(12, bold=True))
 
     d.text((520, 190), "Dear Apex Trends Fashion Hub (Sample Seller),", fill=(15, 23, 42), font=get_pillow_font(11, bold=True))
-    d.text((520, 210), "आपके बैंक खाते में पेआउट ट्रांसफर कर दिया गया है।", fill=(71, 85, 105), font=get_pillow_font(10, bold=False))
+    d.text((520, 210), "Your seller payout has been successfully credited to your bank account.", fill=(71, 85, 105), font=get_pillow_font(10, bold=False))
 
     d.rounded_rectangle([(520, 235), (920, 360)], radius=6, fill=(236, 253, 245), outline=(167, 243, 208), width=1)
     d.text((535, 248), "Settlement Batch: SET-SAMPLE-202611-01", fill=(30, 41, 59), font=get_pillow_font(11, bold=True))
-    d.text((535, 270), "Amount Disbursed: ₹424.15", fill=(4, 120, 87), font=get_pillow_font(14, bold=True))
+    d.text((535, 270), "Amount Disbursed: Rs. 424.15", fill=(4, 120, 87), font=get_pillow_font(14, bold=True))
     d.text((535, 295), "Bank: HDFC Bank (••••5678 Encrypted)", fill=(15, 23, 42), font=get_pillow_font(10, bold=False))
     d.text((535, 315), "IFSC Code: HDFC0001234", fill=(15, 23, 42), font=get_pillow_font(10, bold=False))
-    d.text((535, 335), "Bank UTR: CMS987654321012 (Verified ✓)", fill=(37, 99, 235), font=get_pillow_font(11, bold=True))
+    d.text((535, 335), "Bank UTR: CMS987654321012 (Verified Bank Reference ✓)", fill=(37, 99, 235), font=get_pillow_font(11, bold=True))
 
     d.text((520, 380), "Order Settled:", fill=(30, 41, 59), font=get_pillow_font(11, bold=True))
     d.text((520, 400), "• #ORD-SAMPLE-202611-01 : Men's Cotton Shirt x1", fill=(71, 85, 105), font=get_pillow_font(10, bold=False))
-    d.text((520, 420), "Status: राशि आपके खाते में क्रेडिट हो चुकी है।", fill=(5, 150, 105), font=get_pillow_font(10, bold=True))
+    d.text((520, 420), "Status: Funds credited successfully via NEFT/RazorpayX.", fill=(5, 150, 105), font=get_pillow_font(10, bold=True))
 
     d.rounded_rectangle([(520, 445), (710, 478)], radius=6, fill=(5, 150, 105))
     d.text((540, 455), "View Payout Ledger →", fill=(255, 255, 255), font=get_pillow_font(11, bold=True))
@@ -615,14 +611,14 @@ def generate_screen_7_settlement_statement():
     draw_stallcart_header(d, w, active_nav='payouts')
     
     # Header
-    d.text((30, 128), "Seller Settlements & Payouts (विक्रेता भुगतान एवं बैंक UTR ऑडिट)", fill=(15, 23, 42), font=get_pillow_font(16, bold=True))
+    d.text((30, 128), "Seller Settlements, Platform Commission & Bank UTR Audit (Sample Demo)", fill=(15, 23, 42), font=get_pillow_font(16, bold=True))
 
     # Top Financial Cards
     cards = [
-        ("Total Settled (सफल भुगतान)", "₹ 424.15", "Direct credited to bank", (5, 150, 105)),
-        ("Commission Earned (कमीशन)", "₹ 74.85", "15% platform margin", (37, 99, 235)),
-        ("Total Payout Due (बकाया राशि)", "₹ 424.15", "Delivered batches", (217, 119, 6)),
-        ("Pending Batches (लंबित)", "₹ 0.00", "Awaiting disbursement", (100, 116, 139))
+        ("Total Settled", "Rs. 424.15", "Direct credited to bank", (5, 150, 105)),
+        ("Commission Earned", "Rs. 74.85", "15% platform margin", (37, 99, 235)),
+        ("Total Payout Due", "Rs. 0.00", "All batches disbursed", (217, 119, 6)),
+        ("Settlement UTR", "CMS987654321012", "Verified Bank Reference", (37, 99, 235))
     ]
     cx = 30
     for title, val, sub, col in cards:
@@ -653,10 +649,10 @@ def generate_screen_7_settlement_statement():
     d.text((310, 298), "Apex Trends Fashion Hub", fill=(15, 23, 42), font=get_pillow_font(11, bold=True))
     d.text((310, 316), "HDFC Bank (••••5678)", fill=(100, 116, 139), font=get_pillow_font(10, bold=False))
 
-    d.text((540, 298), "₹ 499.00", fill=(15, 23, 42), font=get_pillow_font(11, bold=False))
-    d.text((540, 316), "Comm: ₹74.85 (15%)", fill=(220, 38, 38), font=get_pillow_font(9, bold=False))
+    d.text((540, 298), "Rs. 499.00", fill=(15, 23, 42), font=get_pillow_font(11, bold=False))
+    d.text((540, 316), "Comm: Rs. 74.85 (15%)", fill=(220, 38, 38), font=get_pillow_font(9, bold=False))
 
-    d.text((680, 298), "₹ 424.15", fill=(5, 150, 105), font=get_pillow_font(13, bold=True))
+    d.text((680, 298), "Rs. 424.15", fill=(5, 150, 105), font=get_pillow_font(13, bold=True))
     d.rounded_rectangle([(680, 316), (730, 332)], radius=10, fill=(236, 253, 245))
     d.text((690, 319), "Paid ✓", fill=(4, 120, 87), font=get_pillow_font(9, bold=True))
 
@@ -668,11 +664,11 @@ def generate_screen_7_settlement_statement():
 
     # Formula Explanatory Box
     d.rounded_rectangle([(45, 375), (w - 45, 525)], radius=8, fill=(248, 250, 252), outline=(226, 232, 240), width=1)
-    d.text((65, 392), "💡 पारदर्शी कमाई और बैंक ट्रांसफर सूत्र (Sample Earning Formula):", fill=(30, 41, 59), font=get_pillow_font(12, bold=True))
-    d.text((65, 418), "Net Payout = Product Final Selling Price  -  (Product Price × Category Commission Rate)", fill=(15, 23, 42), font=get_pillow_font(11, bold=True))
-    d.text((65, 442), "• उदाहरण (Sample): ₹499.00 - 15% (₹74.85) = ₹424.15 शुद्ध भुगतान (Net Bank Credit).", fill=(71, 85, 105), font=get_pillow_font(11, bold=False))
-    d.text((65, 464), "• कोई छिपा हुआ शुल्क नहीं। पेमेंट गेटवे या लिस्टिंग चार्ज बिल्कुल शून्य (Zero Hidden Fees).", fill=(71, 85, 105), font=get_pillow_font(11, bold=False))
-    d.text((65, 486), "• हर भुगतान का बैंक यूटीआर नंबर (UTR No) उपलब्ध कराया जाता है जिसे आप अपनी पासबुक में देख सकते हैं।", fill=(71, 85, 105), font=get_pillow_font(11, bold=False))
+    d.text((65, 392), "Transparent Earnings & Direct Bank Transfer Formula:", fill=(30, 41, 59), font=get_pillow_font(12, bold=True))
+    d.text((65, 418), "Net Payout = Product Final Selling Price  -  (Product Price x Category Commission Rate)", fill=(15, 23, 42), font=get_pillow_font(11, bold=True))
+    d.text((65, 442), "• Sample Calculation: Rs. 499.00 - 15% (Rs. 74.85) = Rs. 424.15 Net Bank Credit.", fill=(71, 85, 105), font=get_pillow_font(11, bold=False))
+    d.text((65, 464), "• Zero hidden fees. No payment gateway charges or listing fees deducted from seller.", fill=(71, 85, 105), font=get_pillow_font(11, bold=False))
+    d.text((65, 486), "• Every payout is accompanied by a genuine Bank UTR reference number traceable in your passbook.", fill=(71, 85, 105), font=get_pillow_font(11, bold=False))
 
     path = os.path.join(SCREENSHOTS_DIR, 'screen_7_settlement_statement.png')
     img.save(path)
@@ -1467,9 +1463,9 @@ def build_all_editions():
     3. 'both'    -> StallCart_Seller_Manual.pdf (and StallCart_Seller_Manual_Bilingual.pdf)
     """
     editions = [
-        ('both', 'StallCart_Seller_Manual.pdf', 'Bilingual Edition (हिंदी + English)'),
-        ('hindi', 'StallCart_Seller_Manual_Hindi.pdf', 'Hindi Edition (🇮🇳 पूर्ण हिंदी संस्करण)'),
-        ('english', 'StallCart_Seller_Manual_English.pdf', 'English Edition (🇬🇧 Complete English)')
+        ('english', 'StallCart_Seller_Manual.pdf', 'Official StallCart Seller Operations Manual (English Edition)'),
+        ('english', 'StallCart_Seller_Manual_English.pdf', 'English Edition (Complete English)'),
+        ('hindi', 'StallCart_Seller_Manual_Hindi.pdf', 'Hindi Edition (हिंदी संस्करण)')
     ]
 
     for mode, filename, desc in editions:
@@ -1480,7 +1476,7 @@ def build_all_editions():
         compiled_ok = False
         try:
             import weasyprint
-            print("Rendering with WeasyPrint (HarfBuzz OpenType Devanagari shaping engine)...")
+            print("Rendering with WeasyPrint...")
             html = generate_html_manual(lang=mode)
             weasyprint.HTML(string=html, base_url=SCREENSHOTS_DIR).write_pdf(static_dest)
             print(f"✓ {filename} built successfully with WeasyPrint!")
@@ -1492,10 +1488,6 @@ def build_all_editions():
 
         if os.path.exists(static_dest):
             shutil.copyfile(static_dest, media_dest)
-            if mode == 'both':
-                # Also save bilingual alias
-                bilingual_alias = os.path.join(STATIC_DOCS_DIR, 'StallCart_Seller_Manual_Bilingual.pdf')
-                shutil.copyfile(static_dest, bilingual_alias)
             print(f"✓ Copied to media path: {media_dest} ({os.path.getsize(static_dest)} bytes)")
         else:
             print(f"❌ Error: {filename} was not created!")

@@ -331,33 +331,31 @@ def download_app_view(request):
 def download_seller_manual_view(request):
     """
     Universal endpoint for downloading StallCart Official Seller Operations Manual (PDF).
-    Supports Hindi, English, and Bilingual editions:
-    URL: /download/seller-manual/?lang=hindi
+    Official standard: English edition.
+    URL: /download/seller-manual/
          /download/seller-manual/?lang=english
-         /download/seller-manual/?lang=both (default)
+         /download/seller-manual/?lang=hindi
     """
     from django.http import FileResponse, Http404
-    lang = request.GET.get('lang', 'both').lower().strip()
+    lang = request.GET.get('lang', 'english').lower().strip()
     
     if lang in ['hi', 'hindi']:
         filename = 'StallCart_Seller_Manual_Hindi.pdf'
         download_name = 'StallCart_Seller_Operations_Manual_Hindi.pdf'
-    elif lang in ['en', 'english']:
-        filename = 'StallCart_Seller_Manual_English.pdf'
-        download_name = 'StallCart_Seller_Operations_Manual_English.pdf'
     else:
+        # Official standard: English Edition
         filename = 'StallCart_Seller_Manual.pdf'
-        download_name = 'StallCart_Seller_Operations_Manual_Bilingual.pdf'
+        download_name = 'StallCart_Seller_Operations_Manual.pdf'
 
     pdf_path = os.path.join(settings.BASE_DIR, 'static', 'docs', filename)
     if not os.path.exists(pdf_path):
         pdf_path = os.path.join(settings.MEDIA_ROOT, 'manuals', filename)
     
-    # Fallback to general manual if requested specific language file is not yet compiled
+    # Fallback to English manual if specific file is not found
     if not os.path.exists(pdf_path):
-        pdf_path = os.path.join(settings.BASE_DIR, 'static', 'docs', 'StallCart_Seller_Manual.pdf')
+        pdf_path = os.path.join(settings.BASE_DIR, 'static', 'docs', 'StallCart_Seller_Manual_English.pdf')
         if not os.path.exists(pdf_path):
-            pdf_path = os.path.join(settings.MEDIA_ROOT, 'manuals', 'StallCart_Seller_Manual.pdf')
+            pdf_path = os.path.join(settings.MEDIA_ROOT, 'manuals', 'StallCart_Seller_Manual_English.pdf')
             if not os.path.exists(pdf_path):
                 raise Http404("Seller Operations Manual PDF is currently being updated. Please check back shortly.")
 

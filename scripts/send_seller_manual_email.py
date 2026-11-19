@@ -86,14 +86,13 @@ def send_manual_email(recipients=None):
       7-दिन की रिटर्न पॉलिसी, RTO रिटर्न हैंडलिंग, डैमेज क्लेम SOP, और हेल्पडेस्क सपोर्ट।
     </div>
 
-    <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 14px; margin: 20px 0; color: #065f46;">
-      <strong>✅ Available Editions / 3 भाषा विकल्प उपलब्ध:</strong><br>
-      • 🇮🇳 <strong>Hindi Edition:</strong> <a href="https://stallcart.in/download/seller-manual/?lang=hindi" style="color: #059669; font-weight: 700;">https://stallcart.in/download/seller-manual/?lang=hindi</a><br>
-      • 🇬🇧 <strong>English Edition:</strong> <a href="https://stallcart.in/download/seller-manual/?lang=english" style="color: #2563eb; font-weight: 700;">https://stallcart.in/download/seller-manual/?lang=english</a><br>
-      • 🌐 <strong>Bilingual (Both):</strong> <a href="https://stallcart.in/download/seller-manual/?lang=both" style="color: #4f46e5; font-weight: 700;">https://stallcart.in/download/seller-manual/?lang=both</a>
+    <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px; margin: 20px 0; color: #1e40af;">
+      <strong>✅ Official Manual Download Links:</strong><br>
+      • 📘 <strong>Official Seller Manual (PDF):</strong> <a href="https://stallcart.in/download/seller-manual/" style="color: #2563eb; font-weight: 700;">https://stallcart.in/download/seller-manual/</a><br>
+      • 🇮🇳 <strong>Hindi Edition:</strong> <a href="https://stallcart.in/download/seller-manual/?lang=hindi" style="color: #059669; font-weight: 700;">https://stallcart.in/download/seller-manual/?lang=hindi</a>
     </div>
 
-    <p style="font-size: 13px; color: #64748b;">All PDF manuals are attached to this email and are also downloadable via the <strong>StallCart AI Chatbot</strong> and the <strong>Admin & Seller Navigation Panels</strong>.</p>
+    <p style="font-size: 13px; color: #64748b;">The official PDF manual is attached to this email and is also downloadable via the <strong>StallCart AI Chatbot</strong> and the <strong>Admin & Seller Navigation Panels</strong>.</p>
   </div>
   <div class="footer">
     <strong>{site_name}</strong> &bull; India's Premier Online Marketplace<br>
@@ -113,11 +112,10 @@ def send_manual_email(recipients=None):
     )
     msg.content_subtype = "html"
     
-    # Attach all available manual editions
+    # Attach official manual edition
     attachments = [
-        ('StallCart_Seller_Manual_Hindi.pdf', 'StallCart_Seller_Manual_Hindi.pdf'),
+        ('StallCart_Seller_Manual.pdf', 'StallCart_Seller_Operations_Manual.pdf'),
         ('StallCart_Seller_Manual_English.pdf', 'StallCart_Seller_Manual_English.pdf'),
-        ('StallCart_Seller_Manual.pdf', 'StallCart_Seller_Manual_Bilingual.pdf'),
     ]
     for src_name, attach_name in attachments:
         p = os.path.join(BASE_DIR, 'static', 'docs', src_name)

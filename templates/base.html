@@ -269,14 +269,8 @@
                             </a>
                         {% endif %}
                         {% if user.is_seller or user.is_superuser or user.is_staff %}
-                            <a href="{% url 'download_seller_manual' %}?lang=hindi" role="menuitem" download>
-                                <i class="fa fa-book" style="color: #059669;"></i> 🇮🇳 Seller Manual (हिंदी)
-                            </a>
-                            <a href="{% url 'download_seller_manual' %}?lang=english" role="menuitem" download>
-                                <i class="fa fa-book" style="color: #2563eb;"></i> 🇬🇧 Seller Manual (English)
-                            </a>
-                            <a href="{% url 'download_seller_manual' %}?lang=both" role="menuitem" download>
-                                <i class="fa fa-book" style="color: #4f46e5;"></i> 🌐 Seller Manual (Bilingual)
+                            <a href="{% url 'download_seller_manual' %}" role="menuitem" download>
+                                <i class="fa fa-book" style="color: #2563eb;"></i> Seller Operations Manual (PDF)
                             </a>
                         {% endif %}
                         <div class="dropdown-divider"></div>
@@ -501,17 +495,9 @@
                         Seller Payouts & Settlements
                     </a>
                 {% endif %}
-                <a href="{% url 'download_seller_manual' %}?lang=hindi" class="mobile-nav-item" download>
-                    <span class="mobile-nav-icon" style="color: #059669;"><i class="fa fa-book"></i></span>
-                    🇮🇳 Seller Manual (हिंदी)
-                </a>
-                <a href="{% url 'download_seller_manual' %}?lang=english" class="mobile-nav-item" download>
+                <a href="{% url 'download_seller_manual' %}" class="mobile-nav-item" download>
                     <span class="mobile-nav-icon" style="color: #2563eb;"><i class="fa fa-book"></i></span>
-                    🇬🇧 Seller Manual (English)
-                </a>
-                <a href="{% url 'download_seller_manual' %}?lang=both" class="mobile-nav-item" download>
-                    <span class="mobile-nav-icon" style="color: #4f46e5;"><i class="fa fa-book"></i></span>
-                    🌐 Seller Manual (Bilingual)
+                    Seller Operations Manual (PDF)
                 </a>
             {% endif %}
         {% endif %}
