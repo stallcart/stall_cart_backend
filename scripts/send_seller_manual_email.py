@@ -55,7 +55,7 @@ def send_manual_email(recipients=None):
     <h3 style="color: #1e1b4b; margin-top: 20px;">📘 Manual Content Modules / मैनुअल अध्याय:</h3>
     <div class="module-card">
       <strong>Module 1: Seller Onboarding & KYC</strong><br>
-      दुकान पंजीकरण, बैंक खाता (Bank of Baroda), IFSC कोड, और एडमिन KYC सत्यापन।
+      दुकान पंजीकरण, बैंक खाता (Sample Bank Account), IFSC कोड, और एडमिन KYC सत्यापन।
     </div>
     <div class="module-card">
       <strong>Module 2: Product Listing & Cataloging</strong><br>
