@@ -2497,11 +2497,15 @@ def admin_mark_settlement_paid_ajax(request, settlement_id):
         if settlement.settled_at is not None:
             return JsonResponse({'status': 'error', 'message': f'Settlement {settlement.settlement_id} was already settled on {settlement.settled_at.strftime("%Y-%m-%d %H:%M")}. Repayout is prevented.'}, status=400)
 
-        if settlement.razorpay_payout_id:
+        if settlement.razorpay_payout_id and settlement.status == 'processed':
             return JsonResponse({'status': 'error', 'message': f'Settlement {settlement.settlement_id} already has an active RazorpayX payout ({settlement.razorpay_payout_id}). Repayout is prevented.'}, status=400)
 
-        if settlement.payment_reference and settlement.status != 'failed':
-            return JsonResponse({'status': 'error', 'message': f'Settlement {settlement.settlement_id} already has payment reference ({settlement.payment_reference}). Repayout is prevented.'}, status=400)
+        if not (data.get('payment_reference') or '').strip() and settlement.payment_reference:
+            # Use existing payment_reference if none was submitted in request
+            reference = settlement.payment_reference
+
+        if settlement.amount <= Decimal('0.00') and settlement.order_items.exists():
+            settlement.recalculate_totals(save=False)
 
         settlement.status = 'processed'
         settlement.payment_reference = reference
@@ -2582,9 +2586,7 @@ def admin_create_settlement_ajax(request, seller_id):
         
     from orders.models import OrderItem, SellerSettlement
     from django.utils import timezone
-    from datetime import timedelta
-    
-    safety_date = timezone.now() - timedelta(days=10)
+    from decimal import Decimal
     
     with transaction.atomic():
         from django.db.models import Q
@@ -2594,14 +2596,12 @@ def admin_create_settlement_ajax(request, seller_id):
             is_returned=False
         ).filter(
             Q(status='delivered') | Q(order__status='delivered')
-        ).filter(
-            Q(delivered_at__lte=safety_date) | Q(order__delivered_at__lte=safety_date)
         ).exclude(
-            settlements__isnull=False
+            settlements__status__in=['pending', 'processed']
         ).exclude(
-            status__in=['cancelled', 'rto', 'rto_in_transit', 'rto_delivered', 'returned', 'failed']
+            status__in=['cancelled', 'rto', 'rto_in_transit', 'rto_delivered', 'returned', 'failed', 'returned_to_source', 'refund_initiated', 'refunded', 'courier_failed_pickup', 'seller_unresponsive']
         ).exclude(
-            order__status__in=['cancelled', 'failed']
+            order__status__in=['cancelled', 'failed', 'returned', 'returned_to_source', 'refund_initiated', 'refunded']
         ).exclude(
             return_requests__status__in=[
                 'requested', 'approved', 'pickup_scheduled', 'picked_up', 
@@ -2609,18 +2609,24 @@ def admin_create_settlement_ajax(request, seller_id):
             ]
         )
         
-        if not items.exists():
+        valid_items = [it for it in items if not it.is_return_or_cancelled]
+        if not valid_items:
             return JsonResponse({'status': 'error', 'message': 'None of the selected order items are eligible for settlement.'}, status=400)
-            
+
+        calc_amount = sum((it.seller_earnings for it in valid_items), Decimal('0.00'))
+        calc_comm = sum((it.commission_amount for it in valid_items), Decimal('0.00'))
+
         settlement = SellerSettlement.objects.create(
             seller=seller,
+            amount=calc_amount,
+            commission_deducted=calc_comm,
             status='pending'
         )
-        settlement.order_items.add(*items)
+        settlement.order_items.add(*valid_items)
         
     return JsonResponse({
         'status': 'success',
-        'message': f'Settlement {settlement.settlement_id} created successfully with {items.count()} items!',
+        'message': f'Settlement {settlement.settlement_id} created successfully with {len(valid_items)} item(s) (₹{calc_amount})!',
         'settlement_id': settlement.id
     })
 
@@ -3096,14 +3102,19 @@ def admin_settle_order_seller_ajax(request, order_id, seller_id):
                 'message': f'Cannot initiate RazorpayX payout: Seller {seller.shop_name} has not completed bank details.'
             }, status=400)
 
-        # Create the settlement record
+        # Create the settlement record with computed earnings
+        valid_unsettled = [it for it in unsettled_items if not it.is_return_or_cancelled]
+        calc_amount = sum((it.seller_earnings for it in valid_unsettled), Decimal('0.00'))
+        calc_comm = sum((it.commission_amount for it in valid_unsettled), Decimal('0.00'))
+
         settlement = SellerSettlement.objects.create(
             seller=seller,
+            amount=calc_amount,
+            commission_deducted=calc_comm,
             status='pending'
         )
-        if unsettled_items:
-            settlement.order_items.add(*unsettled_items)
-            settlement.refresh_from_db()
+        if valid_unsettled:
+            settlement.order_items.add(*valid_unsettled)
 
         if custom_amount_str is not None and str(custom_amount_str).strip() != '':
             try:
@@ -3232,16 +3243,18 @@ def admin_settle_entire_order_ajax(request, order_id):
             if not valid_items:
                 continue
 
+            calc_amount = sum((it.seller_earnings for it in valid_items), Decimal('0.00'))
+            calc_comm = sum((it.commission_amount for it in valid_items), Decimal('0.00'))
+            if calc_amount <= Decimal('0.00'):
+                continue
+
             settlement = SellerSettlement.objects.create(
                 seller=seller,
+                amount=calc_amount,
+                commission_deducted=calc_comm,
                 status='pending'
             )
             settlement.order_items.add(*valid_items)
-            settlement.refresh_from_db()
-
-            if settlement.amount <= Decimal('0.00'):
-                settlement.delete()
-                continue
 
             if payment_method == 'razorpayx':
                 if simulate:

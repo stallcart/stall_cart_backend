@@ -917,6 +917,18 @@ class SellerSettlement(BaseModel):
             logging.getLogger(__name__).error(f"Failed to send settlement email for {self.settlement_id}: {e}", exc_info=True)
         return False
 
+    def recalculate_totals(self, save=True):
+        """Recalculate amount and commission_deducted based on linked order_items."""
+        valid_items = [it for it in self.order_items.all() if not it.is_return_or_cancelled]
+        self.amount = sum((it.seller_earnings for it in valid_items), Decimal('0.00'))
+        self.commission_deducted = sum((it.commission_amount for it in valid_items), Decimal('0.00'))
+        if save and self.pk:
+            type(self).objects.filter(pk=self.pk).update(
+                amount=self.amount,
+                commission_deducted=self.commission_deducted
+            )
+        return self.amount
+
     def save(self, *args, **kwargs):
         if not self.settlement_id:
             date_str = timezone.now().strftime('%Y%m%d')

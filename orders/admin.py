@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
+from django.utils import timezone
 from decimal import Decimal
 from .models import Order, OrderItem, ReturnRequest, OrderReturnImage, SellerSettlement, SystemActivityLog
 from common.admin import BaseModelAdmin
@@ -170,16 +171,35 @@ class SellerSettlementAdmin(BaseModelAdmin):
     trigger_bulk_payouts.short_description = "💸 Trigger RazorpayX payout for selected settlements"
 
     def save_model(self, request, obj, form, change):
-        # If status changes to processed and no payout_id exists, trigger it
-        if change and obj.status == 'processed' and not obj.razorpay_payout_id:
-            from orders.razorpayx_service import initiate_payout
-            success, msg = initiate_payout(obj)
-            if not success:
-                self.message_user(request, f"Error initiating RazorpayX payout: {msg}", level='ERROR')
-            else:
-                self.message_user(request, f"Payout initiated successfully: {msg}", level='SUCCESS')
-        else:
-            super().save_model(request, obj, form, change)
+        if obj.status == 'processed':
+            if obj.payment_reference and not obj.razorpay_payout_id:
+                # Manual settlement (Admin provided UPI / UTR / Bank reference)
+                if not obj.settled_at:
+                    obj.settled_at = timezone.now()
+                super().save_model(request, obj, form, change)
+                self.message_user(request, f"Settlement {obj.settlement_id} marked as Processed (Paid manually: {obj.payment_reference}).", level='SUCCESS')
+                return
+            elif change and not obj.razorpay_payout_id:
+                # No manual payment_reference, attempt automated RazorpayX payout
+                from orders.razorpayx_service import initiate_payout
+                super().save_model(request, obj, form, change)
+                success, msg = initiate_payout(obj)
+                if not success:
+                    # Keep as pending since automated payout failed
+                    obj.status = 'pending'
+                    obj.settled_at = None
+                    obj.save(update_fields=['status', 'settled_at'])
+                    self.message_user(request, f"RazorpayX payout not triggered: {msg}. Settlement status kept as Pending. You can enter a Payment Reference to mark as Paid manually.", level='WARNING')
+                else:
+                    self.message_user(request, f"Payout initiated successfully via RazorpayX: {msg}", level='SUCCESS')
+                return
+        super().save_model(request, obj, form, change)
+
+    def save_related(self, request, form, formsets, change):
+        super().save_related(request, form, formsets, change)
+        obj = form.instance
+        if obj.amount == Decimal('0.00') and obj.order_items.exists():
+            obj.recalculate_totals(save=True)
 
     def get_queryset(self, request):
         qs = admin.ModelAdmin.get_queryset(self, request).select_related('seller')

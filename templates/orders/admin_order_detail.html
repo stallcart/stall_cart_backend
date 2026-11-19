@@ -213,7 +213,18 @@
                                         </span>
                                         <div style="font-size: 0.72rem; color: var(--gray-500); margin-top: 2px;">
                                             Settlement: <strong>{{ seller_summary.latest_settlement.settlement_id }}</strong>
+                                            {% if seller_summary.latest_settlement.payment_reference %}
+                                                • Ref: <strong>{{ seller_summary.latest_settlement.payment_reference }}</strong>
+                                            {% endif %}
                                         </div>
+                                    </div>
+                                    <div style="display: flex; gap: 6px; align-items: center;">
+                                        <button type="button" class="btn-primary" onclick="openOrderMarkPaidModal('{{ seller_summary.latest_settlement.id }}', '{{ seller_summary.latest_settlement.settlement_id }}', '{{ seller_group.grouper.shop_name|escapejs }}', '{{ seller_summary.net_payout|floatformat:2 }}', '{{ seller_summary.latest_settlement.payment_reference|default:''|escapejs }}')" style="font-size: 0.75rem; padding: 6px 12px; height: 30px; border-radius: 6px; border: none; cursor: pointer; background: linear-gradient(135deg, #059669, #047857); color: white; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(5,150,105,0.25);">
+                                            <i class="fa fa-check-circle"></i> Mark as Paid
+                                        </button>
+                                        <a href="{% url 'orders:admin_settlements_dashboard' %}?tab=history&q={{ seller_summary.latest_settlement.settlement_id }}" target="_blank" class="btn-outline" style="font-size: 0.75rem; padding: 6px 10px; height: 30px; border-radius: 6px; border: 1.5px solid var(--gray-300); background: white; color: var(--gray-700); font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;" title="View in Settlements Dashboard">
+                                            <i class="fa fa-external-link-alt"></i> Batch
+                                        </a>
                                     </div>
                                 {% elif seller_summary.status == 'cancelled' or seller_summary.net_payout <= 0 %}
                                     <div style="text-align: right;">
@@ -760,6 +771,36 @@ window.closeSettleAllModal = window.closeSettleAllModal || function() { document
     </div>
 </div>
 
+<!-- ✅ Admin Mark Existing Settlement Paid Modal -->
+<div id="orderMarkPaidModal" class="modal">
+    <div class="modal-content" style="max-width: 440px;">
+        <div style="padding: 20px 24px; border-bottom: 1.5px solid var(--gray-100); display: flex; align-items: center; justify-content: space-between;">
+            <h3 style="margin: 0; font-family: 'Syne', sans-serif; font-size: 1.15rem; font-weight: 800; color: var(--gray-900);">
+                <i class="fa fa-check-circle" style="color: #059669; margin-right: 6px;"></i> Mark Settlement as Paid
+            </h3>
+            <span class="modal-close" onclick="closeOrderMarkPaidModal()" style="font-size: 1.5rem; color: var(--gray-400); cursor: pointer; line-height: 1;">&times;</span>
+        </div>
+        <form id="orderMarkPaidForm" style="padding: 24px; margin: 0;">
+            {% csrf_token %}
+            <input type="hidden" id="orderMarkPaidSettlementId">
+            <div style="background: var(--gray-50); border: 1.5px solid var(--gray-200); border-radius: var(--r-md); padding: 14px; margin-bottom: 16px;">
+                <div style="font-size: 0.8rem; color: var(--gray-500);">Settlement: <strong id="orderMarkPaidCode" style="color: var(--blue-600);"></strong></div>
+                <div style="font-size: 0.95rem; font-weight: 800; color: var(--gray-900); margin-top: 2px;" id="orderMarkPaidShop"></div>
+                <div style="font-size: 1.25rem; font-weight: 800; color: #059669; font-family: 'Syne', sans-serif; margin-top: 4px;" id="orderMarkPaidAmount"></div>
+            </div>
+            <div style="margin-bottom: 16px;">
+                <label style="display: block; font-weight: 700; font-size: 0.82rem; color: var(--gray-800); margin-bottom: 6px;">
+                    UTR / Transaction Reference Number <span style="color: #dc2626;">*</span>
+                </label>
+                <input type="text" id="orderMarkPaidUtrInput" required placeholder="e.g. UTR123456789 or UPI-REF" style="width: 100%; padding: 10px 12px; border: 1.5px solid var(--gray-200); border-radius: var(--r-md); font-size: 0.85rem;">
+            </div>
+            <button type="submit" id="orderMarkPaidSubmitBtn" class="btn-primary" style="width: 100%; padding: 12px; font-weight: 700; border-radius: var(--r-md); border: none; cursor: pointer; background: linear-gradient(135deg, #059669, #047857); color: white; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+                <i class="fa fa-check-circle"></i> Confirm Paid & Complete Settlement
+            </button>
+        </form>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -860,17 +901,30 @@ function toggleSettleAllMethod(method) {
         if (rzpFields) rzpFields.style.display = 'none';
     }
 }
+window.openOrderMarkPaidModal = (settlementId, settlementCode, shopName, amount, currentRef) => {
+    document.getElementById('orderMarkPaidSettlementId').value = settlementId;
+    document.getElementById('orderMarkPaidCode').innerText = settlementCode;
+    document.getElementById('orderMarkPaidShop').innerText = shopName;
+    document.getElementById('orderMarkPaidAmount').innerText = '₹' + parseFloat(amount).toFixed(2);
+    document.getElementById('orderMarkPaidUtrInput').value = currentRef || '';
+    document.getElementById('orderMarkPaidModal')?.classList.add('show');
+};
+window.closeOrderMarkPaidModal = () => {
+    document.getElementById('orderMarkPaidModal')?.classList.remove('show');
+};
 window.onclick = (e) => {
     const modal = document.getElementById('statusModal');
     const tModal = document.getElementById('trackingModal');
     const cModal = document.getElementById('cancelModal');
     const sModal = document.getElementById('orderSettleSellerModal');
     const aModal = document.getElementById('settleAllModal');
+    const pModal = document.getElementById('orderMarkPaidModal');
     if (e.target === modal) closeModal();
     if (e.target === tModal) closeTrackingModal();
     if (e.target === cModal) closeCancelModal();
     if (e.target === sModal) closeOrderSettleSellerModal();
     if (e.target === aModal) closeSettleAllModal();
+    if (e.target === pModal) closeOrderMarkPaidModal();
 };
 
 // Status Update AJAX with immediate feedback & multi-click protection
@@ -1212,5 +1266,43 @@ function filterActivityLogs(eventType, btn) {
         }
     });
 }
+
+// Mark Settlement as Paid AJAX
+document.getElementById('orderMarkPaidForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const settlementId = document.getElementById('orderMarkPaidSettlementId').value;
+    const utr = document.getElementById('orderMarkPaidUtrInput').value.trim();
+    const submitBtn = document.getElementById('orderMarkPaidSubmitBtn');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Marking as Paid...';
+
+    try {
+        const res = await fetch(`/orders/admin/settlement/${settlementId}/mark-paid/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                payment_reference: utr,
+                payment_mode: 'Direct Bank Transfer / UPI'
+            })
+        });
+        const data = await res.json();
+        if (!res.ok || data.status === 'error') {
+            throw new Error(data.message || 'Failed to mark settlement as paid.');
+        }
+        if (typeof showToast === 'function') {
+            showToast(data.message, 'success');
+        } else {
+            alert(data.message);
+        }
+        setTimeout(() => window.location.reload(), 1200);
+    } catch (err) {
+        alert(err.message);
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fa fa-check-circle"></i> Confirm Paid & Complete Settlement';
+    }
+});
 </script>
 {% endblock %}
