@@ -527,7 +527,7 @@ DEFAULT_TEMPLATES = {
         'description': "Email notification sent to the seller when their PAN card is rejected"
     },
     'seller_settlement_processed': {
-        'subject': "StallCart Seller - Settlement {{ settlement_id }} Processed Successfully",
+        'subject': "StallCart Seller - Settlement {{ settlement_id }} Processed (₹{{ settlement_amount }})",
         'body': _base_email_wrapper(
             "StallCart - Seller Settlement",
             "💰 Payout Dispatched",
@@ -535,16 +535,56 @@ DEFAULT_TEMPLATES = {
             "Settlement #{{ settlement_id }}",
             """<div class="greeting">Hello {{ seller_name }},</div>
             <p style="font-size: 14px; color: #334155; line-height: 1.6; margin: 0 0 14px 0;">
-              We have processed your settlement <strong>#{{ settlement_id }}</strong>. Net earnings of <strong style="color: #16a34a;">₹{{ settlement_amount }}</strong> have been transferred to your registered bank account.
+              We have processed your seller payout for settlement <strong>#{{ settlement_id }}</strong>. Net earnings of <strong style="color: #16a34a; font-size: 15px;">₹{{ settlement_amount }}</strong> have been transferred to your registered bank account.
             </p>
             <div class="info-box">
               <table class="detail-table">
                 <tr><td class="lbl">Settlement ID</td><td class="val">#{{ settlement_id }}</td></tr>
-                <tr><td class="lbl">Payout Amount</td><td class="val" style="color: #16a34a; font-size: 15px;">₹{{ settlement_amount }}</td></tr>
-                <tr><td class="lbl">Platform Commission</td><td class="val">₹{{ total_commission }}</td></tr>
-                {% if payment_reference %}<tr><td class="lbl">Payout Ref ID</td><td class="val">{{ payment_reference }}</td></tr>{% endif %}
+                <tr><td class="lbl">Net Payout Amount</td><td class="val" style="color: #16a34a; font-size: 15px; font-weight: 800;">₹{{ settlement_amount }}</td></tr>
+                <tr><td class="lbl">Platform Commission</td><td class="val" style="color: #7c3aed;">-₹{{ total_commission }}</td></tr>
+                {% if payment_reference %}<tr><td class="lbl">Payment Ref / UTR</td><td class="val">{{ payment_reference }}</td></tr>{% endif %}
+                {% if bank_summary %}<tr><td class="lbl">Credited Account</td><td class="val">{{ bank_summary }}</td></tr>{% endif %}
+                {% if order_ids_display %}<tr><td class="lbl">Order(s) Included</td><td class="val">{{ order_ids_display }}</td></tr>{% endif %}
               </table>
-            </div>"""
+            </div>
+
+            {% if items_details %}
+            <div style="margin-top: 20px;">
+              <div style="font-size: 12px; font-weight: 800; text-transform: uppercase; color: #475569; letter-spacing: 0.5px; margin-bottom: 8px;">
+                📦 Settled Order Items Breakdown
+              </div>
+              <table style="width: 100%; border-collapse: collapse; font-size: 12px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+                <thead>
+                  <tr style="background: #f1f5f9; text-align: left; color: #475569;">
+                    <th style="padding: 8px 10px; font-weight: 700; border-bottom: 1.5px solid #cbd5e1;">Order / Item</th>
+                    <th style="padding: 8px 10px; font-weight: 700; border-bottom: 1.5px solid #cbd5e1; text-align: center;">Qty</th>
+                    <th style="padding: 8px 10px; font-weight: 700; border-bottom: 1.5px solid #cbd5e1; text-align: right;">Sales</th>
+                    <th style="padding: 8px 10px; font-weight: 700; border-bottom: 1.5px solid #cbd5e1; text-align: right;">Comm</th>
+                    <th style="padding: 8px 10px; font-weight: 700; border-bottom: 1.5px solid #cbd5e1; text-align: right;">Net Payout</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for item in items_details %}
+                  <tr style="border-bottom: 1px solid #f1f5f9;">
+                    <td style="padding: 8px 10px;">
+                      <strong style="color: #0f172a;">{{ item.product_name }}</strong>
+                      {% if item.variant_display %}<span style="color: #64748b;"> ({{ item.variant_display }})</span>{% endif %}
+                      <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Order #{{ item.order_id }}</div>
+                    </td>
+                    <td style="padding: 8px 10px; text-align: center; color: #334155;">{{ item.quantity }}</td>
+                    <td style="padding: 8px 10px; text-align: right; color: #334155;">₹{{ item.total_amount }}</td>
+                    <td style="padding: 8px 10px; text-align: right; color: #7c3aed;">-₹{{ item.commission_amount }}</td>
+                    <td style="padding: 8px 10px; text-align: right; font-weight: 700; color: #16a34a;">₹{{ item.seller_earnings }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% endif %}
+
+            <p style="font-size: 12px; color: #64748b; line-height: 1.5; margin-top: 16px;">
+              💡 Funds usually reflect in your bank account shortly, subject to your bank's NEFT/IMPS/UPI clearance cycle.
+            </p>"""
         ),
         'description': "Email notification sent to seller when a settlement and payout are successfully processed"
     },

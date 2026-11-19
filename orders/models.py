@@ -881,22 +881,38 @@ class SellerSettlement(BaseModel):
             
             # Prepare breakdown details for order items
             items_details = []
-            for item in self.order_items.all():
+            order_ids = set()
+            for item in self.order_items.select_related('order', 'product', 'variant').all():
+                order_ids.add(item.order.unique_order_id)
                 items_details.append({
                     'product_name': item.product.name,
+                    'variant_display': getattr(item, 'variant_display', None) or '',
                     'order_id': item.order.unique_order_id,
-                    'total_amount': str(item.total),
+                    'quantity': item.quantity,
+                    'total_amount': f"{item.total:.2f}",
                     'commission_rate': str(int(item.commission_rate * 100)),
-                    'commission_amount': str(item.commission_amount),
-                    'seller_earnings': str(item.seller_earnings),
+                    'commission_amount': f"{item.commission_amount:.2f}",
+                    'seller_earnings': f"{item.seller_earnings:.2f}",
                 })
             
+            bank_name = self.seller.bank_name or 'Bank Account'
+            raw_acc = str(self.seller.account_number or '')
+            account_last4 = raw_acc[-4:] if len(raw_acc) >= 4 else (raw_acc or '••••')
+            ifsc = self.seller.ifsc_code or '—'
+            bank_summary = f"{bank_name} • A/C: ••••{account_last4} • IFSC: {ifsc}"
+            order_ids_display = ", ".join(f"#{oid}" for oid in sorted(order_ids)) if order_ids else "N/A"
+
             context = {
                 'seller_name': self.seller.account_holder_name or self.seller.shop_name,
                 'settlement_id': self.settlement_id,
-                'settlement_amount': str(self.amount),
-                'total_commission': str(self.commission_deduded if hasattr(self, 'commission_deduded') else self.commission_deducted),
+                'settlement_amount': f"{self.amount:.2f}",
+                'total_commission': f"{self.commission_deducted:.2f}",
                 'payment_reference': self.payment_reference or self.razorpay_payout_id or 'N/A',
+                'bank_name': bank_name,
+                'account_last4': account_last4,
+                'ifsc_code': ifsc,
+                'bank_summary': bank_summary,
+                'order_ids_display': order_ids_display,
                 'items_details': items_details,
             }
             
