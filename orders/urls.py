@@ -159,6 +159,7 @@ urlpatterns = [
      path('admin/settlement/<int:settlement_id>/payout/', views.admin_trigger_payout_ajax, name='admin_trigger_payout_ajax'),
      path('admin/settlement/<int:settlement_id>/mark-paid/', views.admin_mark_settlement_paid_ajax, name='admin_mark_settlement_paid_ajax'),
      path('admin/settlement/<int:settlement_id>/revert/', views.admin_revert_settlement_ajax, name='admin_revert_settlement_ajax'),
+     path('admin/settlement/<int:settlement_id>/delete/', views.admin_delete_settlement_ajax, name='admin_delete_settlement_ajax'),
      path('admin/seller/<int:seller_id>/create-settlement/', views.admin_create_settlement_ajax, name='admin_create_settlement_ajax'),
      path('razorpayx-webhook/', views.razorpayx_webhook, name='razorpayx_webhook'),
      path('admin/toggle-jobs/', admin_only(views.admin_toggle_jobs_ajax), name='admin_toggle_jobs_ajax'),

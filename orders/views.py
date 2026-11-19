@@ -2539,6 +2539,12 @@ def admin_revert_settlement_ajax(request, settlement_id):
     from django.db import transaction
     from .models import SystemActivityLog
     
+    try:
+        data = json.loads(request.body) if request.body else {}
+        reason = data.get('reason') or request.POST.get('reason') or ''
+    except Exception:
+        reason = request.POST.get('reason') or ''
+
     with transaction.atomic():
         settlement = SellerSettlement.objects.select_for_update().filter(id=settlement_id).first()
         if not settlement:
@@ -2554,9 +2560,13 @@ def admin_revert_settlement_ajax(request, settlement_id):
         settlement.email_sent = False
         settlement.save()
 
+        log_msg = f"Admin {request.user.phone} reverted settlement {settlement.settlement_id} (was {prev_status}, ref {prev_ref}) back to pending."
+        if reason:
+            log_msg += f" Reason: {reason}"
+
         SystemActivityLog.log(
             event_type='settlement_reverted',
-            description=f"Admin {request.user.phone} reverted settlement {settlement.settlement_id} (was {prev_status}, ref {prev_ref}) back to pending.",
+            description=log_msg,
             settlement=settlement,
             status='info'
         )
@@ -2565,6 +2575,28 @@ def admin_revert_settlement_ajax(request, settlement_id):
         'status': 'success',
         'message': f"Settlement {settlement.settlement_id} has been reset to Pending. You can now pay via Razorpay or Direct Bank Transfer."
     })
+
+
+@login_required
+@admin_only
+@require_POST
+def admin_delete_settlement_ajax(request, settlement_id):
+    """Admin: Safely delete an empty (0 items) or unneeded pending settlement."""
+    from .models import SystemActivityLog
+    settlement = get_object_or_404(SellerSettlement, id=settlement_id)
+    if settlement.status == 'processed' and settlement.order_items.count() > 0:
+        return JsonResponse({'status': 'error', 'message': 'Cannot delete a processed settlement with items. Revert it first.'}, status=400)
+    
+    code = settlement.settlement_id
+    item_count = settlement.order_items.count()
+    settlement.delete()
+
+    SystemActivityLog.log(
+        event_type='settlement_deleted',
+        description=f"Admin {request.user.phone} deleted settlement {code} ({item_count} items).",
+        status='info'
+    )
+    return JsonResponse({'status': 'success', 'message': f'Settlement {code} deleted successfully.'})
 
 
 @login_required
@@ -3092,7 +3124,7 @@ def admin_settle_order_seller_ajax(request, order_id, seller_id):
         if not unsettled_items and not allow_override:
             return JsonResponse({
                 'status': 'error',
-                'message': f'All items for {seller.shop_name} in this order are already settled or cancelled.'
+                'message': f'All items for {seller.shop_name} in this order are already settled and paid.'
             }, status=400)
 
         # If bank details missing and trying RazorpayX
@@ -3102,19 +3134,34 @@ def admin_settle_order_seller_ajax(request, order_id, seller_id):
                 'message': f'Cannot initiate RazorpayX payout: Seller {seller.shop_name} has not completed bank details.'
             }, status=400)
 
-        # Create the settlement record with computed earnings
-        valid_unsettled = [it for it in unsettled_items if not it.is_return_or_cancelled]
-        calc_amount = sum((it.seller_earnings for it in valid_unsettled), Decimal('0.00'))
-        calc_comm = sum((it.commission_amount for it in valid_unsettled), Decimal('0.00'))
-
-        settlement = SellerSettlement.objects.create(
+        # Check if a pending settlement already exists for this order & seller to avoid duplicates
+        existing_settlement = SellerSettlement.objects.select_for_update().filter(
             seller=seller,
-            amount=calc_amount,
-            commission_deducted=calc_comm,
-            status='pending'
-        )
-        if valid_unsettled:
-            settlement.order_items.add(*valid_unsettled)
+            status='pending',
+            order_items__order=order
+        ).distinct().first()
+
+        if existing_settlement:
+            settlement = existing_settlement
+        else:
+            valid_unsettled = [it for it in unsettled_items if not it.is_return_or_cancelled]
+            items_to_attach = valid_unsettled if valid_unsettled else (unsettled_items if allow_override else [])
+            if not items_to_attach:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': f'Cannot settle: All items for {seller.shop_name} in this order are returned, cancelled, or refunded.'
+                }, status=400)
+
+            calc_amount = sum((it.seller_earnings for it in items_to_attach), Decimal('0.00'))
+            calc_comm = sum((it.commission_amount for it in items_to_attach), Decimal('0.00'))
+
+            settlement = SellerSettlement.objects.create(
+                seller=seller,
+                amount=calc_amount,
+                commission_deducted=calc_comm,
+                status='pending'
+            )
+            settlement.order_items.add(*items_to_attach)
 
         if custom_amount_str is not None and str(custom_amount_str).strip() != '':
             try:

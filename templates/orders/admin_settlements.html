@@ -329,8 +329,13 @@
                                             <i class="fa fa-check"></i> UTR
                                         </button>
                                     {% elif s.status == 'processed' %}
-                                        <button type="button" class="btn-outline" onclick="openRevertModal('{{ s.id }}', '{{ s.settlement_id }}', '{{ s.amount }}')" style="font-size: 0.72rem; padding: 3px 6px; border-radius: 4px; border: 1.5px solid var(--gray-200); background: white; cursor: pointer; color: var(--gray-500);" title="Revert to Pending">
+                                        <button type="button" class="btn-outline" onclick="openRevertModal('{{ s.id }}', '{{ s.settlement_id }}', '{{ s.amount }}')" style="font-size: 0.72rem; padding: 3px 6px; border-radius: 4px; border: 1.5px solid #d1d5db; background: white; cursor: pointer; color: #b91c1c; font-weight: 600;" title="Revert to Pending">
                                             <i class="fa fa-undo"></i> Revert
+                                        </button>
+                                    {% endif %}
+                                    {% if s.order_items.count == 0 %}
+                                        <button type="button" class="btn-outline" onclick="deleteSettlement('{{ s.id }}', '{{ s.settlement_id }}')" style="font-size: 0.72rem; padding: 3px 6px; border-radius: 4px; border: 1.5px solid #fecaca; background: #fff5f5; cursor: pointer; color: #dc2626; font-weight: 600;" title="Delete Empty Settlement">
+                                            <i class="fa fa-trash"></i> Delete
                                         </button>
                                     {% endif %}
                                 </div>
@@ -558,13 +563,24 @@ if (urlParams.get('tab') === 'history' || urlParams.get('q') || urlParams.get('s
 
 function closeModal(modalId) {
     const modal = document.getElementById(modalId);
-    if (modal) modal.style.display = 'none';
+    if (modal) {
+        modal.style.display = 'none';
+        modal.style.opacity = '0';
+        modal.classList.remove('show');
+    }
 }
+window.closeModal = closeModal;
 
 function openModal(modalId) {
     const modal = document.getElementById(modalId);
-    if (modal) modal.style.display = 'flex';
+    if (modal) {
+        modal.style.display = 'flex';
+        modal.style.opacity = '1';
+        modal.classList.add('show');
+    }
 }
+window.openModal = openModal;
+window.switchSettlementTab = switchSettlementTab;
 
 // Close when clicking backdrop
 window.addEventListener('click', (e) => {
@@ -757,6 +773,11 @@ document.getElementById('triggerPayoutForm')?.addEventListener('submit', async (
     }
 });
 
+// Modal Triggers bound to window
+window.openPayoutModalForSeller = openPayoutModalForSeller;
+window.openMarkPaidModal = openMarkPaidModal;
+window.openTriggerPayoutModal = openTriggerPayoutModal;
+
 // Revert Modal Handlers
 function openRevertModal(id, code, amount) {
     document.getElementById('revertSettlementId').value = id;
@@ -764,15 +785,37 @@ function openRevertModal(id, code, amount) {
     document.getElementById('revertReason').value = '';
     openModal('revertModal');
 }
+window.openRevertModal = openRevertModal;
+
+// Delete Empty Settlement Handler
+async function deleteSettlement(id, code) {
+    if (!confirm(`Are you sure you want to delete empty settlement batch ${code}?`)) {
+        return;
+    }
+    try {
+        const res = await fetch(`/orders/admin/settlement/${id}/delete/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
+        });
+        const data = await res.json();
+        if (!res.ok || data.status === 'error') {
+            throw new Error(data.message || 'Failed to delete settlement.');
+        }
+        alert(data.message || 'Settlement deleted successfully!');
+        window.location.reload();
+    } catch (err) {
+        alert(err.message);
+    }
+}
+window.deleteSettlement = deleteSettlement;
 
 document.getElementById('revertForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = document.getElementById('revertSettlementId').value;
-    const reason = document.getElementById('revertReason').value.trim();
-    if (!reason) {
-        alert('Please specify a reason for reverting.');
-        return;
-    }
+    const reason = document.getElementById('revertReason').value.trim() || 'Admin reverted settlement to pending';
     const btn = document.getElementById('revertSubmitBtn');
     btn.disabled = true;
     btn.innerText = 'Reverting...';
