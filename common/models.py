@@ -92,9 +92,9 @@ class SiteSettings(models.Model):
     secondary_color = models.CharField(max_length=7, default='#1a56c4', help_text='Secondary/hover hex color')
 
     # Contact & Social
-    contact_phone = models.CharField(max_length=20, default='+91 8004096954')
-    contact_email = models.EmailField(default='stallcart.in@gmail.com')
-    contact_whatsapp = models.CharField(max_length=20, blank=True, default='8004096954')
+    contact_phone = models.CharField(max_length=20, default='+91 7307383046')
+    contact_email = models.EmailField(default='stallcartsupport@gmail.com')
+    contact_whatsapp = models.CharField(max_length=20, blank=True, default='7307383046')
     admin_notification_emails = models.TextField(
         blank=True,
         default='stallcart.in@gmail.com',

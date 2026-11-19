@@ -45,7 +45,7 @@ def _base_email_wrapper(title, header_pill, header_h1, header_sub, content_html)
   </div>
   <div class="email-footer">
     <div><strong>StallCart</strong> &bull; India's Premier Fashion & Lifestyle Marketplace</div>
-    <div style="margin-top: 4px;">Need help? Call +91 8004096954 or email <a href="mailto:stallcart.in@gmail.com" style="color: #e11d48; text-decoration: none;">stallcart.in@gmail.com</a></div>
+    <div style="margin-top: 4px;">Need help? Call {{ support_phone|default:"+91 7307383046" }} or email <a href="mailto:{{ support_email|default:"stallcartsupport@gmail.com" }}" style="color: #e11d48; text-decoration: none;">{{ support_email|default:"stallcartsupport@gmail.com" }}</a></div>
     <div style="margin-top: 4px; font-size: 11px; color: #94a3b8;">&copy; 2026 StallCart. All rights reserved.</div>
   </div>
 </div>
@@ -738,9 +738,29 @@ def send_dynamic_email(template_name: str, recipient_list: list, context_data: d
                 logger.error(f"Email template '{template_name}' not defined in defaults.")
                 return False
 
+        # Ensure support contact details from SiteSettings are dynamically available
+        try:
+            from .models import SiteSettings
+            site_settings = SiteSettings.get_singleton()
+            support_phone = site_settings.contact_phone or "+91 7307383046"
+            support_email = site_settings.contact_email or "stallcartsupport@gmail.com"
+            support_whatsapp = site_settings.contact_whatsapp or "7307383046"
+        except Exception:
+            support_phone = "+91 7307383046"
+            support_email = "stallcartsupport@gmail.com"
+            support_whatsapp = "7307383046"
+
+        context_data.setdefault('support_phone', support_phone)
+        context_data.setdefault('support_email', support_email)
+        context_data.setdefault('support_whatsapp', support_whatsapp)
+
         # Render subject and body with Django Template engine
         subject_tpl = Template(template_obj.subject)
-        body_tpl = Template(template_obj.body)
+        
+        # Replace any legacy hardcoded phone numbers or emails dynamically
+        raw_body = template_obj.body.replace('+91 8004096954', support_phone).replace('8004096954', support_whatsapp)
+        raw_body = raw_body.replace('stallcart.in@gmail.com', support_email) if 'mailto:stallcart.in@gmail.com' in raw_body else raw_body
+        body_tpl = Template(raw_body)
         
         context = Context(context_data)
         
@@ -751,16 +771,7 @@ def send_dynamic_email(template_name: str, recipient_list: list, context_data: d
         
         if not is_html:
             # Append support contact footer dynamically for plain text
-            try:
-                from .models import SiteSettings
-                site_settings = SiteSettings.get_singleton()
-                phone = site_settings.contact_phone or "+91 8004096954"
-                email = site_settings.contact_email or "stallcart.in@gmail.com"
-            except Exception:
-                phone = "+91 8004096954"
-                email = "stallcart.in@gmail.com"
-                
-            footer_text = f"\n\n---\n📞 Need Support? Contact us at {phone} or email us at {email}\n✨ Thank you for choosing StallCart!"
+            footer_text = f"\n\n---\n📞 Need Support? Contact us at {support_phone} or email us at {support_email}\n✨ Thank you for choosing StallCart!"
             plain_message = rendered_body + footer_text
             html_message = None
         else:
