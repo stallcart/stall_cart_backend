@@ -17,9 +17,9 @@ def send_manual_email(recipients=None):
         recipients = ['stallcart.in@gmail.com', 'jaiswalmanish9866@gmail.com']
     
     site_settings = SiteSettings.objects.first()
-    support_phone = (site_settings.support_phone if site_settings and site_settings.support_phone else "+91 7307383046")
-    support_email = (site_settings.support_email if site_settings and site_settings.support_email else "stallcartsupport@gmail.com")
-    site_name = (site_settings.site_name if site_settings and site_settings.site_name else "StallCart")
+    support_phone = getattr(site_settings, 'contact_phone', '+91 7307383046') if site_settings else '+91 7307383046'
+    support_email = getattr(site_settings, 'contact_email', 'stallcartsupport@gmail.com') if site_settings else 'stallcartsupport@gmail.com'
+    site_name = getattr(site_settings, 'site_name', 'StallCart') if site_settings else 'StallCart'
 
     pdf_path = os.path.join(BASE_DIR, 'static', 'docs', 'StallCart_Seller_Manual.pdf')
     if not os.path.exists(pdf_path):
