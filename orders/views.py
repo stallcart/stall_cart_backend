@@ -2404,7 +2404,7 @@ def confirm_rto_refund(request, order_id):
 
 
 @login_required
-@user_passes_test(lambda u: u.is_superuser)
+@admin_only
 @require_POST
 def admin_trigger_payout_ajax(request, settlement_id):
     """Trigger RazorpayX payout for a settlement with strict anti-repayout checks."""
@@ -2568,7 +2568,7 @@ def admin_revert_settlement_ajax(request, settlement_id):
 
 
 @login_required
-@user_passes_test(lambda u: u.is_superuser)
+@admin_only
 @require_POST
 def admin_create_settlement_ajax(request, seller_id):
     """Create a new SellerSettlement and link the specified order items."""
@@ -3364,6 +3364,7 @@ def admin_settlements_dashboard(request):
             'commission': comm,
             'net_payout': net,
             'orders_count': len(set(it.order_id for it in valid_items)),
+            'order_ids': sorted(list(set(it.order.unique_order_id for it in valid_items))),
             'item_ids': [it.id for it in valid_items],
             'has_bank_details': bool(sel.bank_name and sel.account_number and sel.ifsc_code),
         })

@@ -168,8 +168,13 @@
 
                             <!-- Orders / Items -->
                             <td style="padding: 14px; text-align: center; vertical-align: middle;">
-                                <span style="font-weight: 800; color: var(--gray-800);">{{ card.orders_count }}</span>
+                                <span style="font-weight: 800; color: var(--gray-800);">{{ card.orders_count }} order{{ card.orders_count|pluralize }}</span>
                                 <div style="font-size: 0.75rem; color: var(--gray-500);">({{ card.items_count }} item{{ card.items_count|pluralize }})</div>
+                                <div style="font-size: 0.72rem; color: #2563eb; font-weight: 600; margin-top: 3px;">
+                                    {% for oid in card.order_ids %}
+                                        <a href="{% url 'orders:admin_order_detail' oid %}" target="_blank" style="color: #2563eb; text-decoration: underline;" title="View Order #{{ oid }}">#{{ oid }}</a>{% if not forloop.last %}, {% endif %}
+                                    {% endfor %}
+                                </div>
                             </td>
 
                             <!-- Financials -->
@@ -187,7 +192,7 @@
 
                             <!-- Action -->
                             <td style="padding: 14px; text-align: center; vertical-align: middle;">
-                                <button type="button" class="btn-primary" onclick="openPayoutModalForSeller('{{ card.seller.id }}', '{{ card.seller.shop_name|escapejs }}', '{{ card.net_payout }}', {{ card.item_ids|safe }}, '{{ card.seller.bank_name|escapejs }}', '{{ card.seller.account_number|escapejs }}', '{{ card.seller.ifsc_code|escapejs }}')" style="font-size: 0.8rem; padding: 6px 14px; border-radius: var(--r-md); border: none; cursor: pointer; background: linear-gradient(135deg, #059669, #047857); color: white; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(5,150,105,0.25);">
+                                <button type="button" class="btn-primary" onclick="openPayoutModalForSeller('{{ card.seller.id }}', '{{ card.seller.shop_name|escapejs }}', '{{ card.net_payout }}', {{ card.item_ids|safe }}, '{{ card.seller.bank_name|escapejs }}', '{{ card.seller.account_number|escapejs }}', '{{ card.seller.ifsc_code|escapejs }}', {{ card.order_ids|safe }})" style="font-size: 0.8rem; padding: 6px 14px; border-radius: var(--r-md); border: none; cursor: pointer; background: linear-gradient(135deg, #059669, #047857); color: white; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(5,150,105,0.25);">
                                     <i class="fa fa-money-bill-wave"></i> Settle & Pay
                                 </button>
                             </td>
@@ -272,8 +277,13 @@
                                     {% endif %}
                                 </div>
                             </td>
-                            <td style="padding: 14px; text-align: center; vertical-align: middle; font-weight: 700;">
-                                {{ s.order_items.count }}
+                            <td style="padding: 14px; text-align: center; vertical-align: middle;">
+                                <span style="font-weight: 700;">{{ s.order_items.count }} item{{ s.order_items.count|pluralize }}</span>
+                                <div style="font-size: 0.72rem; color: #2563eb; margin-top: 3px;">
+                                    {% for it in s.order_items.all %}
+                                        <a href="{% url 'orders:admin_order_detail' it.order.unique_order_id %}" target="_blank" style="color: #2563eb; text-decoration: underline;" title="View Order #{{ it.order.unique_order_id }}">#{{ it.order.unique_order_id }}</a>{% if not forloop.last %}, {% endif %}
+                                    {% endfor %}
+                                </div>
                             </td>
                             <td style="padding: 14px; text-align: right; vertical-align: middle;">
                                 <span style="font-size: 0.95rem; font-weight: 800; color: {% if s.status == 'processed' %}#059669{% elif s.status == 'pending' %}#d97706{% else %}var(--gray-700){% endif %}; font-family: 'Syne', sans-serif;">
@@ -372,6 +382,9 @@
                 <div style="font-size: 0.8rem; color: var(--gray-500);">Recipient Seller</div>
                 <div id="payoutShopName" style="font-weight: 800; font-size: 1.05rem; color: var(--gray-900); margin-top: 2px;"></div>
                 <div id="payoutBankSummary" style="font-size: 0.8rem; color: var(--gray-600); margin-top: 4px;"></div>
+                <div id="payoutOrdersContainer" style="font-size: 0.78rem; color: #2563eb; font-weight: 600; margin-top: 5px;">
+                    Order(s): <span id="payoutOrderIds" style="font-weight: 700;"></span>
+                </div>
                 <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--gray-200); display: flex; justify-content: space-between; align-items: center;">
                     <span style="font-size: 0.85rem; font-weight: 700; color: var(--gray-700);">Net Payout:</span>
                     <span id="payoutNetAmt" style="font-size: 1.25rem; font-weight: 800; color: #059669; font-family: 'Syne', sans-serif;"></span>
@@ -562,7 +575,7 @@ window.addEventListener('click', (e) => {
 });
 
 let currentTargetItemIds = [];
-function openPayoutModalForSeller(sellerId, shopName, netAmount, itemIds, bankName, acNo, ifsc) {
+function openPayoutModalForSeller(sellerId, shopName, netAmount, itemIds, bankName, acNo, ifsc, orderIds) {
     document.getElementById('payoutSellerId').value = sellerId;
     document.getElementById('payoutShopName').innerText = shopName;
     document.getElementById('payoutNetAmt').innerText = '₹' + parseFloat(netAmount).toFixed(2);
@@ -570,6 +583,7 @@ function openPayoutModalForSeller(sellerId, shopName, netAmount, itemIds, bankNa
 
     const bankSummary = bankName ? `${bankName} • A/C: ••••${acNo.slice(-4)} • IFSC: ${ifsc}` : '⚠️ No Bank Configured';
     document.getElementById('payoutBankSummary').innerText = bankSummary;
+    document.getElementById('payoutOrderIds').innerText = orderIds && orderIds.length ? orderIds.map(o => '#' + o).join(', ') : 'Selected Items';
     document.getElementById('payoutUtrInput').value = '';
     togglePayoutMethodInputs('manual');
     openModal('payoutModal');
