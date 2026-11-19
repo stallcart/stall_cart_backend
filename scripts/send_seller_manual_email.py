@@ -10,16 +10,16 @@ django.setup()
 
 from django.core.mail import EmailMessage
 from django.conf import settings
-from common.models import SiteSetting
+from common.models import SiteSettings
 
 def send_manual_email(recipients=None):
     if not recipients:
         recipients = ['stallcart.in@gmail.com', 'jaiswalmanish9866@gmail.com']
     
-    site_settings = SiteSetting.get_settings()
-    support_phone = site_settings.support_phone or "+91 7307383046"
-    support_email = site_settings.support_email or "stallcartsupport@gmail.com"
-    site_name = site_settings.site_name or "StallCart"
+    site_settings = SiteSettings.objects.first()
+    support_phone = (site_settings.support_phone if site_settings and site_settings.support_phone else "+91 7307383046")
+    support_email = (site_settings.support_email if site_settings and site_settings.support_email else "stallcartsupport@gmail.com")
+    site_name = (site_settings.site_name if site_settings and site_settings.site_name else "StallCart")
 
     pdf_path = os.path.join(BASE_DIR, 'static', 'docs', 'StallCart_Seller_Manual.pdf')
     if not os.path.exists(pdf_path):
